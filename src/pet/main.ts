@@ -35,6 +35,7 @@ import {
   type HeroStatus,
 } from './hero-runtime.ts'
 import { startTinglanPreview } from './tinglan-preview.ts'
+import { shouldStartWindowDrag } from './hero-drag.ts'
 import { loadDigest } from './chat-import/store.ts'
 import {
   ADVISERS_AUTO_HIDDEN_NOTICE,
@@ -1648,8 +1649,9 @@ function startHeroLoop(): void {
   heroRaf = requestAnimationFrame(heroFrame)
 }
 
-/** Pointer → hero events. Window dragging stays header-only: the canvas never
- *  gets `data-tauri-drag-region`, so a press here cannot start Tauri dragging.
+/** Pointer → hero events. A real drag (>6 px) in the Tauri window starts the
+ *  native window move via `startDragging()`; the canvas deliberately avoids
+ *  `data-tauri-drag-region` so a short tap still reaches the hero hit test.
  *
  *  Coordinates: `hitActor`/the render backend work in canvas-local CSS pixels.
  *  The canvas backing store is `layout * devicePixelRatio` (see
@@ -1666,6 +1668,7 @@ function attachHeroPointer(canvas: HTMLCanvasElement): void {
   let startedAt = 0
   let dragging = false
   let dragActorId: string | undefined
+  let windowDrag = false
 
   /** Layout pixels per visual (getBoundingClientRect) pixel; 1 when untransformed. */
   const layoutRatio = (): { x: number; y: number } => {
@@ -1721,6 +1724,46 @@ function attachHeroPointer(canvas: HTMLCanvasElement): void {
     if (!hero || activePointer !== event.pointerId) return
     const dx = event.clientX - startX
     const dy = event.clientY - startY
+    // In the desktop window a drag must move the window itself, not leave a
+    // sprite translated in place (the latter made switching from folded paper
+    // to a hero character look like "dragging stopped working"). The local
+    // sprite-follow path stays for browser/QA builds.
+    if (!dragging && !windowDrag && shouldStartWindowDrag(HAS_TAURI, Math.hypot(dx, dy))) {
+      windowDrag = true
+      const point = localPoint(event)
+      const target = hero.hitActor(point.x, point.y)
+      dragActorId = target?.id ?? dragActorId
+      const dragOptions = dragActorId ? { actorId: dragActorId } : {}
+      hero.emit('drag.start', dragOptions)
+      activePointer = null
+      canvas.classList.remove('dragging')
+      canvas.style.transform = ''
+      try {
+        if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId)
+      } catch {}
+      const actorId = dragActorId
+      void import('@tauri-apps/api/window')
+        .then(({ getCurrentWindow }) => getCurrentWindow().startDragging())
+        .catch((error: unknown) => {
+          console.warn('[pet] native window drag unavailable', error)
+        })
+        .finally(() => {
+          // The OS move loop ends before the next pointer sequence. Finish the
+          // semantic drag so animations/state settle and a later press is clean.
+          try {
+            if (actorId) {
+              hero?.emit('drag.end', { actorId })
+              hero?.emit('land', { actorId })
+            } else {
+              hero?.emit('drag.end')
+              hero?.emit('land')
+            }
+          } catch {}
+          dragActorId = undefined
+          windowDrag = false
+        })
+      return
+    }
     if (!dragging && Math.hypot(dx, dy) >= 4) {
       dragging = true
       canvas.classList.add('dragging')
@@ -1739,6 +1782,7 @@ function attachHeroPointer(canvas: HTMLCanvasElement): void {
   })
 
   canvas.addEventListener('pointerup', (event) => {
+    if (windowDrag) return
     if (!hero || activePointer !== event.pointerId) return
     const wasDragging = dragging
     const elapsed = performance.now() - startedAt
