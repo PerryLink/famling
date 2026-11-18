@@ -150,3 +150,16 @@ cd /mnt/d/Projects/dsh/_scratch/pet-anim-cat-selkirk-preview && python3 gen_prev
 - 新增第 13 个 test：正面灰帽中线白色像素 = 0、灰帽 mask ≥20、blaze 起点 ≥ 头顶点+2 且 ≤ 眼睛上缘−1；侧视灰帽顶部白色 = 0、blaze 起点 ≤ 眼睛上缘−1。实测全部通过（正面 crown white 0 / mask min 31 / blaze 19 vs eye top 23；侧视 crown white 0 / blaze 27 vs eye top 31）。
 - 预览：`_scratch/pet-anim-cat-face-v10-preview/`（正面/侧脸 8x sheet + 测量脚本），并重新生成 `pet-anim-cat-selkirk-preview/` 与 `pet-anim-cat-side-v9-preview/`。
 - `gen-cat-anim --check/--verify`、13 tests、`gen-pet-anim-frames --check`、`tsc --noEmit` 全绿；颜色/卷毛/契约/轮廓/地线/同侧肢体/FX 豁免均不变。
+
+## 12. v11 短腿 + 加粗毛腿（2026-11-18，只改 cat）
+
+用户反馈三点：侧视腿太长（20–22px）、同品种应矮脚、腿要更粗有毛。实现：
+
+- 侧视：`SIDE_DROP=8` 整体下移躯干/头/颈/尾/腿起点，地线与爪底不变；belly 75–77，可见腿长 **12–14px**（改前 20–22）；back 39–41，躯干深度保持 36，胸腔体块不缩。
+- 侧视腿加宽 + 毛：前腿 10/8/6px、后腿 9/7/6/5px，腿缘 body/belly puffs + 后腿 thigh/hock 毛裤 + 奶油下缘。
+- 正面短腿：torso 底边 84→78，front legs 8→9px、前爪 8→9px；躯干略加宽（half 16→17）；后爪上提 1px + shade 连接腿防浮空；腿缘加 body puffs/奶油趾边。
+- `stand_wag` 伸懒腰的 STAND_* 基线整体下移 8px、STRETCH_* 不变、头部 drop 补偿 −8，f0/f5 与 side_view 一致、f2–f4 弓背连续。
+- 同侧肢体遮挡、远腿 shade、walk 每帧 1 爪离地、12 clip 语义/契约/颜色/轮廓/地线不变。
+- 测试 14 pass：新增 side legLength ∈[10,15]、side y=80 腿宽 runs≥2×≥6、front paw 9px 区断言；原有 body depth/area、tail、灰帽、blaze 等保留。
+- 指标：腿长 20–22→12–14（−40%）；侧视整体高度矮 8px；bbox 2/5/2/6；`--verify` FAILS none；`gen-pet-anim --check` 全绿；`tsc --noEmit` 0。
+- 预览：`_scratch/pet-anim-cat-side-v10-preview/`（侧视+正面 4x/1x、walk/run GIF、LEG-METRICS.txt、METRICS-LEGS-V10.md）。

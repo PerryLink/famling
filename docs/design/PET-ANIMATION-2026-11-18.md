@@ -421,3 +421,13 @@ docs/design/PET-ANIMATION-2026-11-18.md   ← 本文件
 - 对比可读性：红 `#a63d35` 对金色毛 `#d9a251` 与阴影 `#a96a26` 均有一眼可辨的色相差，与奶油羽 `#f8ecd0` 亦有明度差；1px 轮廓/无洞不变。
 - 验证：`--only dog --check` ok、`tests/pet-anim.test.ts` 16/16、`npx tsc --noEmit` 通过；68/68 唯一帧、底边 89、硬 alpha、per-frame ≤16 色（契约 ≤20）、非 FX 缺口 0、内部黑线 0、manifest 字节未变；collar 审计 68/68 帧含红、0 帧残留旧蓝。
 - 预览：`_scratch/pet-anim-dog-side-v9-preview/dog_collar_8x.png`（正/侧/站立 8x + 调色板 swatch）、`dog_side_walk_run_4x.png`、`gifs/dog_walk.gif`、`gifs/dog_run.gif`、`COLLAR.md`；`_scratch/pet-anim-dog-v9-preview/` 全套 sheet/GIF 同步刷新。
+
+## 14. 金毛矮脚化：短腿 + 加粗 + 羽状毛裤（2026-11-18，用户第三轮腿型反馈）
+
+- **侧视短腿**：`SIDE_BODY_DROP = 9` 把侧视躯干/颈/头/尾整体下移 9px（地线仍 y=89），背线 y=36→45、头顶 15→23、整体身高 89-23=**66px**（原 75）；胸底/腹线同步下移（brisket 65→74、腹线 58→67），胸/腹到地线的可见腿由约 **24px 缩到约 15px**（目标 14–17px）。胸腔体块、颈胸围毛、尾羽保持。
+- **正面矮脚**：正面躯干腹线 69→73、前腿起点 64→68，可见前腿由约 20px 缩到 **16px**（idle 实测 89-73=16px，目标 13–18）；矮脚比例在 idle/blink/pat/throw/chase/paw_face/scratch/stand_wag/chase_tail/attack 全部生效。
+- **腿更粗 + 毛裤**：侧视前腿 8/7→**9/8px**、后腿 9/8/6→**10/9/7px**；正面腿 7→**8px**。腿后缘加 2px 奶油羽状毛边（前腿 5 层阶梯、后腿大腿长羽 + 跗节绒），walk/run 腿区奶油/浅金毛量 95–103px（idle 59px），不再是细长光腿。
+- **保持项**：红项圈 `#a63d35`/`#bd5a50`/`#7d2f2a`、金毛羽状尾、v8/v9 同侧肢体遮挡修复（limb audit 0 重复）、walk 8 帧每帧恰好 1 脚离地、run f0/f4 腾空；96×96/12 clip/68 帧/anchor/footBox/地线 y=89/1px 闭合轮廓/无洞/≤20 色（max 16）/68 唯一帧/manifest 字节不变。
+- **测试**：`tests/pet-anim.test.ts` 新增 `dog short-legged breed: legs are short, thick and furred (v11)`（17/17 pass）：断言侧视 walk/run 身体在 y=62 仍有 ≥52px 宽、y=82 只有 ≤45px 腿爪、y=80 ≥2 组腿且每组 6–18px 宽；正面 idle 可见前腿 13–18px；红项圈 #a63d35 仍存在。
+- 门禁：`--only dog --check` ok、`tests/pet-anim.test.ts` 17/17、`npx tsc --noEmit` 通过；非 FX 缺口 0、内部黑线 0、bbox 边距调整后仍无裁切。
+- 预览：`_scratch/pet-anim-dog-side-v10-preview/`（`dog_side_front_4x.png` 侧视 walk/run + 正面 idle 4x、`gifs/dog_walk.gif`、`gifs/dog_run.gif`、`METRICS-v11.md`、`VERIFY-OUTPUT.txt`、`LIMB-AUDIT.txt`）。
