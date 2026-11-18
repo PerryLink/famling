@@ -1,0 +1,368 @@
+{
+  "id": "pet.cat.anim.placeholder",
+  "style": "pixel-hero",
+  "formatVersion": 1,
+  "canvas": [
+    96,
+    96
+  ],
+  "anchor": {
+    "x": 48,
+    "y": 96,
+    "mode": "foot-center"
+  },
+  "footBox": {
+    "x": -36,
+    "y": -18,
+    "w": 72,
+    "h": 18
+  },
+  "palette": "cat-ragdoll-anim@0.1",
+  "tags": {
+    "idle": {
+      "frames": 6,
+      "fps": 6,
+      "loop": true,
+      "phase": "1a"
+    },
+    "idle_blink": {
+      "frames": 3,
+      "fps": 12,
+      "loop": false,
+      "phase": "1a"
+    },
+    "walk": {
+      "frames": 8,
+      "fps": 10,
+      "loop": true,
+      "phase": "1a"
+    },
+    "run": {
+      "frames": 6,
+      "fps": 14,
+      "loop": true,
+      "phase": "1a"
+    },
+    "pat_head": {
+      "frames": 4,
+      "fps": 8,
+      "loop": false,
+      "phase": "1a"
+    },
+    "ball_throw": {
+      "frames": 5,
+      "fps": 10,
+      "loop": false,
+      "phase": "1b"
+    },
+    "ball_chase": {
+      "frames": 6,
+      "fps": 12,
+      "loop": false,
+      "phase": "1b"
+    },
+    "paw_face": {
+      "frames": 5,
+      "fps": 8,
+      "loop": false,
+      "phase": "1b"
+    },
+    "scratch": {
+      "frames": 6,
+      "fps": 8,
+      "loop": false,
+      "phase": "1b"
+    },
+    "stand_wag": {
+      "frames": 6,
+      "fps": 8,
+      "loop": false,
+      "phase": "1b"
+    },
+    "chase_tail": {
+      "frames": 6,
+      "fps": 10,
+      "loop": false,
+      "phase": "1b"
+    },
+    "attack": {
+      "frames": 7,
+      "fps": 16,
+      "loop": false,
+      "phase": "later"
+    }
+  },
+  "anim": {
+    "contract": "famling.pet-anim/0.1",
+    "character": "cat",
+    "framePattern": "<clip>/<clip>_NN.png",
+    "clips": {
+      "idle": {
+        "frames": 6,
+        "fps": 6,
+        "loop": true,
+        "durationMs": 1000,
+        "layer": "base",
+        "category": "idle",
+        "priority": 0,
+        "dir": "idle"
+      },
+      "idle_blink": {
+        "frames": 3,
+        "fps": 12,
+        "loop": false,
+        "durationMs": 250,
+        "layer": "overlay",
+        "category": "idle",
+        "priority": 10,
+        "dir": "idle_blink"
+      },
+      "walk": {
+        "frames": 8,
+        "fps": 10,
+        "loop": true,
+        "durationMs": 800,
+        "layer": "base",
+        "category": "locomotion",
+        "priority": 5,
+        "dir": "walk"
+      },
+      "run": {
+        "frames": 6,
+        "fps": 14,
+        "loop": true,
+        "durationMs": 429,
+        "layer": "base",
+        "category": "locomotion",
+        "priority": 15,
+        "dir": "run"
+      },
+      "pat_head": {
+        "frames": 4,
+        "fps": 8,
+        "loop": false,
+        "durationMs": 500,
+        "layer": "oneshot",
+        "category": "social",
+        "priority": 50,
+        "dir": "pat_head"
+      },
+      "ball_throw": {
+        "frames": 5,
+        "fps": 10,
+        "loop": false,
+        "durationMs": 500,
+        "layer": "oneshot",
+        "category": "interaction",
+        "priority": 40,
+        "dir": "ball_throw"
+      },
+      "ball_chase": {
+        "frames": 6,
+        "fps": 12,
+        "loop": false,
+        "durationMs": 500,
+        "layer": "oneshot",
+        "category": "interaction",
+        "priority": 45,
+        "dir": "ball_chase"
+      },
+      "paw_face": {
+        "frames": 5,
+        "fps": 8,
+        "loop": false,
+        "durationMs": 625,
+        "layer": "oneshot",
+        "category": "action",
+        "priority": 20,
+        "dir": "paw_face"
+      },
+      "scratch": {
+        "frames": 6,
+        "fps": 8,
+        "loop": false,
+        "durationMs": 750,
+        "layer": "oneshot",
+        "category": "action",
+        "priority": 20,
+        "dir": "scratch"
+      },
+      "stand_wag": {
+        "frames": 6,
+        "fps": 8,
+        "loop": false,
+        "durationMs": 750,
+        "layer": "oneshot",
+        "category": "action",
+        "priority": 20,
+        "dir": "stand_wag"
+      },
+      "chase_tail": {
+        "frames": 6,
+        "fps": 10,
+        "loop": false,
+        "durationMs": 600,
+        "layer": "oneshot",
+        "category": "action",
+        "priority": 20,
+        "dir": "chase_tail"
+      },
+      "attack": {
+        "frames": 7,
+        "fps": 16,
+        "loop": false,
+        "durationMs": 439,
+        "layer": "oneshot",
+        "category": "combat",
+        "priority": 60,
+        "dir": "attack",
+        "holdMs": [
+          83,
+          83,
+          63,
+          42,
+          42,
+          63,
+          63
+        ]
+      }
+    },
+    "fpsBands": {
+      "idle": {
+        "minFps": 4,
+        "maxFps": 8,
+        "minFrames": 2,
+        "maxFrames": 8
+      },
+      "walk": {
+        "minFps": 8,
+        "maxFps": 12,
+        "minFrames": 6,
+        "maxFrames": 8
+      },
+      "run": {
+        "minFps": 10,
+        "maxFps": 16,
+        "minFrames": 6,
+        "maxFrames": 8
+      },
+      "attack": {
+        "minFps": 12,
+        "maxFps": 24,
+        "minFrames": 4,
+        "maxFrames": 8,
+        "nonUniform": true
+      }
+    },
+    "randomMicroActions": [
+      "paw_face",
+      "scratch",
+      "stand_wag",
+      "chase_tail"
+    ],
+    "tracks": {
+      "base": [
+        "idle",
+        "walk",
+        "run",
+        "pat_head",
+        "ball_throw",
+        "ball_chase",
+        "paw_face",
+        "scratch",
+        "stand_wag",
+        "chase_tail",
+        "attack"
+      ],
+      "overlay": [
+        "idle_blink"
+      ]
+    },
+    "bubblePolicy": {
+      "speech": "solid",
+      "thought": "hollow"
+    },
+    "voice": {
+      "mode": "none",
+      "canTts": false,
+      "bubble": "thought"
+    }
+  },
+  "assets": [
+    "idle/idle_00.png",
+    "idle/idle_01.png",
+    "idle/idle_02.png",
+    "idle/idle_03.png",
+    "idle/idle_04.png",
+    "idle/idle_05.png",
+    "idle_blink/idle_blink_00.png",
+    "idle_blink/idle_blink_01.png",
+    "idle_blink/idle_blink_02.png",
+    "walk/walk_00.png",
+    "walk/walk_01.png",
+    "walk/walk_02.png",
+    "walk/walk_03.png",
+    "walk/walk_04.png",
+    "walk/walk_05.png",
+    "walk/walk_06.png",
+    "walk/walk_07.png",
+    "run/run_00.png",
+    "run/run_01.png",
+    "run/run_02.png",
+    "run/run_03.png",
+    "run/run_04.png",
+    "run/run_05.png",
+    "pat_head/pat_head_00.png",
+    "pat_head/pat_head_01.png",
+    "pat_head/pat_head_02.png",
+    "pat_head/pat_head_03.png",
+    "ball_throw/ball_throw_00.png",
+    "ball_throw/ball_throw_01.png",
+    "ball_throw/ball_throw_02.png",
+    "ball_throw/ball_throw_03.png",
+    "ball_throw/ball_throw_04.png",
+    "ball_chase/ball_chase_00.png",
+    "ball_chase/ball_chase_01.png",
+    "ball_chase/ball_chase_02.png",
+    "ball_chase/ball_chase_03.png",
+    "ball_chase/ball_chase_04.png",
+    "ball_chase/ball_chase_05.png",
+    "paw_face/paw_face_00.png",
+    "paw_face/paw_face_01.png",
+    "paw_face/paw_face_02.png",
+    "paw_face/paw_face_03.png",
+    "paw_face/paw_face_04.png",
+    "scratch/scratch_00.png",
+    "scratch/scratch_01.png",
+    "scratch/scratch_02.png",
+    "scratch/scratch_03.png",
+    "scratch/scratch_04.png",
+    "scratch/scratch_05.png",
+    "stand_wag/stand_wag_00.png",
+    "stand_wag/stand_wag_01.png",
+    "stand_wag/stand_wag_02.png",
+    "stand_wag/stand_wag_03.png",
+    "stand_wag/stand_wag_04.png",
+    "stand_wag/stand_wag_05.png",
+    "chase_tail/chase_tail_00.png",
+    "chase_tail/chase_tail_01.png",
+    "chase_tail/chase_tail_02.png",
+    "chase_tail/chase_tail_03.png",
+    "chase_tail/chase_tail_04.png",
+    "chase_tail/chase_tail_05.png",
+    "attack/attack_00.png",
+    "attack/attack_01.png",
+    "attack/attack_02.png",
+    "attack/attack_03.png",
+    "attack/attack_04.png",
+    "attack/attack_05.png",
+    "attack/attack_06.png"
+  ],
+  "license": "placeholder-only: deterministic Ragdoll cat placeholders generated by scripts/gen-cat-anim.py (renderer scripts/cat_ragdoll.py); not final art; commercial use not granted",
+  "ai": {
+    "status": "none"
+  },
+  "placeholder": true,
+  "sourceSpec": "scripts/gen-cat-anim.py",
+  "generator": "scripts/gen-cat-anim.py"
+}

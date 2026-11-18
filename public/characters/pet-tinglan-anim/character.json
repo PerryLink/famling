@@ -1,0 +1,97 @@
+{
+  "spec": "famling.character",
+  "apiVersion": "0.1",
+  "id": "famling.tinglan-anim",
+  "version": "0.1.0",
+  "type": "humanoid",
+  "species": "humanoid",
+  "traits": [
+    "biped",
+    "speech",
+    "work-companion"
+  ],
+  "canvas": [
+    96,
+    96
+  ],
+  "anchor": {
+    "x": 48,
+    "y": 96,
+    "mode": "foot-center"
+  },
+  "footBox": [
+    -36,
+    -18,
+    72,
+    18
+  ],
+  "bbox": [
+    12,
+    8,
+    72,
+    84
+  ],
+  "display": {
+    "scale": 2,
+    "pixelated": true
+  },
+  "palette": "human-anim-placeholder@0.2-tinglan",
+  "packBase": "/assets/pet/anim/human/",
+  "behaviorFile": "behavior.json",
+  "license": "placeholder-only (deterministic Tinglan anim placeholder frames; commercial use not granted; see LICENSE-ART)",
+  "meta": {
+    "authors": [
+      "Famling"
+    ],
+    "note": "汀岚（Tinglan）hero humanoid, v7 anim placeholder: 96x96, 12 tags / 68 frames from scripts/gen-human-anim.py. Keeps the humanoid voice contract (solid speech bubble + TTS allowed); cat/dog stay silent thoughts. The old humanoid-default (Pearl) directory is kept for FCI/layout regression and is no longer the default hero humanoid art pack.",
+    "artStatus": "placeholder",
+    "artPack": "pet.human.anim.placeholder@v0.2-tinglan"
+  },
+  "ai": {
+    "status": "none"
+  },
+  "capabilities": {
+    "sockets": [
+      "head",
+      "hand",
+      "floor"
+    ],
+    "roles": [
+      "assistant",
+      "companion"
+    ],
+    "behaviors": [
+      "social",
+      "aware"
+    ]
+  },
+  "fallback": {
+    "talk": [
+      "idle"
+    ],
+    "remind": [
+      "idle"
+    ],
+    "pat": [
+      "pat_head",
+      "idle"
+    ],
+    "play": [
+      "stand_wag",
+      "idle"
+    ],
+    "drag": [
+      "idle"
+    ],
+    "land": [
+      "idle"
+    ],
+    "sleep": [
+      "idle"
+    ],
+    "feed": [
+      "stand_wag",
+      "idle"
+    ]
+  }
+}

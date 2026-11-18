@@ -2,7 +2,7 @@
   "spec": "famling.character",
   "apiVersion": "0.1",
   "id": "famling.pet-cat",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "pet",
   "species": "cat",
   "traits": [
@@ -35,16 +35,17 @@
     "scale": 2,
     "pixelated": true
   },
-  "palette": "cat-placeholder@0.1",
-  "packBase": "/assets/pet/cat-placeholder/",
+  "palette": "cat-ragdoll-anim@0.1",
+  "packBase": "/assets/pet/anim/cat/",
   "behaviorFile": "behavior.json",
-  "license": "CC-BY-NC-SA-4.0 (see LICENSE-ART; placeholder-only if art not final)",
+  "license": "placeholder-only (deterministic Ragdoll cat anim placeholder frames; commercial use not granted; see LICENSE-ART)",
   "meta": {
     "authors": [
       "Famling"
     ],
-    "note": "Default cat pet (FCI 0.1): quadruped/rub/meow/nudge/play/sleep. Art pack is a deterministic 96x96 procedural placeholder (36 frames, 7 tags); final art pending. Behaviour states map to pack tags: rub/play->pat, meow->talk, nudge->remind.",
-    "artStatus": "placeholder"
+    "note": "Default cat pet (white Ragdoll placeholder, v7 anim pack: 96x96, 12 tags / 68 frames from scripts/gen-cat-anim.py). Behaviour states map to pack tags: rub/pat_head -> pat_head, play -> stand_wag, meow/nudge/drag/land/sleep -> idle; ball_throw/ball_chase/paw_face/scratch/stand_wag/chase_tail/idle_blink render the matching clips; ambient micro-actions cycle every 4-10s. Legacy tags listed in fallback resolve to anim tags.",
+    "artStatus": "placeholder",
+    "artPack": "pet.cat.anim.placeholder@v0.1"
   },
   "ai": {
     "status": "none"
@@ -70,10 +71,33 @@
       "idle"
     ],
     "remind": [
-      "talk",
       "idle"
     ],
     "pat": [
+      "pat_head",
+      "idle"
+    ],
+    "play": [
+      "stand_wag",
+      "idle"
+    ],
+    "drag": [
+      "idle"
+    ],
+    "land": [
+      "idle"
+    ],
+    "sleep": [
+      "idle"
+    ],
+    "meow": [
+      "idle"
+    ],
+    "nudge": [
+      "idle"
+    ],
+    "feed": [
+      "stand_wag",
       "idle"
     ]
   }

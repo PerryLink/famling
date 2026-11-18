@@ -74,7 +74,8 @@ export const HERO_STORAGE_KEY = 'desktop-games/pet/hero'
  * Persisted hero character selection (`desktop-games/pet/heroCharacter`).
  *
  * Written by the desktop-shell renderer menu (`渲染器：金毛（动画）` sets
- * `'dog'`), read here only when the URL has no `?character=`. Values are
+ * `'dog'`, `渲染器：布偶猫（动画）` sets `'cat'`, `渲染器：汀岚（动画）`
+ * sets `'humanoid'`), read here only when the URL has no `?character=`. Values are
  * restricted to `HERO_CHARACTER_IDS`; anything else resolves to the default
  * (`humanoid`) so a stale/typo'd preference can never break the page.
  */
@@ -89,8 +90,9 @@ export const MAX_HERO_ACTORS = 4
 
 /**
  * Authoring canvas target for **new** humanoid art, in art pixels. This is a
- * recommendation only: the shipped `humanoid-default` placeholder pack is still
- * 96×96 and renders unchanged. A profile expresses the target via
+ * recommendation only: the shipped Tinglan anim placeholder pack (and the old
+ * `humanoid-default` Pearl pack) is still 96×96 and renders unchanged. A profile
+ * expresses the target via
  * `character.json` `canvasTarget`, and `loadHeroBundle()` surfaces it as
  * `HeroCharacterBundle.canvasTarget`; layout always uses the loaded pack's
  * actual `canvas`, so old and new art coexist.
@@ -110,13 +112,20 @@ export interface HeroCharacterSource {
 }
 
 export const HERO_CHARACTER_SOURCES: Readonly<Record<HeroCharacterId, HeroCharacterSource>> = {
+  // `humanoid` is the voiced human presentation. Since 2026-11-18 it points at
+  // the Tinglan anim pack (`/assets/pet/anim/human/`) instead of the legacy
+  // Pearl placeholder. The FCI document id is `famling.tinglan-anim`; the hero
+  // key deliberately stays `humanoid` so HERO_CHARACTER_IDS, persisted
+  // `heroCharacter` values and the voice mapping (humanoid -> human) do not
+  // change. `canvasTarget` 256 remains the recommendation for FINAL humanoid
+  // art while the shipped anim placeholder (like Pearl) is 96×96.
   humanoid: {
     id: 'humanoid',
-    label: 'Pearl（人型占位）',
-    dir: '/characters/humanoid-default/',
+    label: '汀岚（动画占位）',
+    dir: '/characters/pet-tinglan-anim/',
     canvasTarget: [DEFAULT_HUMANOID_CANVAS, DEFAULT_HUMANOID_CANVAS],
   },
-  cat: { id: 'cat', label: '猫（占位）', dir: '/characters/pet-cat/' },
+  cat: { id: 'cat', label: '布偶猫（动画占位）', dir: '/characters/pet-cat/' },
   dog: { id: 'dog', label: '金毛（动画占位 v7）', dir: '/characters/pet-dog/' },
   tinglan: {
     id: 'tinglan',
@@ -329,7 +338,7 @@ export interface LoadHeroOptions {
   readonly fetcher?: typeof fetch
   /**
    * Base URL used to turn the page-relative `packBase` (e.g.
-   * `/assets/pet/pearl-placeholder/`) into an absolute one. `hero.ts`
+   * `/assets/pet/anim/dog/`) into an absolute one. `hero.ts`
    * `describeCharacterPack` builds asset URLs with `new URL(asset, base)`,
    * which needs an absolute base even in the browser.
    */

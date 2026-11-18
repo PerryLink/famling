@@ -158,28 +158,58 @@ export function formatScaleLabel(scale: number): string {
 }
 
 // ---------------------------------------------------------------------------
-// Renderer / hero menu (golden-retriever v7 integration, 2026-11-18)
+// Renderer / hero menu (multi-character anim integration, 2026-11-18)
 // ---------------------------------------------------------------------------
 
-/** Renderer choice written by the desktop-shell menu. */
-export type PetRendererChoice = 'dog' | 'origami'
+/** Renderer choices that draw on the hero canvas (the animated characters). */
+export type HeroRendererChoice = 'dog' | 'cat' | 'humanoid'
+
+/** Hero renderer choices in menu order: 金毛 / 布偶猫 / 汀岚. */
+export const HERO_RENDERER_CHOICES: readonly HeroRendererChoice[] = ['dog', 'cat', 'humanoid']
+
+/** Renderer choice written by the desktop-shell menu (hero characters + origami). */
+export type PetRendererChoice = HeroRendererChoice | 'origami'
+
+function isHeroRendererChoice(choice: PetRendererChoice): choice is HeroRendererChoice {
+  return (HERO_RENDERER_CHOICES as readonly PetRendererChoice[]).includes(choice)
+}
 
 /**
  * Pure storage writes for one renderer choice.
  *
- * - `dog` = v7 golden-retriever hero canvas: enable hero + persist the dog
- *   character (the next load resolves it through `HERO_CHARACTER_STORAGE_KEY`);
+ * - a hero character (`dog` = v7 golden retriever, `cat` = Ragdoll cat,
+ *   `humanoid` = Tinglan) = enable hero + persist that character (the next load
+ *   resolves it through `HERO_CHARACTER_STORAGE_KEY`);
  * - `origami` = folded-paper DOM: switch hero off. The persisted character is
- *   deliberately left untouched so switching back to `dog` works in one click.
+ *   deliberately left untouched so switching back to a hero character works in
+ *   one click.
  */
 export function rendererChoiceWrites(choice: PetRendererChoice): ReadonlyArray<readonly [string, string]> {
-  return choice === 'dog'
+  return isHeroRendererChoice(choice)
     ? [
         [HERO_RENDERER_STORAGE.hero, '1'],
-        [HERO_RENDERER_STORAGE.character, 'dog'],
+        [HERO_RENDERER_STORAGE.character, choice],
       ]
     : [[HERO_RENDERER_STORAGE.hero, '0']]
 }
+
+/** One renderer switch row in the desktop-shell menu (ordered top to bottom). */
+export interface RendererMenuItem {
+  readonly choice: PetRendererChoice
+  readonly label: string
+}
+
+/**
+ * Renderer menu rows: the three animated hero characters plus the folded-paper
+ * default. Exported so the menu wiring is unit-tested without a browser; the
+ * labels are the exact user-facing strings (`渲染器：…`).
+ */
+export const RENDERER_MENU_ITEMS: readonly RendererMenuItem[] = [
+  { choice: 'dog', label: '渲染器：金毛（动画）' },
+  { choice: 'cat', label: '渲染器：布偶猫（动画）' },
+  { choice: 'humanoid', label: '渲染器：汀岚（动画）' },
+  { choice: 'origami', label: '渲染器：折纸（默认）' },
+]
 
 /** One menu entry for a hero-only action (see `hero-actions.ts`). */
 export interface HeroMenuActionItem {
@@ -617,8 +647,7 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
     addHeading('渲染器')
     // Renderer switches persist a preference and reload the pet page; they are
     // available in both modes so the user can always switch back.
-    add('渲染器：金毛（动画）', () => applyRenderer('dog'))
-    add('渲染器：折纸（默认）', () => applyRenderer('origami'))
+    for (const item of RENDERER_MENU_ITEMS) add(item.label, () => applyRenderer(item.choice))
     addHeading(`宠物缩放 · ${formatScaleLabel(scale)}`)
     const scaleRow = docRef.createElement('div')
     scaleRow.className = 'pet-menu-inline'
