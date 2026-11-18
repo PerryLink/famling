@@ -14,9 +14,11 @@ jobs:
       - name: Build frontend
         run: npm ci && npm run build
       - uses: dtolnay/rust-toolchain@stable
+      - name: Install Tauri CLI (pin the native optional dependency)
+        run: npm install --no-save @tauri-apps/cli@2
       - name: Build Tauri (unsigned)
         working-directory: app/tauri
-        run: npx --yes @tauri-apps/cli@2 build
+        run: npx tauri build
       - uses: actions/upload-artifact@v4
         with:
           name: famling-pet-windows-unsigned
