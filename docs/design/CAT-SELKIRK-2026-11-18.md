@@ -163,3 +163,14 @@ cd /mnt/d/Projects/dsh/_scratch/pet-anim-cat-selkirk-preview && python3 gen_prev
 - 测试 14 pass：新增 side legLength ∈[10,15]、side y=80 腿宽 runs≥2×≥6、front paw 9px 区断言；原有 body depth/area、tail、灰帽、blaze 等保留。
 - 指标：腿长 20–22→12–14（−40%）；侧视整体高度矮 8px；bbox 2/5/2/6；`--verify` FAILS none；`gen-pet-anim --check` 全绿；`tsc --noEmit` 0。
 - 预览：`_scratch/pet-anim-cat-side-v10-preview/`（侧视+正面 4x/1x、walk/run GIF、LEG-METRICS.txt、METRICS-LEGS-V10.md）。
+
+## 13. v11a：run / stand_wag 短腿修正（2026-11-18，只改 cat）
+
+用户实测 run / stand_wag 腿仍长。原因与修复：
+
+- run 与 walk 共用 side_view，但 `body_dy=(-2,0,-1,-2,0,-1)` 把身体抬高 2px；本轮 `body_dy` 整体 +2px，奔跑身体下压，抬腿相位/尘土 FX 不变。可见腿 12–14 → **10–12px**。
+- stand_wag f0/f5 已短；f1–f4 走独立 `_stretch_body/_stretch_legs`，`STRETCH_BOTTOM` 仍是旧高腹线、front leg 从 (26,68) 到 (5,84)，可见腿 17–23px。本轮把 STRETCH_BOTTOM 改为低腹线（74–79），加低胸 floor 椭圆 + 宽 body rows + 奶油卷毛 fringe；前腿 17–23 → **10–13px**，后腿 11–15px，全部 ≤15px。
+- SIDE_TORSO 腹线/chest/hip 底面再下压，侧视腿根统一贴近 y75–79；walk 维持 11–13px。
+- 新增两个测试：run 每帧 legLength ∈[10,15] 且腿宽 ≥6；stand_wag 每帧 legLength ≤15 且腿宽 ≥6。总测试 16 pass。
+- `gen-cat-anim --check/--verify`、`gen-pet-anim-frames --check`、`tsc --noEmit`、消费方 75/75 全绿。
+- 预览：`_scratch/pet-anim-cat-side-v10-preview/run_stand_4x.png`、`gifs/cat_run.gif`、`gifs/cat_stand_wag.gif`、`RUN-STAND-LEG-METRICS.txt`、`RUN-STAND-LEG-FIX.md`；主预览同步刷新。
