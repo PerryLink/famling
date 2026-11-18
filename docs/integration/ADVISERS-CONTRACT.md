@@ -2,10 +2,10 @@
 
 | 项目 | 内容 |
 |---|---|
-| 状态 | **生效（2026-11-17）**；消费端已接受 contract v0.1 + v0.2；Advisers 侧 pin `advisers@0.2.1` |
+| 状态 | **生效（2026-11-18，Advisers 0.2.3）**；消费端已接受 contract v0.1 + v0.2；Advisers 侧 pin `advisers@0.2.3` |
 | 负责 | desktop-games：Advisers consumer 通道（`src/presence/**`、`src/pet/advisers/**`、本文件、`docs/audit/ADVISERS-*`）；Advisers 仓由 Advisers 维护者负责 |
 | 范围 | 只读 Pet Brief 文件契约、版本协商、升级/回滚、TOS/safety 对齐、Tauri 读取命令建议；**不含** UI、consent、safety、security 实现（其他工作线）与 Rust 实际改动 |
-| 基线 | desktop-games `844ead1`（2026-11-17 14:27 +08）；Advisers `v0.2.0` tag（annotated tag object `5d0bdeb` → commit `7f8c6d8`，2026-11-17） |
+| 基线 | desktop-games 当前 HEAD；Advisers `v0.2.3` tag → commit `2a9a4a8`（2026-11-18 发布） |
 | 验收报告 | `docs/audit/ADVISERS-020-COMPAT-2026-11-17.md` |
 
 > 本文件是 **desktop-games 侧的集成契约与升级 runbook**，不是 Advisers 发布物的一部分，也不改写 Advisers 的 canonical 契约。
@@ -25,16 +25,18 @@
 
 | 项 | 值 | 证据 |
 |---|---|---|
-| 包版本 | `advisers@0.2.1`（npm `latest`，六包 lockstep：advisers / core / office / policy-strict / bridge-hermes / dsh-advisers；两个私有 link-* 同版本不发布） | Advisers `CHANGELOG.md` §0.2.0；`eval/results/E11-release-2026-11-17.md`（80/80 registry/tarball/install checks） |
-| 发布 tag | annotated `v0.2.0` → tag object `5d0bdeb` → commit `7f8c6d8` | `git cat-file -p v0.2.0` / `git rev-parse v0.2.0^{commit}` |
+| 包版本 | `advisers@0.2.3`（npm `latest`，六包 lockstep：advisers / core / office / policy-strict / bridge-hermes / dsh-advisers；两个私有 link-* 同版本不发布） | Advisers `CHANGELOG.md` §0.2.3（2026-11-18 published，六包 lockstep）；`git tag v0.2.3` |
+| 发布 tag | `v0.2.3` → commit `2a9a4a8` | `git rev-parse v0.2.3^{commit}` |
 | 契约版本 | `schemaVersion: 2`（contract v0.2）；v0.1 = `schemaVersion: 1` 作为 legacy 可读 | `docs/pet-brief/README.md`、`schema-v0.2.json` |
 | 契约快照 | `docs/pet-brief/schema-v0.2.json` sha256 `bd2704c5…`（快照与 tag 逐字节一致） | `sha256sum`；`git diff v0.2.0..HEAD -- docs/pet-brief` 为空 |
-| 生产者实现 | `packages/advisers/lib/pet-brief.js` sha256 `a6fd05c0…`（`buildPetBrief` / `validatePetBrief` / `writePetBriefAtomic`） | 同上 |
+| 生产者实现 | `packages/advisers/lib/pet-brief.js` sha256 `877675c8…`（`buildPetBrief` / `validatePetBrief` / `writePetBriefAtomic`） | 同上 |
 | TOS | v2026.11.2（effective 2026-11-17），`docs/TOS.md` sha256 `c40f869a…`；随包分发 `packages/advisers/lib/tos/` | `docs/TOS.md` 头表；`lib/tos/manifest.json` |
 | 消费者契约快照 | `docs/contracts/pet-brief/`（v0.1 私有 `PerryLink/famling` 快照，只读，不改写） | 其 `SOURCE.md` blob sha |
 | 生产/消费实现 | `advisers pet-brief --out ~/.advisers/pet-brief.json` → Tauri `read_advisers_brief` → `validatePetBrief` → `AdvisersFaceController` | `src/presence/pet-brief.ts`、`src/pet/advisers/face.ts`、`app/tauri/src-tauri/src/main.rs:85` |
 
-**pin 原则**：集成文档只 pin `advisers@0.2.1` 这一稳定 release；不 pin preview/next，不在 consumer 代码里依赖 `advisers` 包或 `~/.advisers`
+> **2026-11-18 Advisers 0.2.3 更新**：Pet Brief schema v0.2 不变（schemaVersion:2、displayPolicy、128 KiB/TTL 均不变），TOS 仍为 v2026.11.2；变化集中在 producer 的未知 matter 承诺显式披露（redactions 增加排除统计）、原子写/fsync、持久化/读路径性能与 DSH adapter preview 标记。consumer 无需改数据格式，只需更新 pin/文档/兼容测试口径。详见 docs/integration/ADVISERS-023-UPDATE-2026-11-18.md。
+
+**pin 原则**：集成文档只 pin `advisers@0.2.3` 这一稳定 release；不 pin preview/next，不在 consumer 代码里依赖 `advisers` 包或 `~/.advisers`
 的数据库/审计链。`schemaVersion` 是契约 major，与包版本解耦：**包升级 ≠ 契约升级**，反之亦然。
 
 ---
@@ -61,7 +63,7 @@
 | 契约 | `schemaVersion` | 生产者 | `displayPolicy` | consumer 行为 |
 |---|---|---|---|---|
 | v0.1（2026-11-14 design contract） | `1` | `advisers@0.2.1-preview.71` 及更早 | 无字段 | **接受（legacy）**，warning `W_LEGACY_SCHEMA_VERSION` + `W_MISSING_DISPLAY_POLICY`，按 `private` 处理 |
-| **v0.2（当前）** | `2` | `advisers@0.2.1` stable | `public \| private \| none`，缺失=warning+`private` | 严格校验；`private`/`public` 接受，`none` → `skip(display_none)` |
+| **v0.2（当前）** | `2` | `advisers@0.2.3` stable | `public \| private \| none`，缺失=warning+`private` | 严格校验；`private`/`public` 接受，`none` → `skip(display_none)` |
 | 未来 major（≥3） | `>= 3` | 未知，不得提前假设 | — | **refuse fail-closed**（`SCHEMA_VERSION`，状态 `UNSUPPORTED_SCHEMA`）；不降级按 v0.1 解析、不以 `public` 渲染 |
 
 ### 3.2 协商算法（consumer 必须按此实现，已实现）

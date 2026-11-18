@@ -867,6 +867,21 @@ export class HeroRuntime {
     if (this.mouthLevel(nowMs) > 0) this.mouthTicks += 1
   }
 
+  /**
+   * Cheap dirty-frame signature: only redraw the host canvas when an actor's
+   * tag/frame/position/layout or the mouth level changed. The scene clock still
+   * ticks every rAF, so behaviour timing is unaffected.
+   */
+  renderKey(nowMs = this.lastKnownMs): string {
+    const parts = this.sortedEntries().map((entry) => {
+      const frame = this.actorFrame(entry.id, nowMs)
+      const zIndex = this.scene.get(entry.id).zIndex
+      return `${entry.id}:${frame?.tag ?? ''}:${frame?.frame ?? -1}:${entry.x}:${entry.y}:${entry.scale}:${zIndex}`
+    })
+    parts.push(`mouth:${this.mouthLevel(nowMs).toFixed(3)}`, `layout:${this.layout.width}x${this.layout.height}`)
+    return parts.join('|')
+  }
+
   /** Current tag/frame for one actor at `nowMs` (QA + animation tests). */
   actorFrame(actorId: string, nowMs = this.lastKnownMs): HeroFrameInfo | null {
     const entry = this.entryById.get(actorId)

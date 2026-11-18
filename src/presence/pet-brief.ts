@@ -46,7 +46,7 @@ export const PET_BRIEF_MAX_SCHEMA_VERSION = PET_BRIEF_SCHEMA_VERSION
 /**
  * Human-readable contract version implemented by this consumer. It is
  * decoupled from the `advisers` package version: pin the package release
- * (`advisers@0.2.1`) but negotiate the contract through `schemaVersion`.
+ * (`advisers@0.2.3`) but negotiate the contract through `schemaVersion`.
  */
 export const PET_BRIEF_CONTRACT_VERSION = 'v0.2'
 /**

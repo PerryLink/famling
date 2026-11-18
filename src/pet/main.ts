@@ -764,6 +764,13 @@ function doPat(actorId?: string): void {
  * animation event comes from the region rule so cat/dog/human can differ.
  */
 const lastSaysByKey = new Map<string, string>()
+/** Interaction cadence (research: don't turn every click into a vending machine). */
+const HERO_TOUCH_COOLDOWN_MS = 1200
+const HERO_REGION_COOLDOWN_MS = 2500
+const HERO_ACTION_COOLDOWN_MS = 800
+let lastHeroTouchAt = 0
+let lastHeroActionAt = 0
+const lastRegionTouchAt = new Map<string, number>()
 
 /**
  * Random bubble line from a data-driven list, avoiding an immediate repeat for
@@ -821,6 +828,9 @@ function currentHeroMenuActions(): readonly HeroMenuActionItem[] {
 function handleHeroAction(actionId: string): void {
   const runtime = hero
   if (!runtime) return
+  const nowMs = performance.now()
+  if (nowMs - lastHeroActionAt < HERO_ACTION_COOLDOWN_MS) return
+  lastHeroActionAt = nowMs
   const spec = liveHeroActions().find((action) => action.id === actionId)
   const steps: readonly { event: string; delayMs: number }[] = spec
     ? [
@@ -1003,10 +1013,23 @@ interface DpapiCipher { v: 1; p: 'dpapi'; data: string }
 type SaveCipher = DpapiCipher | WebCryptoPayload
 let saveWarningShown = false
 
+/** Bound a Tauri IPC round-trip so a hung WebView/Rust call cannot freeze boot/save. */
+async function invokeTimed<T>(command: string, args: Record<string, unknown> = {}, timeoutMs = 8000): Promise<T> {
+  const { invoke } = await import('@tauri-apps/api/core')
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<T>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`ipc-timeout:${command}`)), timeoutMs)
+  })
+  try {
+    return await Promise.race([invoke<T>(command, args), timeout])
+  } finally {
+    if (timer !== undefined) clearTimeout(timer)
+  }
+}
+
 async function encryptSave(plain: string): Promise<SaveCipher> {
   if (HAS_TAURI) {
-    const { invoke } = await import('@tauri-apps/api/core')
-    return { v: 1, p: 'dpapi', data: await invoke<string>('protect_text', { text: plain }) }
+    return { v: 1, p: 'dpapi', data: await invokeTimed<string>('protect_text', { text: plain }) }
   }
   return encryptMemory(plain)
 }
@@ -1015,15 +1038,13 @@ async function decryptSave(cipher: unknown): Promise<string | null> {
   if (typeof cipher === 'string') {
     // Legacy Tauri saves stored DPAPI base64 without a wrapper.
     if (!HAS_TAURI) return null
-    const { invoke } = await import('@tauri-apps/api/core')
-    return invoke<string>('unprotect_text', { encoded: cipher })
+    return invokeTimed<string>('unprotect_text', { encoded: cipher })
   }
   if (!cipher || typeof cipher !== 'object') return null
   const payload = cipher as SaveCipher
   if (payload.p === 'dpapi') {
     if (!HAS_TAURI) return null
-    const { invoke } = await import('@tauri-apps/api/core')
-    return invoke<string>('unprotect_text', { encoded: payload.data })
+    return invokeTimed<string>('unprotect_text', { encoded: payload.data })
   }
   if (payload.p === 'webcrypto') {
     if (HAS_TAURI) return null
@@ -1033,6 +1054,12 @@ async function decryptSave(cipher: unknown): Promise<string | null> {
 }
 
 let saveInFlight: Promise<void> | null = null
+/**
+ * True when the primary save existed but could not be parsed (or only the .bak
+ * parsed). While set, autosave is paused and the next write must NOT replace the
+ * known-good .bak with the corrupt primary (robustness audit P0-1).
+ */
+let saveRecoveryNeeded = false
 
 async function saveNowInternal(): Promise<void> {
   // Safe read-only mode: no save/migration writes before explicit TOS consent.
@@ -1060,15 +1087,20 @@ async function saveNowInternal(): Promise<void> {
     cipher,
   })
   if (HAS_TAURI) {
-    const { invoke } = await import('@tauri-apps/api/core')
-    await invoke('write_save', { slot: SAVE_SLOT, text })
+    await invokeTimed('write_save', { slot: SAVE_SLOT, text, backup: !saveRecoveryNeeded })
   } else {
     const key = `desktop-games/pet/${SAVE_SLOT}`
+    // Keep the previous ciphertext as .bak so a corrupt new save is recoverable.
+    // While recovering, never overwrite the known-good backup with the corrupt
+    // primary (no plaintext is stored either way).
+    if (!saveRecoveryNeeded) {
+      const previous = safeGetItem(key)
+      if (previous) safeSetItem(`${key}.bak`, previous)
+    }
     const stored = safeSetItem(key, text)
     if (stored !== 'ok') throw new Error(`save-storage-${stored}`)
-    // Browser fallback keeps no plaintext backup; recovery is traded for no leak.
-    removeKey(`${key}.bak`)
   }
+  saveRecoveryNeeded = false
 }
 
 /**
@@ -1148,42 +1180,53 @@ async function loadNow(): Promise<boolean> {
   // is a local-data load, so it is refused until explicit TOS consent. The UI
   // load button, bootPetOnce and the QA hook all go through this guard.
   if (!canInteract()) throw new Error('consent-required')
-  let text: string | null = null
+  saveRecoveryNeeded = false
   if (HAS_TAURI) {
-    const { invoke } = await import('@tauri-apps/api/core')
+    let sawReadableSave = false
     for (const backup of [false, true]) {
+      let text: string
       try {
-        text = await invoke<string>('read_save', { slot: SAVE_SLOT, backup })
-        break
+        text = await invokeTimed<string>('read_save', { slot: SAVE_SLOT, backup })
       } catch {
-        // Missing/read-blocked slot is expected here; the caller reports "no save".
+        // Missing/read-blocked slot is expected here; try the backup next.
+        continue
       }
-    }
-  } else {
-    const key = `desktop-games/pet/${SAVE_SLOT}`
-    for (const candidate of [key, `${key}.bak`]) {
-      const candidateText = safeGetItem(candidate)
-      if (!candidateText) continue
-      const parsed = await parsePetSave(candidateText)
+      sawReadableSave = true
+      const parsed = await parsePetSave(text)
       if (!parsed) continue
       state = parsed.state
+      // If the primary was unreadable but the backup parsed, keep the good .bak
+      // untouched on the next write until the recovered primary is committed.
+      saveRecoveryNeeded = backup
       render()
-      if (parsed.migrate) {
+      if (parsed.migrate && !saveRecoveryNeeded) {
         void saveAndPurgeBackup().catch((error) => reportFailure(saveBoundary, error))
       }
       return true
     }
+    // A readable but unparseable primary+backup must not be silently replaced by
+    // the default state on the next 30 s autosave; require an explicit save.
+    saveRecoveryNeeded = sawReadableSave
     return false
   }
-  if (!text) return false
-  const parsed = await parsePetSave(text)
-  if (!parsed) return false
-  state = parsed.state
-  render()
-  if (parsed.migrate) {
-    void saveAndPurgeBackup().catch((error) => reportFailure(saveBoundary, error))
+  const key = `desktop-games/pet/${SAVE_SLOT}`
+  let sawReadableSave = false
+  for (const [index, candidate] of [key, `${key}.bak`].entries()) {
+    const candidateText = safeGetItem(candidate)
+    if (!candidateText) continue
+    sawReadableSave = true
+    const parsed = await parsePetSave(candidateText)
+    if (!parsed) continue
+    state = parsed.state
+    saveRecoveryNeeded = index > 0
+    render()
+    if (parsed.migrate && !saveRecoveryNeeded) {
+      void saveAndPurgeBackup().catch((error) => reportFailure(saveBoundary, error))
+    }
+    return true
   }
-  return true
+  saveRecoveryNeeded = sawReadableSave
+  return false
 }
 
 $('save').addEventListener('click', () => void saveNow()
@@ -1422,14 +1465,14 @@ $('reset-window').addEventListener('click', () => void (async () => {
   }
 })().catch((error) => reportFailure(uiBoundary, error)))
 setInterval(() => {
-  if (!canInteract()) return
+  if (!canInteract() || saveRecoveryNeeded) return
   void saveNow().catch((error) => {
     if (!(error instanceof RateLimitError)) reportFailure(saveBoundary, error)
   })
 }, 30_000)
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden' && canInteract()) {
+    if (document.visibilityState === 'hidden' && canInteract() && !saveRecoveryNeeded) {
       void saveNow().catch((error) => {
         if (!(error instanceof RateLimitError)) reportFailure(saveBoundary, error)
       })
@@ -1454,7 +1497,9 @@ async function bootPetOnce(): Promise<void> {
   // unhandled or boot a half-rendered pet (P0-2).
   const loaded = await loadBoundary.guardAsync(() => loadNow())
   if (!loaded.ok) {
-    showBubble('旧存档没读出来，先用默认状态。')
+    showBubble(saveRecoveryNeeded ? '存档损坏，已保留备份；先点保存写入新档。' : '旧存档没读出来，先用默认状态。')
+  } else if (saveRecoveryNeeded) {
+    showBubble('已从备份恢复；点保存写入新档。')
   }
   if (!loaded.ok || !loaded.value) {
     state = createPet(now())
@@ -1691,7 +1736,20 @@ function heroFrame(timestamp: number): void {
   heroSceneNow += dt
   try {
     hero.tick(heroSceneNow)
-    hero.render(heroCtx, heroSceneNow)
+    // 6-14 fps art on a 60 Hz host: redraw only when a frame actually changed.
+    const renderKey = hero.renderKey(heroSceneNow)
+    const renderedKey = heroCanvasEl?.dataset.heroRenderKey
+    if (!heroCanvasEl || renderedKey !== renderKey || heroCanvasEl.width === 0) {
+      hero.render(heroCtx, heroSceneNow)
+      if (heroCanvasEl) {
+        heroCanvasEl.dataset.heroRenderKey = renderKey
+        // Frame-stable key used by hit-regions to cache alpha masks.
+        heroCanvasEl.dataset.heroFrameKey = hero.actors.map((actor) => {
+          const frame = hero?.actorFrame(actor.id, heroSceneNow)
+          return frame ? `${actor.id}:${frame.tag}:${frame.frame}` : `${actor.id}:none`
+        }).join('|')
+      }
+    }
     applyHeroLocomotion(dt)
   } catch (error) {
     fallbackHero(`render-failed: ${error instanceof Error ? error.message : String(error)}`, error)
@@ -1900,6 +1958,15 @@ function attachHeroPointer(canvas: HTMLCanvasElement): void {
       // of a whole-body pat. Legacy packs without regions keep the old pat.
       const hit = hero.hitRegion(point.x, point.y)
       if (hit) {
+        const nowMs = performance.now()
+        const key = `${hit.actor.id}:${hit.region.id}`
+        const lastRegionAt = lastRegionTouchAt.get(key) ?? Number.NEGATIVE_INFINITY
+        if (nowMs - lastHeroTouchAt < HERO_TOUCH_COOLDOWN_MS || nowMs - lastRegionAt < HERO_REGION_COOLDOWN_MS) {
+          endPointer(event)
+          return
+        }
+        lastHeroTouchAt = nowMs
+        lastRegionTouchAt.set(key, nowMs)
         const state = hero.actorState(hit.actor.id) ?? 'idle'
         const config = hit.actor.bundle.regions
         const reaction = config ? resolveHeroRegionReaction(config, hit.region.id, state, 'tap') : null

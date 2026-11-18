@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::Duration;
@@ -10,6 +10,11 @@ use tauri::Manager;
 
 mod secret;
 mod voice;
+
+struct DlcConfig {
+    packs_dir: Option<PathBuf>,
+    key_pem: String,
+}
 
 /// Interactive rectangles (CSS px, viewport-relative) reported by the pet page.
 struct HitRegions {
@@ -76,6 +81,19 @@ fn safe_slug(value: &str) -> bool {
         && !value.contains("..")
 }
 
+fn pack_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let root = app
+        .path()
+        .resource_dir()
+        .map_err(|e| format!("resource dir: {e}"))?
+        .join("packs");
+    root.canonicalize()
+        .map_err(|e| format!("packs dir {}: {e}", root.display()))
+}
+
+/// Read a signed pack manifest. The frontend still verifies the signature;
+/// Rust only guarantees the path stays inside the bundled packs directory.
+
 /// Fetch a public DeepSeek web share conversation by share id.
 ///
 /// The web share page calls this fixed public endpoint; fetching it in Rust
@@ -122,8 +140,27 @@ async fn fetch_deepseek_share(share_id: String) -> Result<serde_json::Value, Str
 /// Path precedence: `ADVISERS_HOME` (directory), else `%USERPROFILE%\.advisers`,
 /// else `$HOME/.advisers`. Only `pet-brief.json` is read; max 128 KiB; no writes.
 /// The frontend still validates schema/TTL/redaction before using it.
+/// Commands that touch local user data / secrets are only meaningful from the
+/// pet shell; reject other bundled windows that share the same webview origin.
+fn require_pet_window(window: &tauri::WebviewWindow) -> Result<(), String> {
+    if window.label() == "pet" || window.label() == "main" {
+        Ok(())
+    } else {
+        Err("command is only available to the pet window".into())
+    }
+}
+
+/// DLC/pack reading is shared by the bundled game routes, but not arbitrary windows.
+fn require_game_window(window: &tauri::WebviewWindow) -> Result<(), String> {
+    match window.label() {
+        "pet" | "main" | "aquarium" | "town" | "stall" | "farm" | "bench" => Ok(()),
+        _ => Err("command is not available to this window".into()),
+    }
+}
+
 #[tauri::command]
-fn read_advisers_brief() -> Result<Option<serde_json::Value>, String> {
+fn read_advisers_brief(window: tauri::WebviewWindow) -> Result<Option<serde_json::Value>, String> {
+    require_pet_window(&window)?;
     let base = if let Some(home) = std::env::var_os("ADVISERS_HOME") {
         std::path::PathBuf::from(home)
     } else if let Some(profile) = std::env::var_os("USERPROFILE") {
@@ -147,10 +184,28 @@ fn read_advisers_brief() -> Result<Option<serde_json::Value>, String> {
     Ok(Some(value))
 }
 
+#[tauri::command]
+fn read_pack_manifest(window: tauri::WebviewWindow, app: tauri::AppHandle, pack_id: String) -> Result<String, String> {
+    require_game_window(&window)?;
+    if !safe_slug(&pack_id) {
+        return Err("invalid pack id".into());
+    }
+    let root = pack_root(&app)?;
+    let path = root.join(&pack_id).join("manifest.json");
+    let resolved = path
+        .canonicalize()
+        .map_err(|e| format!("{}: {e}", path.display()))?;
+    if !resolved.starts_with(&root) {
+        return Err("pack path escapes packs dir".into());
+    }
+    fs::read_to_string(&resolved).map_err(|e| format!("{}: {e}", resolved.display()))
+}
+
 /// Persist a save slot under the app data dir. The write is tmp+rename;
 /// Steam Auto-Cloud points at this directory.
 #[tauri::command]
-fn write_save(app: tauri::AppHandle, slot: String, text: String) -> Result<String, String> {
+fn write_save(window: tauri::WebviewWindow, app: tauri::AppHandle, slot: String, text: String, backup: Option<bool>) -> Result<String, String> {
+    require_pet_window(&window)?;
     if !safe_slug(&slot) {
         return Err("invalid save slot".into());
     }
@@ -163,7 +218,9 @@ fn write_save(app: tauri::AppHandle, slot: String, text: String) -> Result<Strin
     let final_path = dir.join(format!("{slot}.json"));
     let tmp_path = dir.join(format!("{slot}.json.tmp"));
     let backup_path = dir.join(format!("{slot}.json.bak"));
-    if final_path.exists() {
+    // Preserve the previous primary only when the frontend says it was parsed
+    // successfully; a corrupt primary must never overwrite a known-good .bak.
+    if backup.unwrap_or(true) && final_path.exists() {
         fs::copy(&final_path, &backup_path)
             .map_err(|e| format!("{}: {e}", backup_path.display()))?;
     }
@@ -208,8 +265,9 @@ fn replace_file(from: &Path, to: &Path) -> std::io::Result<()> {
 }
 
 #[tauri::command]
-fn delete_save(app: tauri::AppHandle, slot: String) -> Result<(), String> {
+fn delete_save(window: tauri::WebviewWindow, app: tauri::AppHandle, slot: String) -> Result<(), String> {
     use tauri::Manager;
+    require_pet_window(&window)?;
     if !safe_slug(&slot) {
         return Err("invalid save slot".into());
     }
@@ -228,7 +286,8 @@ fn delete_save(app: tauri::AppHandle, slot: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn read_save(app: tauri::AppHandle, slot: String, backup: Option<bool>) -> Result<String, String> {
+fn read_save(window: tauri::WebviewWindow, app: tauri::AppHandle, slot: String, backup: Option<bool>) -> Result<String, String> {
+    require_pet_window(&window)?;
     if !safe_slug(&slot) {
         return Err("invalid save slot".into());
     }
@@ -249,6 +308,52 @@ fn read_save(app: tauri::AppHandle, slot: String, backup: Option<bool>) -> Resul
     fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))
 }
 
+/// Steam is stubbed here on purpose: bind `steamworks` in this file and map
+/// ownership/installation into the TS `Entitlements` port.
+#[tauri::command]
+fn dlc_verify(window: tauri::WebviewWindow, config: tauri::State<DlcConfig>, pack_id: String) -> Result<serde_json::Value, String> {
+    require_game_window(&window)?;
+    if !safe_slug(&pack_id) {
+        return Err("invalid pack id".into());
+    }
+    let root = config
+        .packs_dir
+        .as_ref()
+        .ok_or("--packs-dir was not provided")?;
+    let dir = root.join(&pack_id);
+    if !dir.starts_with(root) {
+        return Err("pack path escapes packs dir".into());
+    }
+    let pack = dlc_verify::verify_pack(&dir, &config.key_pem)?;
+    Ok(serde_json::json!({
+        "manifest": pack.manifest,
+        "content": pack.content,
+        "filesVerified": pack.files_verified,
+    }))
+}
+
+#[tauri::command]
+fn dlc_list(window: tauri::WebviewWindow, config: tauri::State<DlcConfig>) -> Result<Vec<String>, String> {
+    require_game_window(&window)?;
+    let root = config
+        .packs_dir
+        .as_ref()
+        .ok_or("--packs-dir was not provided")?;
+    let entries = std::fs::read_dir(root).map_err(|e| format!("{}: {e}", root.display()))?;
+    let mut ids = Vec::new();
+    for entry in entries.flatten() {
+        if !entry.path().is_dir() {
+            continue;
+        }
+        if entry.path().join("manifest.json").exists() {
+            if let Some(name) = entry.file_name().to_str() {
+                ids.push(name.to_string());
+            }
+        }
+    }
+    ids.sort();
+    Ok(ids)
+}
 
 #[tauri::command]
 fn is_fullscreen() -> bool {
@@ -477,6 +582,32 @@ fn main() {
                     let _ = main.close();
                 }
             }
+            // Portable runners pass --packs-dir, but an NSIS-installed app is
+            // launched directly by Explorer and has no args. Fall back to the
+            // resource dir where `bundle.resources` places packs/; without this
+            // fallback the installer silently loses all DLC packs.
+            let packs_dir = args
+                .iter()
+                .find_map(|arg| arg.strip_prefix("--packs-dir="))
+                .map(PathBuf::from)
+                .or_else(|| std::env::var("P0_PACKS_DIR").ok().map(PathBuf::from))
+                .or_else(|| {
+                    app.path()
+                        .resource_dir()
+                        .ok()
+                        .map(|dir| dir.join("packs"))
+                        .filter(|dir| dir.is_dir())
+                });
+            let key_path = args
+                .iter()
+                .find_map(|arg| arg.strip_prefix("--dlc-key="))
+                .map(PathBuf::from)
+                .or_else(|| packs_dir.as_ref().map(|p| p.join("keys/dev-public.pem")));
+            let key_pem = key_path
+                .and_then(|p| std::fs::read_to_string(p).ok())
+                .unwrap_or_default();
+            app.manage(DlcConfig { packs_dir, key_pem });
+
             if let Some((w, h)) = parse_size_arg(&args) {
                 if let Some(window) = app.get_webview_window("main") {
                     let _ = window.set_size(tauri::LogicalSize::new(w, h));
@@ -494,9 +625,12 @@ fn main() {
             voice::voice_asr,
             fetch_deepseek_share,
             read_advisers_brief,
+            read_pack_manifest,
             write_save,
             read_save,
             delete_save,
+            dlc_verify,
+            dlc_list,
             is_fullscreen,
             report_bench,
             steam_status,

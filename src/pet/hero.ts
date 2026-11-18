@@ -425,6 +425,9 @@ export class CharacterRenderer {
     // is always an integer. CSS size matches the backing store 1:1; any further
     // window/DPR scaling is the host's concern (`image-rendering: pixelated`).
     const size = scaledCanvasSize(this.pack.canvas, this.scale)
+    // Reassigning canvas.width/height clears the backing store and forces a
+    // reallocation; a still frame with the same size must not do that per rAF.
+    if (this.canvas.width === size.width && this.canvas.height === size.height) return
     this.canvas.width = size.width
     this.canvas.height = size.height
     this.canvas.style.width = `${size.width}px`

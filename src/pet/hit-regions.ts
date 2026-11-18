@@ -89,6 +89,8 @@ export function opaqueTilesFromAlpha(
   return out
 }
 
+const alphaTileCache = new Map<string, Rect[]>()
+
 function collectHeroOpaqueRegions(doc: Document): Rect[] {
   const canvas = doc.querySelector<HTMLCanvasElement>('#hero-canvas')
   if (!canvas || canvas.width <= 0 || canvas.height <= 0) return []
@@ -105,19 +107,31 @@ function collectHeroOpaqueRegions(doc: Document): Rect[] {
     ctx = null
   }
   if (!ctx) return []
-  let data: Uint8ClampedArray
-  try {
-    data = ctx.getImageData(0, 0, canvas.width, canvas.height).data
-  } catch {
-    // GPU readback/taint failure must never make the pet unclickable: fall back
-    // to the old full-canvas rect (the transparent-area fix is best-effort).
-    return [[Math.max(0, Math.floor(rect.left)), Math.max(0, Math.floor(rect.top)), Math.ceil(rect.right), Math.ceil(rect.bottom)]]
+  // The renderer publishes the current tag/frame on the canvas; tile masks in
+  // backing-store space are frame-stable, so sample each unique frame once and
+  // reuse it across the 10 Hz sync (and across flips/layout scale changes).
+  const frameKey = canvas.dataset.heroFrameKey
+  const cacheKey = frameKey ? `${canvas.width}x${canvas.height}:${frameKey}` : null
+  let tiles: Rect[]
+  const cached = cacheKey ? alphaTileCache.get(cacheKey) : undefined
+  if (cached) {
+    tiles = cached
+  } else {
+    let data: Uint8ClampedArray
+    try {
+      data = ctx.getImageData(0, 0, canvas.width, canvas.height).data
+    } catch {
+      // GPU readback/taint failure must never make the pet unclickable: fall back
+      // to the old full-canvas rect (the transparent-area fix is best-effort).
+      return [[Math.max(0, Math.floor(rect.left)), Math.max(0, Math.floor(rect.top)), Math.ceil(rect.right), Math.ceil(rect.bottom)]]
+    }
+    // ~2 art pixels per tile: fine enough that transparent pixels around the
+    // silhouette do not swallow desktop clicks, coarse enough to keep the IPC
+    // payload small. Backing-store size includes DPR and the layout scale.
+    const tile = Math.max(2, Math.round((canvas.width / 96) * 2))
+    tiles = opaqueTilesFromAlpha(data, canvas.width, canvas.height, tile)
+    if (cacheKey && alphaTileCache.size < 512) alphaTileCache.set(cacheKey, tiles)
   }
-  // ~2 art pixels per tile: fine enough that transparent pixels around the
-  // silhouette do not swallow desktop clicks, coarse enough to keep the IPC
-  // payload small. Backing-store size includes DPR and the layout scale.
-  const tile = Math.max(2, Math.round((canvas.width / 96) * 2))
-  const tiles = opaqueTilesFromAlpha(data, canvas.width, canvas.height, tile)
   const flip = canvas.dataset.heroFlip === '1'
   const sx = rect.width / clientWidth
   const sy = rect.height / clientHeight
