@@ -174,3 +174,48 @@ Status: **占位交付稿（placeholder-only）**。68 帧 + manifest 已由脚�
 - [x] 68/68 唯一帧
 - [x] `--check` / Node 测试 / tsc 全绿
 - [x] 12 GIF + 1x/4x sheet + 实测报告在 `_scratch/pet-anim-human-preview/`
+
+---
+
+## 10. v8 第二轮打磨（2026-11-18）
+
+触发：用户要求继续打磨人/猫/狗的侧视、走路、跑步与脸部细节，且**动作帧同侧肢体/道具不能重复**（抬手臂时地面同手仍在；纸团/书不能出现双层）。本轮只动 human 包（dog/cat 不动）。
+
+### 10.1 修复的实际缺陷（逐 clip 审计发现）
+
+| # | 缺陷 | 修复 |
+|---|---|---|
+| 1 | `paw_face` 的**左臂**误用右手坐标 `(61,59)->(60,66)`：同侧手臂画了两遍、左侧空空 | 左臂改回 `(34,58)->(35,64)`；抬手到蝴蝶结（y=21）不再遮住 bow |
+| 2 | 白袖口 3x2 浮在手边 1-2 px 外，抬臂时读成“第二只手/白手套” | 改成贴腕的 1 px 白边（`arm_front`/`arm_side`）；持道具手 `cuff=False` |
+| 3 | `ball_throw` 纸团画在手臂之后 → 纸团+袖口+手三个亮块堆叠 | 渲染顺序改为“袖子 → 纸团 → 手”，手压住纸团下缘，**一帧只有一颗纸团** |
+| 4 | `attack` 纸扇画在手臂之后 → 白扇+白袖口双层 | 先画纸扇、手压住扇柄（袖口关闭），一帧只有一把扇 |
+| 5 | `run` 账本页块被前臂盖住、只剩零碎白点 | 顺序改为“袖子（隐藏手）→ 账本（页块朝向可见侧 + 蓝书脊条）→ 一只手按在书沿”；账本略出剪影，黑封皮/白页可读 |
+| 6 | `idle`/`chase_tail` 摊开书的中缝用了深色，白色页块被拆成两团（像两本书） | 中缝改浅色折线，书页连成一本；通过“一本摊开书”门禁 |
+| 7 | `scratch` 双臂举在头两侧遮住 bob、轮廓发闷 | 改 Y 形拉伸：手臂在 bob **外侧**上举，头部完整可读；峰值帧闭眼+张口 |
+| 8 | 侧视 bob 顶部有缺口、脸部太小、眼镜是一块白斑 | 重写 `head_side`：圆顶/直背/内扣发尾；profile 五官（额头/鼻/唇/下巴）；5x4 镜片 + 2x2 蓝眼 + 1 px 镜腿；bow 保持在 bob 后上方 |
+| 9 | 侧视身体是无腰身的黑色方块、腿像棍、脚不清楚 | 重写 `torso_side`/`skirt_side`/`leg_side`/`arm_side`：胸/腰/背曲线、衬衫领+领带+蓝领夹、5 px 腿+膝弯+近/远腿、低跟有鞋头/鞋跟；walk 8 帧 contact/down/pass/up×2（每帧一脚着地、摆动腿抬 2–3 px）；run 6 帧大步幅+前倾+发丝后飘+速度线 |
+| 10 | 正面 idle/pat 的 2x2 虹膜在 1x 不够清楚、眼镜框在肤色上对比低 | 虹膜 3x2 + 1 px 高光 + 睫线；银框下加 1 px 暖阴影；袖子改合身（4 px 中调袖 + 1 px 深缝） |
+
+### 10.2 新增自动化门禁（防止回归）
+
+`gen-human-anim.py --check` 现在对**每一帧**做 4 连通色块审计：
+
+- **同侧肢体**：小肤色色块（4–14 px、≤5×5）——正面 clip 必须**左右各 1 只手**；侧视 clip 必须恰好 1 只近手（y0 ≥ 52）。旧 paw_face 缺陷（同侧 2 手/另一侧 0 手）会被直接判失败。
+- **道具单层**：`ball_throw` 0–3 帧与 `ball_chase` 全部帧恰好 1 颗 ball-like 色块；`attack` 恰好 1 把扇（≥18 px）；`idle`/`idle_blink`/`chase_tail` 1–5 帧恰好 1 本摊开书（≥30 px）；`run` 恰好 1 本账本。
+- 审计结果写入 `_scratch/pet-anim-human-v8-preview/METRICS-HUMAN.md` `0b` 与 `AUDIT-LIMBS-v8.md`。
+
+### 10.3 v8 实测（本机，2026-11-18）
+
+| 门禁 | 结果 |
+|---|---|
+| `python3 scripts/gen-human-anim.py --check` | PASS（68 帧 / 68 唯一 / ≤19 色 / 地面 y=89） |
+| `python3 scripts/gen-pet-anim-frames.py --check`（委托门） | PASS（dog + cat(delegated) + human(delegated)） |
+| `node --import tsx --test tests/pet-anim-human.test.ts` | 6 pass / 0 fail |
+| `npx tsc --noEmit` | exit 0 |
+| 同侧肢体重复帧 | **0** |
+| 道具堆叠/重复帧 | **0** |
+| 外轮廓缺口（非 FX） / 内部描边色 / 封闭洞 | 0 px / 0 / 0 |
+| FX 像素 / 覆盖身体 / 触碰身体 | 150 px / 0 / 0 |
+
+契约未变：12 clip、68 帧、同 fps/layer/priority/attack holdMs、anchor 48/96、footBox (−36,−18,72,18)、manifest id/palette/voice 全部与 v7 同构；未改 dog/cat、未 commit。
+v8 预览目录：`_scratch/pet-anim-human-v8-preview/`（1x/4x/dark sheet、12 GIF、METRICS-HUMAN.md、VERIFY-OUTPUT.txt、AUDIT-LIMBS-v8.md）。

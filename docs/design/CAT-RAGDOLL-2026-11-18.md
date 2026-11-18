@@ -117,6 +117,61 @@ cd /mnt/d/Projects/dsh/_scratch/pet-anim-cat-preview && python3 gen_previews.py
 | `scripts/cat_ragdoll.py` | 布偶猫渲染器：Canvas/描边/填洞/去 1px 碎点、调色板、正面坐姿 + 侧面站姿骨架、12 clip 姿态表、尾部/面罩/眼睛/FX |
 | `scripts/gen-cat-anim.py` | cat 专用生成器：CLIPS 表、manifest、写包、`--check`、`--verify`、`--sheet` |
 | `public/assets/pet/anim/cat/**` | 68 张 96×96 PNG + `manifest.json`（12 tags / 68 assets / `pet.cat.anim.placeholder`） |
-| `tests/pet-anim-cat.test.ts` | cat 包门禁（8 个 test） |
+| `tests/pet-anim-cat.test.ts` | cat 包门禁（9 个 test，v8 增加同侧肢体遮挡 test） |
 | `docs/design/CAT-RAGDOLL-2026-11-18.md` | 本文件 |
-| `_scratch/pet-anim-cat-preview/**` | 1x/4x/dark sheet、12 GIF、逐 clip 4x、验证输出、参考照片 |
+| `_scratch/pet-anim-cat-preview/**` | v7 首版预览（1x/4x/dark sheet、12 GIF、逐 clip 4x、验证输出、参考照片） |
+| `_scratch/pet-anim-cat-v8-preview/**` | v8 打磨后预览（同结构 + `LIMB-AUDIT.txt` / `METRICS-CAT-V8.md`） |
+
+## 9. v8 第二轮打磨（2026-11-18，task-16）
+
+### 9.1 同侧肢体遮挡审计（逐 clip）
+
+问题：抬爪/挠耳时，同侧着地爪仍被画在 y=85..89 的地面上（scratch 的右后爪、paw_face/attack/ball_throw 的抬爪侧前爪）。
+
+修复：
+- `front_hind()` 新增 `raised_hind_side`：`front_scene()` 从 `raised_hind` 的爪 x 坐标推断左右（x<48 = 左），只画另一侧的地面后爪；挠耳帧的同侧后爪/后腿不再重复。
+- 抬爪（`raised_front`/`reach`）本来就跳过同侧地面前腿；v8 复查后保持，并加 test 锁死。
+- 侧视 walk/run 的远/近腿用不同 role（shade vs body）分组，不属于同侧重复。
+- stand_wag 伸懒腰四脚都在地面，属于合理姿态；test 检查仍有 ≥40px 底部着地像素。
+
+实测（`_scratch/pet-anim-cat-v8-preview/LIMB-AUDIT.txt`）：
+
+| clip | 抬起的肢体 | 同侧地面爪像素（y=85..89） | 对照侧着地爪 |
+|---|---|---:|---:|
+| paw_face 0–4 | 左前爪（舔爪/洗脸） | **0** | 右前 38 |
+| scratch 1–4 | 右后腿（挠耳） | **2–4**（只剩尾巴边缘） | 右前 38 / 左后 37 |
+| attack 1–4 | 右前爪（拍爪） | **0**（x54..60） | 左前 38–39 |
+| ball_throw 4 | 右前爪（够球） | **0** | 左前 38 |
+| stand_wag 0–5 | 无（伸懒腰四脚着地） | — | 底部着地 ≥40px |
+
+`tests/pet-anim-cat.test.ts` 增加 "raised paw/leg frames hide the ground paw on the same side" 用例，逐帧锁死以上数值。
+
+### 9.2 侧视 walk/run 脸部与步态
+
+- **侧脸**：重画 `side_head()`：八字面罩改为一条从耳根→眼周→面颊的斜向 brown 带 + 白色 blaze（鼻梁→额头），`mask_dark` 勾出八字内缘；眼睛放大到 4×4 蓝眼（1px 高光 + 下眼睑 shade），深色尖耳 + 粉内耳 + 1px 耳根 shade；白色口吻 + 粉鼻 + 短嘴线 + 奶油下巴；加胡须根/颊毛。1x 下侧面能看出“白猫 + brown 眼罩 + 蓝眼 + 尖耳 + 白吻”。
+- **步态**：`side_front_leg()` 改成肩→肘→腕三段，`side_hind_leg()` 改成髋→膝→跗→系四段，walk 每帧 1 爪离地、支撑爪着地；run 摆幅加大（前腿 +6..8 / 后腿 −6..8），身体前倾、耳朵后压，尾在背线上方后扬。
+- **蓬松羽状尾**：`side_tail()` 根部加粗到 9px、锥形递减 + 3 处奶油羽状缺口 + 小号深色尾尖；walk 低垂、run 后扬在背线上方、stretch 竖立。
+
+### 9.3 正面脸细节与慢眨眼
+
+- 眼睛：4×4/5×5 蓝眼 + 1×3 瞳孔 + 1px 高光 + 下眼睑 shade；新增 `sleepy` 眼型（fur-tone 上眼睑 + 1 行蓝眼）表达“懒”。
+- 面罩：八字内缘 1px `mask_dark` 强化；颧部 shade、白 blaze 高光、耳内高光、胡须根；下巴奶油羽保持。
+- `idle`：6 帧里插入 `sleepy → sleepy → half` 慢眨眼段；`idle_blink` 改为 `sleepy → closed → sleepy`（极慢半闭→闭→半闭），闭眼用 fur-tone 眼睑，不出现黑线。
+
+### 9.4 v8 门禁（实测）
+
+| 门禁 | 结果 |
+|---|---|
+| `python3 scripts/gen-cat-anim.py --check` | ok（exit 0） |
+| `python3 scripts/gen-cat-anim.py --verify` | FAILS: none；68/68 唯一帧；68 帧 bottom=89；max 16 色；硬 alpha；non-FX gap=0；internal black=0；holes=0；bbox 2/5/2/6 |
+| `node --import tsx --test tests/pet-anim-cat.test.ts` | **9 pass / 0 fail** |
+| `node --import tsx --test tests/{pet-anim,default-packs,hero-multichar-integration,hero-runtime,canvas-scale}.test.ts` | 56 pass / 0 fail（消费 cat 包的既有门禁全绿） |
+| `npx tsc --noEmit` | 0 error |
+| 预览 | `_scratch/pet-anim-cat-v8-preview/`：1x/4x/dark sheet、12 GIF、逐 clip 4x、`LIMB-AUDIT.txt`、`VERIFY-OUTPUT.txt`、`METRICS-CAT-V8.md` |
+
+### 9.5 v8 剩余风险
+
+1. 挠耳帧同侧后爪区域仍可能有 2–4px 尾巴边缘（不是爪），已用像素审计确认；1x 下不可见。
+2. 侧视 walk/run 的爪子仍是占位式圆块，正式美术可补爪趾分缝；伸懒腰头部与前爪在 96px 下空间紧，1x 可读但近看有重叠。
+3. 面罩在 1x 的识别度提升但受 96px 限制；如做 256 目标需重绘而非放大。
+4. 其余风险（旧生成器 STALE、FX 豁免、视角硬切、placeholder 性质）同 §6，未变化。
