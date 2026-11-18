@@ -53,6 +53,7 @@ import {
 import { describeAdvisersFaceView, heroPlaceholderView, type HeroPlaceholderView } from './ui-state.ts'
 import { initDesktopShell, createComposerController, type ComposerController } from './desktop-shell.ts'
 import { startHitRegionSync } from './hit-regions.ts'
+import { startDesktopShellLayout } from './shell-layout.ts'
 import { createTrustLayer } from './trust.ts'
 import {
   assertSafeForTts,
@@ -1401,6 +1402,7 @@ async function bootPetOnce(): Promise<void> {
 renderVoiceMode()
 render()
 if (HAS_TAURI) startHitRegionSync()
+startDesktopShellLayout()
 ;(window as any).__pet = {
   get state() { return state },
   render,

@@ -348,11 +348,21 @@ html[data-pet-shell="desktop"] .fold-pet {
    384px, top negative). It stays centred by the base .hero-stage rule
    (left:50% + translateX(-50%), bottom:18px = HERO_STAGE_BOTTOM_MARGIN). */
 html[data-pet-shell="desktop"] .bubble {
-  left: 8px;
-  top: 8px;
-  max-width: calc(100% - 16px);
+  /* shell-layout.ts keeps this centred above the pet; this is the pre-JS fallback */
+  left: 50%;
+  top: auto;
+  bottom: 200px;
+  transform: translateX(-50%);
+  max-width: min(300px, calc(100% - 16px));
   font-size: calc(10px * var(--ui-scale, 2));
-  transform-origin: top left;
+  transform-origin: bottom center;
+  pointer-events: none;
+}
+html[data-pet-shell="desktop"] .pet-menu-button {
+  /* shell-layout.ts hugs the pet; keep a sane fallback pre-JS */
+  right: auto;
+  bottom: 22px;
+  left: calc(50% + 80px);
 }
 html[data-pet-shell="desktop"] .setup-notice { font-size: calc(9px * var(--ui-scale, 2)); }
 /* Scale label: desktop-shell.ts writes it from resolvePetScale(); the header
