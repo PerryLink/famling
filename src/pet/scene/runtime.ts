@@ -749,6 +749,11 @@ export class SceneRuntime {
       if (isRecord(rawTag)) {
         const frames = rawTag.frames
         const fps = rawTag.fps
+        const holds = rawTag.holdMs
+        if (Array.isArray(holds) && holds.length === frames) {
+          const total = holds.reduce((sum: number, hold: unknown) => sum + (typeof hold === 'number' && Number.isFinite(hold) ? Math.max(0, hold) : 0), 0)
+          if (total > 0) return total
+        }
         if (
           typeof frames === 'number' &&
           Number.isFinite(frames) &&

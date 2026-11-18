@@ -35,7 +35,7 @@ import {
   type HeroStatus,
 } from './hero-runtime.ts'
 import { startTinglanPreview } from './tinglan-preview.ts'
-import { resolveHeroRegionReaction, type HeroRegionReaction } from './anim/regions.ts'
+import { resolveHeroRegionReaction, type HeroRegionAction, type HeroRegionReaction } from './anim/regions.ts'
 import { shouldStartWindowDrag } from './hero-drag.ts'
 import { loadDigest } from './chat-import/store.ts'
 import {
@@ -53,8 +53,8 @@ import {
   type AdvisersPanelPolicyView,
 } from './advisers/face.ts'
 import { describeAdvisersFaceView, heroPlaceholderView, type HeroPlaceholderView } from './ui-state.ts'
-import { initDesktopShell, createComposerController, type ComposerController } from './desktop-shell.ts'
-import { heroActionPlan, type HeroMenuAction } from './hero-actions.ts'
+import { initDesktopShell, createComposerController, type ComposerController, type HeroMenuActionItem } from './desktop-shell.ts'
+import { heroActionPlan, isHeroMenuAction, type HeroMenuAction } from './hero-actions.ts'
 import { startHitRegionSync } from './hit-regions.ts'
 import { startDesktopShellLayout } from './shell-layout.ts'
 import { characterBubbleSemantic, characterCanVoice } from './character-voice.ts'
@@ -395,6 +395,8 @@ let heroRaf: number | null = null
 let heroSceneNow = 0
 let heroLastFrameMs = 0
 let heroNight = false
+/** Cat/dog run locomotion: CSS translate/scale on the canvas, reset on idle. */
+const heroMove = { offset: 0, dir: 1 as 1 | -1, active: false }
 const now = (): number => Date.now()
 
 let state: PetState = createPet(now())
@@ -403,7 +405,7 @@ let mouthTimer: ReturnType<typeof setTimeout> | null = null
 
 // Pet TTS voice preference (default `stella`; setup page writes
 // `desktop-games/pet/voice`). Read through safe-storage, so missing/blocked/
-// corrupt storage keeps the default voice instead of an invalid one.
+// corrupt storage keeps the default instead of an invalid voice.
 let currentVoice: TtsVoiceId = readVoicePref()
 /** Provider/mode half of the TTS config signature; the voice is appended below. */
 let ttsProviderMode = '系统 TTS · AI 合成'
@@ -756,14 +758,31 @@ function doPat(actorId?: string): void {
 }
 
 /**
- * Data-driven hero tap reaction (regions.json): head pets, body stretches/wags,
- * tail chases; non-idle/undefined zones are no-ops. Keeps the public build in
- * sync with the private region architecture.
+ * Data-driven hero tap reaction (regions.json): the head pets, the body
+ * stretches/wags, the tail triggers chase_tail, and a non-idle character
+ * deliberately does not react. The kernel/bond side effect is shared, but the
+ * animation event comes from the region rule so cat/dog/human can differ.
  */
+const lastSaysByKey = new Map<string, string>()
+
+/**
+ * Random bubble line from a data-driven list, avoiding an immediate repeat for
+ * the same region/action (three lines are still a small pool; this makes
+ * repeated taps feel responsive instead of stuck on one phrase).
+ */
+function pickSays(says: readonly string[] | undefined, key: string): string | null {
+  if (!says || says.length === 0) return null
+  const previous = lastSaysByKey.get(key)
+  const pool = says.length > 1 && previous !== undefined ? says.filter((line) => line !== previous) : says
+  const line = pool[Math.floor(Math.random() * pool.length)] ?? null
+  if (line !== null) lastSaysByKey.set(key, line)
+  return line
+}
+
 function doHeroRegionTouch(actorId: string, reaction: HeroRegionReaction): void {
   state = patPet(state, now())
   hero?.emit(reaction.event, { actorId })
-  sayLater(reaction.say ?? pick(lines.pat), 'happy')
+  sayLater(pickSays(reaction.says, `${actorId}:${reaction.region}`) ?? pick(lines.pat), 'happy')
   render()
 }
 
@@ -784,20 +803,37 @@ function doFold(): void {
   render()
 }
 
+/** Actions for the live hero character (regions.json), with a legacy fallback. */
+function liveHeroActions(): readonly HeroRegionAction[] {
+  return hero?.actors[0]?.bundle.regions?.actions ?? []
+}
+
+function currentHeroMenuActions(): readonly HeroMenuActionItem[] {
+  const actions = liveHeroActions()
+  if (actions.length === 0) return [{ action: 'pat', label: '摸头' }]
+  return actions.map((action) => ({ action: action.id, label: action.label }))
+}
+
 /**
- * Desktop-shell hero actions (摸头（hero）/抛球/追球).
- *
- * These are hero-only: they emit FCI events on the live `HeroRuntime` and
- * deliberately do NOT `.click()` the folded-paper DOM buttons, so the hero
- * visual and the kernel/speech side effects cannot double-fire. The one
- * follow-up (ball_throw -> ball_chase at 500ms, the v7 throw-clip length) is
- * skipped if the hero runtime fell back or was disposed meanwhile.
+ * Character-specific hero menu action (dog fetch, cat stretch/run, human paper…).
+ * Actions are data from regions.json: event + optional delayed follow-up.
  */
-function handleHeroAction(action: HeroMenuAction): void {
+function handleHeroAction(actionId: string): void {
   const runtime = hero
   if (!runtime) return
+  const spec = liveHeroActions().find((action) => action.id === actionId)
+  const steps: readonly { event: string; delayMs: number }[] = spec
+    ? [
+        { event: spec.event, delayMs: 0 },
+        ...(spec.followUpEvent !== undefined
+          ? [{ event: spec.followUpEvent, delayMs: spec.followUpMs ?? 0 }]
+          : []),
+      ]
+    : isHeroMenuAction(actionId)
+      ? heroActionPlan(actionId)
+      : []
   try {
-    for (const step of heroActionPlan(action)) {
+    for (const step of steps) {
       if (step.delayMs <= 0) {
         runtime.emit(step.event)
         continue
@@ -811,6 +847,8 @@ function handleHeroAction(action: HeroMenuAction): void {
         }
       }, step.delayMs)
     }
+    const line = pickSays(spec?.says, `action:${actionId}`)
+    if (line) sayLater(line, 'happy')
   } catch (error) {
     // A disposed/misbehaving runtime must not break the menu click handler.
     reportFailure(uiBoundary, error)
@@ -1621,8 +1659,13 @@ function fallbackHero(reason: string, error?: unknown): void {
   if (stage) (stage as HTMLElement).hidden = true
   if (heroCanvasEl) {
     heroCanvasEl.style.transform = ''
+    heroCanvasEl.style.translate = ''
+    heroCanvasEl.style.scale = ''
+    delete heroCanvasEl.dataset.heroFlip
     heroCanvasEl.classList.remove('dragging')
   }
+  heroMove.offset = 0
+  heroMove.active = false
   hero?.dispose()
   hero = null
   heroCtx = null
@@ -1649,11 +1692,61 @@ function heroFrame(timestamp: number): void {
   try {
     hero.tick(heroSceneNow)
     hero.render(heroCtx, heroSceneNow)
+    applyHeroLocomotion(dt)
   } catch (error) {
     fallbackHero(`render-failed: ${error instanceof Error ? error.message : String(error)}`, error)
     return
   }
   heroRaf = requestAnimationFrame(heroFrame)
+}
+
+/**
+ * Real left/right travel for cat/dog run clips. The hero canvas is translated
+ * inside the transparent window (and mirrored when running left) instead of
+ * animating legs in place; idle snaps back. Human and folded-paper are untouched.
+ */
+function applyHeroLocomotion(dtMs: number): void {
+  const canvas = heroCanvasEl
+  if (!canvas || !hero) return
+  const character = HERO_CONFIG.character
+  const canMove = character === 'cat' || character === 'dog'
+  const actorId = hero.actors[0]?.id
+  const tag = actorId ? hero.actorFrame(actorId, heroSceneNow)?.tag : undefined
+  const moving = canMove && (tag === 'run' || tag === 'ball_chase')
+  if (!moving) {
+    if (!heroMove.active && heroMove.offset === 0) return
+    // Ease back to the resting position; keep the current facing until settled.
+    heroMove.active = false
+    heroMove.offset *= 0.78
+    if (Math.abs(heroMove.offset) < 1) {
+      heroMove.offset = 0
+      canvas.style.translate = ''
+      canvas.style.scale = ''
+      delete canvas.dataset.heroFlip
+      return
+    }
+    canvas.style.translate = `${Math.round(heroMove.offset)}px 0px`
+    return
+  }
+  const width = canvas.clientWidth || 192
+  const max = Math.max(24, Math.min(150, (window.innerWidth - width) / 2 - 12))
+  const speed = tag === 'ball_chase' ? 135 : 105
+  heroMove.active = true
+  heroMove.offset += heroMove.dir * (speed * Math.max(0, Math.min(120, dtMs))) / 1000
+  if (heroMove.offset > max) {
+    heroMove.offset = max
+    heroMove.dir = -1
+  } else if (heroMove.offset < -max) {
+    heroMove.offset = -max
+    heroMove.dir = 1
+  }
+  // The side-view run art faces LEFT (head on the left). Mirror it when the
+  // actor travels RIGHT so the visible facing always matches the movement;
+  // `heroFlip` is consumed by the alpha-tile hit regions for coordinate mapping.
+  const mirrored = heroMove.dir > 0
+  canvas.style.translate = `${Math.round(heroMove.offset)}px 0px`
+  canvas.style.scale = `${mirrored ? -1 : 1} 1`
+  canvas.dataset.heroFlip = mirrored ? '1' : '0'
 }
 
 function startHeroLoop(): void {
@@ -1801,11 +1894,15 @@ function attachHeroPointer(canvas: HTMLCanvasElement): void {
     const elapsed = performance.now() - startedAt
     if (!wasDragging && elapsed < 500) {
       const point = localPoint(event)
+      // Region hit-test first (art-pixel rects, zoom-independent). Packs with a
+      // regions.json only react inside their declared zones/state whitelist; a
+      // tap on a transparent/undefined area is intentionally a no-op instead
+      // of a whole-body pat. Legacy packs without regions keep the old pat.
       const hit = hero.hitRegion(point.x, point.y)
       if (hit) {
-        const actorState = hero.actorState(hit.actor.id) ?? 'idle'
+        const state = hero.actorState(hit.actor.id) ?? 'idle'
         const config = hit.actor.bundle.regions
-        const reaction = config ? resolveHeroRegionReaction(config, hit.region.id, actorState, 'tap') : null
+        const reaction = config ? resolveHeroRegionReaction(config, hit.region.id, state, 'tap') : null
         if (reaction) doHeroRegionTouch(hit.actor.id, reaction)
       } else {
         const target = hero.hitActor(point.x, point.y)
@@ -2498,6 +2595,7 @@ function initializeApp(): void {
       // Live getters: the shell initializes before hero boot, and the menu is
       // rendered on open, so it sees the actual renderer state each time.
       heroActive: () => hero !== null,
+      getHeroActions: currentHeroMenuActions,
       onHeroAction: handleHeroAction,
     })
     wired.shell = true

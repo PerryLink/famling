@@ -40,8 +40,18 @@ export interface HeroRegionReaction {
   readonly gesture?: string
   /** FCI hero event to emit (pat, stand_wag, chase_tail, …). */
   readonly event: string
-  /** Optional short bubble line (local copy; never markdown/HTML). */
-  readonly say?: string
+  /** Short bubble lines; one is chosen randomly per tap (never markdown/HTML). */
+  readonly says?: readonly string[]
+}
+
+/** One character-specific menu action (dog fetch, cat stretch, human paper…). */
+export interface HeroRegionAction {
+  readonly id: string
+  readonly label: string
+  readonly event: string
+  readonly followUpEvent?: string
+  readonly followUpMs?: number
+  readonly says?: readonly string[]
 }
 
 export interface HeroRegionConfig {
@@ -50,6 +60,8 @@ export interface HeroRegionConfig {
   readonly canvas: readonly [number, number]
   readonly regions: readonly HeroRegion[]
   readonly gestures: readonly HeroRegionReaction[]
+  /** Species-specific menu actions (data-driven, rendered by the desktop shell). */
+  readonly actions?: readonly HeroRegionAction[]
 }
 
 export interface HeroRegionHit {
@@ -64,6 +76,8 @@ const EVENT_RE = /^[a-z][a-z0-9_.-]{0,63}$/
 const MAX_REGIONS = 32
 const MAX_GESTURES = 64
 const MAX_STATES = 8
+const MAX_SAYS = 6
+const MAX_ACTIONS = 8
 const MAX_SAY = 120
 
 function fail(message: string): never {
@@ -83,6 +97,14 @@ function asString(value: unknown, what: string, max: number): string {
 function asFinite(value: unknown, what: string): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) fail(`${what} must be a finite number`)
   return value
+}
+
+function parseSays(value: unknown, what: string): readonly string[] | undefined {
+  if (value === undefined) return undefined
+  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_SAYS) {
+    fail(`${what} must be a non-empty array (<= ${MAX_SAYS})`)
+  }
+  return value.map((line, index) => asString(line, `${what}[${index}]`, MAX_SAY))
 }
 
 function parseRect(value: unknown, what: string): HeroRegionRect {
@@ -141,10 +163,50 @@ export function parseHeroRegionConfig(raw: unknown): HeroRegionConfig {
         return value
       })
     }
-    const say = rule.say === undefined ? undefined : asString(rule.say, `gestures[${index}].say`, MAX_SAY)
-    return { region, ...(states !== undefined ? { states } : {}), ...(gesture !== undefined ? { gesture } : {}), event, ...(say !== undefined ? { say } : {}) }
+    const legacySay = typeof rule.say === 'string' ? [rule.say] : undefined
+    const says = parseSays(rule.says ?? legacySay, `gestures[${index}].says`)
+    return {
+      region,
+      ...(states !== undefined ? { states } : {}),
+      ...(gesture !== undefined ? { gesture } : {}),
+      event,
+      ...(says !== undefined ? { says } : {}),
+    }
   })
-  return { version: 1, canvas: [canvas[0], canvas[1]], regions, gestures }
+
+  let actions: readonly HeroRegionAction[] | undefined
+  if (doc.actions !== undefined) {
+    if (!Array.isArray(doc.actions) || doc.actions.length === 0 || doc.actions.length > MAX_ACTIONS) {
+      fail(`actions must be a non-empty array (<= ${MAX_ACTIONS})`)
+    }
+    const actionIds = new Set<string>()
+    actions = doc.actions.map((entry, index) => {
+      const action = asRecord(entry, `actions[${index}]`)
+      const id = asString(action.id, `actions[${index}].id`, 64)
+      if (!ID_RE.test(id)) fail(`actions[${index}].id "${id}" is not a safe id`)
+      if (actionIds.has(id)) fail(`duplicate action id "${id}"`)
+      actionIds.add(id)
+      const label = asString(action.label, `actions[${index}].label`, 32)
+      const event = asString(action.event, `actions[${index}].event`, 64)
+      if (!EVENT_RE.test(event)) fail(`actions[${index}].event "${event}" is not a safe event name`)
+      const followUpEvent = action.followUpEvent === undefined ? undefined : asString(action.followUpEvent, `actions[${index}].followUpEvent`, 64)
+      if (followUpEvent !== undefined && !EVENT_RE.test(followUpEvent)) fail(`actions[${index}].followUpEvent is not a safe event name`)
+      const followUpMs = action.followUpMs === undefined ? undefined : asFinite(action.followUpMs, `actions[${index}].followUpMs`)
+      if (followUpMs !== undefined && (followUpMs < 0 || followUpMs > 5000)) fail(`actions[${index}].followUpMs must be 0..5000`)
+      if (followUpMs !== undefined && followUpEvent === undefined) fail(`actions[${index}].followUpMs requires followUpEvent`)
+      const says = parseSays(action.says, `actions[${index}].says`)
+      return {
+        id,
+        label,
+        event,
+        ...(followUpEvent !== undefined ? { followUpEvent } : {}),
+        ...(followUpMs !== undefined ? { followUpMs } : {}),
+        ...(says !== undefined ? { says } : {}),
+      }
+    })
+  }
+
+  return { version: 1, canvas: [canvas[0], canvas[1]], regions, gestures, ...(actions !== undefined ? { actions } : {}) }
 }
 
 /** Regions in priority order (higher first, declaration order breaks ties). */

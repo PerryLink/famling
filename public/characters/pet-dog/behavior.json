@@ -37,7 +37,8 @@
     "stand_wag": "stand_wag",
     "chase_tail": "chase_tail",
     "idle_blink": "idle_blink",
-    "attack": "attack"
+    "attack": "attack",
+    "run": "run"
   },
   "states": {
     "idle": {
@@ -124,6 +125,12 @@
     "attack": {
       "tag": "attack",
       "priority": 60,
+      "after": "idle"
+    },
+    "run": {
+      "tag": "run",
+      "priority": 45,
+      "timeoutMs": 2500,
       "after": "idle"
     }
   },
@@ -229,6 +236,12 @@
       "to": "attack",
       "priority": 60,
       "cooldownMs": 800
+    },
+    {
+      "on": "run",
+      "to": "run",
+      "priority": 45,
+      "cooldownMs": 2000
     }
   ],
   "ambient": {
@@ -239,27 +252,27 @@
     "choices": [
       {
         "state": "idle",
-        "weight": 5
+        "weight": 45
       },
       {
         "state": "idle_blink",
-        "weight": 3
+        "weight": 10
       },
       {
         "state": "paw_face",
-        "weight": 2
+        "weight": 8
       },
       {
         "state": "scratch",
-        "weight": 2
+        "weight": 8
       },
       {
         "state": "stand_wag",
-        "weight": 2
+        "weight": 20
       },
       {
         "state": "chase_tail",
-        "weight": 1
+        "weight": 9
       }
     ]
   },

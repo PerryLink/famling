@@ -48,7 +48,11 @@
       ],
       "gesture": "tap",
       "event": "pat",
-      "say": "好舒服！再摸一下！"
+      "says": [
+        "好舒服！",
+        "再摸一下！",
+        "尾巴停不下来。"
+      ]
     },
     {
       "region": "body",
@@ -58,7 +62,11 @@
       ],
       "gesture": "tap",
       "event": "stand_wag",
-      "say": "痒！尾巴停不下来！"
+      "says": [
+        "痒！",
+        "哈哈，别挠！",
+        "再来！"
+      ]
     },
     {
       "region": "tail",
@@ -68,7 +76,65 @@
       ],
       "gesture": "tap",
       "event": "chase_tail",
-      "say": "追到尾巴啦！"
+      "says": [
+        "追到尾巴啦！",
+        "球球？尾巴？",
+        "转晕了……"
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "id": "pat",
+      "label": "摸头",
+      "event": "pat",
+      "says": [
+        "好舒服！",
+        "再摸一下！",
+        "尾巴停不下来。"
+      ]
+    },
+    {
+      "id": "fetch",
+      "label": "丢球 / 捡球",
+      "event": "ball_throw",
+      "followUpEvent": "ball_chase",
+      "followUpMs": 500,
+      "says": [
+        "球球！",
+        "扔远一点！",
+        "捡回来给你！"
+      ]
+    },
+    {
+      "id": "retrieve",
+      "label": "捡球",
+      "event": "ball_chase",
+      "says": [
+        "我去捡！",
+        "球呢？",
+        "找到了！"
+      ]
+    },
+    {
+      "id": "tail",
+      "label": "追尾巴",
+      "event": "chase_tail",
+      "says": [
+        "追到尾巴啦！",
+        "球球？尾巴？",
+        "转晕了……"
+      ]
+    },
+    {
+      "id": "run",
+      "label": "跑一跑",
+      "event": "run",
+      "says": [
+        "跑起来！",
+        "跟上！",
+        "风好大！"
+      ]
     }
   ]
 }

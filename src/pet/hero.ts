@@ -28,6 +28,8 @@ export interface CharacterTag {
   frames: number
   fps: number
   loop: boolean
+  /** Per-frame hold durations (non-uniform clips such as attack/stretch). */
+  holdMs?: readonly number[]
   /** Production phase; `deferred`/later tags still have placeholder frames. */
   phase?: CharacterPhase
 }
@@ -128,6 +130,8 @@ export function validateCharacterPack(value: unknown): CharacterPackData {
   const tagsRaw = requireRecord(raw.tags, 'pack.tags')
   const tagNames = Object.keys(tagsRaw)
   if (tagNames.length === 0) throw new CharacterPackError('pack.tags must not be empty')
+  const animRaw = isRecord(raw.anim) ? raw.anim : null
+  const animClips = animRaw && isRecord(animRaw.clips) ? animRaw.clips : null
   const tags: Record<string, CharacterTag> = {}
   let totalFrames = 0
   for (const name of tagNames) {
@@ -141,6 +145,19 @@ export function validateCharacterPack(value: unknown): CharacterPackData {
       const phase = requireString(tagRaw.phase, `pack.tags.${name}.phase`) as CharacterPhase
       if (!PHASES.includes(phase)) throw new CharacterPackError(`unsupported pack.tags.${name}.phase: ${phase}`)
       tag.phase = phase
+    }
+    const clipRaw = animClips && isRecord(animClips[name]) ? animClips[name] : null
+    if (clipRaw && clipRaw.holdMs !== undefined) {
+      if (!Array.isArray(clipRaw.holdMs) || clipRaw.holdMs.length !== frames) {
+        throw new CharacterPackError(`pack.anim.clips.${name}.holdMs length must equal frames`)
+      }
+      const holds = clipRaw.holdMs.map((value, index) => {
+        if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+          throw new CharacterPackError(`pack.anim.clips.${name}.holdMs[${index}] must be a positive finite number`)
+        }
+        return value
+      })
+      tag.holdMs = holds
     }
     tags[name] = tag
     totalFrames += frames
@@ -214,6 +231,20 @@ export function frameIndexFor(meta: CharacterTag, elapsedMs: number, loop = meta
   const frames = Math.max(1, meta.frames)
   if (frames === 1) return 0
   const elapsed = Math.max(0, elapsedMs)
+  // Non-uniform clips (attack, cat stretch) hold individual frames for their
+  // authored durations instead of assuming 1000/fps for every frame.
+  const holds = meta.holdMs
+  if (holds && holds.length === frames) {
+    const total = holds.reduce((sum, hold) => sum + Math.max(0, hold), 0)
+    if (total <= 0) return 0
+    let cursor = loop ? elapsed % total : Math.min(elapsed, total - 0.0001)
+    for (let index = 0; index < frames; index += 1) {
+      const hold = Math.max(0, holds[index] ?? 0)
+      if (cursor < hold) return index
+      cursor -= hold
+    }
+    return frames - 1
+  }
   const offset = Math.floor((elapsed / 1000) * meta.fps)
   if (loop) return ((offset % frames) + frames) % frames
   return Math.min(frames - 1, offset)

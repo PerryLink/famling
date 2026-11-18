@@ -174,3 +174,16 @@ cd /mnt/d/Projects/dsh/_scratch/pet-anim-cat-selkirk-preview && python3 gen_prev
 - 新增两个测试：run 每帧 legLength ∈[10,15] 且腿宽 ≥6；stand_wag 每帧 legLength ≤15 且腿宽 ≥6。总测试 16 pass。
 - `gen-cat-anim --check/--verify`、`gen-pet-anim-frames --check`、`tsc --noEmit`、消费方 75/75 全绿。
 - 预览：`_scratch/pet-anim-cat-side-v10-preview/run_stand_4x.png`、`gifs/cat_run.gif`、`gifs/cat_stand_wag.gif`、`RUN-STAND-LEG-METRICS.txt`、`RUN-STAND-LEG-FIX.md`；主预览同步刷新。
+
+## 14. v12：stand_wag 10 帧慢速伸懒腰（2026-11-18，只改 cat）
+
+用户反馈 stand_wag 持续时间太短。本轮把 cat 的伸懒腰改成 10 帧、非均匀 holdMs，cat 总帧数 68→72（其余 11 clip 不变）：
+
+- 帧数 6→10，基础 fps 8→6（实际由 holdMs 决定），holdMs = `[300,300,300,350,400,400,400,350,250,150]`，durationMs = **3200ms**（约 3.2s）。
+- 10 个真实不同姿势：0 正常短腿站姿 → 1 抬头/尾起 → 2 前爪前滑 → 3 压胸 → 4 前趴后翘全伸展 → 5 打哈欠开始（张嘴）→ 6 哈欠保持（闭眼张嘴）→ 7 开始收 → 8 拉回 → 9 回 idle 站姿（半闭眼微笑）。
+- manifest：`anim.clips.stand_wag.frames=10/fps=6/durationMs=3200/holdMs=[...]`；`tags.stand_wag={frames:10,fps:6,loop:false,phase:"1b"}`；`assets=72`。cat 其余 clip 帧数/fps/loop/holdMs 全部不变。
+- 短腿比例/卷毛/灰帽/白 blaze/蓝眼/96×96/地线 89/1px 轮廓/无洞/≤16 色/同侧肢体遮挡均保持。
+- `scripts/gen-cat-anim.py` CLIPS 更新；`scripts/cat_selkirk.py` `draw_stand_stretch` 改为 10 姿势表。
+- tests 17 pass：新增 stand_wag 10 帧/3200ms/10 唯一姿势断言；原腿长/腿宽/灰帽/blaze/轮廓/同侧肢体断言保留。
+- **中央契约未改**：`src/pet/anim/clips.ts` 仍 stand_wag 6/8、cat 68，中央 `tests/pet-anim.test.ts` 预期红（clip table 6、hero 68、disk、voice policy）；cat test 内用临时 `validateCatManifest()` 桥接，lead 同步 clips.ts 后自动切回原始 manifest 校验。
+- 预览：`_scratch/pet-anim-cat-stretch-2026-11-18/`（stand_wag_4x/1x、`gifs/cat_stand_wag.gif` 按 holdMs 总 3200ms、`STRETCH-REPORT.md`）；`--check/--verify`、`gen-pet-anim-frames --check`、`tsc` 全绿。

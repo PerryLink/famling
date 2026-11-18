@@ -14,7 +14,6 @@ import {
   type ConsentOverlayEventDetail,
 } from './consent/modal.ts'
 import { countCodePoints, sanitizePlainText, truncateCodePoints } from './security/limits.ts'
-import type { HeroMenuAction } from './hero-actions.ts'
 
 /**
  * Desktop pet shell (Phase 1A): hide the settings chrome by default, keep the
@@ -213,20 +212,19 @@ export const RENDERER_MENU_ITEMS: readonly RendererMenuItem[] = [
 
 /** One menu entry for a hero-only action (see `hero-actions.ts`). */
 export interface HeroMenuActionItem {
-  readonly action: HeroMenuAction
+  /** Data-driven action id from that character's regions.json (pat/fetch/run/…). */
+  readonly action: string
   readonly label: string
 }
 
-/** Hero-only menu entries; rendered only while the hero canvas is running. */
+/** Fallback menu (legacy packs without actions); real menus are per-character. */
 export const HERO_MENU_ACTIONS: readonly HeroMenuActionItem[] = [
-  { action: 'pat', label: '摸头（hero）' },
-  { action: 'ball_throw', label: '抛球' },
-  { action: 'ball_chase', label: '追球' },
+  { action: 'pat', label: '摸头' },
 ]
 
-/** `[]` in origami mode, all three actions while the hero renderer is active. */
-export function heroMenuActions(heroActive: boolean): readonly HeroMenuActionItem[] {
-  return heroActive ? HERO_MENU_ACTIONS : []
+/** `[]` in origami mode; the host supplies the active character's actions. */
+export function heroMenuActions(heroActive: boolean, items: readonly HeroMenuActionItem[] = HERO_MENU_ACTIONS): readonly HeroMenuActionItem[] {
+  return heroActive ? items : []
 }
 
 /** Injectable storage/reload surface for `applyRendererChoice`. */
@@ -333,12 +331,14 @@ export interface DesktopShellOptions {
    * hero-only 摸头/抛球/追球 entries; the default keeps the old DOM actions.
    */
   readonly heroActive?: () => boolean
+  /** Per-character hero actions (regions.json actions); read each menu open. */
+  readonly getHeroActions?: () => readonly HeroMenuActionItem[]
   /**
-   * Host hook for the hero-only menu entries. `main.ts` routes this to
+   * Host hook for the hero menu entries. `main.ts` routes this to
    * `HeroRuntime.emit()` (never to the folded-paper DOM buttons, so a hero
    * action cannot double-fire the kernel/speech side effects).
    */
-  readonly onHeroAction?: (action: HeroMenuAction) => void
+  readonly onHeroAction?: (action: string) => void
 }
 
 function writeNumber(key: string, value: number): void {
@@ -613,7 +613,8 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
     if (heroActive()) {
       // Hero canvas is drawing: the folded-paper DOM buttons are hidden by
       // pet.css, so route the same intents through hero.emit() data events.
-      for (const item of heroMenuActions(true)) {
+      const items = options.getHeroActions?.() ?? heroMenuActions(true)
+      for (const item of items) {
         add(item.label, () => { onHeroAction?.(item.action) })
       }
     } else {

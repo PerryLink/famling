@@ -32,16 +32,19 @@ main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1
 .fold-pet .tail { position: absolute; right: 8px; bottom: 4px; width: 22px; height: 8px; background: #d8c3a5; border: 3px solid #6a4a2e; border-radius: 999px; transform: rotate(-12deg); }
 .fold-pet.happy .mouth { width: 12px; height: 6px; border-radius: 0 0 8px 8px; }
 .fold-pet.happy .eye { height: 4px; border-radius: 999px; }
-.bubble { position: absolute; left: 10px; top: 10px; max-width: 70%; background: #f7ecdc; color: #241b18; border: 2px solid #8a5a33; border-radius: 9px; padding: 6px 9px; font-size: 10.5px; line-height: 1.5; font-weight: 500; box-shadow: 0 2px 8px rgba(0, 0, 0, .28); opacity: 0; transition: opacity var(--ui-dur-120) var(--ui-ease-standard); }
+.bubble { position: absolute; left: 10px; top: 10px; max-width: 70%; background: #ffffff; color: #111111; border: 2px solid #9a9a9a; border-radius: 9px; padding: 6px 9px; font-size: 10.5px; line-height: 1.5; font-weight: 500; box-shadow: 0 3px 10px rgba(0, 0, 0, .30); opacity: 0; transition: opacity var(--ui-dur-120) var(--ui-ease-standard); }
 .bubble.show { opacity: 1; }
-/* Cat/dog thought bubbles: readable dark ink panel, dashed border for semantics. */
+/* Cat/dog personas: silent thought bubble. It must still be a readable balloon:
+   a dark ink panel keeps cream text visible on both light and dark wallpapers;
+   the dashed border keeps the "thought" semantics without making the text sink
+   into the transparent desktop window. */
 .bubble.thought {
-  background: #241b18;
+  background: #ffffff;
   border-style: dashed;
-  border-color: #e2c69a;
-  color: #f9efdd;
+  border-color: #8f8f8f;
+  color: #111111;
   text-shadow: none;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, .42);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, .30);
 }
 .panel { display: flex; flex-direction: column; gap: 5px; min-height: 0; }
 .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }

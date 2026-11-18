@@ -48,7 +48,11 @@
       ],
       "gesture": "tap",
       "event": "pat",
-      "say": "嗯。"
+      "says": [
+        "嗯。",
+        "在忙呢……",
+        "摸头就摸头。"
+      ]
     },
     {
       "region": "body",
@@ -58,7 +62,11 @@
       ],
       "gesture": "tap",
       "event": "stand_wag",
-      "say": "在忙呢，稍等。"
+      "says": [
+        "在忙，稍等。",
+        "别戳。",
+        "有事说事。"
+      ]
     },
     {
       "region": "tail",
@@ -68,7 +76,63 @@
       ],
       "gesture": "tap",
       "event": "chase_tail",
-      "say": "看什么呢？"
+      "says": [
+        "看什么呢？",
+        "那是尾巴。",
+        "嗯，我在。"
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "id": "pat",
+      "label": "摸头",
+      "event": "pat",
+      "says": [
+        "嗯。",
+        "在忙呢……",
+        "摸头就摸头。"
+      ]
+    },
+    {
+      "id": "feed",
+      "label": "递纸",
+      "event": "feed",
+      "says": [
+        "谢谢。",
+        "放桌上吧。",
+        "正好要用。"
+      ]
+    },
+    {
+      "id": "wave",
+      "label": "挥手",
+      "event": "stand_wag",
+      "says": [
+        "嗯，看到了。",
+        "在。",
+        "去吧。"
+      ]
+    },
+    {
+      "id": "tidy",
+      "label": "整理蝴蝶结",
+      "event": "paw_face",
+      "says": [
+        "领结歪了。",
+        "好了。",
+        "别盯着看。"
+      ]
+    },
+    {
+      "id": "talk",
+      "label": "聊两句",
+      "event": "talk",
+      "says": [
+        "今天也慢慢来。",
+        "有事说事。",
+        "我在听。"
+      ]
     }
   ]
 }

@@ -1059,6 +1059,9 @@ export class HeroRuntime {
     if (state.timeoutMs !== undefined) return state.timeoutMs
     if (state.after === undefined) return null
     const meta = this.entryById.get(actorId)?.bundle.tags[state.tag]
+    if (meta?.holdMs && meta.holdMs.length === meta.frames) {
+      return meta.holdMs.reduce((sum, hold) => sum + Math.max(0, hold), 0)
+    }
     if (meta && meta.fps > 0 && meta.frames > 0) return (meta.frames / meta.fps) * 1000
     return DEFAULT_ONE_SHOT_MS
   }
