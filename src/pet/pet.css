@@ -1,0 +1,1127 @@
+:root {
+  color-scheme: dark;
+  /* Motion tokens (UI-MOTION-AUDIT-2026-11-16 §6): one place for every duration
+     and easing. Only transform/opacity (plus non-layout colour) animate; the
+     `prefers-reduced-motion` block at the end collapses these to 0/直显. */
+  --ui-dur-80: 80ms;
+  --ui-dur-100: 100ms;
+  --ui-dur-120: 120ms;
+  --ui-dur-200: 200ms;
+  --ui-ease-standard: cubic-bezier(.2, 0, .2, 1);
+}
+* { box-sizing: border-box; }
+body { margin: 0; font-family: "Segoe UI", "Microsoft YaHei", sans-serif; background: #0b0f14; color: #f0e4d4; overflow: hidden; }
+#pet-app { height: 100vh; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; background: radial-gradient(ellipse at 30% 20%, #241b15 0%, #0b0f14 65%); }
+header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+h1 { margin: 0; font-size: 14px; color: #f0d6a8; letter-spacing: .05em; }
+#pet-sub { margin: 2px 0 0; font-size: 8px; color: #8f7a5a; }
+.stats { display: flex; gap: 5px; }
+.stats span { font-size: 8px; color: #cbb79f; border: 1px solid #3a2e24; border-radius: 999px; padding: 2px 6px; }
+main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 8px; }
+.book { position: relative; border: 1px solid #3a2e24; border-radius: 10px; background: repeating-linear-gradient(0deg, #17120f 0 23px, #1c1612 24px); overflow: hidden; display: flex; align-items: flex-end; justify-content: center; }
+.fold-pet { position: relative; width: 104px; height: 90px; margin-bottom: 18px; cursor: pointer; image-rendering: pixelated; filter: drop-shadow(0 6px 0 #0006); }
+.fold-pet .head { position: absolute; left: 24px; top: 16px; width: 56px; height: 42px; background: #e8d6b0; border: 3px solid #6a4a2e; border-radius: 10px 10px 14px 14px; }
+.fold-pet .body { position: absolute; left: 30px; top: 54px; width: 44px; height: 32px; background: #d8c3a5; border: 3px solid #6a4a2e; border-radius: 4px 4px 12px 12px; }
+.fold-pet .ear { position: absolute; top: 8px; width: 18px; height: 20px; background: #e8d6b0; border: 3px solid #6a4a2e; }
+.fold-pet .ear.left { left: 22px; transform: rotate(-18deg); border-radius: 4px 12px 0 4px; }
+.fold-pet .ear.right { right: 22px; transform: rotate(18deg); border-radius: 12px 4px 4px 0; }
+.fold-pet .eye { position: absolute; top: 16px; width: 5px; height: 7px; background: #1b1612; }
+.fold-pet .eye.left { left: 12px; } .fold-pet .eye.right { right: 12px; }
+.fold-pet .mouth { position: absolute; left: 22px; top: 29px; width: 9px; height: 3px; background: #1b1612; border-radius: 0 0 4px 4px; transform-origin: top center; }
+.fold-pet .crease { position: absolute; left: 18px; top: 8px; width: 8px; height: 18px; background: #b9a58e; opacity: .7; transform: rotate(18deg); }
+.fold-pet .tail { position: absolute; right: 8px; bottom: 4px; width: 22px; height: 8px; background: #d8c3a5; border: 3px solid #6a4a2e; border-radius: 999px; transform: rotate(-12deg); }
+.fold-pet.happy .mouth { width: 12px; height: 6px; border-radius: 0 0 8px 8px; }
+.fold-pet.happy .eye { height: 4px; border-radius: 999px; }
+.bubble { position: absolute; left: 10px; top: 10px; max-width: 70%; background: #f0e4d4; color: #241b18; border: 2px solid #6a4a2e; border-radius: 8px; padding: 5px 7px; font-size: 10px; line-height: 1.45; opacity: 0; transition: opacity var(--ui-dur-120) var(--ui-ease-standard); }
+.bubble.show { opacity: 1; }
+.panel { display: flex; flex-direction: column; gap: 5px; min-height: 0; }
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
+button {
+  min-height: 24px;
+  border: 1px solid #5a402b;
+  border-radius: 6px;
+  background: #241b15;
+  color: #f0e4d4;
+  font-size: 8px;
+  cursor: pointer;
+  padding: 3px;
+  transition:
+    background-color var(--ui-dur-80) var(--ui-ease-standard),
+    border-color var(--ui-dur-80) var(--ui-ease-standard),
+    color var(--ui-dur-80) var(--ui-ease-standard),
+    transform var(--ui-dur-80) var(--ui-ease-standard);
+}
+button:hover { background: #362619; }
+button:active { transform: translateY(1px); }
+button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+button:focus-visible { outline: 2px solid #e0b35a; outline-offset: 1px; }
+.memories { flex: 1; overflow-y: auto; border-top: 1px solid #3a2e24; padding-top: 4px; font-size: 8px; color: #b9a58e; line-height: 1.45; }
+.memories div { margin-bottom: 3px; }
+.note { margin: 0; font-size: 7px; color: #6a5a48; line-height: 1.4; }
+@media (max-width: 420px) { .stats span:nth-child(3) { display: none; } main { grid-template-columns: minmax(0,1fr) 138px; } }
+
+/* Mouth talk loop: transform-only (the old keyframes animated `height`, a
+   layout property — UI-MOTION-AUDIT §5.5). */
+@keyframes pet-talk { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(2.4); } }
+.fold-pet.talking .mouth { animation: pet-talk .22s steps(2, end) infinite; border-radius: 2px; }
+.fold-pet.talking .eye { height: 5px; }
+
+body[data-time="night"] { background: #070a0f; }
+body[data-time="night"] #pet-app { background: radial-gradient(ellipse at 30% 20%, #16121a 0%, #070a0f 65%); }
+.fold-pet.sleepy .eye { height: 2px; border-radius: 999px; top: 20px; }
+.fold-pet.sleepy .mouth { width: 6px; height: 2px; }
+body[data-time="night"] .book { background: repeating-linear-gradient(0deg, #0d1118 0 23px, #121821 24px); }
+
+.volume { font-size: 8px; color: #b9a58e; display: flex; align-items: center; gap: 4px; }
+.volume input { width: 100%; accent-color: #e0b35a; }
+
+.memory-list { max-height: 240px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; margin: 8px 0; }
+.memory-item { display: flex; align-items: center; gap: 5px; padding: 5px 6px; border: 1px solid #3a2e24; border-radius: 6px; background: #17120f; font-size: 9px; color: #e0d4c4; }
+.memory-item span { flex: 1; }
+.memory-item em { color: #8f7a5a; font-style: normal; font-size: 7px; }
+.memory-item button { min-height: 20px; padding: 1px 5px; font-size: 8px; }
+
+.settings-screen { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 12px; background: #000c; z-index: 50; }
+.settings-screen.hidden { display: none; }
+.gallery-card { width: min(420px, 94vw); max-height: 92vh; padding: 12px; border: 1px solid #5a402b; border-radius: 12px; background: #12100ef5; box-shadow: 0 20px 60px #000c; overflow-y: auto; }
+.gallery-card h1 { margin: 0 0 3px; font-size: 16px; color: #f0d6a8; }
+.title-kicker { margin: 0; font-size: 7px; letter-spacing: .18em; color: #8f7a5a; }
+.title-sub { margin: 3px 0 6px; font-size: 8px; color: #8f7a5a; line-height: 1.5; }
+.title-actions { display: flex; justify-content: flex-end; gap: 4px; }
+
+.title-actions { flex-wrap: wrap; }
+
+/* 480×272 pet shell (optional --pet-size 480x272): +32px window, still crisp pixel-art
+   display scale (integer 1×/2×/4× or integer reciprocal 1/2,1/4,1/8; see pixel-scale.ts).
+   The hero stage is reserved for the later renderer integration; micro DOM placeholder stays. */
+@media (min-height: 264px) {
+  #pet-app { padding-top: 6px; padding-bottom: 4px; }
+  .book { min-height: 200px; }
+  .panel { gap: 3px; }
+  .actions { gap: 2px; }
+  .actions button { min-height: 20px; padding: 2px; font-size: 8px; }
+  .volume { font-size: 7px; }
+  .note { font-size: 6px; line-height: 1.3; }
+  .memories { font-size: 7px; }
+}
+.hero-stage {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+.hero-stage canvas { display: block; image-rendering: pixelated; }
+
+/* Default 480x240 pet shell: keep the existing small window free of the pre-existing
+   bottom-note overflow (panel content was taller than the 187px book area). */
+@media (max-height: 263px) {
+  .panel { gap: 3px; }
+  .actions { gap: 2px; }
+  .actions button { min-height: 19px; padding: 1px 2px; font-size: 8px; }
+  .volume { font-size: 7px; }
+  .note { font-size: 6px; line-height: 1.25; }
+  .memories { font-size: 7px; }
+}
+
+/* Phase 2 hero renderer (opt-in: ?hero=1 or localStorage opt-in; default OFF).
+   Hidden by default, so the flag-off DOM layout/pixels are unchanged. Success
+   path only removes [hidden] and flips html[data-pet-render='hero']; `#pet` keeps
+   its box (visibility, not display) so the existing layout E2E selectors work. */
+.hero-stage[hidden] { display: none; }
+html[data-pet-render="hero"] .hero-stage { pointer-events: auto; }
+html[data-pet-render="hero"] #pet { visibility: hidden; }
+html[data-pet-render="hero"] .bubble { pointer-events: none; }
+.hero-stage canvas { cursor: grab; touch-action: none; }
+.hero-stage canvas.dragging { cursor: grabbing; }
+
+
+/* Tinglan behavior-only preview (no character art yet) */
+html[data-pet-render="tinglan-preview"] #pet { visibility: hidden; }
+html[data-pet-render="tinglan-preview"] .hero-stage { pointer-events: auto; }
+.hero-stage--preview {
+  display: block;
+  position: absolute;
+  inset: 6px;
+  left: 6px;
+  right: 6px;
+  top: 6px;
+  bottom: 6px;
+  transform: none;
+  width: auto;
+  height: auto;
+  padding: 4px;
+  overflow: auto;
+  color: #e8edf6;
+  font: 10px/1.4 "Microsoft YaHei", system-ui, sans-serif;
+}
+.tinglan-preview { min-height: 100%; display: flex; flex-direction: column; gap: 4px; }
+.tp-head { display: flex; justify-content: space-between; gap: 8px; align-items: start; }
+.tp-head h2 { margin: 0; font-size: 16px; }
+.tp-head h2 span { color: #8b98ad; font-weight: 400; font-size: 10px; }
+.tp-kicker { margin: 0; color: #99c8ff; font-size: 8px; letter-spacing: .12em; text-transform: uppercase; }
+.tp-warn { max-width: 300px; color: #ffcc66; font-size: 9px; }
+.tp-body { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; min-height: 0; }
+.tp-actions { display: flex; flex-wrap: wrap; gap: 4px; align-content: start; }
+.tp-actions button {
+  border: 1px solid #263044; background: #1a2232; color: #e8edf6; border-radius: 5px;
+  padding: 4px 6px; font-size: 10px; cursor: pointer;
+}
+.tp-actions button:hover { border-color: #3964fe; }
+.tp-hud { background: #121722; border: 1px solid #263044; border-radius: 7px; padding: 7px; min-height: 0; }
+.tp-state { display: flex; align-items: baseline; gap: 6px; margin-bottom: 4px; }
+.tp-state strong { font-size: 17px; }
+.tp-state span { color: #99c8ff; font-size: 10px; }
+.tp-muted { color: #8b98ad; font-size: 9px; margin: 3px 0; }
+.tp-hud label { display: flex; gap: 4px; color: #8b98ad; font-size: 9px; margin-top: 3px; }
+
+
+/* First-run setup / cost notice (prominent, dismissible) */
+.setup-notice {
+  position: absolute;
+  z-index: 30;
+  left: 10px;
+  right: 10px;
+  top: 8px;
+  padding: 8px 10px;
+  border: 1px solid #8a6a24;
+  border-left: 4px solid #ffcc66;
+  border-radius: 8px;
+  background: rgba(32, 24, 10, .96);
+  color: #ffe2a8;
+  box-shadow: 0 8px 24px #0008;
+  font-size: 10px;
+  line-height: 1.45;
+}
+.setup-notice[hidden] { display: none; }
+.setup-notice strong { color: #ffcc66; font-size: 11px; }
+.setup-notice p { margin: 3px 0 6px; color: #e8d3a0; }
+.setup-actions { display: flex; gap: 8px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
+.setup-actions a { color: #99c8ff; font-size: 10px; }
+.setup-actions button { font-size: 10px; padding: 3px 7px; white-space: nowrap; }
+.setup-notice { max-width: calc(100% - 20px); }
+
+
+/* Advisers face status (read-only bridge; never blocks normal pet actions).
+   `data-state` comes from describeAdvisersFaceView(): disabled/unavailable/
+   stale/error/ok are all distinguishable by colour + text, and the retry
+   button only appears when the hook says retryable. */
+.advisers-status-row { display: flex; align-items: flex-start; gap: 3px; }
+.advisers-status {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: #6a5a48;
+  font-size: 7px;
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+  transition: color var(--ui-dur-120) var(--ui-ease-standard);
+}
+.advisers-status[data-state="ok"] { color: #99c8ff; }
+.advisers-status[data-state="stale"] { color: #ffcc66; }
+.advisers-status[data-state="error"] { color: #ff9b8a; }
+.advisers-status[data-state="unavailable"] { color: #b9a58e; }
+.advisers-status[data-state="disabled"] { color: #8f7a5a; }
+.advisers-status:focus-visible { outline: 1px solid #e0b35a; outline-offset: 1px; }
+.advisers-retry {
+  flex: none;
+  min-height: 16px;
+  padding: 0 4px;
+  border-color: #e0b35a;
+  color: #ffd98a;
+  background: #2a2013;
+  font-size: 7px;
+}
+.advisers-retry[hidden] { display: none; }
+
+
+/* Advisers read-only brief panel */
+.advisers-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  background: rgba(4, 7, 12, .72);
+  padding: 12px;
+}
+.advisers-panel[hidden] { display: none; }
+.advisers-card {
+  width: min(560px, 100%);
+  max-height: min(460px, 90vh);
+  overflow: auto;
+  background: #121722;
+  border: 1px solid #263044;
+  border-radius: 12px;
+  padding: 14px;
+  color: #e8edf6;
+  box-shadow: 0 18px 50px #000a;
+}
+.advisers-head { display: flex; justify-content: space-between; align-items: start; gap: 10px; }
+.advisers-head h2 { margin: 0; font-size: 18px; }
+.advisers-head button { background: #1a2232; color: #e8edf6; border: 1px solid #263044; border-radius: 6px; padding: 4px 8px; cursor: pointer; }
+.advisers-card h3 { font-size: 12px; color: #99c8ff; margin: 10px 0 4px; }
+.advisers-card ul { margin: 0; padding-left: 16px; color: #b9c6da; font-size: 12px; }
+.advisers-card li { margin: 2px 0; }
+.advisers-card .note { color: #8b98ad; font-size: 11px; }
+
+/* Advisers displayPolicy marker (contract v0.2): explicit `public` must be
+   visible as a badge, `none` never opens the panel, a missing/unknown policy
+   is coerced to private (dashed/warning styling) and the private auto-hide
+   rule is stated in the header. Fixed policy copy only — no brief content. */
+.advisers-policy-badge {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 1px 7px;
+  border: 1px solid #3a4a63;
+  border-radius: 999px;
+  background: #1a2232;
+  color: #b9c6da;
+  font-size: 10px;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+.advisers-policy-badge[data-policy="private"] { border-color: #5a6a86; color: #c7d4e8; }
+.advisers-policy-badge[data-policy="public"] {
+  border-color: #3f7a4a;
+  background: #14231a;
+  color: #b7f0c0;
+}
+.advisers-policy-badge[data-policy="none"] { border-color: #7a3f3f; background: #241414; color: #ffb3a7; }
+.advisers-policy-badge[data-source="fallback"] {
+  border-color: #8a6a24;
+  border-style: dashed;
+  color: #ffcc66;
+}
+.advisers-policy-badge[hidden] { display: none; }
+.advisers-policy-note { margin: 4px 0 0; color: #ffcc66; }
+.advisers-policy-note[hidden] { display: none; }
+/* Public briefs are explicitly screenshot-safe: make the card edge match the
+   marker so the policy is visible even in a cropped screenshot. */
+.advisers-panel[data-policy="public"] .advisers-card { border-color: #3f7a4a; }
+.advisers-panel[data-policy="none"] .advisers-card { border-color: #7a3f3f; }
+
+/* Phase 1A desktop shell: only the pet is visible; right-click opens actions.
+   ?shell=window keeps the old full-page layout for development/E2E.
+   The Tauri pet window is transparent (tauri.conf.json): html/body/#pet-app and
+   .book must all be transparent so only the pet + bubble pixels are visible. */
+html[data-pet-shell="desktop"],
+html[data-pet-shell="desktop"] body {
+  background: transparent;
+}
+html[data-pet-shell="desktop"] #pet-app {
+  height: 100vh;
+  padding: 0;
+  background: transparent;
+}
+html[data-pet-shell="desktop"] header,
+html[data-pet-shell="desktop"] aside.panel { display: none; }
+html[data-pet-shell="desktop"] main {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  min-height: 0;
+}
+html[data-pet-shell="desktop"] .book {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  width: 100%;
+  height: 100%;
+}
+/* Legacy folded-paper DOM keeps the shell's integer --pet-scale zoom. */
+html[data-pet-shell="desktop"] .fold-pet {
+  transform: scale(var(--pet-scale, 2));
+  transform-origin: bottom center;
+  margin-bottom: 12px;
+}
+/* The hero canvas is intentionally NOT transformed here: its CSS size is already
+   the fitted pixel-art size (pack canvas × display scale), so applying
+   --pet-scale again would double-scale and clip it (measured 192px canvas →
+   384px, top negative). It stays centred by the base .hero-stage rule
+   (left:50% + translateX(-50%), bottom:18px = HERO_STAGE_BOTTOM_MARGIN). */
+html[data-pet-shell="desktop"] .bubble {
+  left: 8px;
+  top: 8px;
+  max-width: calc(100% - 16px);
+  font-size: calc(10px * var(--ui-scale, 2));
+  transform-origin: top left;
+}
+html[data-pet-shell="desktop"] .setup-notice { font-size: calc(9px * var(--ui-scale, 2)); }
+/* Scale label: desktop-shell.ts writes it from resolvePetScale(); the header
+   shows it in ?shell=window and the menu heading repeats it in the desktop
+   shell, so first run visibly reads the product-locked 2x (or a stored 1x). */
+.pet-scale-label { color: #e0b35a; }
+
+/* Desktop-shell menu trigger (aria-haspopup/expanded). Subtle, desktop-only:
+   the window/dev shell keeps its old full-page layout with no extra chrome. */
+.pet-menu-button {
+  position: fixed;
+  right: 6px;
+  bottom: 6px;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  min-height: 0;
+  padding: 0;
+  border: 1px solid #6a4a2e;
+  border-radius: 7px;
+  background: rgba(27, 20, 16, .82);
+  color: #f0e4d4;
+  font-size: 12px;
+  line-height: 1;
+  opacity: .55;
+  transition:
+    opacity var(--ui-dur-120) var(--ui-ease-standard),
+    transform var(--ui-dur-80) var(--ui-ease-standard);
+}
+.pet-menu-button:hover,
+.pet-menu-button:focus-visible,
+.pet-menu-button[aria-expanded="true"] { opacity: 1; }
+.pet-menu-button:active { transform: translateY(1px); }
+html:not([data-pet-shell="desktop"]) .pet-menu-button { display: none; }
+
+/* Right-click / keyboard menu. Open/close is a data-state class + CSS tokens
+   (no `hidden` hard cut); only opacity/transform animate, the fixed box means
+   Chromium cannot shift the pet stage (CLS ~0). Closed is the base appearance
+   so the very first paint cannot flash a menu.
+   CONSENT P0: the menu is appended to <body> (outside the inert #pet-app), so
+   its z-index MUST stay below `.consent-root` (200) and `inert` must hard-block
+   pointer events; desktop-shell.ts additionally rejects every open/action while
+   the gate is not accepted or a TOS overlay is on screen. */
+.pet-shell-menu {
+  position: fixed;
+  z-index: 80;
+  width: min(230px, calc(100vw - 8px));
+  max-height: calc(100vh - 8px);
+  overflow-y: auto;
+  padding: 7px;
+  border: 1px solid #6a4a2e;
+  border-radius: 9px;
+  background: #1b1410;
+  box-shadow: 0 10px 30px #000a;
+  font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+  transform-origin: top left;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-2px) scale(.98);
+  transition:
+    opacity var(--ui-dur-100) var(--ui-ease-standard),
+    transform var(--ui-dur-100) var(--ui-ease-standard);
+}
+.pet-shell-menu[inert] { pointer-events: none; }
+.pet-shell-menu[data-state="open"] {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+.pet-shell-menu[data-state="closed"] {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-2px) scale(.98);
+  transition:
+    opacity var(--ui-dur-80) var(--ui-ease-standard),
+    transform var(--ui-dur-80) var(--ui-ease-standard),
+    visibility 0s linear var(--ui-dur-80);
+}
+.pet-shell-menu button {
+  width: 100%;
+  min-height: 22px;
+  margin: 1px 0;
+  text-align: left;
+  font-size: calc(9px * var(--ui-scale, 2));
+}
+.pet-shell-menu button:hover { background: #362619; }
+.pet-shell-menu button:focus-visible {
+  outline: 2px solid #e0b35a;
+  outline-offset: -1px;
+  background: #362619;
+}
+.pet-shell-menu button:active { transform: translateY(1px); }
+.pet-shell-menu button:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+.pet-shell-menu button[aria-checked="true"],
+.pet-shell-menu button.active { border-color: #e0b35a; color: #ffd98a; background: #362619; }
+.pet-menu-heading {
+  margin: 5px 2px 2px;
+  color: #c9a46a;
+  font-size: calc(7px * var(--ui-scale, 2));
+  letter-spacing: .08em;
+}
+.pet-menu-inline { display: flex; gap: 3px; }
+.pet-menu-inline button { width: auto; flex: 1; text-align: center; }
+
+/* Hero renderer's minimal non-art state chip: loading (first frame pending),
+   empty (no character/pack) and error (render/start failure). The default
+   flag-off path and the ready path hide it; the folded-paper DOM is the only
+   fallback and no character art is faked. */
+.hero-placeholder {
+  position: absolute;
+  left: 50%;
+  top: 6px;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: calc(100% - 12px);
+  padding: 3px 7px;
+  border: 1px solid #3a2e24;
+  border-radius: 999px;
+  background: rgba(18, 16, 14, .85);
+  color: #cbb79f;
+  font-size: 8px;
+  line-height: 1.3;
+  pointer-events: none;
+  transition: opacity var(--ui-dur-120) var(--ui-ease-standard);
+}
+.hero-placeholder[hidden] { display: none; }
+.hero-placeholder[data-state="loading"] { color: #99c8ff; border-color: #2b4666; }
+.hero-placeholder[data-state="empty"] { color: #cbb79f; }
+.hero-placeholder[data-state="error"] { color: #ffb4a2; border-color: #6a3a32; }
+.hero-placeholder-dot { width: 5px; height: 5px; border-radius: 999px; background: currentColor; opacity: .25; }
+.hero-placeholder[data-state="loading"] .hero-placeholder-dot { opacity: 1; animation: pet-loading-pulse 1.2s steps(2, end) infinite; }
+@keyframes pet-loading-pulse { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
+
+/* V1 typed input + compact result card (PET-INPUT-OUTPUT-DESIGN-2026-11-17
+   §2/§3). Same 480x336 window: a bottom sheet 8px above the window edge, never
+   a new window or resize. The layer is pointer-events:none so the pet stays
+   clickable; only the open composer/result card accept pointers. z-index 60 is
+   below the shell menu (80), menu trigger (70) and every consent layer (200).
+   Only opacity/transform/visibility transition (UI-MOTION-AUDIT §6); the global
+   prefers-reduced-motion block below collapses it to a direct state change. */
+.pet-input-layer { position: fixed; inset: 0; pointer-events: none; }
+.pet-composer, .pet-result-card {
+  position: fixed;
+  left: 8px;
+  right: 30px;
+  bottom: 8px;
+  z-index: 60;
+  max-height: min(208px, calc(100vh - 16px));
+  overflow: auto;
+  padding: 7px 9px;
+  border: 1px solid #6a4a2e;
+  border-radius: 10px;
+  background: rgba(24, 18, 14, .97);
+  color: #f0e4d4;
+  box-shadow: 0 10px 26px #0009;
+  font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(4px);
+  transition:
+    opacity var(--ui-dur-120) var(--ui-ease-standard),
+    transform var(--ui-dur-120) var(--ui-ease-standard),
+    visibility 0s linear var(--ui-dur-120);
+}
+.pet-composer[data-state="open"], .pet-result-card[data-state="open"] {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+  transition:
+    opacity var(--ui-dur-120) var(--ui-ease-standard),
+    transform var(--ui-dur-120) var(--ui-ease-standard);
+}
+.pet-composer[inert], .pet-result-card[inert] { pointer-events: none; }
+.pet-composer-label {
+  display: block;
+  margin: 0 0 3px;
+  color: #c9a46a;
+  font-size: calc(8px * var(--ui-scale, 1));
+  letter-spacing: .04em;
+}
+.pet-composer-input {
+  display: block;
+  width: 100%;
+  min-height: 46px;
+  max-height: 96px;
+  resize: none;
+  padding: 4px 6px;
+  border: 1px solid #5a402b;
+  border-radius: 7px;
+  background: #12100e;
+  color: #f0e4d4;
+  font: inherit;
+  font-size: calc(10px * var(--ui-scale, 1));
+  line-height: 1.45;
+}
+.pet-composer-input:focus-visible { outline: 2px solid #e0b35a; outline-offset: 1px; }
+.pet-composer-hint {
+  min-height: calc(12px * var(--ui-scale, 1));
+  margin: 3px 0 0;
+  color: #ffb4a2;
+  font-size: calc(8px * var(--ui-scale, 1));
+  line-height: 1.4;
+}
+.pet-composer-note {
+  margin: 2px 0 0;
+  color: #a08a70;
+  font-size: calc(7px * var(--ui-scale, 1));
+  line-height: 1.4;
+}
+.pet-composer-actions { display: flex; justify-content: flex-end; gap: 4px; margin-top: 4px; }
+.pet-composer-actions button {
+  min-height: calc(20px * var(--ui-scale, 1));
+  padding: 2px 8px;
+  font-size: calc(8px * var(--ui-scale, 1));
+}
+.pet-composer-submit { border-color: #e0b35a; color: #ffd98a; }
+/* Result card (design B): title/status/summary (summary clamps to 2 lines) plus
+   the two actions 稍后/关闭. 展开 is the in-card C layer: <=20 plain list lines,
+   never a terminal stream or artifact viewer. */
+.pet-result-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+.pet-result-title { font-size: calc(9px * var(--ui-scale, 1)); color: #f0d6a8; }
+.pet-result-status {
+  flex: none;
+  padding: 0 6px;
+  border: 1px solid #4a6a40;
+  border-radius: 999px;
+  color: #b7f0c0;
+  font-size: calc(7px * var(--ui-scale, 1));
+  line-height: 1.6;
+}
+.pet-result-status[data-status="working"] { border-color: #2b4666; color: #99c8ff; }
+.pet-result-status[data-status="needs_input"] { border-color: #8a6a24; color: #ffd98a; }
+.pet-result-status[data-status="error"] { border-color: #7a3f3f; color: #ffb3a7; }
+.pet-result-summary {
+  margin: 3px 0 0;
+  color: #e8d8c4;
+  font-size: calc(9px * var(--ui-scale, 1));
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.pet-result-detail { margin-top: 4px; padding-top: 4px; border-top: 1px solid #3a2e24; }
+.pet-result-detail[hidden] { display: none; }
+.pet-result-detail-list {
+  margin: 0;
+  padding-left: calc(14px * var(--ui-scale, 1));
+  color: #cbb79f;
+  font-size: calc(8px * var(--ui-scale, 1));
+  line-height: 1.5;
+}
+.pet-result-actions { display: flex; justify-content: flex-end; gap: 4px; margin-top: 4px; }
+.pet-result-actions button {
+  min-height: calc(20px * var(--ui-scale, 1));
+  padding: 2px 8px;
+  font-size: calc(8px * var(--ui-scale, 1));
+}
+.pet-result-expand {
+  margin-right: auto;
+  border-color: #3a2e24;
+  color: #c9a46a;
+  background: none;
+}
+.pet-result-later { border-color: #3a2e24; color: #cbb79f; background: none; }
+
+/* Reduced motion (UI-MOTION-AUDIT §8): every token duration collapses to 0,
+   transitions become direct state changes, infinite loops stop after one
+   iteration. States stay readable because colour/text/aria do not change. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ui-dur-80: 0ms;
+    --ui-dur-100: 0ms;
+    --ui-dur-120: 0ms;
+    --ui-dur-200: 0ms;
+  }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ==========================================================================
+   Consent / legal gate (TOS + separate TTS declaration + blocked read-only)
+   Pure static state changes: no animation, so `prefers-reduced-motion` users
+   get the exact same information with zero motion. Background is `inert` while
+   a dialog is open (modal.ts), so hidden actions cannot run behind consent.
+   ========================================================================== */
+.consent-root {
+  position: fixed;
+  inset: 0;
+  /* Must stay above every piece of body-level shell chrome (menu z-index 80,
+     trigger 70, health banner 90). This is a full-viewport modal layer, not a
+     tooltip: the backdrop below catches/discards every pointer event. */
+  z-index: 200;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  padding: 10px;
+  font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", system-ui, sans-serif;
+}
+.consent-backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+  background: rgba(4, 7, 12, .82);
+}
+.consent-dialog {
+  position: relative;
+  width: min(680px, 100%);
+  max-height: 94vh;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  padding: 14px 16px;
+  border: 1px solid #5a402b;
+  border-radius: 12px;
+  background: #12100e;
+  color: #f0e4d4;
+  box-shadow: 0 24px 70px #000d;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.consent-dialog:focus-visible, .consent-tos:focus-visible {
+  outline: 2px solid #e0b35a;
+  outline-offset: 2px;
+}
+.consent-kicker {
+  margin: 0;
+  color: #99c8ff;
+  font-size: 9px;
+  letter-spacing: .16em;
+}
+.consent-title {
+  margin: 0;
+  font-size: 16px;
+  color: #f0d6a8;
+}
+.consent-meta {
+  margin: 0;
+  color: #b9a58e;
+  font-size: 10px;
+  word-break: break-word;
+}
+.consent-meta-label { color: #8f7a5a; }
+.consent-hash {
+  color: #99c8ff;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 9px;
+  word-break: break-all;
+}
+.consent-reason {
+  margin: 2px 0;
+  color: #ffe2a8;
+  font-size: 12px;
+}
+.consent-action {
+  margin: 0;
+  color: #cbb79f;
+  font-size: 11px;
+  word-break: break-word;
+}
+.consent-action-id {
+  color: #99c8ff;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 10px;
+}
+.consent-storage-warning {
+  margin: 0;
+  padding: 5px 8px;
+  border: 1px solid #6b5324;
+  border-left: 3px solid #ffcc66;
+  border-radius: 6px;
+  background: #231b0e;
+  color: #ffe2a8;
+  font-size: 11px;
+}
+.consent-tos {
+  flex: 1 1 auto;
+  min-height: 90px;
+  max-height: 36vh;
+  overflow-y: auto;
+  border: 1px solid #3a2e24;
+  border-radius: 8px;
+  background: #0c1218;
+  padding: 8px 10px;
+  color: #cbb79f;
+}
+.consent-tos h3 {
+  margin: 10px 0 3px;
+  font-size: 12px;
+  color: #99c8ff;
+}
+.consent-tos h3:first-child { margin-top: 0; }
+.consent-tos p, .consent-tos li {
+  margin: 2px 0;
+  color: #b9c6da;
+  font-size: 11px;
+  line-height: 1.55;
+}
+.consent-tos ul { margin: 0 0 6px; padding-left: 18px; }
+.consent-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 4px 0;
+  color: #ffe2a8;
+  font-size: 11px;
+  cursor: pointer;
+}
+.consent-check input {
+  flex: none;
+  margin-top: 2px;
+  accent-color: #e0b35a;
+}
+.consent-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+.consent-accept, .consent-decline, .consent-secondary {
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.consent-accept {
+  border: 1px solid #e0b35a;
+  background: #3a2a13;
+  color: #ffe2a8;
+}
+.consent-accept:hover:not(:disabled) { background: #4d3818; }
+.consent-accept:disabled { opacity: .45; cursor: not-allowed; }
+.consent-decline {
+  border: 1px solid #6a4a2e;
+  background: #241b15;
+  color: #f0e4d4;
+}
+.consent-decline:hover { background: #362619; }
+.consent-secondary {
+  border: 1px solid #263044;
+  background: #1a2232;
+  color: #e8edf6;
+}
+.consent-secondary:hover { background: #243049; }
+.consent-accept:focus-visible, .consent-decline:focus-visible, .consent-secondary:focus-visible {
+  outline: 2px solid #e0b35a;
+  outline-offset: 1px;
+}
+.consent-foot {
+  margin: 0;
+  color: #8f7a5a;
+  font-size: 10px;
+  line-height: 1.45;
+}
+.consent-blocked-dialog { border-color: #8a6a24; }
+.consent-blocked-list { margin: 2px 0; padding-left: 18px; color: #e8d3a0; font-size: 11px; }
+
+/* Age self-report verification (general features all-ages; roleplay 18+).
+   Static state only: no animation/transition, same info for reduced-motion. */
+.consent-age-form {
+  margin: 4px 0;
+  padding: 6px 8px;
+  border: 1px solid #5a402b;
+  border-radius: 6px;
+  background: #16130f;
+}
+.consent-age-form .consent-field-select { flex: 0 1 128px; }
+.consent-age-note {
+  margin: 0;
+  color: #cbb79f;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.consent-age-error {
+  min-height: 1.4em;
+  margin: 2px 0;
+  color: #ffb08a;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.consent-health-banner {
+  position: fixed;
+  left: 8px;
+  right: 8px;
+  bottom: 32px;
+  z-index: 90;
+  padding: 8px 10px;
+  border: 1px solid #8a6a24;
+  border-left: 4px solid #ffcc66;
+  border-radius: 8px;
+  background: rgba(32, 24, 10, .97);
+  color: #ffe2a8;
+  font-size: 11px;
+  line-height: 1.45;
+  box-shadow: 0 10px 30px #000a;
+}
+.consent-health-banner strong { display: block; margin-bottom: 2px; color: #ffcc66; font-size: 12px; }
+.consent-health-banner p { margin: 0 0 4px; color: #e8d3a0; }
+.consent-health-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.consent-health-banner button {
+  min-height: 22px;
+  padding: 2px 7px;
+  border: 1px solid #6a4a2e;
+  border-radius: 5px;
+  background: #3a2a13;
+  color: #ffe2a8;
+  font-family: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+.consent-health-banner button:hover { background: #4d3818; }
+.legal-noscript {
+  margin: 10px;
+  padding: 10px;
+  border: 1px solid #8a6a24;
+  border-radius: 8px;
+  background: #231b0e;
+  color: #ffe2a8;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* About / statements panel (full TOS + TTS declaration + health/exit entries) */
+.about-card { width: min(560px, 96vw); }
+.about-tos {
+  max-height: 170px;
+  overflow-y: auto;
+  margin: 6px 0;
+  padding: 8px 10px;
+  border: 1px solid #3a2e24;
+  border-radius: 8px;
+  background: #0e131c;
+  color: #b9c6da;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.about-tos h3 { margin: 8px 0 2px; font-size: 11px; color: #99c8ff; }
+.about-tos h3:first-child { margin-top: 0; }
+.about-tos p, .about-tos li { margin: 1px 0; font-size: 10px; }
+.about-tos ul { margin: 0 0 4px; padding-left: 16px; }
+.about-tos-tts { border-color: #2b4666; }
+.about-tos-asr { border-color: #4a3b6b; }
+.about-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.about-actions button {
+  min-height: 22px;
+  padding: 3px 7px;
+  border: 1px solid #5a402b;
+  border-radius: 6px;
+  background: #241b15;
+  color: #f0e4d4;
+  font-family: inherit;
+  font-size: 9px;
+  cursor: pointer;
+}
+.about-actions button:hover { background: #362619; }
+.about-actions button:focus-visible { outline: 2px solid #e0b35a; outline-offset: 1px; }
+#tts-consent[hidden] { display: none; }
+
+/* UI-91 menu icons: 16px display from 32px source, nearest neighbour. */
+.pet-menu-icon { width: 16px; height: 16px; margin-left: 6px; image-rendering: pixelated; flex: 0 0 16px; vertical-align: -3px; }
+
+/* ==========================================================================
+   User data controls (withdraw consent / delete all local data / audit log)
+   No dark patterns: checkboxes start unchecked, Cancel is always visible, the
+   confirm button is disabled until the explicit checkbox is ticked, and
+   Escape resolves "cancel". Focus outlines come from the shared consent rules.
+   ========================================================================== */
+.about-data-controls {
+  margin: 8px 0 4px;
+  padding: 8px 10px;
+  border: 1px solid #4a3b2a;
+  border-radius: 8px;
+  background: #141821;
+}
+.about-data-title {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #ffd8a0;
+}
+.about-data-controls .about-actions { margin-top: 6px; }
+.about-data-controls .note {
+  margin: 0 0 4px;
+  color: #b9c6da;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.about-data-actions button { border-color: #6b5324; }
+#about-withdraw-consent,
+#about-delete-all { border-color: #8a5a2e; }
+#about-withdraw-consent:hover,
+#about-delete-all:hover { background: #3a2a13; }
+.about-audit {
+  margin-top: 6px;
+  padding: 6px 8px;
+  border: 1px solid #3a2e24;
+  border-radius: 6px;
+  background: #0e131c;
+}
+.about-audit[hidden] { display: none; }
+.about-audit-list {
+  max-height: 132px;
+  overflow-y: auto;
+  margin: 4px 0 0;
+  padding-left: 16px;
+  color: #b9c6da;
+  font-size: 10px;
+  line-height: 1.45;
+}
+.about-audit-entry {
+  margin: 1px 0;
+  word-break: break-word;
+}
+.consent-data-list {
+  margin: 2px 0;
+  padding-left: 18px;
+  color: #e8d3a0;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.consent-data-result-list {
+  list-style: none;
+  margin: 4px 0;
+  padding: 0;
+  max-height: 42vh;
+  overflow-y: auto;
+}
+.consent-data-result-item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  align-items: baseline;
+  margin: 3px 0;
+  padding: 4px 6px;
+  border: 1px solid #3a2e24;
+  border-radius: 6px;
+  background: #0e131c;
+}
+.consent-data-result-label {
+  flex: 1 1 180px;
+  color: #f0e4d4;
+  font-size: 11px;
+  font-weight: 600;
+}
+.consent-data-result-status {
+  padding: 0 6px;
+  border: 1px solid #5a402b;
+  border-radius: 999px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.consent-data-deleted .consent-data-result-status {
+  border-color: #2f6b3a;
+  background: #14241a;
+  color: #b8e6b8;
+}
+.consent-data-residual .consent-data-result-status {
+  border-color: #8a3a3a;
+  background: #2a1515;
+  color: #ffd2d2;
+}
+.consent-data-unverified .consent-data-result-status {
+  border-color: #6b5324;
+  background: #231b0e;
+  color: #ffe2a8;
+}
+.consent-data-excluded .consent-data-result-status {
+  border-color: #4a3b2a;
+  background: #1a1712;
+  color: #cbb79f;
+}
+.consent-data-result-detail {
+  flex: 1 1 100%;
+  color: #b9a58e;
+  font-size: 10px;
+  line-height: 1.45;
+  word-break: break-word;
+}
+.consent-danger {
+  border-color: #b0563a;
+  background: #3a1d13;
+  color: #ffe0d2;
+}
+.consent-danger:hover:not(:disabled) { background: #4d2618; }
+.consent-danger:focus-visible { outline: 2px solid #ffb08a; outline-offset: 1px; }
+
+/* Roleplay (all-ages) declaration + mandatory settings form. The form is never
+   pre-filled; the accept button stays disabled until every field/ack is filled. */
+.about-tos-roleplay { border-color: #3b5a47; }
+.consent-roleplay-form {
+  margin: 6px 0;
+  padding: 6px 8px;
+  border: 1px solid #5a402b;
+  border-radius: 6px;
+  background: #16130f;
+}
+.consent-roleplay-legend {
+  padding: 0 4px;
+  color: #f2e6d4;
+  font-size: 11px;
+  font-weight: 600;
+}
+.consent-capability-note {
+  margin: 4px 0;
+  padding: 4px 6px;
+  border-left: 3px solid #8a6a2a;
+  background: #211a10;
+  color: #ffe2a8;
+  font-size: 10px;
+  line-height: 1.45;
+}
+.consent-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 4px 0;
+}
+.consent-field-label {
+  flex: 0 0 100%;
+  color: #cbb79f;
+  font-size: 10px;
+}
+.consent-field-select,
+.consent-field-input {
+  flex: 1 1 160px;
+  min-height: 22px;
+  padding: 2px 5px;
+  border: 1px solid #6b5324;
+  border-radius: 4px;
+  background: #17140f;
+  color: #f2e6d4;
+  font: inherit;
+  font-size: 11px;
+}
+.consent-field-select:focus-visible,
+.consent-field-input:focus-visible {
+  outline: 2px solid #ffd27a;
+  outline-offset: 1px;
+}
+.consent-field-hint {
+  flex: 1 1 100%;
+  color: #b9a58e;
+  font-size: 10px;
+  line-height: 1.4;
+}
+.consent-roleplay-form .consent-check { margin: 4px 0; }

@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pearl Look Test — 480×272 mock</title>
+<style>
+  :root {
+    --window-w: 480px;
+    --window-h: 272px;
+    --pet-scale: 2;
+    --pet-size: 96px;
+    --stage: calc(var(--pet-size) * var(--pet-scale));
+    --ink: #e8eefc;
+    --muted: #93a4c3;
+    --gold: #e0b35a;
+    --blue: #2f6bff;
+    --cyan: #2ec8dc;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background: radial-gradient(1200px 700px at 20% 0%, #17233d 0%, #0b1020 55%, #070a12 100%);
+    color: var(--ink);
+    font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 28px;
+  }
+  .page { max-width: 1080px; margin: 0 auto; }
+  h1 { font-size: 18px; margin: 0 0 4px; letter-spacing: .2px; }
+  .sub { color: var(--muted); margin: 0 0 18px; }
+  .toolbar {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    margin: 0 0 16px; padding: 10px 12px;
+    background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08);
+    border-radius: 12px;
+  }
+  .toolbar strong { color: var(--gold); font-weight: 600; margin-right: 4px; }
+  button, select {
+    appearance: none; border: 1px solid rgba(255,255,255,.16);
+    background: #111a2e; color: var(--ink); border-radius: 8px;
+    padding: 6px 10px; font: inherit; cursor: pointer;
+  }
+  button:hover, select:hover { border-color: var(--cyan); }
+  button.on { border-color: var(--gold); color: var(--gold); }
+  label { color: var(--muted); display: inline-flex; gap: 6px; align-items: center; }
+  .spacer { flex: 1; }
+  .desktop {
+    position: relative; width: 100%; max-width: 760px; margin: 0 auto;
+    padding: 42px 28px 34px;
+    border-radius: 18px; border: 1px solid rgba(255,255,255,.08);
+    background:
+      linear-gradient(135deg, rgba(47,107,255,.10), transparent 45%),
+      repeating-linear-gradient(90deg, rgba(255,255,255,.025) 0 1px, transparent 1px 48px),
+      repeating-linear-gradient(0deg, rgba(255,255,255,.025) 0 1px, transparent 1px 48px),
+      #0d1424;
+    box-shadow: 0 24px 80px rgba(0,0,0,.45);
+  }
+  .desktop::before {
+    content: "DESKTOP MOCK — not a real window";
+    position: absolute; top: 12px; left: 16px;
+    color: rgba(232,238,252,.38); font-size: 11px; letter-spacing: .12em;
+  }
+  .win {
+    position: relative; width: var(--window-w); height: var(--window-h);
+    margin: 0 auto; overflow: hidden;
+    border-radius: 16px; border: 1px solid rgba(255,255,255,.16);
+    background:
+      radial-gradient(420px 280px at 70% 20%, rgba(46,200,220,.10), transparent 60%),
+      linear-gradient(180deg, #101a2e 0%, #0b1220 100%);
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.35), 0 16px 50px rgba(0,0,0,.45);
+    zoom: var(--dpi-zoom, 1);
+  }
+  .win-label {
+    position: absolute; left: 12px; top: 10px; z-index: 3;
+    color: rgba(232,238,252,.42); font-size: 10px; letter-spacing: .08em;
+    pointer-events: none;
+  }
+  .win-size {
+    position: absolute; right: 12px; top: 10px; z-index: 3;
+    color: rgba(232,238,252,.38); font-size: 10px; pointer-events: none;
+  }
+  .stage {
+    position: absolute; right: 16px; bottom: 16px;
+    width: var(--stage); height: var(--stage);
+    z-index: 2;
+  }
+  .stage .hero {
+    display: block; width: 100%; height: 100%;
+    image-rendering: pixelated;
+    filter: drop-shadow(0 10px 14px rgba(0,0,0,.35));
+  }
+  .bbox, .footbox, .safe {
+    position: absolute; pointer-events: none; display: none;
+  }
+  .bbox {
+    inset: 0; border: 1px dashed rgba(224,179,90,.85);
+  }
+  .safe {
+    left: calc(var(--stage) * 12 / 96); top: calc(var(--stage) * 8 / 96);
+    width: calc(var(--stage) * 72 / 96); height: calc(var(--stage) * 84 / 96);
+    border: 1px dashed rgba(46,200,220,.75);
+  }
+  .footbox {
+    left: 50%; bottom: 0;
+    width: calc(var(--stage) * 72 / 96); height: calc(var(--stage) * 18 / 96);
+    transform: translateX(-50%);
+    border: 1px solid rgba(255,120,120,.85);
+    background: rgba(255,120,120,.08);
+  }
+  body.show-bounds .bbox, body.show-bounds .safe, body.show-bounds .footbox { display: block; }
+  .checker {
+    position: absolute; inset: 0; z-index: 1; opacity: 0;
+    background-image:
+      linear-gradient(45deg, rgba(255,255,255,.06) 25%, transparent 25%),
+      linear-gradient(-45deg, rgba(255,255,255,.06) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, rgba(255,255,255,.06) 75%),
+      linear-gradient(-45deg, transparent 75%, rgba(255,255,255,.06) 75%);
+    background-size: 16px 16px;
+    background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+    pointer-events: none;
+  }
+  body.show-checker .checker { opacity: 1; }
+  .hint {
+    max-width: 760px; margin: 14px auto 0; color: var(--muted); font-size: 12px;
+  }
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 999px;
+    border: 1px solid rgba(224,179,90,.45); color: var(--gold); font-size: 11px;
+  }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; color: var(--muted); font-size: 12px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; margin-right: 4px; vertical-align: -1px; }
+  .legend .b { background: rgba(224,179,90,.85); }
+  .legend .s { background: rgba(46,200,220,.75); }
+  .legend .f { background: rgba(255,120,120,.85); }
+  @media (max-width: 560px) {
+    body { padding: 14px; }
+    .desktop { padding: 36px 8px 24px; }
+    .win { transform: scale(.72); transform-origin: top left; }
+  }
+</style>
+</head>
+<body class="show-bounds">
+<div class="page">
+  <h1>Pearl Look Test — 480×272 mock</h1>
+  <p class="sub">Placeholder only. Replace <code>pearl-hero-96.png</code> with the real hero; no final art, no runtime. <span class="badge">NOT FINAL ART</span></p>
+
+  <div class="toolbar">
+    <strong>Scale</strong>
+    <button id="s1" type="button">1× (96)</button>
+    <button id="s2" type="button" class="on">2× (192)</button>
+    <span class="spacer"></span>
+    <strong>Overlays</strong>
+    <button id="bounds" type="button" class="on">bbox / footBox</button>
+    <button id="checker" type="button">checkerboard</button>
+    <span class="spacer"></span>
+    <label>DPI
+      <select id="dpi">
+        <option value="1">100%</option>
+        <option value="1.25">125%</option>
+        <option value="1.5">150%</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="desktop">
+    <div class="win" id="win">
+      <div class="win-label">Famling · Pearl · pet window</div>
+      <div class="win-size" id="winSize">480 × 272</div>
+      <div class="checker"></div>
+      <div class="stage" id="stage">
+        <div class="bbox"></div>
+        <div class="safe"></div>
+        <div class="footbox"></div>
+        <img id="hero" class="hero" src="pearl-hero-96.png" alt="Pearl placeholder"
+             onerror="this.onerror=null;this.src='pearl-placeholder.svg'">
+      </div>
+    </div>
+  </div>
+
+  <p class="hint">
+    The image is a placeholder. The real Look Test needs the 96×96 hero + 8-frame idle + 2 expressions.
+    Use OS/browser DPI for the real 100/125/150% screenshots; the DPI select is only a quick preview.
+  </p>
+  <div class="legend">
+    <span><i class="b"></i>bbox [12,8,72,84]</span>
+    <span><i class="s"></i>safe area / content</span>
+    <span><i class="f"></i>footBox 72×18</span>
+  </div>
+</div>
+<script>
+  const body = document.body;
+  const root = document.documentElement;
+  const $ = (id) => document.getElementById(id);
+  const setScale = (scale) => {
+    root.style.setProperty('--pet-scale', String(scale));
+    $('s1').classList.toggle('on', scale === 1);
+    $('s2').classList.toggle('on', scale === 2);
+  };
+  $('s1').addEventListener('click', () => setScale(1));
+  $('s2').addEventListener('click', () => setScale(2));
+  $('bounds').addEventListener('click', (e) => {
+    body.classList.toggle('show-bounds');
+    e.currentTarget.classList.toggle('on', body.classList.contains('show-bounds'));
+  });
+  $('checker').addEventListener('click', (e) => {
+    body.classList.toggle('show-checker');
+    e.currentTarget.classList.toggle('on', body.classList.contains('show-checker'));
+  });
+  $('dpi').addEventListener('change', (e) => {
+    root.style.setProperty('--dpi-zoom', e.target.value);
+    $('winSize').textContent = '480 × 272 · ' + Math.round(Number(e.target.value) * 100) + '%';
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,83 @@
+{
+  "spec": "famling.character",
+  "apiVersion": "0.1",
+  "id": "famling.humanoid-default",
+  "version": "0.1.0",
+  "type": "humanoid",
+  "species": "humanoid",
+  "traits": [
+    "biped",
+    "speech",
+    "work-companion"
+  ],
+  "canvas": [
+    96,
+    96
+  ],
+  "canvasTarget": [
+    256,
+    256
+  ],
+  "anchor": {
+    "x": 48,
+    "y": 96,
+    "mode": "foot-center"
+  },
+  "footBox": [
+    -36,
+    -18,
+    72,
+    18
+  ],
+  "bbox": [
+    12,
+    8,
+    72,
+    84
+  ],
+  "palette": "pearl-pixel@0.1",
+  "display": {
+    "scale": 2,
+    "pixelated": true
+  },
+  "packBase": "/assets/pet/pearl-placeholder/",
+  "behaviorFile": "behavior.json",
+  "license": "CC-BY-NC-SA-4.0 (see LICENSE-ART; placeholder-only if art not final)",
+  "meta": {
+    "authors": [
+      "Famling"
+    ],
+    "note": "Default humanoid profile (Pearl-like). Art pack is the deterministic 96x96 placeholder; canvasTarget 256 is the recommended authoring size for new art (placeholder stays loadable at 96).",
+    "artStatus": "placeholder"
+  },
+  "ai": {
+    "status": "none"
+  },
+  "capabilities": {
+    "sockets": [
+      "head",
+      "hand",
+      "floor"
+    ],
+    "roles": [
+      "companion",
+      "assistant"
+    ],
+    "behaviors": [
+      "social",
+      "aware"
+    ]
+  },
+  "fallback": {
+    "talk": [
+      "idle"
+    ],
+    "remind": [
+      "talk",
+      "idle"
+    ],
+    "pat": [
+      "idle"
+    ]
+  }
+}

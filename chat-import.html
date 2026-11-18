@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="ai-generated" content="Imported content is processed locally; model calls can incur costs. See DECLARATIONS.md." />
+    <meta name="ai-disclosure" content="本页导入内容与后续摘要/语音均为 AI 辅助生成或处理，不是真人；不构成专业建议。" />
+    <meta name="disclaimer" content="使用前必须阅读并同意完整 TOS/免责声明；读取分享、保存/清除摘要都属于内容导入，每次都会重新弹出完整声明并要求明确同意。见 /legal/TOS.md。" />
+    <meta name="legal-terms" content="/legal/TOS.md" />
+    <title>导入 DeepSeek 网页对话 · 汀岚</title>
+    <!-- pet.css is shared for the full-TOS consent modal (the same modal the pet
+         shows). It is loaded BEFORE chat-import.css; the inline block below undoes
+         the pet-window layout rules so this standalone document keeps its own
+         document flow. -->
+    <link rel="stylesheet" href="/src/pet/pet.css" />
+    <link rel="stylesheet" href="/src/pet/chat-import.css" />
+    <style>
+      /* Standalone page overrides for the pet-window rules in pet.css. The
+         consent modal styles (.consent-*) are shared unchanged. */
+      body { overflow: auto; }
+      main.import { display: block; min-height: 0; }
+      main.import > header { display: block; }
+      button { font-size: 14px; }
+      [hidden] { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <main class="import">
+      <header>
+        <p class="kicker">LOCAL IMPORT · READ ONLY</p>
+        <h1>导入 DeepSeek 网页对话</h1>
+        <p>粘贴 DeepSeek 分享链接（例如 <code>https://chat.deepseek.com/share/trp6sludpfs17gs6hw</code>）。只读取该分享的公开内容，不登录、不读取你的私有会话列表。</p>
+        <p class="muted"><strong>同意门禁：</strong>本页可直接通过 URL 打开，因此自身执行与桌宠相同的同意检查。未同意当前版本完整 TOS 时，本页只显示阻断说明，不读取分享、不摘录内容、不保存任何数据；读取/保存/清除摘要仍会每次单独弹出完整声明。URL 参数不能跳过该门禁。</p>
+      </header>
+
+      <section id="consent-gate" class="card gate" aria-labelledby="consent-gate-title">
+        <h2 id="consent-gate-title">使用前同意与声明</h2>
+        <p id="consent-status" class="muted" role="status" aria-live="polite">正在读取本机同意状态…</p>
+        <p class="muted">
+          首次使用必须完整阅读并明确同意《使用条款、免责声明与用户同意书》。读取 DeepSeek 公开分享、保存/清除本机摘要都属于内容导入或本机内容修改，每次动作都会重新弹出完整 TOS 并记录审计；此前的同意不构成豁免。
+        </p>
+        <p class="muted">
+          需要先完成首次同意？<a href="/pet.html">返回桌宠</a> · 声明全文：<a href="/legal/TOS.md">/legal/TOS.md</a> · <a href="/setup.html">配置与声明</a>
+        </p>
+      </section>
+
+      <section class="cost" role="alert">
+        <strong>会产生费用：</strong>读取分享链接本身不调用模型；但导入后如启用模型摘要、融入对话或语音，会产生模型/语音调用费用，由你自己的 API Key 账户承担。请先确认已配置自己的模型与 API Key。
+      </section>
+
+      <!-- Interactive importer: hidden until the first-run TOS gate is accepted.
+           Wired only by bootChatImportPage() after the gate passes. -->
+      <div id="import-ready" hidden>
+        <section class="card">
+          <label for="share-url">DeepSeek 分享链接</label>
+          <div class="row">
+            <input id="share-url" type="url" placeholder="https://chat.deepseek.com/share/..." autocomplete="off" />
+            <button id="fetch" type="button">读取分享</button>
+          </div>
+          <p id="status" class="muted" aria-live="polite"></p>
+        </section>
+
+        <section id="preview" class="card" hidden>
+          <div class="preview-head">
+            <div><h2 id="conv-title">—</h2><p id="conv-meta" class="muted"></p></div>
+            <button id="save" type="button">保存摘要到桌宠</button>
+          </div>
+          <div class="grid">
+            <div><h3>主题</h3><ul id="topics"></ul></div>
+            <div><h3>偏好/约定</h3><ul id="preferences"></ul></div>
+            <div><h3>待办/承诺</h3><ul id="commitments"></ul></div>
+          </div>
+          <p class="muted">默认只保存摘要（主题/偏好/承诺），不保存原始对话文本；如需原始内容请另行本地归档。</p>
+        </section>
+
+        <section class="card">
+          <h2>已导入的摘要</h2>
+          <p id="stored" class="muted">（无）</p>
+          <button id="clear" type="button" class="secondary">清除本地摘要</button>
+        </section>
+      </div>
+
+      <noscript>
+        <p class="cost">
+          本页需要 JavaScript 才能执行同意门禁；未启用时不会读取或保存任何内容。使用前请阅读完整《使用条款、免责声明与用户同意书》：
+          <a href="/legal/TOS.md">/legal/TOS.md</a>。
+        </p>
+      </noscript>
+
+      <footer>
+        <p>非官方项目，不关联 DeepSeek。分享内容版权归原作者；导入仅限你有权访问/使用的对话。禁止导入他人隐私或未授权内容。</p>
+        <p>本页内容可能由 AI 处理/摘要，不是真人，不构成专业建议。返回<a href="/pet.html">桌宠</a> · 声明见仓库 DECLARATIONS.md · 反馈 novelnexusai@outlook.com</p>
+      </footer>
+    </main>
+    <script type="module" src="/src/pet/chat-import.ts"></script>
+  </body>
+</html>

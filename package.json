@@ -1,0 +1,34 @@
+{
+  "name": "famling-pet",
+  "private": false,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Famling pet-only executable: Tinglan/cat/dog desktop pet (Tauri). Full game base stays private.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "validate:character": "node scripts/validate-character.mjs"
+  },
+  "dependencies": {
+    "@sentry/browser": "^9.47.2",
+    "@tauri-apps/api": "^2.12.4",
+    "cordis": "4.0.0-rc.12",
+    "pixi.js": "^8.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.8"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
+  },
+  "license": "PolyForm-Noncommercial-1.0.0"
+}

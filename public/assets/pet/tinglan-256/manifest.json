@@ -1,0 +1,379 @@
+{
+  "id": "pet.tinglan.256.v2.anchor-final",
+  "style": "pixel-hero",
+  "formatVersion": 2,
+  "canvas": [
+    256,
+    256
+  ],
+  "anchor": {
+    "x": 128,
+    "y": 256,
+    "mode": "foot-center"
+  },
+  "footBox": {
+    "x": -96,
+    "y": -48,
+    "w": 192,
+    "h": 48
+  },
+  "bbox": [
+    32,
+    20,
+    208,
+    236
+  ],
+  "palette": "orca-pixel@0.2-draft",
+  "tags": {
+    "hero": {
+      "frames": 1,
+      "fps": 1,
+      "loop": false,
+      "phase": "later",
+      "holdMs": 0
+    },
+    "idle": {
+      "frames": 8,
+      "fps": 10,
+      "loop": true,
+      "phase": "later",
+      "holdMs": 120
+    },
+    "pat": {
+      "frames": 6,
+      "fps": 10,
+      "loop": false,
+      "phase": "later",
+      "holdMs": 90
+    },
+    "drag": {
+      "frames": 4,
+      "fps": 8,
+      "loop": true,
+      "phase": "later",
+      "holdMs": 80
+    },
+    "land": {
+      "frames": 4,
+      "fps": 12,
+      "loop": false,
+      "phase": "later",
+      "holdMs": 80
+    },
+    "talk": {
+      "frames": 4,
+      "fps": 12,
+      "loop": true,
+      "phase": "later",
+      "holdMs": 90
+    },
+    "remind": {
+      "frames": 6,
+      "fps": 10,
+      "loop": false,
+      "phase": "later",
+      "holdMs": 100
+    },
+    "sleep": {
+      "frames": 4,
+      "fps": 2,
+      "loop": true,
+      "phase": "later",
+      "holdMs": 350
+    },
+    "expr_calm": {
+      "frames": 1,
+      "fps": 1,
+      "loop": false,
+      "phase": "later",
+      "holdMs": 0
+    },
+    "expr_happy": {
+      "frames": 1,
+      "fps": 1,
+      "loop": false,
+      "phase": "later",
+      "holdMs": 0
+    },
+    "turn_front": {
+      "frames": 1,
+      "fps": 1,
+      "loop": false,
+      "phase": "later",
+      "holdMs": 0
+    },
+    "turn_side": {
+      "frames": 1,
+      "fps": 1,
+      "loop": false,
+      "phase": "later",
+      "holdMs": 0
+    },
+    "turn_back": {
+      "frames": 1,
+      "fps": 1,
+      "loop": false,
+      "phase": "later",
+      "holdMs": 0
+    },
+    "mouth_closed": {
+      "frames": 1,
+      "fps": 1,
+      "loop": false,
+      "phase": "later",
+      "holdMs": 0
+    },
+    "mouth_a": {
+      "frames": 1,
+      "fps": 1,
+      "loop": false,
+      "phase": "later",
+      "holdMs": 0
+    },
+    "mouth_i": {
+      "frames": 1,
+      "fps": 1,
+      "loop": false,
+      "phase": "later",
+      "holdMs": 0
+    },
+    "mouth_u": {
+      "frames": 1,
+      "fps": 1,
+      "loop": false,
+      "phase": "later",
+      "holdMs": 0
+    },
+    "eye_open": {
+      "frames": 1,
+      "fps": 1,
+      "loop": false,
+      "phase": "later",
+      "holdMs": 0
+    },
+    "eye_half": {
+      "frames": 1,
+      "fps": 1,
+      "loop": false,
+      "phase": "later",
+      "holdMs": 0
+    },
+    "eye_closed": {
+      "frames": 1,
+      "fps": 1,
+      "loop": false,
+      "phase": "later",
+      "holdMs": 0
+    }
+  },
+  "assets": [
+    "hero_00.png",
+    "idle_00.png",
+    "idle_01.png",
+    "idle_02.png",
+    "idle_03.png",
+    "idle_04.png",
+    "idle_05.png",
+    "idle_06.png",
+    "idle_07.png",
+    "pat_00.png",
+    "pat_01.png",
+    "pat_02.png",
+    "pat_03.png",
+    "pat_04.png",
+    "pat_05.png",
+    "drag_00.png",
+    "drag_01.png",
+    "drag_02.png",
+    "drag_03.png",
+    "land_00.png",
+    "land_01.png",
+    "land_02.png",
+    "land_03.png",
+    "talk_00.png",
+    "talk_01.png",
+    "talk_02.png",
+    "talk_03.png",
+    "remind_00.png",
+    "remind_01.png",
+    "remind_02.png",
+    "remind_03.png",
+    "remind_04.png",
+    "remind_05.png",
+    "sleep_00.png",
+    "sleep_01.png",
+    "sleep_02.png",
+    "sleep_03.png",
+    "expr_calm_00.png",
+    "expr_happy_00.png",
+    "turn_front_00.png",
+    "turn_side_00.png",
+    "turn_back_00.png",
+    "mouth_closed_00.png",
+    "mouth_a_00.png",
+    "mouth_i_00.png",
+    "mouth_u_00.png",
+    "eye_open_00.png",
+    "eye_half_00.png",
+    "eye_closed_00.png"
+  ],
+  "layers": {
+    "frameMap": "frame-map.json",
+    "attachmentAnchors": "attachments/attachment-anchors.json",
+    "attachmentFiles": [
+      "eye_closed.png",
+      "eye_half.png",
+      "eye_open.png",
+      "mouth_a.png",
+      "mouth_closed.png",
+      "mouth_i.png",
+      "mouth_u.png"
+    ]
+  },
+  "license": "placeholder-only: local anchor close-out over AI concept art; not final art; not for release",
+  "ai": {
+    "status": "concept",
+    "tools": [
+      "openai/gpt-image-2.6-sunburst (v2 concepts only)"
+    ],
+    "thisPass": "no image API calls; local pixel fixes only (incl. 2026-11-17 pearl-earring repair)"
+  },
+  "placeholder": true,
+  "final": false,
+  "meta": {
+    "artStatus": "concept-local-anchor-closeout",
+    "note": "2px contour, canonical palette snap, eye highlights, silver bars, back-tail re-root and pearl-earring repair (same-source base/master glyph, 6 frames) are scripted local fixes; glasses/whale identity anchors are still AI-drawn concept and only pass the 1x machine heuristic, not art approval",
+    "pearlFix": {
+      "frames": [
+        "drag_00.png",
+        "drag_02.png",
+        "sleep_00.png",
+        "sleep_01.png",
+        "sleep_02.png",
+        "sleep_03.png"
+      ],
+      "sources": [
+        "drag_airborne",
+        "sleep_closed",
+        "sleep_inhale"
+      ],
+      "glyphSource": "base/master.png pearl earring (same-source pixels)",
+      "method": "local pixel stamp + stray-white cleanup; no image API"
+    },
+    "generatedBy": "anchor-final/build_anchor_final.py",
+    "notForRelease": true
+  },
+  "provenance": {
+    "sources": [
+      "processed/master.png",
+      "processed/poses (15)",
+      "processed/views (3)"
+    ],
+    "v2Root": "art/_placeholder/orca-tinglan-256-2026-11-17-v2",
+    "publicUntouched": true,
+    "aiLabel": {
+      "embedded": true,
+      "carrier": "PNG tEXt",
+      "date": "2026-11-17",
+      "script": "scripts/embed-ai-labels.mjs",
+      "pixelUnchanged": true,
+      "pixelHashesUnchanged": true,
+      "aggregatePixelSha256": "43d551747337a32b0f8f88177764a834cdbb81b8ad9115cd7185e7adbb2f2273",
+      "aggregateIdatSha256": "1237dd9793c39d369488cf8bd47894954b6c038020727b7a9f8943c200776bf3",
+      "preEmbedAggregatePixelSha256": "43d551747337a32b0f8f88177764a834cdbb81b8ad9115cd7185e7adbb2f2273",
+      "preEmbedAggregateIdatSha256": "1237dd9793c39d369488cf8bd47894954b6c038020727b7a9f8943c200776bf3",
+      "evidence": "manifest.aiLabel.pixelHashes"
+    }
+  },
+  "integrity": {
+    "frames": 49,
+    "uniqueSha256": 49,
+    "hashesFile": "manifest.json#aiLabel.pixelHashes",
+    "attachments": 7,
+    "hashesBasis": "sha256 of decompressed IDAT scanlines (pixels; unaffected by the tEXt labels)"
+  },
+  "gate": {
+    "script": "../gate_256.py",
+    "result": "../anchor-final/gate-256.json",
+    "failList": "../anchor-final/gate-failures.txt",
+    "placeholderOnly": true
+  },
+  "aiLabel": {
+    "status": "concept",
+    "embedded": true,
+    "carrier": "PNG tEXt",
+    "script": "scripts/embed-ai-labels.mjs",
+    "date": "2026-11-17",
+    "model": "openai/gpt-image-2.6-sunburst (v2 concepts only)",
+    "contentIdPattern": "pet.tinglan.256.v2.anchor-final/{file}",
+    "final": false,
+    "official": false,
+    "disclosure": "AI 生成内容（概念稿，非 final，非官方，未发布）",
+    "framesLabeled": 49,
+    "keywords": [
+      "Software",
+      "AI-Generated",
+      "AI-Status",
+      "AI-Model",
+      "AI-Source",
+      "AI-Date",
+      "AI-Content-ID",
+      "AI-Final",
+      "AI-Official",
+      "AI-Disclosure"
+    ],
+    "pixelHashAlgorithm": "sha256(decompressed IDAT scanlines)",
+    "aggregatePixelSha256": "43d551747337a32b0f8f88177764a834cdbb81b8ad9115cd7185e7adbb2f2273",
+    "pixelHashes": {
+      "drag_00.png": "11c71f73dc8a5e410ba842ff3d0ac08e56602ab844ca15ee938c0387953630d5",
+      "drag_01.png": "b295a832d56c9ca4384a5bfb93df31e296f914b89ed28195a4996475ba2fa97e",
+      "drag_02.png": "f45bdf413e49e613a3781c890ce32cb7cf23abe61f73ec6df56084965403b581",
+      "drag_03.png": "21ed89dfce205e301771aacf0e174926a4bfe3fc8fb4a6ccd838b070b8294595",
+      "expr_calm_00.png": "6e62eb2d1bd9f507759e32411f571607711b874af8f3825fbfb4f8de9dcbef41",
+      "expr_happy_00.png": "baf9cb9b72087d7a3255d160b10691237f4e7794c4f7a670c1e823cd230bf452",
+      "eye_closed_00.png": "1fd620af1eb9317f474808ce32256f0e5541d91b251bb571d1cb6cc39534b3af",
+      "eye_half_00.png": "1099e7f255437f7715288a7891429aff2365b4518de563c5313cc0371f8c0ceb",
+      "eye_open_00.png": "18c729489199cfd04e6636a01b6f73fea00b57d0b2bb7278b3ea1bb0a620481a",
+      "hero_00.png": "6ce2a8378bfa33560e3ec64586d13442787a05375ae8327fe219d654982f9f8d",
+      "idle_00.png": "2e7631d60a120c3fd92fa2ccc5ad26275613fa5cb51503652811275e7dcbf667",
+      "idle_01.png": "2d76300d40691a611228f45cfbb16947f297400f9da5d4c75febc48c4260f4ee",
+      "idle_02.png": "cac8c3c9e563ed29ca41ad5e1ad2b6c74d430aaae2bb078727f7c43e614f1f9a",
+      "idle_03.png": "096721fcce38bdc745f0e9829690d5b9a0ebaf35e825b51123c9d04e7038cbe8",
+      "idle_04.png": "7d8c32ce540b5b0bea18aa6f3dd68374ac33107221ff4c6a97d075abc028005b",
+      "idle_05.png": "2910631af47ba85411d7b8e5f369c58a7bd22c558a938fc3d42a9ebc08c3cd8f",
+      "idle_06.png": "ccfb8233faf690942c06f033f0ff90d8c0055d1283750d4354ec4d504e8a9dc7",
+      "idle_07.png": "02cf67149c46865b64d091445e55fd49cd1f21f71991882ae1a9b42bbb7e812b",
+      "land_00.png": "97e3aeb0fb3884f1069d183c1942dddafed0ef48d46ae8df1ed784ca67158dc3",
+      "land_01.png": "9faf2e64538bb8419eeeafdc47b0cd04e82ed089bf7e3e74a5a71b6bd4596f90",
+      "land_02.png": "23a36a17d4ab1481db436254319f976708874507bb62d2d895c2db7837c369fb",
+      "land_03.png": "7964c932e6f56237b2b4e167840539c14c520fcc531c6d9ffc15e25a99822934",
+      "mouth_a_00.png": "dcb0a36f3c7c64b0df2f490c4a93a5fc8c1d4a364e88c160b5d3e988d5d73b96",
+      "mouth_closed_00.png": "99b63e2f119c3657b664a37b80babd8c0f59cb170a78e1dfafa21c959707cc8b",
+      "mouth_i_00.png": "d922e17f785b03f2971bc68e51145246a4bf7e893f5016c470b183018871647c",
+      "mouth_u_00.png": "b993efc46fa0a69ae7249aeb6c08962d5b4daed0c7f279fa016035c99c667e3b",
+      "pat_00.png": "bae7cb1e814b64cda1f8ea04379436c318069fa1dc76ca7aaf54a9ae3a112403",
+      "pat_01.png": "4f5379da04835a708df28040335102b829e3c190dbe5298ec32125eb1cfd62b4",
+      "pat_02.png": "d42cf34af9b0a318e91bc9bb1a32e95434ec84ce2d7237abaf6c2cc3cf9c84ca",
+      "pat_03.png": "218b4314da2d3e1cfe81a044fece59dabb15c0405ce09ac4774cb88566c20dc5",
+      "pat_04.png": "67cfe58b6188dc28292be01a2c0094b4a8d6f0e6fcda881263860eff9aa23e00",
+      "pat_05.png": "55110fe10429a6233a8e71d30187b0130d8d32a86adc59dba28c169af72a314f",
+      "remind_00.png": "b0e78d9ab3230443bdeedd0f63fd3c6427733d70f65e8e825942579637d15032",
+      "remind_01.png": "4e379ddddf860e2fd148c85f27a7379b5c4661897c55284583a4375c555b964c",
+      "remind_02.png": "25f67c949d6539aa64b47c89186c7c09f605e6cf1c5847a420487a286b55398a",
+      "remind_03.png": "d39baf8af26614189b0e6c79f36c9b5be989f5c246c054b1014a2871c4b9c41b",
+      "remind_04.png": "2c354c0c19d4b68e39685165da79918c1c05ded3db54e11658b3d3d7e0ec3575",
+      "remind_05.png": "d2d4481b18c9a24f890eaee4514e0c4f58345152b5bb8047ec06b1bc85327607",
+      "sleep_00.png": "0f808633e9b625109dcf5c4c6c0de7db840e5b627bfbf8941cca457fcd1041e7",
+      "sleep_01.png": "a30a51f3b914c0036e7fb210e7314ee424aa2f5c146995b72ca96326e0cc87fc",
+      "sleep_02.png": "1494c4ed7fb79c57dd4a2fbb028660d5a3806be76891e31a89f9b8233b95fecc",
+      "sleep_03.png": "3ff948c453cecf74f0e90d51ded492b2ba74dadc0b0a0e022967e0a43e011bdc",
+      "talk_00.png": "c67a864220df64eb6aa20992e266b1b41469e7739730f1646482b51302780d9b",
+      "talk_01.png": "f7adb9af0b732bc89ff81d0d385c10dc338245765c8f6d529a13cfad82f4cbb4",
+      "talk_02.png": "57ff1faa95f907beb8d95be01d0d5930c1c76cf782922277f9d3d7a8adb319ef",
+      "talk_03.png": "d1e716cc658866a296bb47c6a38f8d1a48734551670a4e6ecf848ee40925ef0c",
+      "turn_back_00.png": "8cff04976be6f43d7b1f098554b833d569c93ef69e6a0c9a714c27fdc160f3f0",
+      "turn_front_00.png": "14f2b867cf866ca9821a66b9c0e2eba46de58c8d892250e49eaca4458d4b905c",
+      "turn_side_00.png": "0597b88c8e2a09f3ffce329649b2d241896c92f93ac8eac5b6e2fe7a1d057d5c"
+    }
+  }
+}

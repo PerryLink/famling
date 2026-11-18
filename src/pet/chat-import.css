@@ -1,0 +1,26 @@
+:root { color-scheme: dark; --bg:#0b0e14; --panel:#121722; --line:#263044; --text:#e8edf6; --muted:#8b98ad; --accent:#3964fe; --warn:#ffcc66; --bad:#ff8a8a; }
+* { box-sizing: border-box; }
+body { margin:0; background: radial-gradient(circle at 20% 0%, #141d2e, var(--bg) 45%); color:var(--text); font:14px/1.55 "Microsoft YaHei","PingFang SC",system-ui,sans-serif; }
+.import { max-width: 860px; margin:0 auto; padding:28px 20px 40px; }
+header h1 { margin:4px 0 6px; font-size:24px; }
+header p { margin:4px 0; color:var(--muted); }
+.kicker { color:#99c8ff; letter-spacing:.16em; font-size:11px; }
+code { color:#99c8ff; }
+.cost { margin:18px 0; padding:12px 14px; border:1px solid #6b5324; border-left:4px solid var(--warn); background:#231b0e; color:#ffe2a8; border-radius:8px; }
+.cost strong { color:var(--warn); }
+.card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px; margin:12px 0; }
+label { display:block; color:var(--muted); font-size:12px; margin-bottom:6px; }
+.row { display:flex; gap:8px; }
+input[type=url] { flex:1; min-width:0; background:#0c111b; color:var(--text); border:1px solid var(--line); border-radius:7px; padding:9px 10px; }
+button { background:#1a2232; color:var(--text); border:1px solid var(--line); border-radius:7px; padding:8px 12px; cursor:pointer; }
+button:hover { border-color:var(--accent); }
+button.secondary { width:auto; background:transparent; }
+.preview-head { display:flex; justify-content:space-between; align-items:start; gap:10px; }
+.preview-head h2 { margin:0; font-size:16px; }
+.grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin:12px 0; }
+.grid h3 { margin:0 0 4px; font-size:12px; color:#99c8ff; }
+ul { margin:0; padding-left:16px; color:var(--muted); font-size:12px; }
+.muted { color:var(--muted); font-size:12px; }
+footer { margin-top:20px; border-top:1px solid var(--line); padding-top:12px; color:var(--muted); font-size:11px; }
+a { color:#99c8ff; }
+@media (max-width:680px) { .grid { grid-template-columns:1fr; } .row { flex-direction:column; } }

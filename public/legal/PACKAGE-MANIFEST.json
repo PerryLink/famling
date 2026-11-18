@@ -1,0 +1,207 @@
+{
+  "schema": 1,
+  "generatedBy": "public cleanup 2026-11-18 (destination hashes refreshed by hand; source legal-check.mjs is not part of this export)",
+  "documents": [
+    {
+      "source": "docs/legal/TOS.md",
+      "dest": "TOS.md",
+      "required": true,
+      "sha256": "63f360886c6fa42b4e72081ec68bafc829e1d35db0125ca3a8ab7d79c45e2707"
+    },
+    {
+      "source": "docs/legal/PRIVACY.md",
+      "dest": "PRIVACY.md",
+      "required": true,
+      "sha256": "a89eb8f92b0284bdd61fa86d71329b490292a8db16cf7953f53cee673873d5f4"
+    },
+    {
+      "source": "docs/legal/AI-LABELING.md",
+      "dest": "AI-LABELING.md",
+      "required": true,
+      "sha256": "d148b8e51a06507697f3caf20d19eb43394a83692069050e48880956091deac5"
+    },
+    {
+      "source": "docs/legal/TTS-TERMS.md",
+      "dest": "TTS-TERMS.md",
+      "required": true,
+      "sha256": "f68b2d1fde5f0e00848bf2afae8564e3ded7c9b951da1625d8c7de5167fc6c81"
+    },
+    {
+      "source": "docs/legal/DLC-AND-PLUGIN-TERMS.md",
+      "dest": "DLC-TERMS.md",
+      "required": true,
+      "sha256": "44729bdeeaae84358045e261f71262d196e4373220103926f06ff858c6700e93"
+    },
+    {
+      "source": "docs/legal/TAKEDOWN-AND-REPORTING.md",
+      "dest": "TAKEDOWN.md",
+      "required": true,
+      "sha256": "68642978365a18a8f92e327441158df81fce508ef215d41c8400406e01f6400a"
+    },
+    {
+      "source": "SECURITY.md",
+      "dest": "SECURITY.md",
+      "required": true,
+      "sha256": "31da534972d5681201f840af8d34fc15c6981b7a5600a426dd7f3b386e31677e",
+      "sourceMissing": true
+    },
+    {
+      "source": "DECLARATIONS.md",
+      "dest": "DECLARATIONS.md",
+      "required": true,
+      "sha256": "47a018a5604412995979269ba68485c13441b5d846b50279b8f7327e45fe1bf5"
+    },
+    {
+      "source": "NOTICE",
+      "dest": "NOTICE",
+      "required": true,
+      "sha256": "67e807a3e6d68a625d07cf35dcb6664831ed975fa034de2e6313f9f83aa90703"
+    },
+    {
+      "source": "LICENSE-ART",
+      "dest": "LICENSE-ART",
+      "required": true,
+      "sha256": "8faf889eb176fab1d729597af564b6b359fa8f310cde9f8b363745bf86d639ec"
+    },
+    {
+      "source": "LICENSE",
+      "dest": "LICENSE.txt",
+      "required": true,
+      "sha256": "ffcca38841adb694b6f380647e15f17c446a4d1656fed51a1e2041d064c94cc8"
+    },
+    {
+      "source": "LICENSE-COMMERCIAL.md",
+      "dest": "LICENSE-COMMERCIAL.md",
+      "required": true,
+      "sha256": "d83fe269409e2f31917222d8a1a159ba277aba32ce70f5ca715ee5e8d80639bc"
+    },
+    {
+      "source": "CREDITS.md",
+      "dest": "CREDITS.md",
+      "required": true,
+      "sha256": "de9ce7eeb7447eac5f82e1ee8c889b4615046e2d085d0d86bf1790768f7e5070"
+    },
+    {
+      "source": "THIRD-PARTY.md",
+      "dest": "THIRD-PARTY.md",
+      "required": true,
+      "sha256": "8d2aa680708443bc186707c396ed792dfbab1b1d695f3122cd33e5e64711201c"
+    },
+    {
+      "source": "AI-PROVENANCE.md",
+      "dest": "AI-PROVENANCE.md",
+      "required": true,
+      "sha256": "e3dadcd4ed4f8507fdd4bd3a7925f786b3559088cd8c698321d1298f177cacfa"
+    },
+    {
+      "source": "docs/legal/AI-CONTENT-POLICY.md",
+      "dest": "AI-CONTENT-POLICY.md",
+      "required": true,
+      "sha256": "351ae84348b7f37ce4a7b09ba3fa1f9a3b2410e09a30b9cd12893f68c6df8896"
+    },
+    {
+      "source": "docs/research/AI-COMPANION-REGULATION-2026-11-16.md",
+      "dest": "AI-COMPANION-REGULATION-2026-11-16.md",
+      "required": true,
+      "sha256": "376be7496f79bbe45a838538f945ff56d1d776c175d390fb44e3b00647b2c1ee",
+      "sourceMissing": true
+    },
+    {
+      "source": "docs/legal/APP-DISCLOSURE-TEXTS.md",
+      "dest": "APP-DISCLOSURE-TEXTS.md",
+      "required": false,
+      "sha256": "25ee47a88ebbff83485cae84e7aeb899863bc935b177c12de2a06a44d1a025e8"
+    },
+    {
+      "source": "docs/legal/APPROVALS.md",
+      "dest": "APPROVALS.md",
+      "required": false,
+      "sha256": "1c0def8eb48a4b0ea95bd31ebf48b3cafefad019c6e02aa3c55067f1d8fdce9b"
+    },
+    {
+      "source": "docs/legal/ASSET-REPLACEMENT-AND-MODDING-POLICY.md",
+      "dest": "ASSET-REPLACEMENT-AND-MODDING-POLICY.md",
+      "required": false,
+      "sha256": "546ddbf8f00f203ddd0a8c34a3b2e09deef865e2a77ea6ccc6c390832ba6df0d"
+    },
+    {
+      "source": "docs/legal/CONSUMER-MINORS-HEALTH.md",
+      "dest": "CONSUMER-MINORS-HEALTH.md",
+      "required": false,
+      "sha256": "1b5565888d12153889a13e0050c0f55ef8f0259d468417e8d0abb59e6f33fb53"
+    },
+    {
+      "source": "docs/legal/CONTENT-POLICY.md",
+      "dest": "CONTENT-POLICY.md",
+      "required": false,
+      "sha256": "d4c72c2815f28f5fb6ee7f74e4369618c6e07b6d6af7b3180f8d7d25b3508810"
+    },
+    {
+      "source": "docs/legal/CONTRIBUTOR-TERMS.md",
+      "dest": "CONTRIBUTOR-TERMS.md",
+      "required": false,
+      "sha256": "f69b395b694d67d35b2d8d91f235da478480c721af1073998e9b6c894e066325"
+    },
+    {
+      "source": "docs/legal/DECLARATION-MATRIX.md",
+      "dest": "DECLARATION-MATRIX.md",
+      "required": false,
+      "sha256": "090b8e805ecb0ac3cb83a887feec209c64ae304d8601cf94a3bd31491769522a"
+    },
+    {
+      "source": "docs/legal/FANWORK-POLICY.md",
+      "dest": "FANWORK-POLICY.md",
+      "required": false,
+      "sha256": "4ead115195ccbfaa08aa0326157cebb8134f9b2466f5f043a5ba14161ed98b13"
+    },
+    {
+      "source": "docs/legal/LEGAL-BASELINE.md",
+      "dest": "LEGAL-BASELINE.md",
+      "required": false,
+      "sha256": "f4f66c9b2609d9a5ba34c08ffe5766e3cea366ebef64d40fc645e479ca2f6ec1"
+    },
+    {
+      "source": "docs/legal/README.md",
+      "dest": "README.md",
+      "required": false,
+      "sha256": "2716208c0060e4eb35bd0673e4b608ae51497eaef5fda3e3dcd69f7f350fb2a7"
+    },
+    {
+      "source": "docs/legal/RELEASE-BLOCKERS.md",
+      "dest": "RELEASE-BLOCKERS.md",
+      "required": false,
+      "sha256": "55c8e235f95cf4b263a4f0eb221162e054b7f7295ccf7e28a1cb31a2738b90bc"
+    },
+    {
+      "source": "docs/legal/SAFETY.md",
+      "dest": "SAFETY.md",
+      "required": false,
+      "sha256": "86bad6cd8fb1ab0a4a635a8d19cca8fc6cfb582b7ace3e145ac3b5fd668b624b"
+    },
+    {
+      "source": "docs/legal/SECURITY-AND-PRIVACY.md",
+      "dest": "SECURITY-AND-PRIVACY.md",
+      "required": false,
+      "sha256": "2b15f1f552c92aaf1efa3859a9bc567168d08d52979a9eb936157ff69fcb55a1"
+    },
+    {
+      "source": "docs/legal/SIMULATED-REVIEW-2026-11-17.md",
+      "dest": "SIMULATED-REVIEW-2026-11-17.md",
+      "required": false,
+      "sha256": "687faacd118d574b3e9fc0cd2722c0e2b1a210824a5923df67ae5bac785d11bc"
+    },
+    {
+      "source": "docs/legal/THIRD-PARTY-AND-CREDITS-POLICY.md",
+      "dest": "THIRD-PARTY-AND-CREDITS-POLICY.md",
+      "required": false,
+      "sha256": "30b70b7d10aa718d9ad73b7ad1c47d35c4267ce9cb553f67b52d0e18bfae314c"
+    },
+    {
+      "source": "docs/legal/TRADEMARK-AND-NAMING-POLICY.md",
+      "dest": "TRADEMARK-AND-NAMING-POLICY.md",
+      "required": false,
+      "sha256": "a3abe842c4618ea6df8f6ec697cbdb1772ec75a47a65c2379dad2b3d146e08ee"
+    }
+  ],
+  "note": "Historical review snapshots keep their original wording; current shipped statements carry a 2026-11-18 public-export boundary block."
+}

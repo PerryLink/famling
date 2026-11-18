@@ -1,0 +1,54 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Famling",
+  "version": "0.1.0",
+  "identifier": "com.perrylink.famling",
+  "build": {
+    "beforeDevCommand": "node ../../node_modules/vite/bin/vite.js ../..",
+    "devUrl": "http://localhost:5173",
+    "beforeBuildCommand": "node ../../node_modules/vite/bin/vite.js build ../..",
+    "frontendDist": "../../../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Famling · 汀岚",
+        "url": "pet.html",
+        "width": 480,
+        "height": 336,
+        "resizable": false,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "alwaysOnTop": true,
+        "focus": false,
+        "skipTaskbar": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ipc: http://ipc.localhost"
+    },
+    "withGlobalTauri": false
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "licenseFile": "../../../public/legal/LICENSE.txt",
+    "resources": {
+      "../../../public/legal/": "legal/",
+      "../../../LICENSE": "LICENSE",
+      "../../../NOTICE": "NOTICE",
+      "../../../LICENSE-ART": "LICENSE-ART",
+      "../../../LICENSE-COMMERCIAL.md": "LICENSE-COMMERCIAL.md",
+      "../../../DECLARATIONS.md": "DECLARATIONS.md",
+      "../../../CREDITS.md": "CREDITS.md",
+      "../../../THIRD-PARTY.md": "THIRD-PARTY.md",
+      "../../../AI-PROVENANCE.md": "AI-PROVENANCE.md"
+    },
+    "icon": [
+      "icons/icon.ico",
+      "icons/icon.png"
+    ]
+  }
+}

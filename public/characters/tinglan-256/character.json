@@ -1,0 +1,86 @@
+{
+  "spec": "famling.character",
+  "apiVersion": "0.1",
+  "id": "famling.tinglan-256",
+  "version": "0.1.0",
+  "type": "humanoid",
+  "species": "orca",
+  "traits": [
+    "biped",
+    "speech",
+    "work-companion"
+  ],
+  "canvas": [
+    256,
+    256
+  ],
+  "canvasTarget": [
+    256,
+    256
+  ],
+  "anchor": {
+    "x": 128,
+    "y": 256,
+    "mode": "foot-center"
+  },
+  "footBox": [
+    -96,
+    -48,
+    192,
+    48
+  ],
+  "bbox": [
+    32,
+    20,
+    208,
+    236
+  ],
+  "palette": "orca-pixel@0.2-draft",
+  "display": {
+    "scale": 1,
+    "pixelated": true
+  },
+  "packBase": "/assets/pet/tinglan-256/",
+  "behaviorFile": "behavior.json",
+  "license": "CC-BY-NC-SA-4.0 (see LICENSE-ART; concept/placeholder art; not final)",
+  "meta": {
+    "authors": [
+      "Famling"
+    ],
+    "note": "Tinglan Q 256 concept/placeholder art; machine-gated 49/49; not final; not official",
+    "artStatus": "concept",
+    "nameStatus": "working"
+  },
+  "ai": {
+    "status": "concept",
+    "tool": "openai/gpt-image-2.6-sunburst"
+  },
+  "capabilities": {
+    "sockets": [
+      "head",
+      "hand",
+      "tail",
+      "floor"
+    ],
+    "roles": [
+      "assistant",
+      "companion"
+    ],
+    "behaviors": [
+      "social",
+      "aware"
+    ]
+  },
+  "fallback": {
+    "talk": [
+      "idle"
+    ],
+    "remind": [
+      "talk",
+      "idle"
+    ],
+    "pat": [
+      "idle"
+    ]
+  }
+}

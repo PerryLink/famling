@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="ai-generated" content="Character/voice assets may be AI-generated; see DECLARATIONS.md. Unofficial, not affiliated with DeepSeek." />
+    <meta name="ai-disclosure" content="AI 桌宠/角色与语音均为 AI 生成，不是真人，不构成专业建议；一般功能全年龄可用，部分互动功能按适用法律/协议需完成年龄核验（自报出生日期，非官方身份证核验），具体以完整 TOS 为准；内容须全年龄适宜。" />
+    <meta name="disclaimer" content="使用前必须阅读并同意完整 TOS/免责声明：首次启动、每次修改/DLC 加载、TTS 启用均需显式同意。见 /legal/TOS.md。" />
+    <meta name="legal-terms" content="/legal/TOS.md" />
+    <title>Famling · 汀岚</title>
+
+  </head>
+  <body>
+    <noscript>
+      <p class="legal-noscript">
+        本应用需要 JavaScript；使用前请阅读完整《使用条款、免责声明与用户同意书》：
+        <a href="/legal/TOS.md">/legal/TOS.md</a>。AI 生成内容不是真人，不构成专业建议；一般功能全年龄可用，部分互动功能按适用法律/协议需完成年龄核验（首启须自报出生日期，非官方身份证核验），具体以完整 TOS 为准；内容须全年龄适宜；
+        禁止成人性内容/虚拟亲密关系/未成年人性化/自伤他伤/违法/诈骗/隐私侵犯/冒充官方。
+      </p>
+    </noscript>
+    <div id="pet-app">
+      <div id="setup-notice" class="setup-notice" role="alert" hidden>
+        <strong>使用前请配置你自己的模型与 API Key</strong>
+        <p>模型/语音调用会产生费用，由你的 API 账户承担；AI 合成内容不是真人。一般功能全年龄可用，部分互动功能按适用法律/协议需完成年龄核验（自报出生日期），具体以完整 TOS 为准；内容须全年龄适宜。未配置时只能用本地占位能力。</p>
+        <div class="setup-actions">
+          <a href="/setup.html">配置说明</a>
+          <button id="setup-dismiss" type="button">我已知晓</button>
+        </div>
+      </div>
+      <header>
+        <div data-tauri-drag-region>
+          <h1 id="pet-name">折角</h1>
+          <p id="pet-sub">书页折角里醒来的小东西</p>
+        </div>
+        <div class="stats">
+          <span id="bond">羁绊 0</span>
+          <span id="paper">纸片 0</span>
+          <span id="folded">折物 0</span>
+          <span id="pet-scale-label" class="pet-scale-label" aria-live="polite" title="宠物显示缩放">2×</span>
+        </div>
+      </header>
+      <main>
+        <div class="book">
+          <div id="pet" class="fold-pet" title="摸摸它">
+            <div class="ear left"></div><div class="ear right"></div>
+            <div class="head"><div class="eye left"></div><div class="eye right"></div><div id="mouth" class="mouth"></div></div>
+            <div class="body"><div class="crease"></div></div>
+            <div class="tail"></div>
+          </div>
+          <!-- Phase 2 hero renderer stage: opt-in (?hero=1 / localStorage), hidden
+               until the first hero frame succeeds; the folded-paper #pet above is
+               never removed and reappears on any failure. -->
+          <div id="hero-stage" class="hero-stage" hidden><canvas id="hero-canvas"></canvas></div>
+          <!-- Minimal non-art status for the hero renderer: first-frame loading,
+               no-character (empty) and failed (error) are DOM states, not
+               console-only; `off` keeps the default folded-paper DOM quiet. -->
+          <div id="hero-placeholder" class="hero-placeholder" data-state="off" role="status" aria-live="polite" hidden>
+            <span class="hero-placeholder-dot" aria-hidden="true"></span>
+            <span class="hero-placeholder-text"></span>
+          </div>
+          <div id="bubble" class="bubble">……</div>
+        </div>
+        <aside class="panel">
+          <div class="actions">
+            <button id="pat">摸摸</button>
+            <button id="give">给纸片</button>
+            <button id="fold">折一下</button>
+            <button id="rename">改名</button>
+          </div>
+          <div class="actions">
+            <button id="talk">按住说话</button>
+            <button id="mute">静音</button>
+            <button id="save">保存</button>
+            <button id="load">读取</button>
+            <button id="memory-book">折页簿</button>
+            <button id="reset-window">复位窗口</button>
+            <button id="voice-cache" title="删掉 Tauri 本地的 TTS WAV 缓存">清语音缓存</button>
+            <button id="chat-import" title="导入 DeepSeek 网页分享对话摘要">导入会话</button>
+            <button id="about" type="button" title="关于与完整声明（TOS/免责声明/TTS/健康使用）">声明</button>
+            <button id="advisers-toggle" type="button" aria-pressed="false" title="读取本地 Advisers Pet Brief（只读，可选）">Advisers：关</button>
+          </div>
+          <label class="volume">音量 <input id="vol" type="range" min="0" max="100" step="5" value="70" /></label>
+          <div id="memories" class="memories"></div>
+          <p id="schedule" class="note">它现在：……</p>
+          <p id="voice-mode" class="note" title="AI 合成语音/系统 TTS，请以字幕为准">语音：系统/云端 TTS · AI 合成</p>
+          <div class="advisers-status-row">
+            <button id="advisers-status" class="note advisers-status" type="button" aria-haspopup="dialog" aria-controls="advisers-panel" aria-expanded="false" aria-live="polite" title="点击查看只读简报">Advisers：未启用（可选，只读）</button>
+            <button id="advisers-retry" class="advisers-retry" type="button" aria-label="重试读取 Advisers 简报" hidden>重试</button>
+          </div>
+          <p class="note">占位美术 · 字幕始终可用</p>
+        </aside>
+      </main>
+      <!-- V1 typed input (PET-INPUT-OUTPUT-DESIGN-2026-11-17 §2/§3): the
+           same-window inline composer + compact #result-card are created by
+           desktop-shell.ts (main.ts wires the local intent engine/review/say)
+           inside this layer. No new window, no 480x336 resize, no global
+           hotkey; local-only (no free LLM / no Advisers writes / no
+           persistence), opened from the right-click menu 交办 / 打字输入… or
+           keyboard, Escape cancels, Enter submits, IME composition safe. -->
+      <div id="pet-input-layer" class="pet-input-layer"></div>
+      <!-- Hidden TTS declaration re-confirmation target: the desktop-shell menu
+           clicks this so the modal re-prompts with the CURRENT TTS config; the
+           TOS acceptance alone can never satisfy the separate TTS declaration. -->
+      <button id="tts-consent" type="button" hidden>TTS 声明与语音确认</button>
+      <!-- Desktop-shell menu trigger: aria-haspopup/expanded live here; the menu
+           itself is created by desktop-shell.ts on right-click, ContextMenu/
+           Shift+F10 or this button (hidden by CSS in ?shell=window). -->
+      <button id="pet-menu-button" class="pet-menu-button" type="button" aria-haspopup="menu" aria-controls="pet-shell-menu" aria-expanded="false" aria-label="打开桌面菜单" title="桌面菜单（右键 / Shift+F10）">⋯</button>
+    </div>
+    <div id="advisers-panel" class="advisers-panel" role="dialog" aria-modal="true" aria-label="Advisers 只读简报" hidden>
+      <div class="advisers-card">
+        <div class="advisers-head"><div><p class="title-kicker">ADVISERS</p><h2>只读简报</h2></div><button id="advisers-close" type="button">合上</button></div>
+        <p id="advisers-meta" class="note"></p>
+        <div id="advisers-sections"></div>
+        <p class="note">只读 · 来自本地 pet-brief.json · 不读数据库/不自动改账本</p>
+      </div>
+    </div>
+    <div id="memory-screen" class="settings-screen hidden">
+      <div class="gallery-card">
+        <p class="title-kicker">MEMORY</p>
+        <h1>折页簿</h1>
+        <p class="title-sub">只记你说过的事；可以改，也可以忘。</p>
+        <div id="memory-list" class="memory-list"></div>
+        <div class="title-actions"><button id="save-export">备份存档</button><button id="save-import">导入存档</button><button id="save-delete">删除存档</button><button id="memory-export">导出折页</button><button id="memory-forget-all">忘掉全部</button><button id="memory-close">合上</button>
+        <input id="save-import-file" type="file" accept=".json,.pagefold" hidden /></div>
+      </div>
+    </div>
+    <div id="about-screen" class="settings-screen hidden" role="dialog" aria-modal="true" aria-labelledby="about-title">
+      <div class="gallery-card about-card">
+        <p class="title-kicker">ABOUT / LEGAL</p>
+        <h1 id="about-title">关于与声明</h1>
+        <p class="title-sub">年龄核验（自报）、完整 TOS、免责声明、TTS/ASR 声明、健康使用/危机求助入口。一般功能全年龄可用；部分互动功能按适用法律/协议需完成年龄核验，具体以完整 TOS 为准。本次同意不构成永久豁免。</p>
+        <p id="about-legal-meta" class="note" aria-live="polite"></p>
+        <p class="note">
+          非官方项目，不关联 DeepSeek。AI 生成内容不是真人，不构成医疗/心理/法律/财务等专业建议；
+          一般功能全年龄可用；部分互动功能按适用法律/协议需完成年龄核验（首次启动已自报出生日期核验，非官方身份证核验），具体以完整 TOS 为准，未完成核验不能使用相关功能。内容须全年龄适宜：禁止成人性内容/虚拟亲密关系/未成年人性化/自伤他伤/违法/诈骗/冒充，不得诱导依赖/恋爱/付费解锁关系。
+          连续使用每 2 小时请休息（提醒不能彻底关闭）。危机时请联系紧急服务（110/120）、可信任的人或专业机构（如 12356）；本应用无法代为求助。
+        </p>
+        <p class="note" id="ai-disclosure-about">
+          AI 标识：本应用在首启 TOS/年龄核验、本「声明」面板、TTS 独立声明与首次播放提示等处提醒「AI 生成/合成、不是真人」；界面不常驻浮层角标，以免遮挡桌宠与桌面操作。
+          角色美术、对话文本与语音均为 AI 生成/合成，声音不是真人。
+          语音播放前另有独立 TTS 声明并需单独确认；语音输入（ASR）前另有独立 ASR 声明并需单独确认，拒绝则不录音、不上传。
+          图片/导出文件的 AI 标识与元数据仍在建设（发布前补齐）；导出内容请保留 AI 生成说明。
+        </p>
+        <p id="about-tts-meta" class="note"></p>
+        <div id="about-tos-sections" class="about-tos" aria-label="完整 TOS/免责声明"></div>
+        <div id="about-tts-sections" class="about-tos about-tos-tts" aria-label="TTS/AI 语音声明"></div>
+        <p id="about-asr-meta" class="note"></p>
+        <div id="about-asr-sections" class="about-tos about-tos-asr" aria-label="ASR/语音识别声明"></div>
+        <!-- Age self-report verification: general features are all-ages;
+             features subject to an age gate require the self-reported age
+             verification. The panel shows only the age band (never the full
+             birth date); correction re-verifies the record. The internal
+             roleplay gate/flow is retained, but there is NO public roleplay
+             entry, declaration area or start/exit button on this surface
+             (2026-11-17 user decision: not a public gameplay/entry). -->
+        <h2 class="about-data-title">年龄核验（自报出生日期）</h2>
+        <p class="note" id="about-age-capability">一般桌宠功能全年龄可用；部分互动功能按适用法律/协议需完成年龄核验（18+ 门槛），具体以完整 TOS 为准。年龄由你首次启动时自报出生年/月/日（不预填、无默认），仅存本机并记录核验时间；不是官方身份证核验，也不采集身份证/照片/住址。可在此更正年龄；“删除全部本地数据”会删除年龄记录。</p>
+        <p id="about-age-meta" class="note" aria-live="polite"></p>
+        <div class="about-actions"><button id="about-age-correct" type="button" title="重新选择出生日期并重新核验；不是官方身份证核验">更正年龄（重新核验）…</button></div>
+        <!-- User data controls (P0 R-P0-06): withdraw consent / delete all local
+             data / review the two local audit ledgers. Every entry opens an
+             explicit 2-step (or explicit single) confirmation; nothing is
+             pre-checked and Escape/cancel never confirms. -->
+        <div class="about-data-controls" role="group" aria-labelledby="about-data-title">
+          <h2 id="about-data-title" class="about-data-title">数据控制 · 撤回同意 / 删除全部数据 / 审核记录</h2>
+          <p id="about-data-meta" class="note" aria-live="polite"></p>
+          <div class="about-actions about-data-actions">
+            <button id="about-withdraw-consent" type="button" title="二次确认后停止处理并进入安全只读；不删除存档">撤回同意…</button>
+            <button id="about-delete-all" type="button" title="二次确认后删除本机数据并逐项核验，残留会如实列出">删除全部本地数据…</button>
+            <button id="about-consent-audit-view" type="button" aria-expanded="false" aria-controls="about-consent-audit-panel">同意审计记录…</button>
+            <button id="about-safety-audit-view" type="button" aria-expanded="false" aria-controls="about-safety-audit-panel">审核记录…</button>
+          </div>
+          <div id="about-consent-audit-panel" class="about-audit" role="region" aria-label="同意审计记录" hidden>
+            <p id="about-consent-audit-meta" class="note" aria-live="polite"></p>
+            <ol id="about-consent-audit-list" class="about-audit-list"></ol>
+            <div class="about-actions">
+              <button id="about-consent-audit-clear" type="button" title="清除本机同意审计记录（不影响当前同意状态）">清除同意审计…</button>
+            </div>
+          </div>
+          <div id="about-safety-audit-panel" class="about-audit" role="region" aria-label="安全审核记录" hidden>
+            <p id="about-safety-audit-meta" class="note" aria-live="polite"></p>
+            <ol id="about-safety-audit-list" class="about-audit-list"></ol>
+            <div class="about-actions">
+              <button id="about-safety-audit-clear" type="button" title="清除本机安全审核记录（不含原文）">清除审核记录…</button>
+              <button id="about-safety-audit-export" type="button" title="仅用于投诉或执法；非证据级">导出审核记录（仅投诉/执法）…</button>
+            </div>
+          </div>
+        </div>
+        <div class="about-actions">
+          <button id="about-tos-view" type="button">查看完整 TOS（只读）</button>
+          <button id="about-tts" type="button">TTS 声明与语音确认</button>
+          <button id="about-asr" type="button">ASR 语音识别声明与确认</button>
+          <button id="about-memory" type="button">关闭记忆/清除数据</button>
+          <button id="about-setup" type="button">模型/API Key 设置</button>
+          <button id="about-exit" type="button">退出应用</button>
+          <button id="about-close" type="button">合上</button>
+        </div>
+        <p class="note">
+          反馈/举报：novelnexusai@outlook.com · 违法不良信息 12377 · 消费争议 12315（当前版本无收费）· 心理援助 12356 · 紧急 110/120。
+          本机数据需在设备上操作，本应用无法远程删除你设备上的数据。数据控制入口见上方「数据控制」：可撤回同意、删除全部本地数据、查看/清除同意审计与安全审核记录；
+          删除范围与“残留/未核验”项会在结果中逐项列出（如 TTS 用量计数 quota 当前无清除命令，会如实列为残留），不谎报完成。
+        </p>
+        <p id="about-note" class="note" aria-live="polite"></p>
+      </div>
+    </div>
+    <script type="module" src="/src/pet/main.ts"></script>
+  </body>
+</html>

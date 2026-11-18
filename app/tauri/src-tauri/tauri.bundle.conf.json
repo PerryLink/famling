@@ -1,0 +1,4 @@
+{
+  "build": { "beforeBuildCommand": "node -e \"\"" },
+  "bundle": { "targets": ["nsis"] }
+}

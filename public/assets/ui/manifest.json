@@ -1,0 +1,4350 @@
+{
+  "schemaVersion": 1,
+  "id": "ui.roleplay.91.v1",
+  "title": "UI / 图标 / 背景 / roleplay 合规资产 91 件",
+  "registry": "docs/art/per-image/INVENTORY-UI-ROLEPLAY-2026-11-16.md",
+  "generated": "2026-11-17",
+  "generation": {
+    "method": "deterministic local pixel painting with Python/PIL primitives",
+    "api": "none",
+    "model": "none",
+    "network": "none",
+    "ai": "none",
+    "costUSD": 0,
+    "generator": "art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+    "generatorSha256": "385580ee79fb9957009b8be29211497d4cdfed2ee328f2024b84fb587812d5b9",
+    "palette": "famling-ui-pixel@0.1",
+    "report": "docs/art/UI-91-GENERATION-2026-11-17.md",
+    "contactSheets": [
+      "art/_placeholder/ui-91-2026-11-17/contact-sheet.png",
+      "art/_placeholder/ui-91-2026-11-17/contact-sheet-dark.png",
+      "art/_placeholder/ui-91-2026-11-17/contact-sheet-light.png",
+      "art/_placeholder/ui-91-2026-11-17/clarity-16-32.png"
+    ]
+  },
+  "style": {
+    "name": "famling-ui-pixel@0.1",
+    "palette": {
+      "ink": "#1b1612",
+      "ink2": "#101a30",
+      "paper_hi": "#f4f9ff",
+      "paper": "#e8d6b0",
+      "paper_base": "#f0e4d4",
+      "paper_dark": "#d8c3a5",
+      "paper_fold": "#b9a58e",
+      "paper_deep": "#8f7a5a",
+      "brown": "#6a4a2e",
+      "gold": "#e0b35a",
+      "gold_hi": "#f4d98e",
+      "gold_dark": "#8f6a1f",
+      "blue": "#2f6bff",
+      "blue_deep": "#1b3b7a",
+      "blue_mid": "#4d86ff",
+      "blue_hi": "#76a4ff",
+      "rim": "#99c8ff",
+      "slate": "#8fa8c0",
+      "green": "#3fa66b",
+      "green_dark": "#2a6b4a",
+      "red": "#d95f5f",
+      "red_dark": "#9c3f3f",
+      "skin": "#f6dfd2",
+      "skin_shade": "#e8c3b2"
+    },
+    "outline": "#1b1612",
+    "outlineAlt": "#101a30",
+    "hardAlpha": true,
+    "antiAliasing": false,
+    "maxColors": 32,
+    "perGroupMaxColors": {
+      "menu": 12,
+      "props": 12,
+      "badges": 6,
+      "placeholders": 8,
+      "indicators": 8,
+      "icons": 6,
+      "backgrounds": 16,
+      "fx": 6,
+      "roleplay": 16
+    },
+    "sizes": {
+      "menu": "32 + 64=2x",
+      "props": "16 + 32 + 64=2x",
+      "badges": "16 + 32=2x",
+      "placeholders": "48 + 96=2x",
+      "indicators": "12 / 16 / 24 each redrawn",
+      "icons": "16 / 32 / 256=32x8 / ICO 16/32/48/256",
+      "backgrounds": "480x336 (10:7)",
+      "fx": "24x24 / 48x48",
+      "roleplay": "32+64 or 64+128 (same ID, 2x)"
+    },
+    "textInAssets": "none: all 91 assets are text-free (no letters/digits/watermark); the all-ages status is carried by DOM copy, not baked into the badge",
+    "officialMarks": "none: no DeepSeek logo / mascot / fish / whale shapes; non-official pagefold motif only"
+  },
+  "license": {
+    "id": "placeholder-only",
+    "spdx": "NONE",
+    "note": "Deterministic locally painted art; not final human-reviewed art, not cleared for commercial release. Repo policy target for final art is CC-BY-NC-SA-4.0 (D2 pending); these files are placeholder/pilot assets, commercial use not granted. No third-party or AI-derived material is included.",
+    "commercialUse": "not granted",
+    "aiDisclosure": "none (no AI model used)",
+    "notOfficialDeepseek": true
+  },
+  "counts": {
+    "assets": 91,
+    "files": 97,
+    "logicalRegistry": 91,
+    "physicalFiles": 97,
+    "roleplayDualTierVariants": 6,
+    "byGroup": {
+      "menu": {
+        "assets": 20,
+        "files": 20,
+        "priority": "P1"
+      },
+      "props": {
+        "assets": 18,
+        "files": 18,
+        "priority": "P1"
+      },
+      "badges": {
+        "assets": 12,
+        "files": 12,
+        "priority": "P1"
+      },
+      "placeholders": {
+        "assets": 8,
+        "files": 8,
+        "priority": "P1"
+      },
+      "indicators": {
+        "assets": 18,
+        "files": 18,
+        "priority": "P1"
+      },
+      "icons": {
+        "assets": 4,
+        "files": 4,
+        "priority": "P0"
+      },
+      "backgrounds": {
+        "assets": 3,
+        "files": 3,
+        "priority": "P2"
+      },
+      "fx": {
+        "assets": 2,
+        "files": 2,
+        "priority": "P2"
+      },
+      "roleplay": {
+        "assets": 6,
+        "files": 12,
+        "priority": "P1"
+      }
+    },
+    "byPriority": {
+      "P0": 10,
+      "P1": 76,
+      "P2": 5
+    }
+  },
+  "assets": [
+    {
+      "id": "U-MENU-01a",
+      "group": "menu",
+      "groupLabel": "右键菜单图标",
+      "role": "摸摸（互动·pat）",
+      "use": "右键菜单项「摸摸」；hover/focus/disabled 由 CSS，勾选用 DOM",
+      "priority": "P1",
+      "size": [
+        32,
+        32
+      ],
+      "tier": "a=32 母版",
+      "file": "menu/U-MENU-01a_32x32.png",
+      "files": [
+        "menu/U-MENU-01a_32x32.png"
+      ],
+      "format": "png",
+      "sha256": "490c5ea4c501752f8ffc53125f30c268458db6a01accc0b6b91c1af47aa442f4",
+      "bytes": 386,
+      "colors": 5,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "开掌 + 3 条 1px 动线"
+    },
+    {
+      "id": "U-MENU-01b",
+      "group": "menu",
+      "groupLabel": "右键菜单图标",
+      "role": "摸摸（互动·pat）",
+      "use": "右键菜单项「摸摸」；hover/focus/disabled 由 CSS，勾选用 DOM",
+      "priority": "P1",
+      "size": [
+        64,
+        64
+      ],
+      "tier": "b=2x",
+      "file": "menu/U-MENU-01b_64x64.png",
+      "files": [
+        "menu/U-MENU-01b_64x64.png"
+      ],
+      "format": "png",
+      "sha256": "8392288956a5451dc3ad3f2e238402c7694aba61044711c3e9e6f57464248ba6",
+      "bytes": 446,
+      "colors": 5,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "开掌 + 3 条 1px 动线；32 母版整数 2x，不重采样、不加细节"
+    },
+    {
+      "id": "U-MENU-02a",
+      "group": "menu",
+      "groupLabel": "右键菜单图标",
+      "role": "给纸片（互动·给纸片）",
+      "use": "右键菜单项「给纸片」；与 U-PROP-01 同语义母版",
+      "priority": "P1",
+      "size": [
+        32,
+        32
+      ],
+      "tier": "a=32 母版",
+      "file": "menu/U-MENU-02a_32x32.png",
+      "files": [
+        "menu/U-MENU-02a_32x32.png"
+      ],
+      "format": "png",
+      "sha256": "ae41bbc6a8c5b2570d43130078d40f8e33071940b89263e4f7deacee9cb13df8",
+      "bytes": 354,
+      "colors": 7,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "纸片 + 折角 + 金色加号"
+    },
+    {
+      "id": "U-MENU-02b",
+      "group": "menu",
+      "groupLabel": "右键菜单图标",
+      "role": "给纸片（互动·给纸片）",
+      "use": "右键菜单项「给纸片」；与 U-PROP-01 同语义母版",
+      "priority": "P1",
+      "size": [
+        64,
+        64
+      ],
+      "tier": "b=2x",
+      "file": "menu/U-MENU-02b_64x64.png",
+      "files": [
+        "menu/U-MENU-02b_64x64.png"
+      ],
+      "format": "png",
+      "sha256": "f87039e2d0323b9669fd9d1f66b3b09391fd519d1f9945f875baae752004bf12",
+      "bytes": 430,
+      "colors": 7,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "纸片 + 折角 + 金色加号；32 母版整数 2x，不重采样、不加细节"
+    },
+    {
+      "id": "U-MENU-03a",
+      "group": "menu",
+      "groupLabel": "右键菜单图标",
+      "role": "折纸（互动·折一下）",
+      "use": "右键菜单项「折纸」；与 U-PROP-02 折物同族",
+      "priority": "P1",
+      "size": [
+        32,
+        32
+      ],
+      "tier": "a=32 母版",
+      "file": "menu/U-MENU-03a_32x32.png",
+      "files": [
+        "menu/U-MENU-03a_32x32.png"
+      ],
+      "format": "png",
+      "sha256": "5625e1788220bc0e871d2fe724863b18ef273e6aea1a3c12e709a27513d0ce42",
+      "bytes": 450,
+      "colors": 7,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "折纸狐 + 折痕，非写实动物"
+    },
+    {
+      "id": "U-MENU-03b",
+      "group": "menu",
+      "groupLabel": "右键菜单图标",
+      "role": "折纸（互动·折一下）",
+      "use": "右键菜单项「折纸」；与 U-PROP-02 折物同族",
+      "priority": "P1",
+      "size": [
+        64,
+        64
+      ],
+      "tier": "b=2x",
+      "file": "menu/U-MENU-03b_64x64.png",
+      "files": [
+        "menu/U-MENU-03b_64x64.png"
+      ],
+      "format": "png",
+      "sha256": "3208d29540a6f4d3e64d16c61309f26ffb43c9c47e7c875229032988829fbaa9",
+      "bytes": 527,
+      "colors": 7,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "折纸狐 + 折痕，非写实动物；32 母版整数 2x，不重采样、不加细节"
+    },
+    {
+      "id": "U-MENU-04a",
+      "group": "menu",
+      "groupLabel": "右键菜单图标",
+      "role": "折页簿（合并态）",
+      "use": "右键菜单项「折页簿」；与 U-PROP-03 同语义母版",
+      "priority": "P1",
+      "size": [
+        32,
+        32
+      ],
+      "tier": "a=32 母版",
+      "file": "menu/U-MENU-04a_32x32.png",
+      "files": [
+        "menu/U-MENU-04a_32x32.png"
+      ],
+      "format": "png",
+      "sha256": "3a6a554e1c087cdd8cc832b1b4f2908f290b95db7b27f7509766036f7d6bbd15",
+      "bytes": 319,
+      "colors": 7,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "合起簿 + 1px 书签带"
+    },
+    {
+      "id": "U-MENU-04b",
+      "group": "menu",
+      "groupLabel": "右键菜单图标",
+      "role": "折页簿（合并态）",
+      "use": "右键菜单项「折页簿」；与 U-PROP-03 同语义母版",
+      "priority": "P1",
+      "size": [
+        64,
+        64
+      ],
+      "tier": "b=2x",
+      "file": "menu/U-MENU-04b_64x64.png",
+      "files": [
+        "menu/U-MENU-04b_64x64.png"
+      ],
+      "format": "png",
+      "sha256": "47f45b97c7added1be884e8b47a888bdbaedee495222357687e55b6ad5dec0b8",
+      "bytes": 434,
+      "colors": 7,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "合起簿 + 1px 书签带；32 母版整数 2x，不重采样、不加细节"
+    },
+    {
+      "id": "U-MENU-05a",
+      "group": "menu",
+      "groupLabel": "右键菜单图标",
+      "role": "导入",
+      "use": "右键菜单项「导入」；方向=向内，与 U-MENU-10 相反",
+      "priority": "P1",
+      "size": [
+        32,
+        32
+      ],
+      "tier": "a=32 母版",
+      "file": "menu/U-MENU-05a_32x32.png",
+      "files": [
+        "menu/U-MENU-05a_32x32.png"
+      ],
+      "format": "png",
+      "sha256": "6e0f975ea9986a334a91fd8ae704deb42585e27e240e444aed41f750be8b91b3",
+      "bytes": 281,
+      "colors": 6,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "收件托盘 + 下箭头"
+    },
+    {
+      "id": "U-MENU-05b",
+      "group": "menu",
+      "groupLabel": "右键菜单图标",
+      "role": "导入",
+      "use": "右键菜单项「导入」；方向=向内，与 U-MENU-10 相反",
+      "priority": "P1",
+      "size": [
+        64,
+        64
+      ],
+      "tier": "b=2x",
+      "file": "menu/U-MENU-05b_64x64.png",
+      "files": [
+        "menu/U-MENU-05b_64x64.png"
+      ],
+      "format": "png",
+      "sha256": "daaecfb166fb1606b989fccadbc078323e7087c79c24836c13f080fb9248aa1b",
+      "bytes": 368,
+      "colors": 6,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "收件托盘 + 下箭头；32 母版整数 2x，不重采样、不加细节"
+    },
+    {
+      "id": "U-MENU-06a",
+      "group": "menu",
+      "groupLabel": "右键菜单图标",
+      "role": "Advisers",
+      "use": "右键菜单项「Advisers」；禁用鲸鱼/官方联想，非官方剪贴板 mark",
+      "priority": "P1",
+      "size": [
+        32,
+        32
+      ],
+      "tier": "a=32 母版",
+      "file": "menu/U-MENU-06a_32x32.png",
+      "files": [
+        "menu/U-MENU-06a_32x32.png"
+      ],
+      "format": "png",
+      "sha256": "fd9103198b415c3e9ac5248151d1eedd6af09db6a536e11472857367993803f4",
+      "bytes": 324,
+      "colors": 9,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "剪贴板 + 三条勾线 + 角标"
+    },
+    {
+      "id": "U-MENU-06b",
+      "group": "menu",
+      "groupLabel": "右键菜单图标",
+      "role": "Advisers",
+      "use": "右键菜单项「Advisers」；禁用鲸鱼/官方联想，非官方剪贴板 mark",
+      "priority": "P1",
+      "size": [
+        64,
+        64
+      ],
+      "tier": "b=2x",
+      "file": "menu/U-MENU-06b_64x64.png",
+      "files": [
+        "menu/U-MENU-06b_64x64.png"
+      ],
+      "format": "png",
+      "sha256": "5f0068ceeeb58c078143834d7d0132d8834ac1bbda3909fe7a265485cc43e1e5",
+      "bytes": 420,
+      "colors": 9,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "剪贴板 + 三条勾线 + 角标；32 母版整数 2x，不重采样、不加细节"
+    },
+    {
+      "id": "U-MENU-07a",
+      "group": "menu",
+      "groupLabel": "右键菜单图标",
+      "role": "设置",
+      "use": "右键菜单项「设置」；滑杆语义，非齿轮，避免与系统设置撞形",
+      "priority": "P1",
+      "size": [
+        32,
+        32
+      ],
+      "tier": "a=32 母版",
+      "file": "menu/U-MENU-07a_32x32.png",
+      "files": [
+        "menu/U-MENU-07a_32x32.png"
+      ],
+      "format": "png",
+      "sha256": "6d622f4d3443696f9be97ca8f94ff1fee591174a420515a743568a23d802c58a",
+      "bytes": 282,
+      "colors": 8,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "两组横滑杆 + 方形旋钮"
+    },
+    {
+      "id": "U-MENU-07b",
+      "group": "menu",
+      "groupLabel": "右键菜单图标",
+      "role": "设置",
+      "use": "右键菜单项「设置」；滑杆语义，非齿轮，避免与系统设置撞形",
+      "priority": "P1",
+      "size": [
+        64,
+        64
+      ],
+      "tier": "b=2x",
+      "file": "menu/U-MENU-07b_64x64.png",
+      "files": [
+        "menu/U-MENU-07b_64x64.png"
+      ],
+      "format": "png",
+      "sha256": "d9171cc7bfe0ebbd0a92a7e0374d30804a95788fa1a00036a375d24e8e5958b1",
+      "bytes": 366,
+      "colors": 8,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "两组横滑杆 + 方形旋钮；32 母版整数 2x，不重采样、不加细节"
+    },
+    {
+      "id": "U-MENU-08a",
+      "group": "menu",
+      "groupLabel": "右键菜单图标",
+      "role": "缩放（宠物大小）",
+      "use": "菜单缩放项/面板入口；禁 1x/2x 文字，无数字字母",
+      "priority": "P1",
+      "size": [
+        32,
+        32
+      ],
+      "tier": "a=32 母版",
+      "file": "menu/U-MENU-08a_32x32.png",
+      "files": [
+        "menu/U-MENU-08a_32x32.png"
+      ],
+      "format": "png",
+      "sha256": "069b0b3926c8f98d042578ed49cc8b488e67dee42b130e2c723333b75d63a575",
+      "bytes": 427,
+      "colors": 5,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "放大镜 + 四向外角箭头"
+    },
+    {
+      "id": "U-MENU-08b",
+      "group": "menu",
+      "groupLabel": "右键菜单图标",
+      "role": "缩放（宠物大小）",
+      "use": "菜单缩放项/面板入口；禁 1x/2x 文字，无数字字母",
+      "priority": "P1",
+      "size": [
+        64,
+        64
+      ],
+      "tier": "b=2x",
+      "file": "menu/U-MENU-08b_64x64.png",
+      "files": [
+        "menu/U-MENU-08b_64x64.png"
+      ],
+      "format": "png",
+      "sha256": "fe20071bf4500e5b1e4e6b1616dd22c58d94a4529a786161aa2939cfb2d13fbd",
+      "bytes": 500,
+      "colors": 5,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "放大镜 + 四向外角箭头；32 母版整数 2x，不重采样、不加细节"
+    },
+    {
+      "id": "U-MENU-09a",
+      "group": "menu",
+      "groupLabel": "右键菜单图标",
+      "role": "关于",
+      "use": "右键菜单项「关于」；纯几何信息环，非官方 i-mark",
+      "priority": "P1",
+      "size": [
+        32,
+        32
+      ],
+      "tier": "a=32 母版",
+      "file": "menu/U-MENU-09a_32x32.png",
+      "files": [
+        "menu/U-MENU-09a_32x32.png"
+      ],
+      "format": "png",
+      "sha256": "e41ea9a9954b0499143b0fa29b3395dfdf66619b46b3421ee08188c438fd14ee",
+      "bytes": 345,
+      "colors": 4,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "信息环 + 1px 竖条 + 点"
+    },
+    {
+      "id": "U-MENU-09b",
+      "group": "menu",
+      "groupLabel": "右键菜单图标",
+      "role": "关于",
+      "use": "右键菜单项「关于」；纯几何信息环，非官方 i-mark",
+      "priority": "P1",
+      "size": [
+        64,
+        64
+      ],
+      "tier": "b=2x",
+      "file": "menu/U-MENU-09b_64x64.png",
+      "files": [
+        "menu/U-MENU-09b_64x64.png"
+      ],
+      "format": "png",
+      "sha256": "7787e3e53c2cbcb19c51f01eb50fa20225102f41377e5dda5f6b467ca934b205",
+      "bytes": 453,
+      "colors": 4,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "信息环 + 1px 竖条 + 点；32 母版整数 2x，不重采样、不加细节"
+    },
+    {
+      "id": "U-MENU-10a",
+      "group": "menu",
+      "groupLabel": "右键菜单图标",
+      "role": "退出",
+      "use": "右键菜单项「退出」；方向=向外，与 U-MENU-05 导入相反",
+      "priority": "P1",
+      "size": [
+        32,
+        32
+      ],
+      "tier": "a=32 母版",
+      "file": "menu/U-MENU-10a_32x32.png",
+      "files": [
+        "menu/U-MENU-10a_32x32.png"
+      ],
+      "format": "png",
+      "sha256": "395d69a527509086f2cc1c81b4a29be245f08f6f7a5d15d865b0afb6093f7c30",
+      "bytes": 322,
+      "colors": 7,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "门框 + 向右外指箭头"
+    },
+    {
+      "id": "U-MENU-10b",
+      "group": "menu",
+      "groupLabel": "右键菜单图标",
+      "role": "退出",
+      "use": "右键菜单项「退出」；方向=向外，与 U-MENU-05 导入相反",
+      "priority": "P1",
+      "size": [
+        64,
+        64
+      ],
+      "tier": "b=2x",
+      "file": "menu/U-MENU-10b_64x64.png",
+      "files": [
+        "menu/U-MENU-10b_64x64.png"
+      ],
+      "format": "png",
+      "sha256": "9a33853246a5f4f69fefeb8d898cda1d79bbc8ba0bbb52ad6eb88c360a14b7c5",
+      "bytes": 417,
+      "colors": 7,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "门框 + 向右外指箭头；32 母版整数 2x，不重采样、不加细节"
+    },
+    {
+      "id": "U-PROP-01a",
+      "group": "props",
+      "groupLabel": "道具/计数图标",
+      "role": "纸片（羁绊计数）",
+      "use": "HUD 羁绊计数 / 给纸片同源；16 单独重绘",
+      "priority": "P1",
+      "size": [
+        16,
+        16
+      ],
+      "tier": "a=16 重绘",
+      "file": "props/U-PROP-01a_16x16.png",
+      "files": [
+        "props/U-PROP-01a_16x16.png"
+      ],
+      "format": "png",
+      "sha256": "d820669b1d8c2351155e85894a1dd0ce3f284b97552f7b2ed98e3f68d0eb085c",
+      "bytes": 206,
+      "colors": 4,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "单张纸片 + 折痕，三阶明暗；16 单独重绘（不缩 32）"
+    },
+    {
+      "id": "U-PROP-01b",
+      "group": "props",
+      "groupLabel": "道具/计数图标",
+      "role": "纸片（羁绊计数）",
+      "use": "HUD 羁绊计数 / 给纸片同源；16 单独重绘",
+      "priority": "P1",
+      "size": [
+        32,
+        32
+      ],
+      "tier": "b=32 母版",
+      "file": "props/U-PROP-01b_32x32.png",
+      "files": [
+        "props/U-PROP-01b_32x32.png"
+      ],
+      "format": "png",
+      "sha256": "1efa6edbcefec648f04333cbaf0887f63cda474a69c0b1307ee21da28d122b1e",
+      "bytes": 279,
+      "colors": 5,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "单张纸片 + 折痕，三阶明暗"
+    },
+    {
+      "id": "U-PROP-01c",
+      "group": "props",
+      "groupLabel": "道具/计数图标",
+      "role": "纸片（羁绊计数）",
+      "use": "HUD 羁绊计数 / 给纸片同源；16 单独重绘",
+      "priority": "P1",
+      "size": [
+        64,
+        64
+      ],
+      "tier": "c=2x",
+      "file": "props/U-PROP-01c_64x64.png",
+      "files": [
+        "props/U-PROP-01c_64x64.png"
+      ],
+      "format": "png",
+      "sha256": "64740f3f02e70c6eecc9fbb0d90dc13419026d34581033ed39d3920f4b131f74",
+      "bytes": 354,
+      "colors": 5,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "单张纸片 + 折痕，三阶明暗；32 母版整数 2x"
+    },
+    {
+      "id": "U-PROP-02a",
+      "group": "props",
+      "groupLabel": "道具/计数图标",
+      "role": "折纸小动物（鹤）",
+      "use": "折物计数 / 折页簿；16 只留鹤剪影",
+      "priority": "P1",
+      "size": [
+        16,
+        16
+      ],
+      "tier": "a=16 重绘",
+      "file": "props/U-PROP-02a_16x16.png",
+      "files": [
+        "props/U-PROP-02a_16x16.png"
+      ],
+      "format": "png",
+      "sha256": "9a017c16d31fa911b75c3ddb50b4f6ecea99c98322f1f8db94c41066abc0f1fe",
+      "bytes": 283,
+      "colors": 6,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "折纸鹤 + 三个折面，非写实鸟；16 单独重绘（不缩 32）"
+    },
+    {
+      "id": "U-PROP-02b",
+      "group": "props",
+      "groupLabel": "道具/计数图标",
+      "role": "折纸小动物（鹤）",
+      "use": "折物计数 / 折页簿；16 只留鹤剪影",
+      "priority": "P1",
+      "size": [
+        32,
+        32
+      ],
+      "tier": "b=32 母版",
+      "file": "props/U-PROP-02b_32x32.png",
+      "files": [
+        "props/U-PROP-02b_32x32.png"
+      ],
+      "format": "png",
+      "sha256": "7122a6208eef927fca7946845ebb292b4886c5a2fed25489ee45cc661e804358",
+      "bytes": 469,
+      "colors": 6,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "折纸鹤 + 三个折面，非写实鸟"
+    },
+    {
+      "id": "U-PROP-02c",
+      "group": "props",
+      "groupLabel": "道具/计数图标",
+      "role": "折纸小动物（鹤）",
+      "use": "折物计数 / 折页簿；16 只留鹤剪影",
+      "priority": "P1",
+      "size": [
+        64,
+        64
+      ],
+      "tier": "c=2x",
+      "file": "props/U-PROP-02c_64x64.png",
+      "files": [
+        "props/U-PROP-02c_64x64.png"
+      ],
+      "format": "png",
+      "sha256": "95ac3a43183ea5140c27e75603fe6f6b901eb8f9129c80e8b532ae7b3f13f1a7",
+      "bytes": 574,
+      "colors": 6,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "折纸鹤 + 三个折面，非写实鸟；32 母版整数 2x"
+    },
+    {
+      "id": "U-PROP-03a",
+      "group": "props",
+      "groupLabel": "道具/计数图标",
+      "role": "折页簿（合）",
+      "use": "折页簿入口/面板入口；与 U-MENU-04 同语义",
+      "priority": "P1",
+      "size": [
+        16,
+        16
+      ],
+      "tier": "a=16 重绘",
+      "file": "props/U-PROP-03a_16x16.png",
+      "files": [
+        "props/U-PROP-03a_16x16.png"
+      ],
+      "format": "png",
+      "sha256": "95ae23659eeaf96b4b4294507f8136c594fa2a2c4d4fa2a737d9d227bab8bccf",
+      "bytes": 214,
+      "colors": 5,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "合起簿 + 书签带，与 04 开态成对；16 单独重绘（不缩 32）"
+    },
+    {
+      "id": "U-PROP-03b",
+      "group": "props",
+      "groupLabel": "道具/计数图标",
+      "role": "折页簿（合）",
+      "use": "折页簿入口/面板入口；与 U-MENU-04 同语义",
+      "priority": "P1",
+      "size": [
+        32,
+        32
+      ],
+      "tier": "b=32 母版",
+      "file": "props/U-PROP-03b_32x32.png",
+      "files": [
+        "props/U-PROP-03b_32x32.png"
+      ],
+      "format": "png",
+      "sha256": "3a6a554e1c087cdd8cc832b1b4f2908f290b95db7b27f7509766036f7d6bbd15",
+      "bytes": 319,
+      "colors": 7,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "合起簿 + 书签带，与 04 开态成对"
+    },
+    {
+      "id": "U-PROP-03c",
+      "group": "props",
+      "groupLabel": "道具/计数图标",
+      "role": "折页簿（合）",
+      "use": "折页簿入口/面板入口；与 U-MENU-04 同语义",
+      "priority": "P1",
+      "size": [
+        64,
+        64
+      ],
+      "tier": "c=2x",
+      "file": "props/U-PROP-03c_64x64.png",
+      "files": [
+        "props/U-PROP-03c_64x64.png"
+      ],
+      "format": "png",
+      "sha256": "47f45b97c7added1be884e8b47a888bdbaedee495222357687e55b6ad5dec0b8",
+      "bytes": 434,
+      "colors": 7,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "合起簿 + 书签带，与 04 开态成对；32 母版整数 2x"
+    },
+    {
+      "id": "U-PROP-04a",
+      "group": "props",
+      "groupLabel": "道具/计数图标",
+      "role": "折页簿（开）",
+      "use": "面板有内容态；与 03 合态成对",
+      "priority": "P1",
+      "size": [
+        16,
+        16
+      ],
+      "tier": "a=16 重绘",
+      "file": "props/U-PROP-04a_16x16.png",
+      "files": [
+        "props/U-PROP-04a_16x16.png"
+      ],
+      "format": "png",
+      "sha256": "e4e1854d8b064372abb7a77ce48878749d7ca7927bde7af625c457e382f728d9",
+      "bytes": 235,
+      "colors": 5,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "打开两页 + 1px 横线；16 单独重绘（不缩 32）"
+    },
+    {
+      "id": "U-PROP-04b",
+      "group": "props",
+      "groupLabel": "道具/计数图标",
+      "role": "折页簿（开）",
+      "use": "面板有内容态；与 03 合态成对",
+      "priority": "P1",
+      "size": [
+        32,
+        32
+      ],
+      "tier": "b=32 母版",
+      "file": "props/U-PROP-04b_32x32.png",
+      "files": [
+        "props/U-PROP-04b_32x32.png"
+      ],
+      "format": "png",
+      "sha256": "bd95b27db55a95fa8434af51850e9fcb03b7b93d052f20364af36b39e0d7183a",
+      "bytes": 342,
+      "colors": 5,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "打开两页 + 1px 横线"
+    },
+    {
+      "id": "U-PROP-04c",
+      "group": "props",
+      "groupLabel": "道具/计数图标",
+      "role": "折页簿（开）",
+      "use": "面板有内容态；与 03 合态成对",
+      "priority": "P1",
+      "size": [
+        64,
+        64
+      ],
+      "tier": "c=2x",
+      "file": "props/U-PROP-04c_64x64.png",
+      "files": [
+        "props/U-PROP-04c_64x64.png"
+      ],
+      "format": "png",
+      "sha256": "9bb155767468ced2ee5331de5fc39cc48a0c34e5cbcbd1bd79b0b2c03aec832a",
+      "bytes": 444,
+      "colors": 5,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "打开两页 + 1px 横线；32 母版整数 2x"
+    },
+    {
+      "id": "U-PROP-05a",
+      "group": "props",
+      "groupLabel": "道具/计数图标",
+      "role": "书页",
+      "use": "导入/记忆条目；与 04 开簿区分",
+      "priority": "P1",
+      "size": [
+        16,
+        16
+      ],
+      "tier": "a=16 重绘",
+      "file": "props/U-PROP-05a_16x16.png",
+      "files": [
+        "props/U-PROP-05a_16x16.png"
+      ],
+      "format": "png",
+      "sha256": "46825475398701ec3480f2f9b39c8d8a3bb10a8cfeacfeeed0f39a84860162e4",
+      "bytes": 212,
+      "colors": 4,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "单页 + 折角 + 1px 横线；16 单独重绘（不缩 32）"
+    },
+    {
+      "id": "U-PROP-05b",
+      "group": "props",
+      "groupLabel": "道具/计数图标",
+      "role": "书页",
+      "use": "导入/记忆条目；与 04 开簿区分",
+      "priority": "P1",
+      "size": [
+        32,
+        32
+      ],
+      "tier": "b=32 母版",
+      "file": "props/U-PROP-05b_32x32.png",
+      "files": [
+        "props/U-PROP-05b_32x32.png"
+      ],
+      "format": "png",
+      "sha256": "9ede2e1d8db848ea3a16a2fc814b2fd1666f43c85de2443857c78fbdab6a77f5",
+      "bytes": 298,
+      "colors": 5,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "单页 + 折角 + 1px 横线"
+    },
+    {
+      "id": "U-PROP-05c",
+      "group": "props",
+      "groupLabel": "道具/计数图标",
+      "role": "书页",
+      "use": "导入/记忆条目；与 04 开簿区分",
+      "priority": "P1",
+      "size": [
+        64,
+        64
+      ],
+      "tier": "c=2x",
+      "file": "props/U-PROP-05c_64x64.png",
+      "files": [
+        "props/U-PROP-05c_64x64.png"
+      ],
+      "format": "png",
+      "sha256": "81002662831a742484ab4514339a0fe88a78c21940bf8e21f595428c34d842f8",
+      "bytes": 386,
+      "colors": 5,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "单页 + 折角 + 1px 横线；32 母版整数 2x"
+    },
+    {
+      "id": "U-PROP-06a",
+      "group": "props",
+      "groupLabel": "道具/计数图标",
+      "role": "桌面小物（墨水瓶+羽毛）",
+      "use": "首启/About 装饰；非角色",
+      "priority": "P1",
+      "size": [
+        16,
+        16
+      ],
+      "tier": "a=16 重绘",
+      "file": "props/U-PROP-06a_16x16.png",
+      "files": [
+        "props/U-PROP-06a_16x16.png"
+      ],
+      "format": "png",
+      "sha256": "af71e00c77eb889a2721318993fceb3f816162cad6eddf6627d19e5531da09dc",
+      "bytes": 280,
+      "colors": 6,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "墨水瓶 + 羽毛笔，三阶明暗；16 单独重绘（不缩 32）"
+    },
+    {
+      "id": "U-PROP-06b",
+      "group": "props",
+      "groupLabel": "道具/计数图标",
+      "role": "桌面小物（墨水瓶+羽毛）",
+      "use": "首启/About 装饰；非角色",
+      "priority": "P1",
+      "size": [
+        32,
+        32
+      ],
+      "tier": "b=32 母版",
+      "file": "props/U-PROP-06b_32x32.png",
+      "files": [
+        "props/U-PROP-06b_32x32.png"
+      ],
+      "format": "png",
+      "sha256": "c3aedf8a33fab44129b2cb7da55f3103b18dc7492de65c61ccbf4b9c5d8574fd",
+      "bytes": 416,
+      "colors": 10,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "墨水瓶 + 羽毛笔，三阶明暗"
+    },
+    {
+      "id": "U-PROP-06c",
+      "group": "props",
+      "groupLabel": "道具/计数图标",
+      "role": "桌面小物（墨水瓶+羽毛）",
+      "use": "首启/About 装饰；非角色",
+      "priority": "P1",
+      "size": [
+        64,
+        64
+      ],
+      "tier": "c=2x",
+      "file": "props/U-PROP-06c_64x64.png",
+      "files": [
+        "props/U-PROP-06c_64x64.png"
+      ],
+      "format": "png",
+      "sha256": "06e1452ed16254e6236ec072e40bc2daf181bc222b2e660ac8cbff29972c0103",
+      "bytes": 514,
+      "colors": 10,
+      "maxColors": 12,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "墨水瓶 + 羽毛笔，三阶明暗；32 母版整数 2x"
+    },
+    {
+      "id": "U-BADGE-01a",
+      "group": "badges",
+      "groupLabel": "状态徽章",
+      "role": "Advisers 已连接",
+      "use": "Advisers 状态栏（ok/fresh）→ 剪贴板 + 绿点",
+      "priority": "P1",
+      "size": [
+        16,
+        16
+      ],
+      "tier": "a=16 母版",
+      "file": "badges/U-BADGE-01a_16x16.png",
+      "files": [
+        "badges/U-BADGE-01a_16x16.png"
+      ],
+      "format": "png",
+      "sha256": "0b26243b21fc823f10a9cf93dfed1d5c8def25f686354cd476148d47bcec52bd",
+      "bytes": 202,
+      "colors": 6,
+      "maxColors": 6,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "绿点 #3fa66b；≤6 色"
+    },
+    {
+      "id": "U-BADGE-01b",
+      "group": "badges",
+      "groupLabel": "状态徽章",
+      "role": "Advisers 已连接",
+      "use": "Advisers 状态栏（ok/fresh）→ 剪贴板 + 绿点",
+      "priority": "P1",
+      "size": [
+        32,
+        32
+      ],
+      "tier": "b=2x",
+      "file": "badges/U-BADGE-01b_32x32.png",
+      "files": [
+        "badges/U-BADGE-01b_32x32.png"
+      ],
+      "format": "png",
+      "sha256": "69672ff877c4dab0c1f5600cbe97033eb1901ea186fabbf01e5ab3a37a36f15d",
+      "bytes": 249,
+      "colors": 6,
+      "maxColors": 6,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "绿点 #3fa66b；≤6 色；16 母版整数 2x"
+    },
+    {
+      "id": "U-BADGE-02a",
+      "group": "badges",
+      "groupLabel": "状态徽章",
+      "role": "Advisers 已过期",
+      "use": "Advisers 状态栏（stale/expired）→ 剪贴板 + 沙漏",
+      "priority": "P1",
+      "size": [
+        16,
+        16
+      ],
+      "tier": "a=16 母版",
+      "file": "badges/U-BADGE-02a_16x16.png",
+      "files": [
+        "badges/U-BADGE-02a_16x16.png"
+      ],
+      "format": "png",
+      "sha256": "f4513cb6e33300bb4d46abb1fe5df21fe1ade9b3e9301353957a93400b247213",
+      "bytes": 228,
+      "colors": 5,
+      "maxColors": 6,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "琥珀 #e0b35a；与 01 色差可辨"
+    },
+    {
+      "id": "U-BADGE-02b",
+      "group": "badges",
+      "groupLabel": "状态徽章",
+      "role": "Advisers 已过期",
+      "use": "Advisers 状态栏（stale/expired）→ 剪贴板 + 沙漏",
+      "priority": "P1",
+      "size": [
+        32,
+        32
+      ],
+      "tier": "b=2x",
+      "file": "badges/U-BADGE-02b_32x32.png",
+      "files": [
+        "badges/U-BADGE-02b_32x32.png"
+      ],
+      "format": "png",
+      "sha256": "c73f03fd203e0bb17e9d4c9eeb5dbd43dbe41b95b43da37abd1b80dd8fe43c5a",
+      "bytes": 264,
+      "colors": 5,
+      "maxColors": 6,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "琥珀 #e0b35a；与 01 色差可辨；16 母版整数 2x"
+    },
+    {
+      "id": "U-BADGE-03a",
+      "group": "badges",
+      "groupLabel": "状态徽章",
+      "role": "Advisers 未配置",
+      "use": "Advisers 状态栏（no-file/disabled）→ 剪贴板 + 灰斜杠",
+      "priority": "P1",
+      "size": [
+        16,
+        16
+      ],
+      "tier": "a=16 母版",
+      "file": "badges/U-BADGE-03a_16x16.png",
+      "files": [
+        "badges/U-BADGE-03a_16x16.png"
+      ],
+      "format": "png",
+      "sha256": "0eb6808713e7aea00dc9a9491996dd1dd650e6b95a664446eb3425cf6b0844cd",
+      "bytes": 235,
+      "colors": 6,
+      "maxColors": 6,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "灰蓝 #8fa8c0；与 02 区分"
+    },
+    {
+      "id": "U-BADGE-03b",
+      "group": "badges",
+      "groupLabel": "状态徽章",
+      "role": "Advisers 未配置",
+      "use": "Advisers 状态栏（no-file/disabled）→ 剪贴板 + 灰斜杠",
+      "priority": "P1",
+      "size": [
+        32,
+        32
+      ],
+      "tier": "b=2x",
+      "file": "badges/U-BADGE-03b_32x32.png",
+      "files": [
+        "badges/U-BADGE-03b_32x32.png"
+      ],
+      "format": "png",
+      "sha256": "59e77e00be51652e0cdeae9e272bc329baf7c673f7d4b785a9201b1b1b02c0e3",
+      "bytes": 276,
+      "colors": 6,
+      "maxColors": 6,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "灰蓝 #8fa8c0；与 02 区分；16 母版整数 2x"
+    },
+    {
+      "id": "U-BADGE-04a",
+      "group": "badges",
+      "groupLabel": "状态徽章",
+      "role": "导入成功",
+      "use": "导入结果提示 → 纸页 + 绿勾",
+      "priority": "P1",
+      "size": [
+        16,
+        16
+      ],
+      "tier": "a=16 母版",
+      "file": "badges/U-BADGE-04a_16x16.png",
+      "files": [
+        "badges/U-BADGE-04a_16x16.png"
+      ],
+      "format": "png",
+      "sha256": "a1ade36dd462404bf16a3b936faa42e3e741052690b394786150925971e75e74",
+      "bytes": 240,
+      "colors": 5,
+      "maxColors": 6,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "绿勾 1px 闭合"
+    },
+    {
+      "id": "U-BADGE-04b",
+      "group": "badges",
+      "groupLabel": "状态徽章",
+      "role": "导入成功",
+      "use": "导入结果提示 → 纸页 + 绿勾",
+      "priority": "P1",
+      "size": [
+        32,
+        32
+      ],
+      "tier": "b=2x",
+      "file": "badges/U-BADGE-04b_32x32.png",
+      "files": [
+        "badges/U-BADGE-04b_32x32.png"
+      ],
+      "format": "png",
+      "sha256": "8718e674481e72600bc5912cf635a88ab86f5766ba1e52b0d573ab7ae440a23f",
+      "bytes": 279,
+      "colors": 5,
+      "maxColors": 6,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "绿勾 1px 闭合；16 母版整数 2x"
+    },
+    {
+      "id": "U-BADGE-05a",
+      "group": "badges",
+      "groupLabel": "状态徽章",
+      "role": "费用提醒",
+      "use": "费用/额度提醒 → 金币 + 琥珀几何「!」",
+      "priority": "P1",
+      "size": [
+        16,
+        16
+      ],
+      "tier": "a=16 母版",
+      "file": "badges/U-BADGE-05a_16x16.png",
+      "files": [
+        "badges/U-BADGE-05a_16x16.png"
+      ],
+      "format": "png",
+      "sha256": "e2c8f9d8082fcbd6f007365b8f1f78aa53dd44daa09fd674dbf0fb6bde47cd08",
+      "bytes": 226,
+      "colors": 5,
+      "maxColors": 6,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "非货币符号、非文字"
+    },
+    {
+      "id": "U-BADGE-05b",
+      "group": "badges",
+      "groupLabel": "状态徽章",
+      "role": "费用提醒",
+      "use": "费用/额度提醒 → 金币 + 琥珀几何「!」",
+      "priority": "P1",
+      "size": [
+        32,
+        32
+      ],
+      "tier": "b=2x",
+      "file": "badges/U-BADGE-05b_32x32.png",
+      "files": [
+        "badges/U-BADGE-05b_32x32.png"
+      ],
+      "format": "png",
+      "sha256": "605d7a50c3be6eb0da799b8f3c5d076b855a5aac2d2f77687b4758bf6667b730",
+      "bytes": 266,
+      "colors": 5,
+      "maxColors": 6,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "非货币符号、非文字；16 母版整数 2x"
+    },
+    {
+      "id": "U-BADGE-06a",
+      "group": "badges",
+      "groupLabel": "状态徽章",
+      "role": "占位美术徽标（P0 占位门）",
+      "use": "占位状态徽标/release gate 视觉；P0 但当前无消费点（G6）",
+      "priority": "P0",
+      "size": [
+        16,
+        16
+      ],
+      "tier": "a=16 母版",
+      "file": "badges/U-BADGE-06a_16x16.png",
+      "files": [
+        "badges/U-BADGE-06a_16x16.png"
+      ],
+      "format": "png",
+      "sha256": "65ffa2e5839cb322a99c04a250d41d9126111514f8c74a3b7785fe47db0a44c8",
+      "bytes": 164,
+      "colors": 3,
+      "maxColors": 6,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "折角页 + 灰虚线轮廓"
+    },
+    {
+      "id": "U-BADGE-06b",
+      "group": "badges",
+      "groupLabel": "状态徽章",
+      "role": "占位美术徽标（P0 占位门）",
+      "use": "占位状态徽标/release gate 视觉；P0 但当前无消费点（G6）",
+      "priority": "P0",
+      "size": [
+        32,
+        32
+      ],
+      "tier": "b=2x",
+      "file": "badges/U-BADGE-06b_32x32.png",
+      "files": [
+        "badges/U-BADGE-06b_32x32.png"
+      ],
+      "format": "png",
+      "sha256": "055827decd5427a77ee7fb36b257d3c61821d183e3ae0f3260594725fd65f354",
+      "bytes": 209,
+      "colors": 3,
+      "maxColors": 6,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "折角页 + 灰虚线轮廓；16 母版整数 2x"
+    },
+    {
+      "id": "U-PH-01a",
+      "group": "placeholders",
+      "groupLabel": "占位/加载/错误/回落",
+      "role": "空白/无内容",
+      "use": "hero 空态图槽（CSS 可兜底）；禁止出现任何角色",
+      "priority": "P1",
+      "size": [
+        48,
+        48
+      ],
+      "tier": "a=48 母版",
+      "file": "placeholders/U-PH-01a_48x48.png",
+      "files": [
+        "placeholders/U-PH-01a_48x48.png"
+      ],
+      "format": "png",
+      "sha256": "02108b804176f1a13cc1af52ae2d7250a00ba96ac21f0800884266c536a5dc4a",
+      "bytes": 211,
+      "colors": 2,
+      "maxColors": 8,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "空白折页轮廓 + 1px 虚线"
+    },
+    {
+      "id": "U-PH-01b",
+      "group": "placeholders",
+      "groupLabel": "占位/加载/错误/回落",
+      "role": "空白/无内容",
+      "use": "hero 空态图槽（CSS 可兜底）；禁止出现任何角色",
+      "priority": "P1",
+      "size": [
+        96,
+        96
+      ],
+      "tier": "b=2x",
+      "file": "placeholders/U-PH-01b_96x96.png",
+      "files": [
+        "placeholders/U-PH-01b_96x96.png"
+      ],
+      "format": "png",
+      "sha256": "7db7c3183b372b46f32f4879712edb658aa656c235205d03ccbed96da28ff7a6",
+      "bytes": 304,
+      "colors": 2,
+      "maxColors": 8,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "空白折页轮廓 + 1px 虚线；48 母版整数 2x"
+    },
+    {
+      "id": "U-PH-02a",
+      "group": "placeholders",
+      "groupLabel": "占位/加载/错误/回落",
+      "role": "加载中",
+      "use": "hero 加载态图槽；与错误态区分",
+      "priority": "P1",
+      "size": [
+        48,
+        48
+      ],
+      "tier": "a=48 母版",
+      "file": "placeholders/U-PH-02a_48x48.png",
+      "files": [
+        "placeholders/U-PH-02a_48x48.png"
+      ],
+      "format": "png",
+      "sha256": "447b7eae14507bfc89e7248cfcf450c6b327c83adf13151514c1edcf65ac8b40",
+      "bytes": 284,
+      "colors": 4,
+      "maxColors": 8,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "两张叠纸 + 三点，低对比"
+    },
+    {
+      "id": "U-PH-02b",
+      "group": "placeholders",
+      "groupLabel": "占位/加载/错误/回落",
+      "role": "加载中",
+      "use": "hero 加载态图槽；与错误态区分",
+      "priority": "P1",
+      "size": [
+        96,
+        96
+      ],
+      "tier": "b=2x",
+      "file": "placeholders/U-PH-02b_96x96.png",
+      "files": [
+        "placeholders/U-PH-02b_96x96.png"
+      ],
+      "format": "png",
+      "sha256": "3aaf37aa1b7b73ebc4272625650ba47039d117131c9f8b70b65de51bd71090e6",
+      "bytes": 387,
+      "colors": 4,
+      "maxColors": 8,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "两张叠纸 + 三点，低对比；48 母版整数 2x"
+    },
+    {
+      "id": "U-PH-03a",
+      "group": "placeholders",
+      "groupLabel": "占位/加载/错误/回落",
+      "role": "错误/离线（P0）",
+      "use": "hero 失败/离线图槽；不指向具体角色",
+      "priority": "P0",
+      "size": [
+        48,
+        48
+      ],
+      "tier": "a=48 母版",
+      "file": "placeholders/U-PH-03a_48x48.png",
+      "files": [
+        "placeholders/U-PH-03a_48x48.png"
+      ],
+      "format": "png",
+      "sha256": "fbab966b3574e5dfec0e9ef4ef1378707cc8c9ef1bc7b61a291376f778eb2e50",
+      "bytes": 392,
+      "colors": 4,
+      "maxColors": 8,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "撕角纸页 + 断线头，灰蓝"
+    },
+    {
+      "id": "U-PH-03b",
+      "group": "placeholders",
+      "groupLabel": "占位/加载/错误/回落",
+      "role": "错误/离线（P0）",
+      "use": "hero 失败/离线图槽；不指向具体角色",
+      "priority": "P0",
+      "size": [
+        96,
+        96
+      ],
+      "tier": "b=2x",
+      "file": "placeholders/U-PH-03b_96x96.png",
+      "files": [
+        "placeholders/U-PH-03b_96x96.png"
+      ],
+      "format": "png",
+      "sha256": "7f77b4696a21a458feefbbf9ddef18457c1fe7071e749c7a99a19b5d88719c08",
+      "bytes": 528,
+      "colors": 4,
+      "maxColors": 8,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "撕角纸页 + 断线头，灰蓝；48 母版整数 2x"
+    },
+    {
+      "id": "U-PH-04a",
+      "group": "placeholders",
+      "groupLabel": "占位/加载/错误/回落",
+      "role": "无角色回落（P0）",
+      "use": "hero 失败时与 DOM 折角宠共存的回落占位",
+      "priority": "P0",
+      "size": [
+        48,
+        48
+      ],
+      "tier": "a=48 母版",
+      "file": "placeholders/U-PH-04a_48x48.png",
+      "files": [
+        "placeholders/U-PH-04a_48x48.png"
+      ],
+      "format": "png",
+      "sha256": "1bb486f9c9b9663f57d3c5e53d3a0f31257fe01fc610dd04bed5212cea1e8490",
+      "bytes": 384,
+      "colors": 5,
+      "maxColors": 8,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "空白折纸剪影，仅物体、无脸"
+    },
+    {
+      "id": "U-PH-04b",
+      "group": "placeholders",
+      "groupLabel": "占位/加载/错误/回落",
+      "role": "无角色回落（P0）",
+      "use": "hero 失败时与 DOM 折角宠共存的回落占位",
+      "priority": "P0",
+      "size": [
+        96,
+        96
+      ],
+      "tier": "b=2x",
+      "file": "placeholders/U-PH-04b_96x96.png",
+      "files": [
+        "placeholders/U-PH-04b_96x96.png"
+      ],
+      "format": "png",
+      "sha256": "d0e474b6dfef3fdc2823515f5b50d6b12c8f28cfb381e66acacca4da9b2eca25",
+      "bytes": 522,
+      "colors": 5,
+      "maxColors": 8,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "空白折纸剪影，仅物体、无脸；48 母版整数 2x"
+    },
+    {
+      "id": "U-IND-01a",
+      "group": "indicators",
+      "groupLabel": "指示器",
+      "role": "鼠标悬停提示",
+      "use": "hover/curious 指示器；12/16 单独重绘、24 母版",
+      "priority": "P1",
+      "size": [
+        12,
+        12
+      ],
+      "tier": "a=12 重绘",
+      "file": "indicators/U-IND-01a_12x12.png",
+      "files": [
+        "indicators/U-IND-01a_12x12.png"
+      ],
+      "format": "png",
+      "sha256": "22ad025328ed8487479c6fe1f11297394f74fb72822d00840d1e2d5de285d5c9",
+      "bytes": 159,
+      "colors": 2,
+      "maxColors": 8,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "像素箭头 + 1px 环"
+    },
+    {
+      "id": "U-IND-01b",
+      "group": "indicators",
+      "groupLabel": "指示器",
+      "role": "鼠标悬停提示",
+      "use": "hover/curious 指示器；12/16 单独重绘、24 母版",
+      "priority": "P1",
+      "size": [
+        16,
+        16
+      ],
+      "tier": "b=16 重绘",
+      "file": "indicators/U-IND-01b_16x16.png",
+      "files": [
+        "indicators/U-IND-01b_16x16.png"
+      ],
+      "format": "png",
+      "sha256": "cf72ad2399a26b9021e8ff6db70a521ff56ee377a6776745035328da64228d11",
+      "bytes": 255,
+      "colors": 4,
+      "maxColors": 8,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "像素箭头 + 1px 环"
+    },
+    {
+      "id": "U-IND-01c",
+      "group": "indicators",
+      "groupLabel": "指示器",
+      "role": "鼠标悬停提示",
+      "use": "hover/curious 指示器；12/16 单独重绘、24 母版",
+      "priority": "P1",
+      "size": [
+        24,
+        24
+      ],
+      "tier": "c=24 重绘",
+      "file": "indicators/U-IND-01c_24x24.png",
+      "files": [
+        "indicators/U-IND-01c_24x24.png"
+      ],
+      "format": "png",
+      "sha256": "d080be8f75f9ae943aa3a061ac8cb359d3e06c87219eb322ca1d768f606c4607",
+      "bytes": 351,
+      "colors": 4,
+      "maxColors": 8,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "像素箭头 + 1px 环"
+    },
+    {
+      "id": "U-IND-02a",
+      "group": "indicators",
+      "groupLabel": "指示器",
+      "role": "拖拽提示",
+      "use": "drag 开始/持续；不遮宠物脸",
+      "priority": "P1",
+      "size": [
+        12,
+        12
+      ],
+      "tier": "a=12 重绘",
+      "file": "indicators/U-IND-02a_12x12.png",
+      "files": [
+        "indicators/U-IND-02a_12x12.png"
+      ],
+      "format": "png",
+      "sha256": "b1ab173135c97131d15f37ccfedd2c27dbf14ecdebc46f857cb5043cd4e58eac",
+      "bytes": 194,
+      "colors": 4,
+      "maxColors": 8,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "抓握手 + 一条运动线"
+    },
+    {
+      "id": "U-IND-02b",
+      "group": "indicators",
+      "groupLabel": "指示器",
+      "role": "拖拽提示",
+      "use": "drag 开始/持续；不遮宠物脸",
+      "priority": "P1",
+      "size": [
+        16,
+        16
+      ],
+      "tier": "b=16 重绘",
+      "file": "indicators/U-IND-02b_16x16.png",
+      "files": [
+        "indicators/U-IND-02b_16x16.png"
+      ],
+      "format": "png",
+      "sha256": "d712298b6ba75c53ecc36b30281b97a2bd3723997233a67f438f46fe70949b2c",
+      "bytes": 223,
+      "colors": 5,
+      "maxColors": 8,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "抓握手 + 一条运动线"
+    },
+    {
+      "id": "U-IND-02c",
+      "group": "indicators",
+      "groupLabel": "指示器",
+      "role": "拖拽提示",
+      "use": "drag 开始/持续；不遮宠物脸",
+      "priority": "P1",
+      "size": [
+        24,
+        24
+      ],
+      "tier": "c=24 重绘",
+      "file": "indicators/U-IND-02c_24x24.png",
+      "files": [
+        "indicators/U-IND-02c_24x24.png"
+      ],
+      "format": "png",
+      "sha256": "01cb869ebe2b190d14b89dca1b34fcf54d3e47551d602832e75836ebe906966c",
+      "bytes": 282,
+      "colors": 5,
+      "maxColors": 8,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "抓握手 + 一条运动线"
+    },
+    {
+      "id": "U-IND-03a",
+      "group": "indicators",
+      "groupLabel": "指示器",
+      "role": "落地一次性",
+      "use": "land 一次性尘弧；≤3 帧内消失、不残留",
+      "priority": "P1",
+      "size": [
+        12,
+        12
+      ],
+      "tier": "a=12 重绘",
+      "file": "indicators/U-IND-03a_12x12.png",
+      "files": [
+        "indicators/U-IND-03a_12x12.png"
+      ],
+      "format": "png",
+      "sha256": "e40c1e600eccb6e190c28762c0db3b4cfe454badc3133b82a2daa0f0a2a6ee33",
+      "bytes": 96,
+      "colors": 2,
+      "maxColors": 8,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "三团 1px 尘弧，无地面阴影块"
+    },
+    {
+      "id": "U-IND-03b",
+      "group": "indicators",
+      "groupLabel": "指示器",
+      "role": "落地一次性",
+      "use": "land 一次性尘弧；≤3 帧内消失、不残留",
+      "priority": "P1",
+      "size": [
+        16,
+        16
+      ],
+      "tier": "b=16 重绘",
+      "file": "indicators/U-IND-03b_16x16.png",
+      "files": [
+        "indicators/U-IND-03b_16x16.png"
+      ],
+      "format": "png",
+      "sha256": "62815b547ccfb339463fcbc4e054c093e6b0552ff3ffd3af55570648f58e31cc",
+      "bytes": 117,
+      "colors": 2,
+      "maxColors": 8,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "三团 1px 尘弧，无地面阴影块"
+    },
+    {
+      "id": "U-IND-03c",
+      "group": "indicators",
+      "groupLabel": "指示器",
+      "role": "落地一次性",
+      "use": "land 一次性尘弧；≤3 帧内消失、不残留",
+      "priority": "P1",
+      "size": [
+        24,
+        24
+      ],
+      "tier": "c=24 重绘",
+      "file": "indicators/U-IND-03c_24x24.png",
+      "files": [
+        "indicators/U-IND-03c_24x24.png"
+      ],
+      "format": "png",
+      "sha256": "955283fe6f44e1aded1cc2e7925e22e624abfda7fcd567bc73e7fe7add427616",
+      "bytes": 130,
+      "colors": 2,
+      "maxColors": 8,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "三团 1px 尘弧，无地面阴影块"
+    },
+    {
+      "id": "U-IND-04a",
+      "group": "indicators",
+      "groupLabel": "指示器",
+      "role": "提醒 FX",
+      "use": "remind 提醒；与 U-BADGE-05 同色系",
+      "priority": "P1",
+      "size": [
+        12,
+        12
+      ],
+      "tier": "a=12 重绘",
+      "file": "indicators/U-IND-04a_12x12.png",
+      "files": [
+        "indicators/U-IND-04a_12x12.png"
+      ],
+      "format": "png",
+      "sha256": "71753a2df6bdb61cd2407f05174ed89777521b926a57e783f2e7d1b21f7cc666",
+      "bytes": 109,
+      "colors": 2,
+      "maxColors": 8,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "琥珀几何「!」竖条+点，非文字"
+    },
+    {
+      "id": "U-IND-04b",
+      "group": "indicators",
+      "groupLabel": "指示器",
+      "role": "提醒 FX",
+      "use": "remind 提醒；与 U-BADGE-05 同色系",
+      "priority": "P1",
+      "size": [
+        16,
+        16
+      ],
+      "tier": "b=16 重绘",
+      "file": "indicators/U-IND-04b_16x16.png",
+      "files": [
+        "indicators/U-IND-04b_16x16.png"
+      ],
+      "format": "png",
+      "sha256": "529464b664bf1d5404aec5094b527d668b427b0a8e1cc661af29ab37352ae142",
+      "bytes": 129,
+      "colors": 3,
+      "maxColors": 8,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "琥珀几何「!」竖条+点，非文字"
+    },
+    {
+      "id": "U-IND-04c",
+      "group": "indicators",
+      "groupLabel": "指示器",
+      "role": "提醒 FX",
+      "use": "remind 提醒；与 U-BADGE-05 同色系",
+      "priority": "P1",
+      "size": [
+        24,
+        24
+      ],
+      "tier": "c=24 重绘",
+      "file": "indicators/U-IND-04c_24x24.png",
+      "files": [
+        "indicators/U-IND-04c_24x24.png"
+      ],
+      "format": "png",
+      "sha256": "62463c891b62ca786ac79627b2f1fe3979e267c7fa5f14b8551ad14cd77656b9",
+      "bytes": 164,
+      "colors": 4,
+      "maxColors": 8,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "琥珀几何「!」竖条+点，非文字"
+    },
+    {
+      "id": "U-IND-05a",
+      "group": "indicators",
+      "groupLabel": "指示器",
+      "role": "静音（muted）",
+      "use": "静音态；有声态=同母版去斜杠派生（G2，未出文件）",
+      "priority": "P1",
+      "size": [
+        12,
+        12
+      ],
+      "tier": "a=12 重绘",
+      "file": "indicators/U-IND-05a_12x12.png",
+      "files": [
+        "indicators/U-IND-05a_12x12.png"
+      ],
+      "format": "png",
+      "sha256": "d3bd09b0b085c9eabd618e17ed6820fb60dff4ae72e6a6133b380145bebe6d72",
+      "bytes": 165,
+      "colors": 3,
+      "maxColors": 8,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "喇叭 + 1px 斜杠"
+    },
+    {
+      "id": "U-IND-05b",
+      "group": "indicators",
+      "groupLabel": "指示器",
+      "role": "静音（muted）",
+      "use": "静音态；有声态=同母版去斜杠派生（G2，未出文件）",
+      "priority": "P1",
+      "size": [
+        16,
+        16
+      ],
+      "tier": "b=16 重绘",
+      "file": "indicators/U-IND-05b_16x16.png",
+      "files": [
+        "indicators/U-IND-05b_16x16.png"
+      ],
+      "format": "png",
+      "sha256": "5fb7c2712f0bee7aa2ed47322b587586b4105c641a447af5c974e61f561197bc",
+      "bytes": 190,
+      "colors": 3,
+      "maxColors": 8,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "喇叭 + 1px 斜杠"
+    },
+    {
+      "id": "U-IND-05c",
+      "group": "indicators",
+      "groupLabel": "指示器",
+      "role": "静音（muted）",
+      "use": "静音态；有声态=同母版去斜杠派生（G2，未出文件）",
+      "priority": "P1",
+      "size": [
+        24,
+        24
+      ],
+      "tier": "c=24 重绘",
+      "file": "indicators/U-IND-05c_24x24.png",
+      "files": [
+        "indicators/U-IND-05c_24x24.png"
+      ],
+      "format": "png",
+      "sha256": "4a0e3b98f5f5963de86ab191d61a60b13c66d827a37bc26cca1a7956e361074f",
+      "bytes": 258,
+      "colors": 4,
+      "maxColors": 8,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "喇叭 + 1px 斜杠"
+    },
+    {
+      "id": "U-IND-06a",
+      "group": "indicators",
+      "groupLabel": "指示器",
+      "role": "录音 PTT",
+      "use": "PTT 按住说话；松手即消失，PTT 环由 CSS 脉冲",
+      "priority": "P1",
+      "size": [
+        12,
+        12
+      ],
+      "tier": "a=12 重绘",
+      "file": "indicators/U-IND-06a_12x12.png",
+      "files": [
+        "indicators/U-IND-06a_12x12.png"
+      ],
+      "format": "png",
+      "sha256": "71f8ac577a11f8e17854b5511542c734bd699262770f991598b9c10e7c67a4ba",
+      "bytes": 195,
+      "colors": 4,
+      "maxColors": 8,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "麦克风胶囊 + 红点 #d95f5f"
+    },
+    {
+      "id": "U-IND-06b",
+      "group": "indicators",
+      "groupLabel": "指示器",
+      "role": "录音 PTT",
+      "use": "PTT 按住说话；松手即消失，PTT 环由 CSS 脉冲",
+      "priority": "P1",
+      "size": [
+        16,
+        16
+      ],
+      "tier": "b=16 重绘",
+      "file": "indicators/U-IND-06b_16x16.png",
+      "files": [
+        "indicators/U-IND-06b_16x16.png"
+      ],
+      "format": "png",
+      "sha256": "7dc65da2a16e00d2d61bfc311dedda8b1bc088478d05f2d289b2138aaa66c5da",
+      "bytes": 225,
+      "colors": 4,
+      "maxColors": 8,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "麦克风胶囊 + 红点 #d95f5f"
+    },
+    {
+      "id": "U-IND-06c",
+      "group": "indicators",
+      "groupLabel": "指示器",
+      "role": "录音 PTT",
+      "use": "PTT 按住说话；松手即消失，PTT 环由 CSS 脉冲",
+      "priority": "P1",
+      "size": [
+        24,
+        24
+      ],
+      "tier": "c=24 重绘",
+      "file": "indicators/U-IND-06c_24x24.png",
+      "files": [
+        "indicators/U-IND-06c_24x24.png"
+      ],
+      "format": "png",
+      "sha256": "33b506e903f8dfc833ed44df4c86ed722228ff4dfa2504f2dee9fe7ff52d9f05",
+      "bytes": 276,
+      "colors": 4,
+      "maxColors": 8,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "麦克风胶囊 + 红点 #d95f5f"
+    },
+    {
+      "id": "U-ICON-01",
+      "group": "icons",
+      "groupLabel": "应用/托盘图标",
+      "role": "托盘图标（16 母版）",
+      "use": "托盘 Phase 2 接线；应用图标 16 档",
+      "priority": "P0",
+      "size": [
+        16,
+        16
+      ],
+      "tier": "16 母版",
+      "file": "icons/U-ICON-01_16x16.png",
+      "files": [
+        "icons/U-ICON-01_16x16.png"
+      ],
+      "format": "png",
+      "sha256": "e7547a446126fd3319f3b3fe032f288d397eaa80dca4ec66a6da36bc7268b92a",
+      "bytes": 209,
+      "colors": 6,
+      "maxColors": 6,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "折页角标记；≤4 色 + 1px 轮廓；无文字"
+    },
+    {
+      "id": "U-ICON-02",
+      "group": "icons",
+      "groupLabel": "应用/托盘图标",
+      "role": "托盘/任务栏图标（32 母版）",
+      "use": "托盘/任务栏；与 16 同标记，32 重绘",
+      "priority": "P0",
+      "size": [
+        32,
+        32
+      ],
+      "tier": "32 母版",
+      "file": "icons/U-ICON-02_32x32.png",
+      "files": [
+        "icons/U-ICON-02_32x32.png"
+      ],
+      "format": "png",
+      "sha256": "dc7a073e65f2b972d0a873ee4e9eab87c957287dfdc815aa09499521a8dce75f",
+      "bytes": 272,
+      "colors": 5,
+      "maxColors": 6,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "同标记 32 母版；16 不直接缩 32"
+    },
+    {
+      "id": "U-ICON-03",
+      "group": "icons",
+      "groupLabel": "应用/托盘图标",
+      "role": "应用图标 app-256",
+      "use": "应用图标 256 档（替换 Tauri 笑脸占位）",
+      "priority": "P0",
+      "size": [
+        256,
+        256
+      ],
+      "tier": "256=32x8",
+      "file": "icons/U-ICON-03_256x256.png",
+      "files": [
+        "icons/U-ICON-03_256x256.png"
+      ],
+      "format": "png",
+      "sha256": "77cec6e11709e1cc1f6f8cb6cd744d6ff72d67ae51162dfd102a82a81753e0c0",
+      "bytes": 971,
+      "colors": 6,
+      "maxColors": 6,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "圆角纸块 + 折角 + 书签；≤6 色；32 网格整数 x8"
+    },
+    {
+      "id": "U-ICON-04",
+      "group": "icons",
+      "groupLabel": "应用/托盘图标",
+      "role": "应用图标 ICO 打包件",
+      "use": "app.ico 多档（16/32/48/256）；替换现占位并登记来源",
+      "priority": "P0",
+      "size": [
+        256,
+        256
+      ],
+      "tier": "ICO",
+      "file": "icons/U-ICON-04_app.ico",
+      "files": [
+        "icons/U-ICON-04_app.ico"
+      ],
+      "format": "ico",
+      "sha256": "2408f11f7ced145a6539cf0d6b651c230a1d5807809902d0f0b39b900270a5fc",
+      "bytes": 2072,
+      "colors": 6,
+      "maxColors": 6,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "由 16/32/256 打包，48=16x3 整数；来源可核",
+      "icoSizes": [
+        16,
+        32,
+        48,
+        256
+      ]
+    },
+    {
+      "id": "U-BG-01",
+      "group": "backgrounds",
+      "groupLabel": "背景/装饰",
+      "role": "首启/引导背景",
+      "use": "首启态背景（不透明底）；中心留白给 DOM 文本",
+      "priority": "P2",
+      "size": [
+        480,
+        336
+      ],
+      "tier": "480x336",
+      "file": "backgrounds/U-BG-01_480x336.png",
+      "files": [
+        "backgrounds/U-BG-01_480x336.png"
+      ],
+      "format": "png",
+      "sha256": "3271871a8c7dc8ecb456f65f7d2abd81cffc8e22acd708099d5232a5ed0a33f8",
+      "bytes": 2200,
+      "colors": 4,
+      "maxColors": 16,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "纸桌 + 折痕、低对比"
+    },
+    {
+      "id": "U-BG-02",
+      "group": "backgrounds",
+      "groupLabel": "背景/装饰",
+      "role": "费用提示边框",
+      "use": "费用提示态边框（透明中心）；文字/金额由 DOM 承载",
+      "priority": "P2",
+      "size": [
+        480,
+        336
+      ],
+      "tier": "480x336",
+      "file": "backgrounds/U-BG-02_480x336.png",
+      "files": [
+        "backgrounds/U-BG-02_480x336.png"
+      ],
+      "format": "png",
+      "sha256": "06d4be7f6b292bcbfec6f63b024e2d4f3c94ef61634210c69b45d75455c4fd9c",
+      "bytes": 2472,
+      "colors": 7,
+      "maxColors": 16,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "账本 + 金币母题边框"
+    },
+    {
+      "id": "U-BG-03",
+      "group": "backgrounds",
+      "groupLabel": "背景/装饰",
+      "role": "About 纸框（九宫格）",
+      "use": "About 面板 9-slice 纸框；32px 边可切片，中心透明",
+      "priority": "P2",
+      "size": [
+        480,
+        336
+      ],
+      "tier": "480x336",
+      "file": "backgrounds/U-BG-03_480x336.png",
+      "files": [
+        "backgrounds/U-BG-03_480x336.png"
+      ],
+      "format": "png",
+      "sha256": "9552daead64fb875b6809da8a4d125446af66c17f3497c95b6bf8ac717654619",
+      "bytes": 1660,
+      "colors": 6,
+      "maxColors": 16,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "折角纸框 + 平斜面，无接缝"
+    },
+    {
+      "id": "U-FX-01",
+      "group": "fx",
+      "groupLabel": "动效位图（可选）",
+      "role": "气泡 tail（九宫格）",
+      "use": "气泡尾巴（可选位图；CSS clip-path 可 0 图）",
+      "priority": "P2",
+      "size": [
+        24,
+        24
+      ],
+      "tier": "可选位图",
+      "file": "fx/U-FX-01_24x24.png",
+      "files": [
+        "fx/U-FX-01_24x24.png"
+      ],
+      "format": "png",
+      "sha256": "96850ef6578eb0760b96f6aaea2397c496630d970e047cc0d10ab93ad320ff51",
+      "bytes": 205,
+      "colors": 3,
+      "maxColors": 6,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "纸色 tail 三角，透明四角，2 阶色"
+    },
+    {
+      "id": "U-FX-02",
+      "group": "fx",
+      "groupLabel": "动效位图（可选）",
+      "role": "折页展开闪光",
+      "use": "折页/折页簿展开闪光；第 2 帧由整数 scale+opacity 派生",
+      "priority": "P2",
+      "size": [
+        48,
+        48
+      ],
+      "tier": "可选位图",
+      "file": "fx/U-FX-02_48x48.png",
+      "files": [
+        "fx/U-FX-02_48x48.png"
+      ],
+      "format": "png",
+      "sha256": "07a9626a1f02feaed60e762d8d0ecc55a42eb5316052f5c1537a57ece31df520",
+      "bytes": 399,
+      "colors": 4,
+      "maxColors": 6,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "纸白 + 淡金几何闪片，硬 alpha"
+    },
+    {
+      "id": "RP-001",
+      "group": "roleplay",
+      "groupLabel": "roleplay 合规 UI",
+      "role": "roleplay 模式卡（场景演练/非恋爱）",
+      "use": "roleplay 入口模式卡；中性、工作场景感",
+      "priority": "P1",
+      "size": [
+        64,
+        64
+      ],
+      "tier": "64 母版",
+      "file": "roleplay/RP-001_64x64.png",
+      "files": [
+        "roleplay/RP-001_64x64.png",
+        "roleplay/RP-001_128x128.png"
+      ],
+      "format": "png",
+      "sha256": "3dac5978957725c5994595bcf22426e038a522f458739c275309cb69c26ef269",
+      "bytes": 653,
+      "colors": 7,
+      "maxColors": 16,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "剧场面具 + 对话框",
+      "variants": [
+        {
+          "file": "roleplay/RP-001_128x128.png",
+          "size": [
+            128,
+            128
+          ],
+          "tier": "2x 档",
+          "sha256": "4d0b0d48d06cf6ae196b59325abab71d75c998167dd780fc04c87293bab7c8bd",
+          "bytes": 880,
+          "derivedFrom": "RP-001",
+          "scale": 2
+        }
+      ]
+    },
+    {
+      "id": "RP-002",
+      "group": "roleplay",
+      "groupLabel": "roleplay 合规 UI",
+      "role": "全年龄适用标识（无文字）",
+      "use": "roleplay 入口/声明的全年龄状态标识；不设年龄门；图内无文字",
+      "priority": "P1",
+      "size": [
+        32,
+        32
+      ],
+      "tier": "32 母版",
+      "file": "roleplay/RP-002_32x32.png",
+      "files": [
+        "roleplay/RP-002_32x32.png",
+        "roleplay/RP-002_64x64.png"
+      ],
+      "format": "png",
+      "sha256": "721d369c6930740c6ec6966fffa61b8ae1eb72dbcbbf457343c6c8789e7d3134",
+      "bytes": 364,
+      "colors": 4,
+      "maxColors": 16,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "中性八边形 + 绿色对勾，不露骨不卖萌",
+      "variants": [
+        {
+          "file": "roleplay/RP-002_64x64.png",
+          "size": [
+            64,
+            64
+          ],
+          "tier": "2x 档",
+          "sha256": "45017d2adbb30f20b40c6746d865802d6f44fc372f4f4e1b5b1a0a4baa000553",
+          "bytes": 429,
+          "derivedFrom": "RP-002",
+          "scale": 2
+        }
+      ]
+    },
+    {
+      "id": "RP-003",
+      "group": "roleplay",
+      "groupLabel": "roleplay 合规 UI",
+      "role": "非真人/AI 标识",
+      "use": "roleplay/语音入口常驻；须与入口、TTS 首句同现",
+      "priority": "P1",
+      "size": [
+        32,
+        32
+      ],
+      "tier": "32 母版",
+      "file": "roleplay/RP-003_32x32.png",
+      "files": [
+        "roleplay/RP-003_32x32.png",
+        "roleplay/RP-003_64x64.png"
+      ],
+      "format": "png",
+      "sha256": "c4768d13ebce47a069022e911770d8c3c8b385151c1a775ff1e3d6891d4ffadc",
+      "bytes": 296,
+      "colors": 4,
+      "maxColors": 16,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "AI 闪光 + 对话框，不是人脸",
+      "variants": [
+        {
+          "file": "roleplay/RP-003_64x64.png",
+          "size": [
+            64,
+            64
+          ],
+          "tier": "2x 档",
+          "sha256": "6117b15e746a75a4e4c69d8940e72eab448635a84f210c38a556509e42a06a1e",
+          "bytes": 381,
+          "derivedFrom": "RP-003",
+          "scale": 2
+        }
+      ]
+    },
+    {
+      "id": "RP-004",
+      "group": "roleplay",
+      "groupLabel": "roleplay 合规 UI",
+      "role": "2h 休息提醒",
+      "use": "连续使用 2h 触发；平静色，可关闭，不制造内疚",
+      "priority": "P1",
+      "size": [
+        32,
+        32
+      ],
+      "tier": "32 母版",
+      "file": "roleplay/RP-004_32x32.png",
+      "files": [
+        "roleplay/RP-004_32x32.png",
+        "roleplay/RP-004_64x64.png"
+      ],
+      "format": "png",
+      "sha256": "f120a1a637937d03175196e894db3cc107ea4db6d06be2864a48f75ea0702fd0",
+      "bytes": 303,
+      "colors": 5,
+      "maxColors": 16,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "钟 + 暂停条，温和",
+      "variants": [
+        {
+          "file": "roleplay/RP-004_64x64.png",
+          "size": [
+            64,
+            64
+          ],
+          "tier": "2x 档",
+          "sha256": "b282e72db03cf2271eb35499a067393f155e48768e39094a14799c80dc40e011",
+          "bytes": 401,
+          "derivedFrom": "RP-004",
+          "scale": 2
+        }
+      ]
+    },
+    {
+      "id": "RP-005",
+      "group": "roleplay",
+      "groupLabel": "roleplay 合规 UI",
+      "role": "危机资源卡（覆盖态）",
+      "use": "危机触发覆盖卡；热线由 DOM/远端配置承载，不烘焙进图",
+      "priority": "P1",
+      "size": [
+        64,
+        64
+      ],
+      "tier": "64 母版",
+      "file": "roleplay/RP-005_64x64.png",
+      "files": [
+        "roleplay/RP-005_64x64.png",
+        "roleplay/RP-005_128x128.png"
+      ],
+      "format": "png",
+      "sha256": "c0b948153cc23fbf6df2482061cc31d4d1ec12676f291105e1dcac072c8ac6d9",
+      "bytes": 674,
+      "colors": 8,
+      "maxColors": 16,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "救生圈 + 求助卡，无医疗十字",
+      "variants": [
+        {
+          "file": "roleplay/RP-005_128x128.png",
+          "size": [
+            128,
+            128
+          ],
+          "tier": "2x 档",
+          "sha256": "6caeed4e0196dfe4f988be35f8a6054d2c3be72bde30f79cc535155495c4a179",
+          "bytes": 903,
+          "derivedFrom": "RP-005",
+          "scale": 2
+        }
+      ]
+    },
+    {
+      "id": "RP-006",
+      "group": "roleplay",
+      "groupLabel": "roleplay 合规 UI",
+      "role": "退出 roleplay / 清除记忆",
+      "use": "动作确认；删除类操作有二次确认（DOM）",
+      "priority": "P1",
+      "size": [
+        32,
+        32
+      ],
+      "tier": "32 母版",
+      "file": "roleplay/RP-006_32x32.png",
+      "files": [
+        "roleplay/RP-006_32x32.png",
+        "roleplay/RP-006_64x64.png"
+      ],
+      "format": "png",
+      "sha256": "74edb6233fdedfd5c89937d7153b18c145d7c352f2a000a29c66b02035f030b0",
+      "bytes": 279,
+      "colors": 8,
+      "maxColors": 16,
+      "alpha": "binary",
+      "license": "placeholder-only",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "notOfficialDeepseek": true,
+      "notes": "开门 + 橡皮，简洁",
+      "variants": [
+        {
+          "file": "roleplay/RP-006_64x64.png",
+          "size": [
+            64,
+            64
+          ],
+          "tier": "2x 档",
+          "sha256": "39a8bd8de444f695aa6760d6c7866247e5eaa31ae1c82d76b3a4bcd7e71054c8",
+          "bytes": 371,
+          "derivedFrom": "RP-006",
+          "scale": 2
+        }
+      ]
+    }
+  ],
+  "fileIndex": [
+    {
+      "file": "menu/U-MENU-01a_32x32.png",
+      "assetId": "U-MENU-01a",
+      "group": "menu",
+      "tier": "a=32 母版",
+      "size": [
+        32,
+        32
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 386,
+      "sha256": "490c5ea4c501752f8ffc53125f30c268458db6a01accc0b6b91c1af47aa442f4"
+    },
+    {
+      "file": "menu/U-MENU-01b_64x64.png",
+      "assetId": "U-MENU-01b",
+      "group": "menu",
+      "tier": "b=2x",
+      "size": [
+        64,
+        64
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": "U-MENU-01a",
+      "scale": 2,
+      "bytes": 446,
+      "sha256": "8392288956a5451dc3ad3f2e238402c7694aba61044711c3e9e6f57464248ba6"
+    },
+    {
+      "file": "menu/U-MENU-02a_32x32.png",
+      "assetId": "U-MENU-02a",
+      "group": "menu",
+      "tier": "a=32 母版",
+      "size": [
+        32,
+        32
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 354,
+      "sha256": "ae41bbc6a8c5b2570d43130078d40f8e33071940b89263e4f7deacee9cb13df8"
+    },
+    {
+      "file": "menu/U-MENU-02b_64x64.png",
+      "assetId": "U-MENU-02b",
+      "group": "menu",
+      "tier": "b=2x",
+      "size": [
+        64,
+        64
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": "U-MENU-02a",
+      "scale": 2,
+      "bytes": 430,
+      "sha256": "f87039e2d0323b9669fd9d1f66b3b09391fd519d1f9945f875baae752004bf12"
+    },
+    {
+      "file": "menu/U-MENU-03a_32x32.png",
+      "assetId": "U-MENU-03a",
+      "group": "menu",
+      "tier": "a=32 母版",
+      "size": [
+        32,
+        32
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 450,
+      "sha256": "5625e1788220bc0e871d2fe724863b18ef273e6aea1a3c12e709a27513d0ce42"
+    },
+    {
+      "file": "menu/U-MENU-03b_64x64.png",
+      "assetId": "U-MENU-03b",
+      "group": "menu",
+      "tier": "b=2x",
+      "size": [
+        64,
+        64
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": "U-MENU-03a",
+      "scale": 2,
+      "bytes": 527,
+      "sha256": "3208d29540a6f4d3e64d16c61309f26ffb43c9c47e7c875229032988829fbaa9"
+    },
+    {
+      "file": "menu/U-MENU-04a_32x32.png",
+      "assetId": "U-MENU-04a",
+      "group": "menu",
+      "tier": "a=32 母版",
+      "size": [
+        32,
+        32
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 319,
+      "sha256": "3a6a554e1c087cdd8cc832b1b4f2908f290b95db7b27f7509766036f7d6bbd15"
+    },
+    {
+      "file": "menu/U-MENU-04b_64x64.png",
+      "assetId": "U-MENU-04b",
+      "group": "menu",
+      "tier": "b=2x",
+      "size": [
+        64,
+        64
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": "U-MENU-04a",
+      "scale": 2,
+      "bytes": 434,
+      "sha256": "47f45b97c7added1be884e8b47a888bdbaedee495222357687e55b6ad5dec0b8"
+    },
+    {
+      "file": "menu/U-MENU-05a_32x32.png",
+      "assetId": "U-MENU-05a",
+      "group": "menu",
+      "tier": "a=32 母版",
+      "size": [
+        32,
+        32
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 281,
+      "sha256": "6e0f975ea9986a334a91fd8ae704deb42585e27e240e444aed41f750be8b91b3"
+    },
+    {
+      "file": "menu/U-MENU-05b_64x64.png",
+      "assetId": "U-MENU-05b",
+      "group": "menu",
+      "tier": "b=2x",
+      "size": [
+        64,
+        64
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": "U-MENU-05a",
+      "scale": 2,
+      "bytes": 368,
+      "sha256": "daaecfb166fb1606b989fccadbc078323e7087c79c24836c13f080fb9248aa1b"
+    },
+    {
+      "file": "menu/U-MENU-06a_32x32.png",
+      "assetId": "U-MENU-06a",
+      "group": "menu",
+      "tier": "a=32 母版",
+      "size": [
+        32,
+        32
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 324,
+      "sha256": "fd9103198b415c3e9ac5248151d1eedd6af09db6a536e11472857367993803f4"
+    },
+    {
+      "file": "menu/U-MENU-06b_64x64.png",
+      "assetId": "U-MENU-06b",
+      "group": "menu",
+      "tier": "b=2x",
+      "size": [
+        64,
+        64
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": "U-MENU-06a",
+      "scale": 2,
+      "bytes": 420,
+      "sha256": "5f0068ceeeb58c078143834d7d0132d8834ac1bbda3909fe7a265485cc43e1e5"
+    },
+    {
+      "file": "menu/U-MENU-07a_32x32.png",
+      "assetId": "U-MENU-07a",
+      "group": "menu",
+      "tier": "a=32 母版",
+      "size": [
+        32,
+        32
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 282,
+      "sha256": "6d622f4d3443696f9be97ca8f94ff1fee591174a420515a743568a23d802c58a"
+    },
+    {
+      "file": "menu/U-MENU-07b_64x64.png",
+      "assetId": "U-MENU-07b",
+      "group": "menu",
+      "tier": "b=2x",
+      "size": [
+        64,
+        64
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": "U-MENU-07a",
+      "scale": 2,
+      "bytes": 366,
+      "sha256": "d9171cc7bfe0ebbd0a92a7e0374d30804a95788fa1a00036a375d24e8e5958b1"
+    },
+    {
+      "file": "menu/U-MENU-08a_32x32.png",
+      "assetId": "U-MENU-08a",
+      "group": "menu",
+      "tier": "a=32 母版",
+      "size": [
+        32,
+        32
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 427,
+      "sha256": "069b0b3926c8f98d042578ed49cc8b488e67dee42b130e2c723333b75d63a575"
+    },
+    {
+      "file": "menu/U-MENU-08b_64x64.png",
+      "assetId": "U-MENU-08b",
+      "group": "menu",
+      "tier": "b=2x",
+      "size": [
+        64,
+        64
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": "U-MENU-08a",
+      "scale": 2,
+      "bytes": 500,
+      "sha256": "fe20071bf4500e5b1e4e6b1616dd22c58d94a4529a786161aa2939cfb2d13fbd"
+    },
+    {
+      "file": "menu/U-MENU-09a_32x32.png",
+      "assetId": "U-MENU-09a",
+      "group": "menu",
+      "tier": "a=32 母版",
+      "size": [
+        32,
+        32
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 345,
+      "sha256": "e41ea9a9954b0499143b0fa29b3395dfdf66619b46b3421ee08188c438fd14ee"
+    },
+    {
+      "file": "menu/U-MENU-09b_64x64.png",
+      "assetId": "U-MENU-09b",
+      "group": "menu",
+      "tier": "b=2x",
+      "size": [
+        64,
+        64
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": "U-MENU-09a",
+      "scale": 2,
+      "bytes": 453,
+      "sha256": "7787e3e53c2cbcb19c51f01eb50fa20225102f41377e5dda5f6b467ca934b205"
+    },
+    {
+      "file": "menu/U-MENU-10a_32x32.png",
+      "assetId": "U-MENU-10a",
+      "group": "menu",
+      "tier": "a=32 母版",
+      "size": [
+        32,
+        32
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 322,
+      "sha256": "395d69a527509086f2cc1c81b4a29be245f08f6f7a5d15d865b0afb6093f7c30"
+    },
+    {
+      "file": "menu/U-MENU-10b_64x64.png",
+      "assetId": "U-MENU-10b",
+      "group": "menu",
+      "tier": "b=2x",
+      "size": [
+        64,
+        64
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": "U-MENU-10a",
+      "scale": 2,
+      "bytes": 417,
+      "sha256": "9a33853246a5f4f69fefeb8d898cda1d79bbc8ba0bbb52ad6eb88c360a14b7c5"
+    },
+    {
+      "file": "props/U-PROP-01a_16x16.png",
+      "assetId": "U-PROP-01a",
+      "group": "props",
+      "tier": "a=16 重绘",
+      "size": [
+        16,
+        16
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 206,
+      "sha256": "d820669b1d8c2351155e85894a1dd0ce3f284b97552f7b2ed98e3f68d0eb085c"
+    },
+    {
+      "file": "props/U-PROP-01b_32x32.png",
+      "assetId": "U-PROP-01b",
+      "group": "props",
+      "tier": "b=32 母版",
+      "size": [
+        32,
+        32
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 279,
+      "sha256": "1efa6edbcefec648f04333cbaf0887f63cda474a69c0b1307ee21da28d122b1e"
+    },
+    {
+      "file": "props/U-PROP-01c_64x64.png",
+      "assetId": "U-PROP-01c",
+      "group": "props",
+      "tier": "c=2x",
+      "size": [
+        64,
+        64
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": "U-PROP-01b",
+      "scale": 2,
+      "bytes": 354,
+      "sha256": "64740f3f02e70c6eecc9fbb0d90dc13419026d34581033ed39d3920f4b131f74"
+    },
+    {
+      "file": "props/U-PROP-02a_16x16.png",
+      "assetId": "U-PROP-02a",
+      "group": "props",
+      "tier": "a=16 重绘",
+      "size": [
+        16,
+        16
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 283,
+      "sha256": "9a017c16d31fa911b75c3ddb50b4f6ecea99c98322f1f8db94c41066abc0f1fe"
+    },
+    {
+      "file": "props/U-PROP-02b_32x32.png",
+      "assetId": "U-PROP-02b",
+      "group": "props",
+      "tier": "b=32 母版",
+      "size": [
+        32,
+        32
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 469,
+      "sha256": "7122a6208eef927fca7946845ebb292b4886c5a2fed25489ee45cc661e804358"
+    },
+    {
+      "file": "props/U-PROP-02c_64x64.png",
+      "assetId": "U-PROP-02c",
+      "group": "props",
+      "tier": "c=2x",
+      "size": [
+        64,
+        64
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": "U-PROP-02b",
+      "scale": 2,
+      "bytes": 574,
+      "sha256": "95ac3a43183ea5140c27e75603fe6f6b901eb8f9129c80e8b532ae7b3f13f1a7"
+    },
+    {
+      "file": "props/U-PROP-03a_16x16.png",
+      "assetId": "U-PROP-03a",
+      "group": "props",
+      "tier": "a=16 重绘",
+      "size": [
+        16,
+        16
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 214,
+      "sha256": "95ae23659eeaf96b4b4294507f8136c594fa2a2c4d4fa2a737d9d227bab8bccf"
+    },
+    {
+      "file": "props/U-PROP-03b_32x32.png",
+      "assetId": "U-PROP-03b",
+      "group": "props",
+      "tier": "b=32 母版",
+      "size": [
+        32,
+        32
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 319,
+      "sha256": "3a6a554e1c087cdd8cc832b1b4f2908f290b95db7b27f7509766036f7d6bbd15"
+    },
+    {
+      "file": "props/U-PROP-03c_64x64.png",
+      "assetId": "U-PROP-03c",
+      "group": "props",
+      "tier": "c=2x",
+      "size": [
+        64,
+        64
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": "U-PROP-03b",
+      "scale": 2,
+      "bytes": 434,
+      "sha256": "47f45b97c7added1be884e8b47a888bdbaedee495222357687e55b6ad5dec0b8"
+    },
+    {
+      "file": "props/U-PROP-04a_16x16.png",
+      "assetId": "U-PROP-04a",
+      "group": "props",
+      "tier": "a=16 重绘",
+      "size": [
+        16,
+        16
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 235,
+      "sha256": "e4e1854d8b064372abb7a77ce48878749d7ca7927bde7af625c457e382f728d9"
+    },
+    {
+      "file": "props/U-PROP-04b_32x32.png",
+      "assetId": "U-PROP-04b",
+      "group": "props",
+      "tier": "b=32 母版",
+      "size": [
+        32,
+        32
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 342,
+      "sha256": "bd95b27db55a95fa8434af51850e9fcb03b7b93d052f20364af36b39e0d7183a"
+    },
+    {
+      "file": "props/U-PROP-04c_64x64.png",
+      "assetId": "U-PROP-04c",
+      "group": "props",
+      "tier": "c=2x",
+      "size": [
+        64,
+        64
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": "U-PROP-04b",
+      "scale": 2,
+      "bytes": 444,
+      "sha256": "9bb155767468ced2ee5331de5fc39cc48a0c34e5cbcbd1bd79b0b2c03aec832a"
+    },
+    {
+      "file": "props/U-PROP-05a_16x16.png",
+      "assetId": "U-PROP-05a",
+      "group": "props",
+      "tier": "a=16 重绘",
+      "size": [
+        16,
+        16
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 212,
+      "sha256": "46825475398701ec3480f2f9b39c8d8a3bb10a8cfeacfeeed0f39a84860162e4"
+    },
+    {
+      "file": "props/U-PROP-05b_32x32.png",
+      "assetId": "U-PROP-05b",
+      "group": "props",
+      "tier": "b=32 母版",
+      "size": [
+        32,
+        32
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 298,
+      "sha256": "9ede2e1d8db848ea3a16a2fc814b2fd1666f43c85de2443857c78fbdab6a77f5"
+    },
+    {
+      "file": "props/U-PROP-05c_64x64.png",
+      "assetId": "U-PROP-05c",
+      "group": "props",
+      "tier": "c=2x",
+      "size": [
+        64,
+        64
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": "U-PROP-05b",
+      "scale": 2,
+      "bytes": 386,
+      "sha256": "81002662831a742484ab4514339a0fe88a78c21940bf8e21f595428c34d842f8"
+    },
+    {
+      "file": "props/U-PROP-06a_16x16.png",
+      "assetId": "U-PROP-06a",
+      "group": "props",
+      "tier": "a=16 重绘",
+      "size": [
+        16,
+        16
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 280,
+      "sha256": "af71e00c77eb889a2721318993fceb3f816162cad6eddf6627d19e5531da09dc"
+    },
+    {
+      "file": "props/U-PROP-06b_32x32.png",
+      "assetId": "U-PROP-06b",
+      "group": "props",
+      "tier": "b=32 母版",
+      "size": [
+        32,
+        32
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 416,
+      "sha256": "c3aedf8a33fab44129b2cb7da55f3103b18dc7492de65c61ccbf4b9c5d8574fd"
+    },
+    {
+      "file": "props/U-PROP-06c_64x64.png",
+      "assetId": "U-PROP-06c",
+      "group": "props",
+      "tier": "c=2x",
+      "size": [
+        64,
+        64
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": "U-PROP-06b",
+      "scale": 2,
+      "bytes": 514,
+      "sha256": "06e1452ed16254e6236ec072e40bc2daf181bc222b2e660ac8cbff29972c0103"
+    },
+    {
+      "file": "badges/U-BADGE-01a_16x16.png",
+      "assetId": "U-BADGE-01a",
+      "group": "badges",
+      "tier": "a=16 母版",
+      "size": [
+        16,
+        16
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 202,
+      "sha256": "0b26243b21fc823f10a9cf93dfed1d5c8def25f686354cd476148d47bcec52bd"
+    },
+    {
+      "file": "badges/U-BADGE-01b_32x32.png",
+      "assetId": "U-BADGE-01b",
+      "group": "badges",
+      "tier": "b=2x",
+      "size": [
+        32,
+        32
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": "U-BADGE-01a",
+      "scale": 2,
+      "bytes": 249,
+      "sha256": "69672ff877c4dab0c1f5600cbe97033eb1901ea186fabbf01e5ab3a37a36f15d"
+    },
+    {
+      "file": "badges/U-BADGE-02a_16x16.png",
+      "assetId": "U-BADGE-02a",
+      "group": "badges",
+      "tier": "a=16 母版",
+      "size": [
+        16,
+        16
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 228,
+      "sha256": "f4513cb6e33300bb4d46abb1fe5df21fe1ade9b3e9301353957a93400b247213"
+    },
+    {
+      "file": "badges/U-BADGE-02b_32x32.png",
+      "assetId": "U-BADGE-02b",
+      "group": "badges",
+      "tier": "b=2x",
+      "size": [
+        32,
+        32
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": "U-BADGE-02a",
+      "scale": 2,
+      "bytes": 264,
+      "sha256": "c73f03fd203e0bb17e9d4c9eeb5dbd43dbe41b95b43da37abd1b80dd8fe43c5a"
+    },
+    {
+      "file": "badges/U-BADGE-03a_16x16.png",
+      "assetId": "U-BADGE-03a",
+      "group": "badges",
+      "tier": "a=16 母版",
+      "size": [
+        16,
+        16
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 235,
+      "sha256": "0eb6808713e7aea00dc9a9491996dd1dd650e6b95a664446eb3425cf6b0844cd"
+    },
+    {
+      "file": "badges/U-BADGE-03b_32x32.png",
+      "assetId": "U-BADGE-03b",
+      "group": "badges",
+      "tier": "b=2x",
+      "size": [
+        32,
+        32
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": "U-BADGE-03a",
+      "scale": 2,
+      "bytes": 276,
+      "sha256": "59e77e00be51652e0cdeae9e272bc329baf7c673f7d4b785a9201b1b1b02c0e3"
+    },
+    {
+      "file": "badges/U-BADGE-04a_16x16.png",
+      "assetId": "U-BADGE-04a",
+      "group": "badges",
+      "tier": "a=16 母版",
+      "size": [
+        16,
+        16
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 240,
+      "sha256": "a1ade36dd462404bf16a3b936faa42e3e741052690b394786150925971e75e74"
+    },
+    {
+      "file": "badges/U-BADGE-04b_32x32.png",
+      "assetId": "U-BADGE-04b",
+      "group": "badges",
+      "tier": "b=2x",
+      "size": [
+        32,
+        32
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": "U-BADGE-04a",
+      "scale": 2,
+      "bytes": 279,
+      "sha256": "8718e674481e72600bc5912cf635a88ab86f5766ba1e52b0d573ab7ae440a23f"
+    },
+    {
+      "file": "badges/U-BADGE-05a_16x16.png",
+      "assetId": "U-BADGE-05a",
+      "group": "badges",
+      "tier": "a=16 母版",
+      "size": [
+        16,
+        16
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 226,
+      "sha256": "e2c8f9d8082fcbd6f007365b8f1f78aa53dd44daa09fd674dbf0fb6bde47cd08"
+    },
+    {
+      "file": "badges/U-BADGE-05b_32x32.png",
+      "assetId": "U-BADGE-05b",
+      "group": "badges",
+      "tier": "b=2x",
+      "size": [
+        32,
+        32
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": "U-BADGE-05a",
+      "scale": 2,
+      "bytes": 266,
+      "sha256": "605d7a50c3be6eb0da799b8f3c5d076b855a5aac2d2f77687b4758bf6667b730"
+    },
+    {
+      "file": "badges/U-BADGE-06a_16x16.png",
+      "assetId": "U-BADGE-06a",
+      "group": "badges",
+      "tier": "a=16 母版",
+      "size": [
+        16,
+        16
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 164,
+      "sha256": "65ffa2e5839cb322a99c04a250d41d9126111514f8c74a3b7785fe47db0a44c8"
+    },
+    {
+      "file": "badges/U-BADGE-06b_32x32.png",
+      "assetId": "U-BADGE-06b",
+      "group": "badges",
+      "tier": "b=2x",
+      "size": [
+        32,
+        32
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": "U-BADGE-06a",
+      "scale": 2,
+      "bytes": 209,
+      "sha256": "055827decd5427a77ee7fb36b257d3c61821d183e3ae0f3260594725fd65f354"
+    },
+    {
+      "file": "placeholders/U-PH-01a_48x48.png",
+      "assetId": "U-PH-01a",
+      "group": "placeholders",
+      "tier": "a=48 母版",
+      "size": [
+        48,
+        48
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 211,
+      "sha256": "02108b804176f1a13cc1af52ae2d7250a00ba96ac21f0800884266c536a5dc4a"
+    },
+    {
+      "file": "placeholders/U-PH-01b_96x96.png",
+      "assetId": "U-PH-01b",
+      "group": "placeholders",
+      "tier": "b=2x",
+      "size": [
+        96,
+        96
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": "U-PH-01a",
+      "scale": 2,
+      "bytes": 304,
+      "sha256": "7db7c3183b372b46f32f4879712edb658aa656c235205d03ccbed96da28ff7a6"
+    },
+    {
+      "file": "placeholders/U-PH-02a_48x48.png",
+      "assetId": "U-PH-02a",
+      "group": "placeholders",
+      "tier": "a=48 母版",
+      "size": [
+        48,
+        48
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 284,
+      "sha256": "447b7eae14507bfc89e7248cfcf450c6b327c83adf13151514c1edcf65ac8b40"
+    },
+    {
+      "file": "placeholders/U-PH-02b_96x96.png",
+      "assetId": "U-PH-02b",
+      "group": "placeholders",
+      "tier": "b=2x",
+      "size": [
+        96,
+        96
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": "U-PH-02a",
+      "scale": 2,
+      "bytes": 387,
+      "sha256": "3aaf37aa1b7b73ebc4272625650ba47039d117131c9f8b70b65de51bd71090e6"
+    },
+    {
+      "file": "placeholders/U-PH-03a_48x48.png",
+      "assetId": "U-PH-03a",
+      "group": "placeholders",
+      "tier": "a=48 母版",
+      "size": [
+        48,
+        48
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 392,
+      "sha256": "fbab966b3574e5dfec0e9ef4ef1378707cc8c9ef1bc7b61a291376f778eb2e50"
+    },
+    {
+      "file": "placeholders/U-PH-03b_96x96.png",
+      "assetId": "U-PH-03b",
+      "group": "placeholders",
+      "tier": "b=2x",
+      "size": [
+        96,
+        96
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": "U-PH-03a",
+      "scale": 2,
+      "bytes": 528,
+      "sha256": "7f77b4696a21a458feefbbf9ddef18457c1fe7071e749c7a99a19b5d88719c08"
+    },
+    {
+      "file": "placeholders/U-PH-04a_48x48.png",
+      "assetId": "U-PH-04a",
+      "group": "placeholders",
+      "tier": "a=48 母版",
+      "size": [
+        48,
+        48
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 384,
+      "sha256": "1bb486f9c9b9663f57d3c5e53d3a0f31257fe01fc610dd04bed5212cea1e8490"
+    },
+    {
+      "file": "placeholders/U-PH-04b_96x96.png",
+      "assetId": "U-PH-04b",
+      "group": "placeholders",
+      "tier": "b=2x",
+      "size": [
+        96,
+        96
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": "U-PH-04a",
+      "scale": 2,
+      "bytes": 522,
+      "sha256": "d0e474b6dfef3fdc2823515f5b50d6b12c8f28cfb381e66acacca4da9b2eca25"
+    },
+    {
+      "file": "indicators/U-IND-01a_12x12.png",
+      "assetId": "U-IND-01a",
+      "group": "indicators",
+      "tier": "a=12 重绘",
+      "size": [
+        12,
+        12
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 159,
+      "sha256": "22ad025328ed8487479c6fe1f11297394f74fb72822d00840d1e2d5de285d5c9"
+    },
+    {
+      "file": "indicators/U-IND-01b_16x16.png",
+      "assetId": "U-IND-01b",
+      "group": "indicators",
+      "tier": "b=16 重绘",
+      "size": [
+        16,
+        16
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 255,
+      "sha256": "cf72ad2399a26b9021e8ff6db70a521ff56ee377a6776745035328da64228d11"
+    },
+    {
+      "file": "indicators/U-IND-01c_24x24.png",
+      "assetId": "U-IND-01c",
+      "group": "indicators",
+      "tier": "c=24 重绘",
+      "size": [
+        24,
+        24
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 351,
+      "sha256": "d080be8f75f9ae943aa3a061ac8cb359d3e06c87219eb322ca1d768f606c4607"
+    },
+    {
+      "file": "indicators/U-IND-02a_12x12.png",
+      "assetId": "U-IND-02a",
+      "group": "indicators",
+      "tier": "a=12 重绘",
+      "size": [
+        12,
+        12
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 194,
+      "sha256": "b1ab173135c97131d15f37ccfedd2c27dbf14ecdebc46f857cb5043cd4e58eac"
+    },
+    {
+      "file": "indicators/U-IND-02b_16x16.png",
+      "assetId": "U-IND-02b",
+      "group": "indicators",
+      "tier": "b=16 重绘",
+      "size": [
+        16,
+        16
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 223,
+      "sha256": "d712298b6ba75c53ecc36b30281b97a2bd3723997233a67f438f46fe70949b2c"
+    },
+    {
+      "file": "indicators/U-IND-02c_24x24.png",
+      "assetId": "U-IND-02c",
+      "group": "indicators",
+      "tier": "c=24 重绘",
+      "size": [
+        24,
+        24
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 282,
+      "sha256": "01cb869ebe2b190d14b89dca1b34fcf54d3e47551d602832e75836ebe906966c"
+    },
+    {
+      "file": "indicators/U-IND-03a_12x12.png",
+      "assetId": "U-IND-03a",
+      "group": "indicators",
+      "tier": "a=12 重绘",
+      "size": [
+        12,
+        12
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 96,
+      "sha256": "e40c1e600eccb6e190c28762c0db3b4cfe454badc3133b82a2daa0f0a2a6ee33"
+    },
+    {
+      "file": "indicators/U-IND-03b_16x16.png",
+      "assetId": "U-IND-03b",
+      "group": "indicators",
+      "tier": "b=16 重绘",
+      "size": [
+        16,
+        16
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 117,
+      "sha256": "62815b547ccfb339463fcbc4e054c093e6b0552ff3ffd3af55570648f58e31cc"
+    },
+    {
+      "file": "indicators/U-IND-03c_24x24.png",
+      "assetId": "U-IND-03c",
+      "group": "indicators",
+      "tier": "c=24 重绘",
+      "size": [
+        24,
+        24
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 130,
+      "sha256": "955283fe6f44e1aded1cc2e7925e22e624abfda7fcd567bc73e7fe7add427616"
+    },
+    {
+      "file": "indicators/U-IND-04a_12x12.png",
+      "assetId": "U-IND-04a",
+      "group": "indicators",
+      "tier": "a=12 重绘",
+      "size": [
+        12,
+        12
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 109,
+      "sha256": "71753a2df6bdb61cd2407f05174ed89777521b926a57e783f2e7d1b21f7cc666"
+    },
+    {
+      "file": "indicators/U-IND-04b_16x16.png",
+      "assetId": "U-IND-04b",
+      "group": "indicators",
+      "tier": "b=16 重绘",
+      "size": [
+        16,
+        16
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 129,
+      "sha256": "529464b664bf1d5404aec5094b527d668b427b0a8e1cc661af29ab37352ae142"
+    },
+    {
+      "file": "indicators/U-IND-04c_24x24.png",
+      "assetId": "U-IND-04c",
+      "group": "indicators",
+      "tier": "c=24 重绘",
+      "size": [
+        24,
+        24
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 164,
+      "sha256": "62463c891b62ca786ac79627b2f1fe3979e267c7fa5f14b8551ad14cd77656b9"
+    },
+    {
+      "file": "indicators/U-IND-05a_12x12.png",
+      "assetId": "U-IND-05a",
+      "group": "indicators",
+      "tier": "a=12 重绘",
+      "size": [
+        12,
+        12
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 165,
+      "sha256": "d3bd09b0b085c9eabd618e17ed6820fb60dff4ae72e6a6133b380145bebe6d72"
+    },
+    {
+      "file": "indicators/U-IND-05b_16x16.png",
+      "assetId": "U-IND-05b",
+      "group": "indicators",
+      "tier": "b=16 重绘",
+      "size": [
+        16,
+        16
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 190,
+      "sha256": "5fb7c2712f0bee7aa2ed47322b587586b4105c641a447af5c974e61f561197bc"
+    },
+    {
+      "file": "indicators/U-IND-05c_24x24.png",
+      "assetId": "U-IND-05c",
+      "group": "indicators",
+      "tier": "c=24 重绘",
+      "size": [
+        24,
+        24
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 258,
+      "sha256": "4a0e3b98f5f5963de86ab191d61a60b13c66d827a37bc26cca1a7956e361074f"
+    },
+    {
+      "file": "indicators/U-IND-06a_12x12.png",
+      "assetId": "U-IND-06a",
+      "group": "indicators",
+      "tier": "a=12 重绘",
+      "size": [
+        12,
+        12
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 195,
+      "sha256": "71f8ac577a11f8e17854b5511542c734bd699262770f991598b9c10e7c67a4ba"
+    },
+    {
+      "file": "indicators/U-IND-06b_16x16.png",
+      "assetId": "U-IND-06b",
+      "group": "indicators",
+      "tier": "b=16 重绘",
+      "size": [
+        16,
+        16
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 225,
+      "sha256": "7dc65da2a16e00d2d61bfc311dedda8b1bc088478d05f2d289b2138aaa66c5da"
+    },
+    {
+      "file": "indicators/U-IND-06c_24x24.png",
+      "assetId": "U-IND-06c",
+      "group": "indicators",
+      "tier": "c=24 重绘",
+      "size": [
+        24,
+        24
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 276,
+      "sha256": "33b506e903f8dfc833ed44df4c86ed722228ff4dfa2504f2dee9fe7ff52d9f05"
+    },
+    {
+      "file": "icons/U-ICON-01_16x16.png",
+      "assetId": "U-ICON-01",
+      "group": "icons",
+      "tier": "16 母版",
+      "size": [
+        16,
+        16
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 209,
+      "sha256": "e7547a446126fd3319f3b3fe032f288d397eaa80dca4ec66a6da36bc7268b92a"
+    },
+    {
+      "file": "icons/U-ICON-02_32x32.png",
+      "assetId": "U-ICON-02",
+      "group": "icons",
+      "tier": "32 母版",
+      "size": [
+        32,
+        32
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 272,
+      "sha256": "dc7a073e65f2b972d0a873ee4e9eab87c957287dfdc815aa09499521a8dce75f"
+    },
+    {
+      "file": "icons/U-ICON-03_256x256.png",
+      "assetId": "U-ICON-03",
+      "group": "icons",
+      "tier": "256=32x8",
+      "size": [
+        256,
+        256
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 971,
+      "sha256": "77cec6e11709e1cc1f6f8cb6cd744d6ff72d67ae51162dfd102a82a81753e0c0"
+    },
+    {
+      "file": "icons/U-ICON-04_app.ico",
+      "assetId": "U-ICON-04",
+      "group": "icons",
+      "tier": "ICO",
+      "size": [
+        256,
+        256
+      ],
+      "format": "ico",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 2072,
+      "sha256": "2408f11f7ced145a6539cf0d6b651c230a1d5807809902d0f0b39b900270a5fc"
+    },
+    {
+      "file": "backgrounds/U-BG-01_480x336.png",
+      "assetId": "U-BG-01",
+      "group": "backgrounds",
+      "tier": "480x336",
+      "size": [
+        480,
+        336
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 2200,
+      "sha256": "3271871a8c7dc8ecb456f65f7d2abd81cffc8e22acd708099d5232a5ed0a33f8"
+    },
+    {
+      "file": "backgrounds/U-BG-02_480x336.png",
+      "assetId": "U-BG-02",
+      "group": "backgrounds",
+      "tier": "480x336",
+      "size": [
+        480,
+        336
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 2472,
+      "sha256": "06d4be7f6b292bcbfec6f63b024e2d4f3c94ef61634210c69b45d75455c4fd9c"
+    },
+    {
+      "file": "backgrounds/U-BG-03_480x336.png",
+      "assetId": "U-BG-03",
+      "group": "backgrounds",
+      "tier": "480x336",
+      "size": [
+        480,
+        336
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 1660,
+      "sha256": "9552daead64fb875b6809da8a4d125446af66c17f3497c95b6bf8ac717654619"
+    },
+    {
+      "file": "fx/U-FX-01_24x24.png",
+      "assetId": "U-FX-01",
+      "group": "fx",
+      "tier": "可选位图",
+      "size": [
+        24,
+        24
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 205,
+      "sha256": "96850ef6578eb0760b96f6aaea2397c496630d970e047cc0d10ab93ad320ff51"
+    },
+    {
+      "file": "fx/U-FX-02_48x48.png",
+      "assetId": "U-FX-02",
+      "group": "fx",
+      "tier": "可选位图",
+      "size": [
+        48,
+        48
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 399,
+      "sha256": "07a9626a1f02feaed60e762d8d0ecc55a42eb5316052f5c1537a57ece31df520"
+    },
+    {
+      "file": "roleplay/RP-001_64x64.png",
+      "assetId": "RP-001",
+      "group": "roleplay",
+      "tier": "64 母版",
+      "size": [
+        64,
+        64
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 653,
+      "sha256": "3dac5978957725c5994595bcf22426e038a522f458739c275309cb69c26ef269"
+    },
+    {
+      "file": "roleplay/RP-001_128x128.png",
+      "assetId": "RP-001",
+      "group": "roleplay",
+      "tier": "2x 档",
+      "size": [
+        128,
+        128
+      ],
+      "format": "png",
+      "primary": false,
+      "derivedFrom": "RP-001",
+      "scale": 2,
+      "bytes": 880,
+      "sha256": "4d0b0d48d06cf6ae196b59325abab71d75c998167dd780fc04c87293bab7c8bd"
+    },
+    {
+      "file": "roleplay/RP-002_32x32.png",
+      "assetId": "RP-002",
+      "group": "roleplay",
+      "tier": "32 母版",
+      "size": [
+        32,
+        32
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 364,
+      "sha256": "721d369c6930740c6ec6966fffa61b8ae1eb72dbcbbf457343c6c8789e7d3134"
+    },
+    {
+      "file": "roleplay/RP-002_64x64.png",
+      "assetId": "RP-002",
+      "group": "roleplay",
+      "tier": "2x 档",
+      "size": [
+        64,
+        64
+      ],
+      "format": "png",
+      "primary": false,
+      "derivedFrom": "RP-002",
+      "scale": 2,
+      "bytes": 429,
+      "sha256": "45017d2adbb30f20b40c6746d865802d6f44fc372f4f4e1b5b1a0a4baa000553"
+    },
+    {
+      "file": "roleplay/RP-003_32x32.png",
+      "assetId": "RP-003",
+      "group": "roleplay",
+      "tier": "32 母版",
+      "size": [
+        32,
+        32
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 296,
+      "sha256": "c4768d13ebce47a069022e911770d8c3c8b385151c1a775ff1e3d6891d4ffadc"
+    },
+    {
+      "file": "roleplay/RP-003_64x64.png",
+      "assetId": "RP-003",
+      "group": "roleplay",
+      "tier": "2x 档",
+      "size": [
+        64,
+        64
+      ],
+      "format": "png",
+      "primary": false,
+      "derivedFrom": "RP-003",
+      "scale": 2,
+      "bytes": 381,
+      "sha256": "6117b15e746a75a4e4c69d8940e72eab448635a84f210c38a556509e42a06a1e"
+    },
+    {
+      "file": "roleplay/RP-004_32x32.png",
+      "assetId": "RP-004",
+      "group": "roleplay",
+      "tier": "32 母版",
+      "size": [
+        32,
+        32
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 303,
+      "sha256": "f120a1a637937d03175196e894db3cc107ea4db6d06be2864a48f75ea0702fd0"
+    },
+    {
+      "file": "roleplay/RP-004_64x64.png",
+      "assetId": "RP-004",
+      "group": "roleplay",
+      "tier": "2x 档",
+      "size": [
+        64,
+        64
+      ],
+      "format": "png",
+      "primary": false,
+      "derivedFrom": "RP-004",
+      "scale": 2,
+      "bytes": 401,
+      "sha256": "b282e72db03cf2271eb35499a067393f155e48768e39094a14799c80dc40e011"
+    },
+    {
+      "file": "roleplay/RP-005_64x64.png",
+      "assetId": "RP-005",
+      "group": "roleplay",
+      "tier": "64 母版",
+      "size": [
+        64,
+        64
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 674,
+      "sha256": "c0b948153cc23fbf6df2482061cc31d4d1ec12676f291105e1dcac072c8ac6d9"
+    },
+    {
+      "file": "roleplay/RP-005_128x128.png",
+      "assetId": "RP-005",
+      "group": "roleplay",
+      "tier": "2x 档",
+      "size": [
+        128,
+        128
+      ],
+      "format": "png",
+      "primary": false,
+      "derivedFrom": "RP-005",
+      "scale": 2,
+      "bytes": 903,
+      "sha256": "6caeed4e0196dfe4f988be35f8a6054d2c3be72bde30f79cc535155495c4a179"
+    },
+    {
+      "file": "roleplay/RP-006_32x32.png",
+      "assetId": "RP-006",
+      "group": "roleplay",
+      "tier": "32 母版",
+      "size": [
+        32,
+        32
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 279,
+      "sha256": "74edb6233fdedfd5c89937d7153b18c145d7c352f2a000a29c66b02035f030b0"
+    },
+    {
+      "file": "roleplay/RP-006_64x64.png",
+      "assetId": "RP-006",
+      "group": "roleplay",
+      "tier": "2x 档",
+      "size": [
+        64,
+        64
+      ],
+      "format": "png",
+      "primary": false,
+      "derivedFrom": "RP-006",
+      "scale": 2,
+      "bytes": 371,
+      "sha256": "39a8bd8de444f695aa6760d6c7866247e5eaa31ae1c82d76b3a4bcd7e71054c8"
+    }
+  ]
+}

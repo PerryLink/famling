@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="ai-generated" content="Unofficial project; model/voice calls incur costs. See DECLARATIONS.md." />
+    <title>配置模型与 API Key · 汀岚</title>
+    <link rel="stylesheet" href="/src/pet/setup.css" />
+  </head>
+  <body>
+    <main class="setup">
+      <header>
+        <p class="kicker">BEFORE YOU USE</p>
+        <h1>先配置你自己的模型与 API Key</h1>
+        <p>桌宠的模型对话、摘要融入、TTS 语音都需要你自己的模型账户。**所有调用会产生费用，由你的账户承担**；不配置时只使用本地行为/字幕/占位能力。</p>
+      </header>
+
+      <section class="cost" role="alert">
+        <strong>会产生费用：</strong>本应用不代付、不赠送额度。模型/语音调用按你的服务商计费；请先了解价格并设置预算。
+      </section>
+
+      <section class="card">
+        <h2>推荐方式：环境变量</h2>
+        <ol>
+          <li>从模型服务商获取 API Key；不要把它发到聊天、issue、截图或仓库。</li>
+          <li>在启动桌宠前设置环境变量（Windows 示例）：<pre><code>setx DEEPSEEK_API_KEY "你的 key"</code></pre>重新打开应用/终端生效。</li>
+          <li>如使用其它 OpenAI-compatible 服务，按项目文档设置对应 base URL/模型；不要混用不明来源的代理。</li>
+          <li>打开桌宠，正常摸/拖/说；需要模型的功能会使用你的 key。若没有 key，语音/摘要会降级为本地/字幕。</li>
+        </ol>
+      </section>
+
+      <section class="card">
+        <h2>AI 拟人化互动提醒</h2>
+        <ul>
+          <li>这是 AI 合成语音/角色，不是真人；不构成医疗、心理、法律、财务等专业建议。</li>
+          <li>一般功能全年龄可用；部分互动功能按适用法律/协议需完成年龄核验并可能设 18+ 门槛（首次启动须完成自报出生日期年龄核验，非官方身份证核验），具体以完整 TOS 为准；内容必须全年龄适宜：禁止成人性内容、虚拟亲密关系、未成年人性化、自伤他伤、违法、诈骗与冒充；不得诱导依赖、恋爱或付费解锁关系；连续使用每 2 小时提醒休息。</li>
+          <li>自伤/自杀/他伤/重大财产损失等信号：停止当前互动，联系紧急服务/可信任的人/专业机构；不诊断、不保证保密。</li>
+          <li>可随时关闭记忆、删除本机数据（About 面板「数据控制」）；需年龄门槛的功能在使用前会重新展示完整 TOS 与相应声明；详见 <a href="/legal/TOS.md">完整 TOS</a>、<a href="/legal/AI-COMPANION-REGULATION-2026-11-16.md">合规研究</a> 与 <a href="/legal/TTS-TERMS.md">TTS 条款 §8</a>。</li>
+        </ul>
+      </section>
+
+      <section class="card legal" id="setup-age" aria-labelledby="setup-age-title">
+        <h2 id="setup-age-title">年龄核验（自报出生日期）</h2>
+        <p class="note">
+          一般桌宠功能全年龄可用；部分互动功能按适用法律/协议需完成年龄核验并可能设 18+ 门槛，具体以完整 TOS 为准。
+          年龄由你首次启动时在桌宠内自报出生年/月/日（不预填、无默认），仅存本机并记录核验时间；这是自报核验，不是官方身份证/实名认证，不采集身份证/照片/住址。
+          本页只读显示年龄段（不显示完整生日）；更正年龄请在桌宠 About 面板操作，“删除全部本地数据”会删除年龄记录。
+        </p>
+        <p id="setup-age-status" class="legal-status age-status" role="status" aria-live="polite">正在读取年龄核验状态…</p>
+      </section>
+
+      <section class="card legal" id="setup-legal">
+        <h2>使用前必须同意：完整 TOS/免责声明</h2>
+        <p id="setup-consent-status" class="legal-status" role="status">正在读取本机同意状态…</p>
+        <p class="note">同意只能由你在桌宠内的完整弹窗中主动勾选完成；本页只展示声明与状态，不构成同意。</p>
+        <p id="setup-tos-meta" class="legal-meta"></p>
+        <div id="setup-tos-sections" class="legal-sections"></div>
+        <p class="legal-links">
+          完整文档：<a href="/legal/TOS.md">TOS</a> ·
+          <a href="/legal/TTS-TERMS.md">TTS 条款</a> ·
+          <a href="/legal/AI-CONTENT-POLICY.md">AI 内容政策</a> ·
+          <a href="/legal/TAKEDOWN.md">投诉/下架</a>
+        </p>
+      </section>
+
+      <section class="card legal" id="setup-tts-legal">
+        <h2>TTS / AI 合成语音声明（单独确认）</h2>
+        <p class="note">启用/变更 TTS 或播放合成语音前，桌宠会单独弹出 TTS 声明要求显式确认；TOS 同意不能替代它，每次 TTS 配置变更/新会话都需重新确认。</p>
+        <p id="setup-tts-meta" class="legal-meta"></p>
+        <div id="setup-tts-sections" class="legal-sections"></div>
+      </section>
+
+      <section class="card voice" id="setup-voice" aria-labelledby="setup-voice-title">
+        <h2 id="setup-voice-title">桌宠 TTS 音色（stella / tide）</h2>
+        <p>
+          当前音色：<span id="setup-voice-current" class="voice-badge" role="status" aria-live="polite">stella（默认）</span>
+        </p>
+        <p class="note">
+          两种音色都是官方 DeepSeek TTS 合成音色；本仓不随包分发预生成音频，只有在宿主配置了云 TTS 时才产生调用，费用由你自己的账户承担。
+        </p>
+        <fieldset class="voice-options" id="setup-voice-options">
+          <legend>选择音色</legend>
+          <label class="voice-option">
+            <input id="setup-voice-stella" type="radio" name="setup-voice" value="stella" />
+            <span><strong>stella · 海星</strong>（女声 · 默认）</span>
+          </label>
+          <label class="voice-option">
+            <input id="setup-voice-tide" type="radio" name="setup-voice" value="tide" />
+            <span><strong>tide · 暗潮</strong>（男声）</span>
+          </label>
+        </fieldset>
+        <p id="setup-voice-status" class="voice-status" role="status" aria-live="polite"></p>
+        <p class="note">
+          切换音色属于 TTS 配置变更：桌宠会立即（或在你下次播放时）重新显示<strong>单独的 TTS 声明</strong>并要求确认；勾选本页或同意 TOS 都不能替代它。语言/音频仍需以字幕为准，AI 合成不是真人。
+        </p>
+
+        <h3 class="voice-record-title">自己录音（自建音色实验）</h3>
+        <p class="note">
+          官方 DeepSeek TTS 当前未提供公开音色克隆 API，录音仅本地保存/试听，不声称已克隆。
+          录音前会显示用途/本地保存/不得克隆他人/需本人同意/AI 声明；拒绝则不会请求麦克风、不会录音。
+        </p>
+        <p class="voice-clone-support" id="voice-record-clone-status" role="note">
+          官方 DeepSeek TTS 当前未提供公开音色克隆 API，录音仅本地保存/试听，不声称已克隆。
+        </p>
+        <button id="voice-record-open" class="voice-record-open" type="button" aria-expanded="false" aria-controls="voice-record-panel">
+          打开录音面板（不会自动录音）…
+        </button>
+        <div id="voice-record-panel" class="voice-record-panel" role="region" aria-labelledby="voice-record-panel-title" hidden>
+          <h3 id="voice-record-panel-title">录音面板 · 最多 15 秒</h3>
+          <div id="voice-record-privacy" class="voice-privacy-list"></div>
+          <label class="voice-ack">
+            <input id="voice-record-ack" type="checkbox" />
+            <span>我确认：只录我本人的声音并已取得同意；不录制/不克隆/不冒充他人；我了解录音只在本页内存、不自动上传、当前也不能克隆。</span>
+          </label>
+          <div class="voice-record-actions">
+            <button id="voice-record-start" type="button" disabled>开始录音（最多 15 秒）</button>
+            <button id="voice-record-stop" type="button" hidden>停止录音</button>
+            <button id="voice-record-clear" type="button" hidden>清除录音</button>
+            <a id="voice-record-download" class="voice-record-download" href="#" download="pagefold-voice-sample.webm" hidden>下载录音（保存到本机）</a>
+            <button id="voice-record-decline" type="button">拒绝并关闭（不录音）</button>
+            <button id="voice-record-close" type="button">收起面板</button>
+          </div>
+          <p id="voice-record-status" class="voice-status" role="status" aria-live="polite"></p>
+          <audio id="voice-record-playback" controls hidden></audio>
+          <p class="note">
+            试听/下载/清除都在本页完成：不上传、不转写、不调用 ASR/TTS、不写入存档；关闭页面或清除后内存中的录音即丢弃。
+          </p>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>安全边界</h2>
+        <ul>
+          <li>本应用不会上传你的 API Key；不把 key 写入仓库/日志/分享内容。</li>
+          <li>Advisers 的 Pet Brief 默认只读本地文件；不读数据库、不联网。</li>
+          <li>导入 DeepSeek 网页对话只支持你主动提供的公开分享链接；不登录、不抓私有会话。</li>
+          <li>任何“模型融入/摘要/语音”按钮在调用前都应显示费用提示；没有提示的调用请不要使用。</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>相关功能</h2>
+        <p><a href="/chat-import.html">导入 DeepSeek 网页分享对话</a>（导入后如启用模型融入会产生费用）</p>
+        <p><a href="/pet.html">返回桌宠</a> · <a href="/tinglan-lab.html">行为/语音实验台</a></p>
+      </section>
+
+      <footer>
+        <p>非官方项目，不关联 DeepSeek；反馈/安全：novelnexusai@outlook.com。声明见仓库 DECLARATIONS.md。</p>
+      </footer>
+    </main>
+    <script type="module" src="/src/pet/consent/setup-page.ts"></script>
+  </body>
+</html>

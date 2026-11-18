@@ -1,0 +1,25 @@
+name: build-windows-pet-only
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22.16' }
+      - name: Build frontend
+        run: npm ci && npm run build
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build Tauri (unsigned)
+        working-directory: app/tauri
+        run: npx --yes @tauri-apps/cli@2 build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: famling-pet-windows-unsigned
+          path: |
+            app/tauri/src-tauri/target/release/bundle/**
+            app/tauri/src-tauri/target/release/*.exe

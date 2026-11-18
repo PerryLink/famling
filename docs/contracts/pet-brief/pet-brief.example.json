@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-11-14T16:00:00+08:00",
+  "expiresAt": "2026-11-14T16:05:00+08:00",
+  "source": "advisers",
+  "counts": {
+    "today": 2,
+    "commitments": 2,
+    "risks": 1,
+    "facts": 1
+  },
+  "today": [
+    {
+      "id": "matter_01",
+      "title": "给某客户发报价",
+      "status": "open"
+    },
+    {
+      "id": "matter_02",
+      "title": "整理周会纪要",
+      "status": "doing"
+    }
+  ],
+  "commitments": [
+    {
+      "id": "commit_123",
+      "matter": "matter_01",
+      "who": "某客户",
+      "what": "发报价",
+      "due": "2026-11-15",
+      "risk": "high",
+      "confidence": 0.92
+    },
+    {
+      "id": "commit_124",
+      "matter": "matter_02",
+      "who": "团队",
+      "what": "发周会纪要",
+      "due": "2026-11-14",
+      "risk": "medium",
+      "confidence": 0.84
+    }
+  ],
+  "risks": [
+    {
+      "id": "risk_01",
+      "level": "high",
+      "summary": "报价今天到期，尚未发出",
+      "evidence": "commit_123",
+      "confidence": 0.88
+    }
+  ],
+  "facts": [
+    {
+      "id": "fact_01",
+      "subject": "某客户",
+      "predicate": "prefers",
+      "value": "PDF 报价",
+      "confidence": 0.9
+    }
+  ],
+  "mood": "focused",
+  "suggestedLines": [
+    "某客户的报价，今天到期。",
+    "先做报价，还是先回邮件？"
+  ],
+  "redactions": [
+    "客户名已替换为“某客户”",
+    "不包含文档正文、邮件正文、聊天记录"
+  ]
+}

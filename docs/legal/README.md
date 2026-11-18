@@ -1,0 +1,106 @@
+# 声明与合规文档（docs/legal/）— 索引 · 草案
+
+> **2026-11-18 公开导出边界（本仓当前状态）**：本公开导出已按清理方案 A 移除全部预生成 TTS 音频（42 WAV + manifest）、游戏内容包（`packs/`）、DLC 校验链（`native/dlc-verify`）与未使用 kernel 模块；本导出**不随包分发任何音频 / DLC / 游戏基座**。下文历史统计（18/42 WAV、baked pack、随包授权等）保留作私有 mono-repo 的历史记录，**不代表本公开导出当前内容**；音频再分发条款仍为 TBD。
+
+> **状态：DRAFT（草案）· 2026-11-15（2026-11-17 增补）· 非法律意见。** 本目录全部文件待用户（PerryLink）+ 律师确认后方可作为对外生效文本；**不得**引用为“已批准 / 已检索 / 已获法律意见”。许可方向由用户 2026-11-16 决定，律师审查暂缓；`DRAFT` 标记 = **文本未定稿/未经律师**，不因“用户已决定许可方向”而变成生效文本。
+> **2026-11-17 状态注记：用户已拍板年龄口径为全年龄、不设年龄门；本目录旧“roleplay/年龄 18+ 建议”已被该拍板取代（全年龄内容边界、2h/危机/未成年人保护保留；律师项仍暂缓）。**
+> 适用对象：`desktop-games` 仓库（工程名；**产品名未定**）、桌宠层代号 Famling、角色「**汀岚**」（暂定名，未经商标检索）、内部工作名 **Orca OC**（**不得**作产品名/包名/域名）。
+> 上位文件：[NOTICE](../../NOTICE) · [LICENSE](../../LICENSE) · [LICENSE-COMMERCIAL.md](../../LICENSE-COMMERCIAL.md) · [LICENSE-ART](../../LICENSE-ART) · [CREDITS.md](../../CREDITS.md) · [THIRD-PARTY.md](../../THIRD-PARTY.md) · [AI-PROVENANCE.md](../../AI-PROVENANCE.md) · [LEGAL-STATUS](../LEGAL-STATUS-2026-11-15.md)。
+> 本目录回答两件事：①「哪些地方可以贴声明、各贴什么」；②「别人可以添加 DLC/插件/二创的地方，边界在哪、怎么声明」。
+
+## 1. 适用层级（先判断自己在哪一层）
+
+| # | 层 | 对象 | 当前出站许可 / 状态 | 本目录对应文件 |
+|---|---|---|---|---|
+| L1 | 代码底座 | 内核/游戏/壳/工具 | **PolyForm Noncommercial 1.0.0**（源可见，**不是** OSI 开源；商用需另签） | [CONTRIBUTOR-TERMS](./CONTRIBUTOR-TERMS.md)、根 `LICENSE`/`NOTICE` |
+| L2 | 桌宠层代码 | Famling 桌宠/FCI | **PolyForm Noncommercial 1.0.0**（2026-11-16 用户决定；曾考虑的 Apache-2.0 计划已弃用，本仓不授予 Apache-2.0）；不得宣称“开源” | [CONTRIBUTOR-TERMS](./CONTRIBUTOR-TERMS.md)、`NOTICE` §1 |
+| L3 | 美术/设定 | 汀岚（Orca OC）原画、设定、像素包 | **CC BY-NC-SA 4.0**（用户 2026-11-16 决定；非商业+同协议；律师审查暂缓） | [CONTENT-POLICY](./CONTENT-POLICY.md)、[FANWORK-POLICY](./FANWORK-POLICY.md)、[ASSET-REPLACEMENT-AND-MODDING-POLICY](./ASSET-REPLACEMENT-AND-MODDING-POLICY.md) |
+| L4 | 音频/语音 | 无随包音频（2026-11-18 起公开导出已移除全部 TTS WAV）；运行时系统/云 TTS | TTS 输出再分发条款见 [TTS-TERMS](./TTS-TERMS.md)（DRAFT；律师审查暂缓）；不得随包发未确认音频 | [THIRD-PARTY-AND-CREDITS-POLICY](./THIRD-PARTY-AND-CREDITS-POLICY.md)、[AI-CONTENT-POLICY](./AI-CONTENT-POLICY.md) |
+| L5 | AI 生成内容 | 图/文/语音/对话/宣发 | 中国《标识办法》等 + 平台政策；**2026-11-18 用户决定移除界面常驻 AI 角标，改为首启/About/TTS 流程提示（律师复核：可能不满足“显著”要求）；隐式元数据/导出/音频起始提示未落**（见 [AI-LABELING](./AI-LABELING.md)） | [AI-CONTENT-POLICY](./AI-CONTENT-POLICY.md) · [AI-LABELING](./AI-LABELING.md) |
+| L6 | 名称/Logo/商标 | 产品名、角色名、仓名、包名、域名 | **保留所有权利，不随任何许可授权**；Orca 高风险 | [TRADEMARK-AND-NAMING-POLICY](./TRADEMARK-AND-NAMING-POLICY.md) |
+| L7 | DLC/角色包/内容包 | 第三方或第一方扩展包 | 内容包：纯数据 + Ed25519 签名 + 逐文件 sha256（已落地）；角色包：纯数据，签名/哈希校验待补齐 | [DLC-AND-PLUGIN-TERMS](./DLC-AND-PLUGIN-TERMS.md) |
+| L8 | 插件/渲染器 | 第三方可执行扩展 | **本仓不接纳第三方可执行插件**；渲染器仅第一方构建期 allowlist | [DLC-AND-PLUGIN-TERMS](./DLC-AND-PLUGIN-TERMS.md) |
+| L9 | 二创 | 同人图/文/视频/直播/周边 | 受作品许可（拟 CC BY-NC-SA 4.0）+ 本政策名称/平台限制 | [FANWORK-POLICY](./FANWORK-POLICY.md) |
+| L10 | 替换/改模 | 动作、声音、形象、行为、UI | 受各自素材许可 + 署名/AI 披露要求 | [ASSET-REPLACEMENT-AND-MODDING-POLICY](./ASSET-REPLACEMENT-AND-MODDING-POLICY.md) |
+| L11 | 第三方素材 | 字体、依赖、参考图、SDK | 各自原许可；台账见 `THIRD-PARTY.md` | [THIRD-PARTY-AND-CREDITS-POLICY](./THIRD-PARTY-AND-CREDITS-POLICY.md) |
+| L12 | 安全/隐私 | 存档、记忆、麦克风、遥测 | PIPL/隐私最小化；遥测默认关闭；**对外隐私政策为草案，ASR 告知/同意、撤回同意、全清入口未实现（工程待办）** | [SECURITY-AND-PRIVACY](./SECURITY-AND-PRIVACY.md) · [PRIVACY](./PRIVACY.md) |
+| L13 | 举报/下架 | 侵权、违规内容、恶意包 | 通知—初审—临时下架—申辩 | [TAKEDOWN-AND-REPORTING](./TAKEDOWN-AND-REPORTING.md) |
+
+## 2. 优先级与冲突规则（待律师确认）
+
+- **R1 效力顺序**：① 强制性法律/监管/平台规则（含商店协议）＞ ② 根目录生效许可文本（`LICENSE`/`LICENSE-COMMERCIAL.md`/`NOTICE`/`LICENSE-ART`）＞ ③ 本目录政策 ＞ ④ 包内作者声明/自述 ＞ ⑤ 社区惯例与示例文本。
+- **R2 具体优先，但不得放宽上位**：更具体的文件优先；任何文件都不得放宽 R1① 的禁止项。**本目录不得被解释为对已按 CC BY-NC-SA 4.0 发布的作品追加许可限制**（CC BY-NC-SA 4.0 禁止额外限制）；本目录中对名称/商标、未发布素材、官方渠道行为、平台规则的限制，**不属于**对该 CC BY-NC-SA 作品的额外许可限制。
+- **R3 文本冲突**：以 canonical 英文/规范文本为准（CC BY-NC-SA 4.0 legalcode、Apache-2.0、PolyForm NC 1.0.0、CC0 1.0）；中文摘要仅供参考。
+- **R4 草案不产生权利义务**：`LICENSE-ART`、`NOTICE` 标注 DRAFT 期间，相关美术按“**保留所有权利**”处理，不得对外发放。
+- **R5 与上位文件冲突**：以根目录生效文件为准，并立即修订本目录（见 §6）。
+- **R6 不得自我加冕**：不得声明本项目“已获律师审核/官方授权/已注册商标/已合规”；不得用声明给第三方施加超出法律与许可的义务。
+
+## 3. 场景速查（完整矩阵见 [DECLARATION-MATRIX.md](./DECLARATION-MATRIX.md)）
+
+| 场景 | 贴哪份声明 | 最低展示位置 |
+|---|---|---|
+| 发布官方美术/角色图 | [CONTENT-POLICY](./CONTENT-POLICY.md) + [AI-CONTENT-POLICY](./AI-CONTENT-POLICY.md) + `LICENSE-ART` | 图角落“AI 生成”+ 元数据 + 图集 `CREDITS` |
+| 发布代码/仓库 | [CONTRIBUTOR-TERMS](./CONTRIBUTOR-TERMS.md) + 根 `LICENSE`/`NOTICE` | 仓库根、About、发行包 |
+| 角色包/DLC（第一方或第三方） | [DLC-AND-PLUGIN-TERMS](./DLC-AND-PLUGIN-TERMS.md) + 模板 | 包内 `LICENSE.txt`/`NOTICE`、包详情页 |
+| 插件/扩展 | 同上（当前仅第一方） | 构建期 allowlist 说明、About |
+| 二创（图/文/视频/直播/周边） | [FANWORK-POLICY](./FANWORK-POLICY.md) + 模板 | 作品简介/置顶评论/视频简介 |
+| 动作/声音/形象替换 | [ASSET-REPLACEMENT-AND-MODDING-POLICY](./ASSET-REPLACEMENT-AND-MODDING-POLICY.md) + 模板 | 包内声明、详情页、下载页 |
+| 举报/下架 | [TAKEDOWN-AND-REPORTING](./TAKEDOWN-AND-REPORTING.md) | 仓库根/官网 `TAKEDOWN` 入口 |
+| 应用内声明（首启/About/2h/TTS/ASR/年龄/隐私/播放器/Mod/危机） | [APP-DISCLOSURE-TEXTS](./APP-DISCLOSURE-TEXTS.md) + [LEGAL-BASELINE](./LEGAL-BASELINE.md) §3 | 首启 1 屏、About、页脚、包加载确认、危机卡片 |
+| 隐私/数据请求 | [PRIVACY](./PRIVACY.md)（对外草案）+ [SECURITY-AND-PRIVACY](./SECURITY-AND-PRIVACY.md)（技术底稿） | 首启/About/商店页、数据请求入口 |
+| 发布前放行 | [RELEASE-BLOCKERS](./RELEASE-BLOCKERS.md) + [APPROVALS](./APPROVALS.md) | 发布清单、批准台账 |
+| 健康使用/roleplay | [CONTENT-POLICY](./CONTENT-POLICY.md) §3A + 短文本 | 2 小时提醒、进入横幅、退出确认、求助资源 |
+
+## 4. 文件索引（22 个，含本索引；另 `review-2026-11-17/` 审查目录 8 份）
+
+| 文件 | 覆盖 | 需律师 |
+|---|---|---|
+| [LEGAL-BASELINE](./LEGAL-BASELINE.md) | **法律基线 L1–L11、禁止行为 B1–B8、七项强制声明、TTS/修改/DLC/健康规则** | **是** |
+| [PRIVACY](./PRIVACY.md) | **对外隐私政策草案 + 数据流/保留/删除/撤回/第三方跨境/Advisers/未成年人/安全事件**（DRAFT；当前缺失如实标注） | **是** |
+| [AI-LABELING](./AI-LABELING.md) | **AI 生成合成内容标识方案**：显式/隐式/音频/图片/导出/商店申报/C2PA·XMP TBD（现状 vs 待办） | **是** |
+| [CONSUMER-MINORS-HEALTH](./CONSUMER-MINORS-HEALTH.md) | **免费 v1 固定条款、退款框架、年龄口径=全年龄不设年龄门（2026-11-17 已拍板）、roleplay 文案禁令、投诉 12377/12315/12356** | **是** |
+| [APPROVALS](./APPROVALS.md) | **批准矩阵**（窗口 flags/256 final/TTS·ASR/DLC/发布/名称商标/CC0/商业）；空白待签，不得伪造 | 是（签署） |
+| [RELEASE-BLOCKERS](./RELEASE-BLOCKERS.md) | **发布阻断逐项**：gate 16 条、真实阻断、安装包/portable 资源清单、旧产物、18 WAV、AI 标识、隐私、许可生效 | 建议 |
+| [APP-DISCLOSURE-TEXTS](./APP-DISCLOSURE-TEXTS.md) | 应用内短文本 canon（首启/About/2h/TTS/ASR/年龄/隐私/播放器标识/Mod/危机）+ 展示频次 | 建议 |
+| [TTS-TERMS](./TTS-TERMS.md) | TTS 使用/再分发/启用确认/禁克隆/标识 | **是** |
+| [CONTENT-POLICY](./CONTENT-POLICY.md) | 内容边界、年龄分级、AI 披露、零容忍项、健康使用 | 建议 |
+| [DLC-AND-PLUGIN-TERMS](./DLC-AND-PLUGIN-TERMS.md) | DLC/角色包/插件条款、签名沙箱、下架、免责 | **是** |
+| [FANWORK-POLICY](./FANWORK-POLICY.md) | 二创允许/禁止、署名、商业化边界、商标 | **是** |
+| [ASSET-REPLACEMENT-AND-MODDING-POLICY](./ASSET-REPLACEMENT-AND-MODDING-POLICY.md) | 动作/声音/形象/行为/UI 替换规则 | **是** |
+| [AI-CONTENT-POLICY](./AI-CONTENT-POLICY.md) | AI 生成/训练/语音披露、法域标识、模型条款 | **是** |
+| [TRADEMARK-AND-NAMING-POLICY](./TRADEMARK-AND-NAMING-POLICY.md) | 名称分层、Orca 禁用、禁止抢注、域名/包名 | **是** |
+| [TAKEDOWN-AND-REPORTING](./TAKEDOWN-AND-REPORTING.md) | 举报流程、材料、时限、临时下架、反通知 | **是** |
+| [CONTRIBUTOR-TERMS](./CONTRIBUTOR-TERMS.md) | DCO/CLA、代码/美术/音频入站、AI 贡献披露 | **是** |
+| [THIRD-PARTY-AND-CREDITS-POLICY](./THIRD-PARTY-AND-CREDITS-POLICY.md) | 第三方台账、字体/TTS/参考图、发布 gate | 建议 |
+| [SECURITY-AND-PRIVACY](./SECURITY-AND-PRIVACY.md) | 存档/记忆/麦克风/遥测、漏洞披露 | **是** |
+| [DECLARATION-MATRIX](./DECLARATION-MATRIX.md) | 场景×声明×展示位置×律师 | 否（流程） |
+| [DECLARATION-TEMPLATES/README](./DECLARATION-TEMPLATES/README.md) | 模板用法、字段字典、必填块、禁项样板 | 否 |
+| [DECLARATION-TEMPLATES/TEMPLATES](./DECLARATION-TEMPLATES/TEMPLATES.md) | 4 份可复制模板（DLC/角色包、插件、二创、改模） | 否 |
+
+## 5. 联系方式（已配置 2026-11-16）
+
+| 用途 | 联系方式 | 备注 |
+|---|---|---|
+| 一般法务/许可询问 | `novelnexusai@outlook.com` | 已配置（2026-11-16） |
+| 侵权/下架通知 | `novelnexusai@outlook.com` | 见 [TAKEDOWN-AND-REPORTING](./TAKEDOWN-AND-REPORTING.md) |
+| 安全漏洞 | `novelnexusai@outlook.com` | 见 [SECURITY-AND-PRIVACY](./SECURITY-AND-PRIVACY.md) |
+| DLC/角色包审核 | `novelnexusai@outlook.com` | 包投稿/上架 |
+| 隐私/数据请求 | `novelnexusai@outlook.com` | 删除权、数据导出 |
+
+> 该邮箱为项目联系渠道（**非**律所/官方/政府渠道）；不得杜撰官方邮箱/客服号/公司名。违法不良信息可向 [12377](https://www.12377.cn/) 举报；紧急情况 110/120；心理援助 12356。
+
+## 6. 维护与变更记录
+
+- 修改本目录须：写明日期、原因、涉及文件、是否已过律师；对外发布前由用户（或书面邮件）确认。
+- 律师意见到位后：删 DRAFT 标记、填入生效日期与主体、同步根 `NOTICE`/`LICENSE-ART`，并把“待律师”改为“已签日期/文件名”。
+- 本目录**不写**价格、分成、法定时限承诺；内部目标值一律标注“内部目标，非承诺”。
+
+| 日期 | 变更 | 状态 |
+|---|---|---|
+| 2026-11-15 | 首版：14 份草案（索引/矩阵/10 政策/2 模板） | draft；待用户 + 律师 |
+| 2026-11-15 | 与 `docs/modding/` 二创开发文档分工：法律侧以本目录为 canon，`docs/modding/` 只链接不复制 | draft |
+| 2026-11-17 | 增 [LEGAL-BASELINE](./LEGAL-BASELINE.md)（L1–L11/B1–B8/七项声明）与 [APP-DISCLOSURE-TEXTS](./APP-DISCLOSURE-TEXTS.md)（应用内短文本）；同步 TTS/Mod/DLC/健康使用/危机入各文件；联系方式改为“已配置” | draft；待用户 + 律师 |
+| 2026-11-17 | 用户协议/安全政策（TOS/SAFETY）由独立任务起草，本目录不复制其条款；存在时以该文件为准 | 分工说明 |
+| 2026-11-17 | 增 [PRIVACY](./PRIVACY.md)/[AI-LABELING](./AI-LABELING.md)/[CONSUMER-MINORS-HEALTH](./CONSUMER-MINORS-HEALTH.md)/[APPROVALS](./APPROVALS.md)/[RELEASE-BLOCKERS](./RELEASE-BLOCKERS.md) 与 `review-2026-11-17/` 合并总表/修补计划；索引 17→22；修正 L5 标识状态、L12 隐私缺项；“标识未落地”不再笼统（显式已落但 8px 不达标，隐式未落） | draft；待用户 + 律师 |
+
+> 本目录全部内容为草案，不是法律意见。

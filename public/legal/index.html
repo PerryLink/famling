@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <meta name="ai-generated" content="Legal package index. All documents are DRAFT engineering drafts, not legal advice." />
+    <meta
+      name="legal-package"
+      content="Canonical app-visible copy: this directory is copied to dist/legal and bundled as the Tauri legal/ resource."
+    />
+    <title>Pagefold / 汀岚 · 法务与声明文档包（DRAFT）</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --paper: #f7f3ec;
+        --ink: #241f1a;
+        --muted: #5c534a;
+        --line: #d8cdbd;
+        --accent: #7a4b2a;
+        --warn: #8a2f1f;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --paper: #171411;
+          --ink: #f2e6d4;
+          --muted: #b9ac9b;
+          --line: #3a332b;
+          --accent: #d8a86a;
+          --warn: #ff9a7a;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font: 15px/1.7 -apple-system, "Segoe UI", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+      }
+      main {
+        max-width: 880px;
+        margin: 0 auto;
+        padding: 32px 20px 64px;
+      }
+      h1 {
+        margin: 0 0 4px;
+        font-size: 24px;
+        line-height: 1.3;
+      }
+      h2 {
+        margin: 32px 0 8px;
+        padding-bottom: 4px;
+        border-bottom: 1px solid var(--line);
+        font-size: 17px;
+      }
+      p {
+        margin: 8px 0;
+      }
+      .kicker {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+        letter-spacing: 0.14em;
+      }
+      .note {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .draft {
+        margin: 16px 0;
+        padding: 10px 14px;
+        border-left: 4px solid var(--warn);
+        background: color-mix(in srgb, var(--warn) 8%, transparent);
+        font-size: 13px;
+      }
+      ul {
+        margin: 8px 0;
+        padding-left: 20px;
+      }
+      li {
+        margin: 4px 0;
+      }
+      a {
+        color: var(--accent);
+        text-underline-offset: 2px;
+      }
+      code {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      footer {
+        margin-top: 40px;
+        padding-top: 12px;
+        border-top: 1px solid var(--line);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="kicker">LEGAL &amp; DISCLOSURES · PACKAGE INDEX</p>
+      <h1>法务与声明文档包（应用内 / 安装包副本）</h1>
+      <p>
+        本页是随应用分发的法务文档索引：同一套文件位于应用内 <code>/legal/</code> 路径、<code>dist/legal/</code> 与安装目录的
+        <code>legal/</code> 资源目录。应用内当前打开的链接都指向 <code>/legal/…</code>，不再引用仓库内未打包的文档目录。
+      </p>
+      <div class="draft" role="note">
+        <strong>DRAFT / 草案 · 非法律意见。</strong>
+        以下文本均为工程草案（部分仍标 DRAFT），未经执业律师审查，不构成法律建议，不得引用为“已批准 / 已获法律意见 / 已合规”。
+        发布门禁（<code>node scripts/legal-check.mjs --strict</code>）在 DRAFT/TBD 清除前会持续拦截公开发布。
+      </div>
+      <p class="note">
+        非官方项目，不关联、未获 DeepSeek 授权或背书；角色/文本/语音多为 AI 生成或合成，不是真人，不构成医疗/心理/法律/财务等专业建议。
+        反馈与侵权举报：novelnexusai@outlook.com · 违法不良信息 12377 · 消费争议 12315 · 心理援助 12356 · 紧急 110/120。
+      </p>
+
+      <h2>核心条款与声明（发布包必需）</h2>
+      <ul>
+        <li><a href="/legal/TOS.md">TOS.md</a> — 使用条款、免责声明与用户同意书</li>
+        <li><a href="/legal/PRIVACY.md">PRIVACY.md</a> — 隐私与个人信息处理说明（草案）</li>
+        <li><a href="/legal/TTS-TERMS.md">TTS-TERMS.md</a> — TTS/ASR 合成语音与语音识别条款</li>
+        <li><a href="/legal/AI-LABELING.md">AI-LABELING.md</a> — AI 生成内容标识说明</li>
+        <li><a href="/legal/AI-CONTENT-POLICY.md">AI-CONTENT-POLICY.md</a> — AI 内容政策</li>
+        <li><a href="/legal/DLC-TERMS.md">DLC-TERMS.md</a> — DLC/角色包/插件与修改条款</li>
+        <li><a href="/legal/TAKEDOWN.md">TAKEDOWN.md</a> — 投诉、下架与举报流程</li>
+        <li><a href="/legal/SECURITY.md">SECURITY.md</a> — 安全与漏洞报告</li>
+        <li><a href="/legal/DECLARATIONS.md">DECLARATIONS.md</a> — 强制声明总表与禁止行为</li>
+      </ul>
+
+      <h2>许可与署名</h2>
+      <ul>
+        <li><a href="/legal/LICENSE.txt">LICENSE.txt</a> — PolyForm Noncommercial 1.0.0 代码许可（纯文本，供安装器许可页）</li>
+        <li><a href="/legal/LICENSE-COMMERCIAL.md">LICENSE-COMMERCIAL.md</a> — 商业授权说明</li>
+        <li><a href="/legal/LICENSE-ART">LICENSE-ART</a> — 美术/设定许可（CC BY-NC-SA 4.0 方向，文本 DRAFT）</li>
+        <li><a href="/legal/NOTICE">NOTICE</a> — 版权与必要声明</li>
+        <li><a href="/legal/CREDITS.md">CREDITS.md</a> — 制作与素材署名</li>
+        <li><a href="/legal/THIRD-PARTY.md">THIRD-PARTY.md</a> — 第三方依赖与素材清单</li>
+        <li><a href="/legal/AI-PROVENANCE.md">AI-PROVENANCE.md</a> — AI 生成溯源与占比说明</li>
+      </ul>
+
+      <h2>配套政策（被上述条款引用）</h2>
+      <ul>
+        <li><a href="/legal/README.md">README.md</a> — 法务文档索引与效力层级</li>
+        <li><a href="/legal/LEGAL-BASELINE.md">LEGAL-BASELINE.md</a> — 法律基线、禁止矩阵与七项强制声明</li>
+        <li><a href="/legal/DECLARATION-MATRIX.md">DECLARATION-MATRIX.md</a> — 场景 × 声明位置矩阵</li>
+        <li><a href="/legal/APP-DISCLOSURE-TEXTS.md">APP-DISCLOSURE-TEXTS.md</a> — 应用内短文本（中英）与展示频次</li>
+        <li><a href="/legal/CONTENT-POLICY.md">CONTENT-POLICY.md</a> — 内容政策</li>
+        <li><a href="/legal/SAFETY.md">SAFETY.md</a> — 安全边界与危机处理</li>
+        <li><a href="/legal/SECURITY-AND-PRIVACY.md">SECURITY-AND-PRIVACY.md</a> — 安全与隐私技术底稿</li>
+        <li><a href="/legal/CONSUMER-MINORS-HEALTH.md">CONSUMER-MINORS-HEALTH.md</a> — 消费者、未成年人与健康使用</li>
+        <li><a href="/legal/APPROVALS.md">APPROVALS.md</a> — 待批准事项清单</li>
+        <li><a href="/legal/RELEASE-BLOCKERS.md">RELEASE-BLOCKERS.md</a> — 发布阻塞项</li>
+        <li><a href="/legal/ASSET-REPLACEMENT-AND-MODDING-POLICY.md">ASSET-REPLACEMENT-AND-MODDING-POLICY.md</a> — 素材替换/改模政策</li>
+        <li><a href="/legal/FANWORK-POLICY.md">FANWORK-POLICY.md</a> — 二创政策</li>
+        <li><a href="/legal/TRADEMARK-AND-NAMING-POLICY.md">TRADEMARK-AND-NAMING-POLICY.md</a> — 名称/商标政策</li>
+        <li><a href="/legal/CONTRIBUTOR-TERMS.md">CONTRIBUTOR-TERMS.md</a> — 贡献者条款</li>
+        <li><a href="/legal/THIRD-PARTY-AND-CREDITS-POLICY.md">THIRD-PARTY-AND-CREDITS-POLICY.md</a> — 第三方与署名政策</li>
+      </ul>
+
+      <h2>参考资料</h2>
+      <ul>
+        <li>
+          <a href="/legal/AI-COMPANION-REGULATION-2026-11-16.md">AI-COMPANION-REGULATION-2026-11-16.md</a>
+          — 拟人化互动/AI 陪伴合规研究（仓库研究稿，非生效条款）
+        </li>
+      </ul>
+
+      <footer>
+        <p class="note">
+          DRAFT 文本不产生权利义务；发布/商业化前须由执业律师定稿（见 <a href="/legal/RELEASE-BLOCKERS.md">RELEASE-BLOCKERS.md</a>）。
+          应用内入口：<a href="/pet.html">桌宠</a> · <a href="/setup.html">配置与声明</a> ·
+          <a href="/chat-import.html">导入会话声明</a>。
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>

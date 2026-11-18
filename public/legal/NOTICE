@@ -1,0 +1,279 @@
+Famling — NOTICE
+
+> **2026-11-18 公开导出边界（本仓当前状态）**：本公开导出已按清理方案 A 移除全部预生成 TTS 音频（42 WAV + manifest）、游戏内容包（`packs/`）、DLC 校验链（`native/dlc-verify`）与未使用 kernel 模块；本导出**不随包分发任何音频 / DLC / 游戏基座**。下文历史统计（18/42 WAV、baked pack、随包授权等）保留作私有 mono-repo 的历史记录，**不代表本公开导出当前内容**；音频再分发条款仍为 TBD。
+
+Copyright (c) 2026 PerryLink contributors
+
+Required Notice: Copyright (c) 2026 PerryLink contributors
+
+Status: DRAFT (2026-11-17) — project declarations by the owner (PerryLink) are
+recorded here, but this NOTICE is NOT a lawyer-approved or effective licensing
+opinion and must not be quoted as such. Legal review is deferred (owner decision
+2026-11-16). Until counsel confirms, do not describe any DRAFT item as
+"approved", "cleared", "published" or "compliant". See docs/LEGAL-STATUS-2026-11-15.md.
+
+---------------------------------------------------------------------------
+1. Code license (baseline repository)
+---------------------------------------------------------------------------
+
+The source code in this repository is licensed under the PolyForm Noncommercial
+License 1.0.0 (see LICENSE). Commercial use requires a separate written license
+(see LICENSE-COMMERCIAL.md). This is source-available, NOT OSI open source.
+
+Superseded plan (kept only to prevent confusion): an earlier draft intended to
+license the desktop-pet / Famling layer under Apache-2.0 in a separate repository.
+That plan was replaced by the owner's 2026-11-16 decision to use PolyForm
+Noncommercial 1.0.0 for the base code; no Apache-2.0 grant is made or promised by
+this repository. Do not describe this repository as "Apache-2.0" or "open source".
+If a future relicensing happens, it will be stated explicitly with a date and an
+effective text; this NOTICE grants nothing retroactively.
+
+---------------------------------------------------------------------------
+2. Orca OC / Tinglan art and setting materials (project declaration, DRAFT)
+---------------------------------------------------------------------------
+
+Orca OC / 汀岚 is an original character by PerryLink (working names; final
+character and product names are not decided).
+
+Owner decision 2026-11-16: the character art, setting and pixel packs are to be
+released under Creative Commons Attribution-NonCommercial-ShareAlike 4.0
+International (CC BY-NC-SA 4.0), SPDX identifier CC-BY-NC-SA-4.0. The licence text
+in LICENSE-ART is still marked DRAFT and has NOT been reviewed by counsel. What is
+decided is the project's licensing direction; what is still open is lawyer review,
+name/trademark clearance and the release gate. Do not quote this section as an
+already-effective public licence while LICENSE-ART remains DRAFT; treat it as a
+project declaration and, in case of conflict, follow docs/legal/README.md R1–R6.
+
+This licence allows noncommercial sharing and adaptation only, with attribution,
+an indication of modifications, and ShareAlike (derivatives under the same
+licence). Commercial use is not allowed without a separate written licence.
+CC BY-NC-SA 4.0 is irrevocable once applied. AI-generated images: copyrightability
+is uncertain in China, the US and the EU; attribution is a license condition only
+to the extent copyright applies. Provenance is recorded in AI-PROVENANCE.md;
+attribution examples are in CREDITS.md.
+
+Orca OC art is currently kept outside this repository; no Orca OC master image is
+tracked in git as of 2026-11-17. AI-generated concept/placeholder frames that are
+tracked (e.g. public/assets/pet/tinglan-256/, marked placeholder:true/final:false)
+are internal placeholders and derived files, not final art, and must not be
+presented as final or used as store art before the release gate below.
+
+Known open items in this section (must not be represented as cleared):
+- The Pixiv CC0 claim (user 131049875, "part of the Tinglan material") has NO
+  per-file URL/date/file list in this repository and is NOT verifiable as recorded.
+  Until the author provides a per-file list, no file may be labelled CC0. See
+  ASSET-LICENSES.md and docs/legal/review-2026-11-17/03-ip-licenses.md P0-6.
+- Pearl / 溟月-chain materials have a separate upstream rights chain with
+  attribution/share-alike obligations that this project has NOT cleared; the
+  Pearl placeholder pack is excluded from every public/commercial release.
+- Product/character names "Pagefold", "折角", "DesktopGames" and "Famling" are
+  working names, NOT trademark-cleared; only "Orca" has a public-search warning
+  recorded (section 3). Do not use any of them as a public product/app/store
+  name before an official search and legal review.
+
+---------------------------------------------------------------------------
+3. Names, logos, trademarks (not licensed)
+---------------------------------------------------------------------------
+
+No trademark, service mark, trade name, domain name or logo rights are granted
+under this repository or under LICENSE-ART. "Orca" is NOT cleared for use as a
+product name, app/store name, repository name, npm package name, domain or
+trademark: public search (2026-11-15 snapshot, not an official trademark search)
+found an earlier Chinese class-42 registration "ORCA" (registration no. 37783319),
+other ORCA / BABY ORCA marks, a similarly named AI product (stablyai/orca), and
+registered orca.* domains. See docs/LEGAL-STATUS-2026-11-15.md §4.
+
+"Orca OC" / "汀岚" may be used as descriptive character references only, with the
+non-official statement in section 7 and without implying endorsement. Any public
+product name must be chosen after an official trademark search and legal review.
+Working names currently used in the UI/installer ("Pagefold", "折角",
+"DesktopGames", "Famling") are NOT cleared trademark uses and must not be
+presented as a product/brand name in a public release until cleared.
+
+Do not use DeepSeek logos, wordmarks, favicons, the fish mark, or the official
+whale-girl mascot. Do not describe this project as "official", "partner",
+"authorized", "official mascot", or "DeepSeek".
+
+---------------------------------------------------------------------------
+4. Third-party components
+---------------------------------------------------------------------------
+
+See THIRD-PARTY.md for the full inventory and open items. Main components
+(not exhaustive; see lockfiles for exact versions):
+
+- cordis — MIT — https://github.com/cordiverse/cordis
+- pixi.js — MIT — https://github.com/pixijs/pixijs
+- Tauri — MIT or Apache-2.0 — https://github.com/tauri-apps/tauri
+- steamworks-rs — MIT or Apache-2.0 — https://github.com/Noxime/steamworks-rs
+- Vite — MIT — https://github.com/vitejs/vite
+- TypeScript — Apache-2.0 — https://github.com/microsoft/TypeScript
+- esbuild — MIT — https://github.com/evanw/esbuild
+
+Other direct dependencies include @sentry/browser (MIT), @tauri-apps/api
+(Apache-2.0 OR MIT), ajv (MIT), electron (MIT), fake-indexeddb (Apache-2.0),
+tsx (MIT), @types/node (MIT). Rust crates include serde/serde_json (MIT OR
+Apache-2.0), reqwest (MIT OR Apache-2.0), base64 (MIT OR Apache-2.0),
+windows-sys (MIT OR Apache-2.0), ed25519-dalek (BSD-3-Clause), sha2 (MIT OR
+Apache-2.0), plus their transitive dependencies from Cargo.lock.
+
+Bundled OS/runtime components: Electron builds must ship Electron/Chromium
+license notices (LICENSES.chromium.html or equivalent) if Electron is
+distributed. The Tauri build uses the system WebView2 runtime on Windows; do not
+bundle WebView2 unless its terms are checked.
+
+The Steamworks SDK is proprietary to Valve and is not included in this
+repository. It must not be committed or distributed with public builds.
+
+This public export ships **no TTS audio**. The 42 pre-generated DeepSeek TTS
+WAVs (and their manifest) that existed in the private mono-repo were removed on
+2026-11-18 by the public-boundary cleanup (plan A). No audio file is tracked,
+built into `dist/`, or bundled with the installer; older archives or clips are
+not part of this repository. Any future audio (cloud/system TTS at runtime) is
+synthetic AI voice, is not a human recording, and must be labelled as
+AI-generated. Redistribution terms for DeepSeek TTS output remain TBD; see
+`docs/legal/TTS-TERMS.md`.
+
+---------------------------------------------------------------------------
+5. Assets: what is distributed vs excluded (accurate as of 2026-11-17)
+---------------------------------------------------------------------------
+
+- Pearl / 溟月-chain materials: Pearl AI drafts and the runtime placeholder pack
+  public/assets/pet/pearl-placeholder/ are INTERNAL PLACEHOLDERS. Note the
+  as-built fact: 37 files of that placeholder pack (36 frames + manifest) are
+  currently tracked in git and may be copied into builds if packaging is not
+  restricted. They are placeholder-only and will be removed or replaced before
+  any public release; they are excluded from the CC BY-NC-SA 4.0 character
+  grant, are not open-source assets, and must not be sold, relicensed, or
+  treated as final art. The Pearl character chain is associated with separate
+  upstream terms (non-commercial, share-alike) and must not be relicensed by
+  this project or used commercially. Do not publish "Orca is a redesign of
+  Pearl".
+- Community reference images in art/_placeholder/refs/ (gitignored, not
+  distributed). Several are fan art with unknown or non-commercial licenses;
+  they must never be shipped, used in marketing, or uploaded as generation
+  references for release assets.
+- Fonts are not bundled; the app uses the OS font stack (Segoe UI / Microsoft
+  YaHei / ui-* / monospace).
+- Colors themselves are not copyrightable; avoid the external label "DSH blue"
+  and prefer "orca blue / ocean blue".
+- Retail/distribution packages must include LICENSE-ART, CREDITS.md,
+  THIRD-PARTY.md and AI-PROVENANCE.md in addition to the four files currently
+  bundled; see docs/audit/NONART-PRODUCT-AUDIT-2026-11-17.md C3.
+
+---------------------------------------------------------------------------
+6. AI-generated content disclosure
+---------------------------------------------------------------------------
+
+Orca OC concept art and variants were generated with an AI image model
+(openai/gpt-image-2.6-sunburst via OpenRouter Images API) on 2026-11-14/15 and
+then screened/processed by the author. Voice pilot audio was generated with the
+DeepSeek TTS API (voice "stella") on 2026-11-14. Placeholder sprite packs are
+generated deterministically by scripts (no image model).
+
+AI labelling is mandatory, not optional. Under China's AI-generated content
+labelling rules (effective 2025-09-01) and GB 45438-2025, AI content needs both
+explicit labels (visible text/badge) and implicit labels (metadata); labels must
+not be deleted, hidden or forged. Platform terms (DeepSeek platform terms, Steam
+content survey for pre-generated and live AI, Apple/Google store policies where
+applicable) and EU AI Act Article 50 (applicable from 2026-08-02) also apply. Do
+not present AI-generated art or voice as human-made or as real recordings. The
+final disclosure plan is pending legal review.
+
+As-built status (2026-11-17, must not be overstated):
+- Explicit in-app badge: one small "AI 合成·非真人" badge exists (pet.html), but
+  it is 8px / ~2.17:1 contrast and not reachable by hover/keyboard — below the
+  "significant label" standard.
+- Implicit labels: NOT implemented. No PNG tEXt/XMP/IPTC/C2PA writer exists in
+  this repository; flagged images and audio carry no machine-readable AI label.
+- Audio label: no player label / spoken start prompt / earcon is implemented; the
+  "AI voice · synthetic" text exists only as an unused constant.
+- Export labels: NOT implemented (no export pipeline for AI audio/images).
+- The TOS does not yet state the labelling method/style required by the Chinese
+  labelling measures; a draft method is in docs/legal/AI-LABELING.md (DRAFT).
+- Store AI declarations have not been made (no store release).
+- C2PA vs XMP/tEXt/IPTC is still TBD. Do not claim "C2PA" or "metadata added".
+
+Synthetic voice must additionally be disclosed at first use and labelled in the
+player/UI ("AI voice / synthetic"), and any exported audio must carry the label.
+Voice cloning of real people is prohibited without written authorisation.
+
+Provenance records: AI-PROVENANCE.md (Orca, Pearl, TTS). Do not include API keys
+in any provenance file.
+
+---------------------------------------------------------------------------
+7. Unofficial / no affiliation (must be shown on public releases)
+---------------------------------------------------------------------------
+
+Orca OC / Tinglan is an original character by PerryLink. This is an unofficial
+project and is not affiliated with, endorsed by, or authorized by DeepSeek
+(深度求索). No DeepSeek logos, wordmarks, or official mascots are used.
+
+Orca OC / 汀岚 是 PerryLink 的原创角色。本项目为非官方项目，与 DeepSeek（深度求索）
+无任何关联、合作、授权或背书关系；不使用 DeepSeek 官方 Logo、字标或官方鲸鱼娘
+形象。
+
+---------------------------------------------------------------------------
+8. Mandatory product declarations (summary; full texts in docs/legal/)
+---------------------------------------------------------------------------
+
+The following must be declared in-app and in releases (canonical short texts:
+docs/legal/APP-DISCLOSURE-TEXTS.md):
+
+- AI, not a real person; AI-generated content may be wrong and must be labelled.
+- Not medical, psychological, legal or financial advice; consult a real
+  professional. No diagnosis, therapy, or guaranteed confidentiality.
+- Role-play / emotional-support mode is 18+ only; no virtual partner/relative
+  intimacy for minors; no inducing dependency, romance or paid relationship
+  unlocks.
+- Continuous use: remind the user to take a break every 2 hours; provide easy
+  exit, voice/memory controls, and a quiet night mode.
+- Crisis: stop role-play and refer to emergency services (110/120), trusted
+  people, and professional support (12356 mental-health hotline in China).
+- Mods/DLC: every load or modification must re-display this disclaimer and get
+  confirmation; authors must keep the declaration in their code/package/README,
+  must not remove safety or consent gates, and are responsible for content,
+  licensing and provenance. Ordinary data-only packs; no executable code.
+- TTS: synthetic voice, may make mistakes, costs/privacy apply, must not be used
+  for illegal activity, impersonation or fraud; enabling or changing voice
+  settings requires fresh user confirmation; no cloning of unauthorised voices.
+
+Legal baseline (11 instruments incl. Civil Code, Criminal Law, Public Security
+Administration Punishments Law, Cybersecurity Law, Data Security Law, PIPL,
+Regulations on the Protection of Minors in Cyberspace, Deep Synthesis
+Provisions, AI-Generated Content Labelling Measures, the AI Anthropomorphic
+Interaction Measures, and "Qinglang" campaign requirements): see
+docs/legal/LEGAL-BASELINE.md. Prohibited: illegal content; infringement;
+minor sexualisation/CSAM; self-harm or violence encouragement; fraud; privacy
+violations; impersonating officials or implying DeepSeek affiliation; bypassing
+safety review or removing AI labels/consent gates.
+
+---------------------------------------------------------------------------
+9. Contact / status
+---------------------------------------------------------------------------
+
+Owner: PerryLink. Contact for legal/licensing/takedown/privacy/security:
+novelnexusai@outlook.com (configured 2026-11-16; this is a project contact, not a
+law-firm or government channel). Report illegal/harmful content to the platform
+and to 12377; emergencies: 110/120.
+
+Privacy / data status (as-built 2026-11-17):
+- There is NO published privacy policy. A draft policy exists at
+  docs/legal/PRIVACY.md and is marked DRAFT / not effective / not lawyer-reviewed.
+- Voice input (PTT) currently records and uploads audio to the DeepSeek ASR API
+  WITHOUT a dedicated in-app notice, consent, toggle or quota. Do not describe
+  privacy/ASR consent as implemented; release must either implement it or disable
+  cloud ASR/TTS.
+- Withdrawing consent and "delete all local data" are NOT implemented; only
+  per-item deletes exist (save / voice cache / digest). Uninstall cleanup is not
+  configured. Do not claim these rights are available in-app.
+- TTS/ASR provider terms (retention, training, cross-border) are TBD.
+
+Legal status, open lawyer questions and the pre-publication checklist:
+docs/LEGAL-STATUS-2026-11-15.md (that file still contains known factual errors
+about CC BY-NC-SA — see docs/legal/review-2026-11-17/03-ip-licenses.md §5).
+Release blockers: docs/legal/RELEASE-BLOCKERS.md. Approval ledger (all blank):
+docs/legal/APPROVALS.md. Public repository status and release evidence:
+see docs/PUBLIC-REPO-2026-11-16.md; this NOTICE does not claim that a build,
+store listing or public release exists.
+
+This NOTICE is a draft (2026-11-17) and is not an approved legal document.
