@@ -18,10 +18,10 @@ jobs:
         run: |
           npm install --no-save @tauri-apps/cli@2
           $v = node -p "require('@tauri-apps/cli/package.json').version"
-          npm install --no-save "@tauri-apps/cli-win32-x64-msvc@$v"
+          npm install --no-save "@tauri-apps/cli@$v" "@tauri-apps/cli-win32-x64-msvc@$v"
       - name: Build Tauri (unsigned)
         working-directory: app/tauri
-        run: npx tauri build
+        run: npx --no-install tauri build
       - uses: actions/upload-artifact@v4
         with:
           name: famling-pet-windows-unsigned
