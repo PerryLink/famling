@@ -1,5 +1,7 @@
 # 布偶猫（Ragdoll）像素动画包（2026-11-18）
 
+> 历史版本：2026-11-18 后续用户设定改为塞尔凯克卷毛猫（Selkirk Rex），当前有效设计见 `docs/design/CAT-SELKIRK-2026-11-18.md`。
+
 - 范围：`public/assets/pet/anim/cat/`（96×96、12 clips / 68 帧、anchor 48/96、footBox `[-36,-18,72,18]`、地线 y=89）由独立渲染器 `scripts/cat_ragdoll.py` + 独立生成器 `scripts/gen-cat-anim.py` 确定性生成；manifests/帧表/资源路径与 v7 金毛包同一 `famling.pet-anim/0.1` 契约。
 - 不改：`scripts/gen-pet-anim-frames.py`、`scripts/dog_golden5.py`、dog/human 动画包、`src/**`、`pet.html/pet.css/main.ts/hero-runtime.ts`；不 commit、不新增 npm 依赖。
 - 生成器：`scripts/gen-cat-anim.py`（PIL + numpy，纯整数图元，无随机/网络/模型）；渲染器：`scripts/cat_ragdoll.py`。

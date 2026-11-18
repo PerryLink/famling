@@ -35,6 +35,7 @@ import {
   type HeroStatus,
 } from './hero-runtime.ts'
 import { startTinglanPreview } from './tinglan-preview.ts'
+import { resolveHeroRegionReaction, type HeroRegionReaction } from './anim/regions.ts'
 import { shouldStartWindowDrag } from './hero-drag.ts'
 import { loadDigest } from './chat-import/store.ts'
 import {
@@ -751,6 +752,18 @@ function doPat(actorId?: string): void {
   state = patPet(state, now())
   hero?.emit('pat', actorId ? { actorId } : {})
   sayLater(pick(lines.pat), 'happy')
+  render()
+}
+
+/**
+ * Data-driven hero tap reaction (regions.json): head pets, body stretches/wags,
+ * tail chases; non-idle/undefined zones are no-ops. Keeps the public build in
+ * sync with the private region architecture.
+ */
+function doHeroRegionTouch(actorId: string, reaction: HeroRegionReaction): void {
+  state = patPet(state, now())
+  hero?.emit(reaction.event, { actorId })
+  sayLater(reaction.say ?? pick(lines.pat), 'happy')
   render()
 }
 
@@ -1788,11 +1801,17 @@ function attachHeroPointer(canvas: HTMLCanvasElement): void {
     const elapsed = performance.now() - startedAt
     if (!wasDragging && elapsed < 500) {
       const point = localPoint(event)
-      const target = hero.hitActor(point.x, point.y)
-      // Tap = pat: the kernel/bond/speech side effects stay exactly the old
-      // `doPat` path; hero only adds the visual cue for the tapped actor.
-      if (target) doPat(target.id)
-      else hero.emit('click')
+      const hit = hero.hitRegion(point.x, point.y)
+      if (hit) {
+        const actorState = hero.actorState(hit.actor.id) ?? 'idle'
+        const config = hit.actor.bundle.regions
+        const reaction = config ? resolveHeroRegionReaction(config, hit.region.id, actorState, 'tap') : null
+        if (reaction) doHeroRegionTouch(hit.actor.id, reaction)
+      } else {
+        const target = hero.hitActor(point.x, point.y)
+        if (target && !target.bundle.regions) doPat(target.id)
+        else if (!target) hero.emit('click')
+      }
     }
     endPointer(event)
   })

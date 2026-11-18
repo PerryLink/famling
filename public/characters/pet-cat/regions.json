@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "canvas": [
+    96,
+    96
+  ],
+  "regions": [
+    {
+      "id": "head",
+      "label": "头",
+      "rect": [
+        34,
+        18,
+        32,
+        34
+      ],
+      "priority": 30
+    },
+    {
+      "id": "tail",
+      "label": "尾巴",
+      "rect": [
+        68,
+        52,
+        26,
+        34
+      ],
+      "priority": 20
+    },
+    {
+      "id": "body",
+      "label": "身体",
+      "rect": [
+        22,
+        50,
+        56,
+        38
+      ],
+      "priority": 10
+    }
+  ],
+  "gestures": [
+    {
+      "region": "head",
+      "states": [
+        "idle",
+        "idle_blink"
+      ],
+      "gesture": "tap",
+      "event": "pat",
+      "say": "嗯……可以。"
+    },
+    {
+      "region": "body",
+      "states": [
+        "idle",
+        "idle_blink"
+      ],
+      "gesture": "tap",
+      "event": "stand_wag",
+      "say": "别碰肚子。伸个懒腰算了。"
+    },
+    {
+      "region": "tail",
+      "states": [
+        "idle",
+        "idle_blink"
+      ],
+      "gesture": "tap",
+      "event": "chase_tail",
+      "say": "尾巴……随它去。"
+    }
+  ]
+}

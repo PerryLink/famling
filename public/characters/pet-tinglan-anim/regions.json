@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "canvas": [
+    96,
+    96
+  ],
+  "regions": [
+    {
+      "id": "head",
+      "label": "头",
+      "rect": [
+        34,
+        8,
+        34,
+        38
+      ],
+      "priority": 30
+    },
+    {
+      "id": "tail",
+      "label": "尾/身后",
+      "rect": [
+        58,
+        60,
+        32,
+        24
+      ],
+      "priority": 20
+    },
+    {
+      "id": "body",
+      "label": "身体",
+      "rect": [
+        24,
+        44,
+        48,
+        44
+      ],
+      "priority": 10
+    }
+  ],
+  "gestures": [
+    {
+      "region": "head",
+      "states": [
+        "idle",
+        "idle_blink"
+      ],
+      "gesture": "tap",
+      "event": "pat",
+      "say": "嗯。"
+    },
+    {
+      "region": "body",
+      "states": [
+        "idle",
+        "idle_blink"
+      ],
+      "gesture": "tap",
+      "event": "stand_wag",
+      "say": "在忙呢，稍等。"
+    },
+    {
+      "region": "tail",
+      "states": [
+        "idle",
+        "idle_blink"
+      ],
+      "gesture": "tap",
+      "event": "chase_tail",
+      "say": "看什么呢？"
+    }
+  ]
+}

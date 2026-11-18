@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "canvas": [
+    96,
+    96
+  ],
+  "regions": [
+    {
+      "id": "head",
+      "label": "头",
+      "rect": [
+        30,
+        12,
+        40,
+        38
+      ],
+      "priority": 30
+    },
+    {
+      "id": "tail",
+      "label": "尾巴",
+      "rect": [
+        70,
+        50,
+        26,
+        34
+      ],
+      "priority": 20
+    },
+    {
+      "id": "body",
+      "label": "身体",
+      "rect": [
+        20,
+        48,
+        58,
+        40
+      ],
+      "priority": 10
+    }
+  ],
+  "gestures": [
+    {
+      "region": "head",
+      "states": [
+        "idle",
+        "idle_blink"
+      ],
+      "gesture": "tap",
+      "event": "pat",
+      "say": "好舒服！再摸一下！"
+    },
+    {
+      "region": "body",
+      "states": [
+        "idle",
+        "idle_blink"
+      ],
+      "gesture": "tap",
+      "event": "stand_wag",
+      "say": "痒！尾巴停不下来！"
+    },
+    {
+      "region": "tail",
+      "states": [
+        "idle",
+        "idle_blink"
+      ],
+      "gesture": "tap",
+      "event": "chase_tail",
+      "say": "追到尾巴啦！"
+    }
+  ]
+}

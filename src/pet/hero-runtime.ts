@@ -38,6 +38,7 @@ import {
   type LoadedCharacter,
 } from './character/index.ts'
 import { frameIndexFor, validateCharacterPack, type CharacterPackData, type CharacterTag } from './hero.ts'
+import { heroRegionHitAt, parseHeroRegionConfig, type HeroRegionConfig, type HeroRegionHit } from './anim/regions.ts'
 import {
   CANVAS_SIZE_ALIGNMENT,
   CANVAS_SIZE_MAX,
@@ -74,7 +75,7 @@ export const HERO_STORAGE_KEY = 'desktop-games/pet/hero'
  * Persisted hero character selection (`desktop-games/pet/heroCharacter`).
  *
  * Written by the desktop-shell renderer menu (`渲染器：金毛（动画）` sets
- * `'dog'`, `渲染器：布偶猫（动画）` sets `'cat'`, `渲染器：汀岚（动画）`
+ * `'dog'`, `渲染器：塞尔凯克卷毛猫（动画）` sets `'cat'`, `渲染器：汀岚（动画）`
  * sets `'humanoid'`), read here only when the URL has no `?character=`. Values are
  * restricted to `HERO_CHARACTER_IDS`; anything else resolves to the default
  * (`humanoid`) so a stale/typo'd preference can never break the page.
@@ -125,7 +126,7 @@ export const HERO_CHARACTER_SOURCES: Readonly<Record<HeroCharacterId, HeroCharac
     dir: '/characters/pet-tinglan-anim/',
     canvasTarget: [DEFAULT_HUMANOID_CANVAS, DEFAULT_HUMANOID_CANVAS],
   },
-  cat: { id: 'cat', label: '布偶猫（动画占位）', dir: '/characters/pet-cat/' },
+  cat: { id: 'cat', label: '塞尔凯克卷毛猫（动画占位）', dir: '/characters/pet-cat/' },
   dog: { id: 'dog', label: '金毛（动画占位 v7）', dir: '/characters/pet-dog/' },
   tinglan: {
     id: 'tinglan',
@@ -320,6 +321,8 @@ export interface HeroCharacterBundle {
   readonly pack: RenderPackRef
   /** Animation tag metadata straight from the pack manifest. */
   readonly tags: Readonly<Record<string, CharacterTag>>
+  /** Optional per-character tap regions (art pixels; absent = legacy whole-actor tap). */
+  readonly regions?: HeroRegionConfig
   /**
    * Actual pack art canvas in logical pixels (96×96 for the shipped placeholders,
    * 128×128 for the tinglan profile). Layout/render always use this value.
@@ -419,6 +422,31 @@ export async function loadHeroBundle(key: HeroCharacterId, options: LoadHeroOpti
   // can read `canvasTarget`.
   const canvasTarget = character.document.canvasTarget ?? source.canvasTarget
 
+  // Optional tap-region file beside character.json/behavior.json. Missing (404)
+  // keeps the legacy whole-actor tap for third-party packs; a malformed file
+  // fails closed instead of silently accepting bad coordinates.
+  const characterBase = new URL(
+    characterDir.endsWith('/') ? characterDir : `${characterDir}/`,
+    options.resolveBase ?? currentPageBase(),
+  ).toString()
+  const regionsUrl = new URL('regions.json', characterBase).toString()
+  let regions: HeroRegionConfig | undefined
+  try {
+    const response = await fetcher(regionsUrl)
+    if (response.ok) {
+      try {
+        regions = parseHeroRegionConfig(await response.json())
+      } catch (error) {
+        throw new HeroRuntimeError(`character "${key}" has an invalid regions.json: ${messageOf(error)}`)
+      }
+    } else if (response.status !== 404) {
+      throw new HeroRuntimeError(`character "${key}" regions.json failed to load: HTTP ${response.status}`)
+    }
+  } catch (error) {
+    if (error instanceof HeroRuntimeError) throw error
+    // Network failure for an optional file: keep the legacy tap behaviour.
+  }
+
   return {
     key,
     character,
@@ -426,6 +454,7 @@ export async function loadHeroBundle(key: HeroCharacterId, options: LoadHeroOpti
     tags: data.tags,
     canvas: [data.canvas[0], data.canvas[1]],
     ...(canvasTarget !== undefined ? { canvasTarget: [canvasTarget[0], canvasTarget[1]] as const } : {}),
+    ...(regions !== undefined ? { regions } : {}),
   }
 }
 
@@ -609,6 +638,10 @@ export interface HeroActorRuntime {
   /** Draw box, CSS pixels (`pack.canvas * scale`). */
   readonly width: number
   readonly height: number
+}
+
+export interface HeroRegionActorHit extends HeroRegionHit {
+  readonly actor: HeroActorRuntime
 }
 
 export interface HeroEmitOptions {
@@ -857,6 +890,30 @@ export class HeroRuntime {
     if (!Number.isFinite(x) || !Number.isFinite(y)) return null
     for (const entry of this.sortedEntries().reverse()) {
       if (x >= entry.x && x < entry.x + entry.width && y >= entry.y && y < entry.y + entry.height) return entry
+    }
+    return null
+  }
+
+  /** Current behavior state for one actor (null if the actor does not exist). */
+  actorState(actorId: string): string | null {
+    const entry = this.entryById.get(actorId)
+    if (!entry) return null
+    return this.scene.get(entry.id).behavior.state
+  }
+
+  /**
+   * Topmost actor + tap region under this canvas-local CSS point. The point is
+   * converted back to ART pixels by the actor's layout scale, so the regions
+   * stay identical at 1x/2x/4x. Returns null for transparent zones, actors
+   * without a regions file, or points outside every declared region.
+   */
+  hitRegion(x: number, y: number): HeroRegionActorHit | null {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null
+    for (const entry of this.sortedEntries().reverse()) {
+      const config = entry.bundle.regions
+      if (!config) continue
+      const hit = heroRegionHitAt(entry, config, x, y)
+      if (hit) return { actor: entry, ...hit }
     }
     return null
   }

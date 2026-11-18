@@ -404,3 +404,12 @@ docs/design/PET-ANIMATION-2026-11-18.md   ← 本文件
 - **正面脸部**：椭圆眼（上下 2px 收边）+ 深棕瞳孔 1px + 1px 白色 catch-light；耳根与头骨交界 1px 折痕；blink/half/wide/side 同步；鼻/嘴/胸毛沿用 v7。
 - 门禁：`--only dog --check` ok、`tests/pet-anim.test.ts` 16/16、`tsc --noEmit` 通过；68/68 唯一帧、底边 y=89、硬 alpha、≤14 色、非 FX 轮廓缺口 0、内部黑线 0；manifest 字节不变。
 - 预览与证据：`_scratch/pet-anim-dog-v8-preview/`（1x/4x contact sheet + 12 GIF + METRICS-v8.md + VERIFY-OUTPUT.txt + LIMB-AUDIT.txt）。
+
+## 12. 金毛占位美术 v9 写实化打磨（2026-11-18，用户补发参考图 golden-user.png）
+
+- **比例**：正面头部整体缩到 v8 的 0.88（`HEAD_SCALE`，用 96×96 临时画布最近邻缩放后贴回），侧视 0.90（`SIDE_HEAD_SCALE`）：正面头+耳 43→37px、头宽/躯干 0.91→0.79、头高/总高 35%→30%；躯干底 y=72→69（可见前腿 11→14px）；总高 76（地面 y=89 不变）。
+- **头部**：垂耳缩短到下颌（耳高 20→13px、外缘仍过眼线）、黑鼻头 `#171310`（原 #2b2018 偏棕）、杏仁形深棕小眼（正面 eye 18px + 2px catch-light；侧视 3×3 + 1px 高光）、2px 额段 stop、口吻收窄（正面 16→13px、侧视 13px）；侧头同样缩到 0.90。
+- **金色长毛 / feathering**：颈胸围毛（颈侧 light/belly 阶梯绒 + 胸 V 羽状尖 + 金边）、腹/腿后缘羽状饰毛（前腿后缘 1px 阶梯绒，idle 腿区 23px）、臀侧羽状绒、耳下缘/耳顶绒、额头饰毛；尾巴改为金色羽状大尾（正视 11×10 羽扇 + 5 组奶油羽、侧视 8/7/5px 蓬松尾 + 4 层奶油羽，侧视尾区奶油 16px）；侧面胸/腹/后腿共有 115px 奶油绒。
+- **保持 v8 修复**：抬爪/抬腿时同侧地面肢体不重复（paw_face/ball_throw/scratch/attack 全部通过 limb audit，0 重复）；walk 8 帧每帧恰好 1 脚离地、run f0/f4 腾空；12 clip/68 帧/96×96/anchor/footBox/地线 89 全保持。
+- 门禁：`--only dog --check` ok、`tests/pet-anim.test.ts` 16/16、`npx tsc --noEmit` 通过；68/68 唯一帧、底边全 89、硬 alpha、≤14 色、非 FX 轮廓缺口 0、内部黑线 0、bbox 边距 11/8/5/6；`manifest.json` 字节未变。
+- 预览与证据：`_scratch/pet-anim-dog-v9-preview/`（1x/4x contact sheet + 12 GIF + METRICS-v9.md + VERIFY-OUTPUT.txt + LIMB-AUDIT.txt + measure9.py）。
