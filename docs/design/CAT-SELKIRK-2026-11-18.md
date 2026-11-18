@@ -120,3 +120,16 @@ cd /mnt/d/Projects/dsh/_scratch/pet-anim-cat-selkirk-preview && python3 gen_prev
 | `tests/pet-anim-cat.test.ts` | 10 tests（契约/磁盘/像素预算/Selkirk 调色板/卷毛/轮廓/同侧肢体/确定性） |
 | `docs/design/CAT-SELKIRK-2026-11-18.md` | 本文件 |
 | `_scratch/pet-anim-cat-selkirk-preview/**` | 1x/4x sheet、12 GIF、逐 clip 4x、验证输出 |
+
+## 10. v9 侧视打磨（2026-11-18，本轮只改 cat）
+
+用户反馈：猫狗侧视图身体像薄片/直筒，腿从身体底部长出、毛量不足。v9 只重做 cat 的侧面 walk/run（以及共用侧面的 stand_wag）：
+
+- **躯干加厚**：SIDE_TORSO 重新塑形（背线 y≈31–33、腹线 y≈67–69），叠加胸腔椭圆与后臀椭圆；胸/肩更厚、臀有体块、腹线有收/垂。
+- **毛量**：背/胸/臀关键点用 5px 云朵 puffs，腹缘 6 个奶油 puffs；前腿加肩/肘/腕毛簇与 forearm feathering；后腿加 thigh/hock 毛裤 + 奶油下缘。
+- **脖子/头衔接**：neck polygon 加厚，双层 shade 颈线 + 奶油卷毛领，头不再直接压在胸上。
+- **尾巴**：12→5px 粗链，两侧 5px puffs + 3 层奶油羽状缘 + 深灰尾尖；walk 低垂卷起、run 后扬，侧视不再是细直条。
+- **指标**（同法测量，详见 `_scratch/pet-anim-cat-side-v9-preview/METRICS-SIDE-V9.md`）：depth 28→36（+29%），body_area avg 1140→1471（+29%），walk tail_area 343→498（+45%），run tail_area 345→434（+26%）；walk 每帧仍恰好 1 爪离地。
+- **门禁**：`gen-cat-anim --check/--verify` 全绿；`tests/pet-anim-cat.test.ts` 12 pass；`gen-pet-anim-frames --check` 全绿；`tsc --noEmit` 0 error；消费方 74 pass。
+- **预览**：`_scratch/pet-anim-cat-side-v9-preview/`（侧视 1x/4x sheet、walk/run GIF、SIDE-METRICS.txt）。
+- 契约/颜色/轮廓/地线/同侧肢体遮挡均不变。
