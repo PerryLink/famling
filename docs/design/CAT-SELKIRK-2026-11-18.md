@@ -133,3 +133,20 @@ cd /mnt/d/Projects/dsh/_scratch/pet-anim-cat-selkirk-preview && python3 gen_prev
 - **门禁**：`gen-cat-anim --check/--verify` 全绿；`tests/pet-anim-cat.test.ts` 12 pass；`gen-pet-anim-frames --check` 全绿；`tsc --noEmit` 0 error；消费方 74 pass。
 - **预览**：`_scratch/pet-anim-cat-side-v9-preview/`（侧视 1x/4x sheet、walk/run GIF、SIDE-METRICS.txt）。
 - 契约/颜色/轮廓/地线/同侧肢体遮挡均不变。
+
+## 11. v10 猫脸修正（2026-11-18，只改 cat）
+
+用户反馈两点：
+
+1. 头顶灰色要连续合并：灰帽覆盖整个头顶/额头中线，不能被白 blaze 从顶端劈开；
+2. 白八字/白鼻梁分叉起点略高于眼睛（从两眼中上方开始向下变宽到鼻吻/下巴），不是从额头最顶上开始。
+
+实现：
+
+- `front_head()`：灰帽改为连续椭圆 cap `(34,11)-(62,19)`；白 blaze 首行 y=19（眼睛 open 帧 top y=23，起点高于眼睛 4px），再逐行加宽到 y=37 的鼻吻/下巴；mask_dark 内缘线同步到 y=20–37。
+- 头顶卷毛 puffs 全部改为 mask 色，耳内高光移出中线（x42/54→x40/56），避免白点劈开灰帽。
+- `side_head()`：灰帽连续；白 blaze 起点 y≈27（侧视眼 top≈31，起点高于眼睛 4px）。
+- 正面 9 个 clip + 侧视 3 个 clip 全部共用，自动生效。
+- 新增第 13 个 test：正面灰帽中线白色像素 = 0、灰帽 mask ≥20、blaze 起点 ≥ 头顶点+2 且 ≤ 眼睛上缘−1；侧视灰帽顶部白色 = 0、blaze 起点 ≤ 眼睛上缘−1。实测全部通过（正面 crown white 0 / mask min 31 / blaze 19 vs eye top 23；侧视 crown white 0 / blaze 27 vs eye top 31）。
+- 预览：`_scratch/pet-anim-cat-face-v10-preview/`（正面/侧脸 8x sheet + 测量脚本），并重新生成 `pet-anim-cat-selkirk-preview/` 与 `pet-anim-cat-side-v9-preview/`。
+- `gen-cat-anim --check/--verify`、13 tests、`gen-pet-anim-frames --check`、`tsc --noEmit` 全绿；颜色/卷毛/契约/轮廓/地线/同侧肢体/FX 豁免均不变。

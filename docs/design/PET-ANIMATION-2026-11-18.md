@@ -413,3 +413,11 @@ docs/design/PET-ANIMATION-2026-11-18.md   ← 本文件
 - **保持 v8 修复**：抬爪/抬腿时同侧地面肢体不重复（paw_face/ball_throw/scratch/attack 全部通过 limb audit，0 重复）；walk 8 帧每帧恰好 1 脚离地、run f0/f4 腾空；12 clip/68 帧/96×96/anchor/footBox/地线 89 全保持。
 - 门禁：`--only dog --check` ok、`tests/pet-anim.test.ts` 16/16、`npx tsc --noEmit` 通过；68/68 唯一帧、底边全 89、硬 alpha、≤14 色、非 FX 轮廓缺口 0、内部黑线 0、bbox 边距 11/8/5/6；`manifest.json` 字节未变。
 - 预览与证据：`_scratch/pet-anim-dog-v9-preview/`（1x/4x contact sheet + 12 GIF + METRICS-v9.md + VERIFY-OUTPUT.txt + LIMB-AUDIT.txt + measure9.py）。
+
+## 13. 金毛项圈改为哑光砖红（2026-11-18，用户要求）
+
+- 狗项圈由蓝色 `#2e6b9e` 改为**低饱和哑光砖红**：底色 `#a63d35`、1px 高光 `#bd5a50`、1px 暗边 `#7d2f2a`（均按 96px 调色板微调，非鲜红/非暗红）；正面项圈 3px（高光/底色/暗边）、侧视 3 行统一同一组红。
+- 正面/侧视所有 68 帧（idle、walk、run、pat_head、ball_throw、ball_chase、paw_face、scratch、stand_wag、chase_tail、attack）项圈统一为红色；金色毛、奶油羽、黑鼻、棕色眼等其它颜色不变。
+- 对比可读性：红 `#a63d35` 对金色毛 `#d9a251` 与阴影 `#a96a26` 均有一眼可辨的色相差，与奶油羽 `#f8ecd0` 亦有明度差；1px 轮廓/无洞不变。
+- 验证：`--only dog --check` ok、`tests/pet-anim.test.ts` 16/16、`npx tsc --noEmit` 通过；68/68 唯一帧、底边 89、硬 alpha、per-frame ≤16 色（契约 ≤20）、非 FX 缺口 0、内部黑线 0、manifest 字节未变；collar 审计 68/68 帧含红、0 帧残留旧蓝。
+- 预览：`_scratch/pet-anim-dog-side-v9-preview/dog_collar_8x.png`（正/侧/站立 8x + 调色板 swatch）、`dog_side_walk_run_4x.png`、`gifs/dog_walk.gif`、`gifs/dog_run.gif`、`COLLAR.md`；`_scratch/pet-anim-dog-v9-preview/` 全套 sheet/GIF 同步刷新。
