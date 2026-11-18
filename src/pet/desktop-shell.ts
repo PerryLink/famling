@@ -14,6 +14,7 @@ import {
   type ConsentOverlayEventDetail,
 } from './consent/modal.ts'
 import { countCodePoints, sanitizePlainText, truncateCodePoints } from './security/limits.ts'
+import type { HeroMenuAction } from './hero-actions.ts'
 
 /**
  * Desktop pet shell (Phase 1A): hide the settings chrome by default, keep the
@@ -52,6 +53,15 @@ import { countCodePoints, sanitizePlainText, truncateCodePoints } from './securi
  */
 const PET_SCALE_KEY = 'desktop-games/pet/scale'
 const TEXT_SCALE_KEY = 'desktop-games/pet/text-scale'
+/**
+ * Renderer-menu storage keys. Keep in sync with `hero-runtime.ts`
+ * (`HERO_STORAGE_KEY` / `HERO_CHARACTER_STORAGE_KEY`); duplicated here as
+ * plain strings so this module stays import-light and Node-test friendly.
+ */
+export const HERO_RENDERER_STORAGE = {
+  hero: 'desktop-games/pet/hero',
+  character: 'desktop-games/pet/heroCharacter',
+} as const
 const MENU_ID = 'pet-shell-menu'
 const MENU_BUTTON_ID = 'pet-menu-button'
 export const PET_SCALE_MIN = 1
@@ -147,6 +157,82 @@ export function formatScaleLabel(scale: number): string {
   return `${clamp(scale, PET_SCALE_MIN, PET_SCALE_MAX)}×`
 }
 
+// ---------------------------------------------------------------------------
+// Renderer / hero menu (golden-retriever v7 integration, 2026-11-18)
+// ---------------------------------------------------------------------------
+
+/** Renderer choice written by the desktop-shell menu. */
+export type PetRendererChoice = 'dog' | 'origami'
+
+/**
+ * Pure storage writes for one renderer choice.
+ *
+ * - `dog` = v7 golden-retriever hero canvas: enable hero + persist the dog
+ *   character (the next load resolves it through `HERO_CHARACTER_STORAGE_KEY`);
+ * - `origami` = folded-paper DOM: switch hero off. The persisted character is
+ *   deliberately left untouched so switching back to `dog` works in one click.
+ */
+export function rendererChoiceWrites(choice: PetRendererChoice): ReadonlyArray<readonly [string, string]> {
+  return choice === 'dog'
+    ? [
+        [HERO_RENDERER_STORAGE.hero, '1'],
+        [HERO_RENDERER_STORAGE.character, 'dog'],
+      ]
+    : [[HERO_RENDERER_STORAGE.hero, '0']]
+}
+
+/** One menu entry for a hero-only action (see `hero-actions.ts`). */
+export interface HeroMenuActionItem {
+  readonly action: HeroMenuAction
+  readonly label: string
+}
+
+/** Hero-only menu entries; rendered only while the hero canvas is running. */
+export const HERO_MENU_ACTIONS: readonly HeroMenuActionItem[] = [
+  { action: 'pat', label: '摸头（hero）' },
+  { action: 'ball_throw', label: '抛球' },
+  { action: 'ball_chase', label: '追球' },
+]
+
+/** `[]` in origami mode, all three actions while the hero renderer is active. */
+export function heroMenuActions(heroActive: boolean): readonly HeroMenuActionItem[] {
+  return heroActive ? HERO_MENU_ACTIONS : []
+}
+
+/** Injectable storage/reload surface for `applyRendererChoice`. */
+export interface RendererChoiceDeps {
+  readonly storage?: Pick<Storage, 'setItem'> | null
+  readonly reload?: () => void
+}
+
+/**
+ * Write the renderer preference and reload so `resolveHeroConfig()` re-runs.
+ * Returns false (and does NOT reload) when localStorage is unavailable, so the
+ * page never reloads into an unchanged renderer.
+ */
+export function applyRendererChoice(choice: PetRendererChoice, deps: RendererChoiceDeps = {}): boolean {
+  let storage = deps.storage
+  if (storage === undefined) {
+    try {
+      storage = typeof localStorage === 'undefined' ? null : localStorage
+    } catch {
+      storage = null
+    }
+  }
+  if (!storage) return false
+  try {
+    for (const [key, value] of rendererChoiceWrites(choice)) storage.setItem(key, value)
+  } catch {
+    return false
+  }
+  try {
+    deps.reload?.()
+  } catch {
+    // A blocked reload must not throw into the menu's click handler.
+  }
+  return true
+}
+
 /**
  * Roving-focus target for a vertical menu. ArrowUp/ArrowDown wrap, Home/End jump
  * to the ends; any other key returns null so the caller can ignore it.
@@ -211,6 +297,18 @@ export interface DesktopShellOptions {
    * it the menu entry is inert (dev/other pages never fake a composer).
    */
   readonly openComposer?: () => void
+  /**
+   * True while the hero canvas renderer is actually drawing (`hero !== null`).
+   * When it returns true the menu replaces the folded-paper pet actions with the
+   * hero-only 摸头/抛球/追球 entries; the default keeps the old DOM actions.
+   */
+  readonly heroActive?: () => boolean
+  /**
+   * Host hook for the hero-only menu entries. `main.ts` routes this to
+   * `HeroRuntime.emit()` (never to the folded-paper DOM buttons, so a hero
+   * action cannot double-fire the kernel/speech side effects).
+   */
+  readonly onHeroAction?: (action: HeroMenuAction) => void
 }
 
 function writeNumber(key: string, value: number): void {
@@ -285,6 +383,22 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
   const consentOverlayOpen = options.consentOverlayOpen ?? (() => hasOpenConsentOverlay(docRef))
   /** V1 typed input: same-window composer opener supplied by main.ts. */
   const openComposer = options.openComposer
+  /** Hero canvas state + menu action sink supplied by main.ts (defaults inert). */
+  const heroActive = options.heroActive ?? ((): boolean => false)
+  const onHeroAction = options.onHeroAction
+  /**
+   * Renderer switch: persist the choice, then reload so `resolveHeroConfig()`
+   * picks it up. The menu re-checks the consent gate before calling this.
+   */
+  const applyRenderer = (choice: PetRendererChoice): void => {
+    let storage: Pick<Storage, 'setItem'> | null = null
+    try {
+      storage = typeof localStorage === 'undefined' ? null : localStorage
+    } catch {
+      storage = null
+    }
+    applyRendererChoice(choice, { storage, reload: () => winRef.location.reload() })
+  }
   /** Fail closed if the gate accessor itself throws (runtime missing/torn down). */
   const menuBlocked = (): boolean => {
     try {
@@ -466,9 +580,18 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
     // resize/new window. The composer is local-only (no LLM/Advisers writes) and
     // its own controller re-checks the consent gate at open/submit time.
     add('交办 / 打字输入…', () => { openComposer?.() })
-    add('摸摸', () => click('pat'), '', 'menu/U-MENU-01a_32x32.png')
-    add('给纸片', () => click('give'), '', 'menu/U-MENU-02a_32x32.png')
-    add('折一下', () => click('fold'), '', 'menu/U-MENU-03a_32x32.png')
+    if (heroActive()) {
+      // Hero canvas is drawing: the folded-paper DOM buttons are hidden by
+      // pet.css, so route the same intents through hero.emit() data events.
+      for (const item of heroMenuActions(true)) {
+        add(item.label, () => { onHeroAction?.(item.action) })
+      }
+    } else {
+      // Origami mode keeps the original folded-paper actions unchanged.
+      add('摸摸', () => click('pat'), '', 'menu/U-MENU-01a_32x32.png')
+      add('给纸片', () => click('give'), '', 'menu/U-MENU-02a_32x32.png')
+      add('折一下', () => click('fold'), '', 'menu/U-MENU-03a_32x32.png')
+    }
     add('折页簿', () => click('memory-book'), '', 'menu/U-MENU-04a_32x32.png')
     add('导入 DeepSeek 网页会话…', openImportWithConsent, '', 'menu/U-MENU-05a_32x32.png')
     add('Advisers 开关', () => click('advisers-toggle'), '', 'menu/U-MENU-06a_32x32.png')
@@ -491,6 +614,11 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
       }
     }
     add('模型 / API Key 设置…', openSetup, '', 'menu/U-MENU-07a_32x32.png')
+    addHeading('渲染器')
+    // Renderer switches persist a preference and reload the pet page; they are
+    // available in both modes so the user can always switch back.
+    add('渲染器：金毛（动画）', () => applyRenderer('dog'))
+    add('渲染器：折纸（默认）', () => applyRenderer('origami'))
     addHeading(`宠物缩放 · ${formatScaleLabel(scale)}`)
     const scaleRow = docRef.createElement('div')
     scaleRow.className = 'pet-menu-inline'

@@ -7,7 +7,7 @@ Status: **placeholder / DRAFT**；未对外发布。角色数据为纯数据（J
 | `humanoid-default/` | Pearl-compatible humanoid | humanoid | placeholder 96×96 | legacy 占位；非 final |
 | `pet-default/` | cat-like behavior default | pet | pending | 行为-only |
 | `pet-cat/` | 猫占位 | pet | programmatic 96×96 | placeholder-only |
-| `pet-dog/` | 狗占位 | pet | programmatic 96×96 | placeholder-only |
+| `pet-dog/` | 金毛（v7 动画占位） | pet | `/assets/pet/anim/dog/` 96×96 / 12 tags / 68 帧 | placeholder-only；behavior 见 [docs/PET-DOG-ANIM-V7-2026-11-18.md](../../docs/PET-DOG-ANIM-V7-2026-11-18.md) |
 | `tinglan/` | 汀岚 Orca secretary | humanoid | **pending（128 Q / v3 立绘待定）** | FCI 0.3 行为/语音定义；no art/audio yet |
 
 ## 声明

@@ -70,6 +70,16 @@ import { SceneRuntime, type SceneTickResult } from './scene/index.ts'
 /** Persistent opt-in key. Read-only in Phase 2 (a future settings screen writes it). */
 export const HERO_STORAGE_KEY = 'desktop-games/pet/hero'
 
+/**
+ * Persisted hero character selection (`desktop-games/pet/heroCharacter`).
+ *
+ * Written by the desktop-shell renderer menu (`渲染器：金毛（动画）` sets
+ * `'dog'`), read here only when the URL has no `?character=`. Values are
+ * restricted to `HERO_CHARACTER_IDS`; anything else resolves to the default
+ * (`humanoid`) so a stale/typo'd preference can never break the page.
+ */
+export const HERO_CHARACTER_STORAGE_KEY = 'desktop-games/pet/heroCharacter'
+
 /** Characters available on the pet page today (all data-only FCI 0.1 packs). */
 export const HERO_CHARACTER_IDS = ['humanoid', 'cat', 'dog', 'tinglan'] as const
 export type HeroCharacterId = (typeof HERO_CHARACTER_IDS)[number]
@@ -107,7 +117,7 @@ export const HERO_CHARACTER_SOURCES: Readonly<Record<HeroCharacterId, HeroCharac
     canvasTarget: [DEFAULT_HUMANOID_CANVAS, DEFAULT_HUMANOID_CANVAS],
   },
   cat: { id: 'cat', label: '猫（占位）', dir: '/characters/pet-cat/' },
-  dog: { id: 'dog', label: '狗（占位）', dir: '/characters/pet-dog/' },
+  dog: { id: 'dog', label: '金毛（动画占位 v7）', dir: '/characters/pet-dog/' },
   tinglan: {
     id: 'tinglan',
     label: '汀岚（Q 256 概念/预览，非 final）',
@@ -123,7 +133,10 @@ export interface HeroConfig {
   readonly enabled: boolean
   /** Why the flag resolved the way it did (QA/debug). */
   readonly reason: HeroFlagReason
-  /** Primary character (`?character=`), defaults to humanoid. */
+  /**
+   * Primary character: `?character=` when valid, else the persisted
+   * `heroCharacter` preference, else `humanoid`.
+   */
   readonly character: HeroCharacterId
   /** Actors to spawn (`?actors=`), defaults to `[character]`. */
   readonly actors: readonly HeroCharacterId[]
@@ -167,6 +180,24 @@ function readStoredOptIn(storage: HeroConfigInput['storage']): string | null {
 }
 
 /**
+ * Read the persisted hero character choice; `null` when missing/unreadable or
+ * not one of the shipped `HERO_CHARACTER_IDS` (never throws).
+ */
+export function readStoredHeroCharacter(storage: HeroConfigInput['storage']): HeroCharacterId | null {
+  if (!storage) return null
+  let raw: string | null
+  try {
+    raw = storage.getItem(HERO_CHARACTER_STORAGE_KEY)
+  } catch {
+    // Storage can throw in private/opaque contexts; fall back to the default.
+    return null
+  }
+  if (typeof raw !== 'string') return null
+  const value = raw.trim().toLowerCase()
+  return isHeroCharacterId(value) ? value : null
+}
+
+/**
  * Parse `?actors=humanoid,cat` into a deduped, capped actor list.
  * Unknown/duplicate tokens are ignored; an empty result falls back to `fallback`.
  */
@@ -199,7 +230,15 @@ export function parseHeroScale(raw: string | null | undefined): PixelScale | und
   return HERO_SCALE_TOKENS.get(raw.trim())
 }
 
-/** Resolve the feature flag + character selection from `location.search` + storage. */
+/**
+ * Resolve the feature flag + character selection from `location.search` +
+ * storage.
+ *
+ * Character priority: `?character=` (valid ids only) > persisted
+ * `HERO_CHARACTER_STORAGE_KEY` (valid ids only) > `'humanoid'`. The storage
+ * read is additive and backward compatible: old profiles without the key, an
+ * unreadable storage, or an invalid value all keep the previous default.
+ */
 export function resolveHeroConfig(input: HeroConfigInput = {}): HeroConfig {
   const params = toSearchParams(input.search)
   const flag = params.get('hero')
@@ -222,7 +261,9 @@ export function resolveHeroConfig(input: HeroConfigInput = {}): HeroConfig {
   }
 
   const requested = params.get('character')?.trim().toLowerCase()
-  const character: HeroCharacterId = requested && isHeroCharacterId(requested) ? requested : 'humanoid'
+  const storedCharacter = readStoredHeroCharacter(input.storage)
+  const character: HeroCharacterId =
+    requested && isHeroCharacterId(requested) ? requested : storedCharacter ?? 'humanoid'
   const actors = parseHeroActors(params.get('actors'), character)
   const scale = parseHeroScale(params.get('heroScale'))
 

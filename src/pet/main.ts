@@ -52,8 +52,10 @@ import {
 } from './advisers/face.ts'
 import { describeAdvisersFaceView, heroPlaceholderView, type HeroPlaceholderView } from './ui-state.ts'
 import { initDesktopShell, createComposerController, type ComposerController } from './desktop-shell.ts'
+import { heroActionPlan, type HeroMenuAction } from './hero-actions.ts'
 import { startHitRegionSync } from './hit-regions.ts'
 import { startDesktopShellLayout } from './shell-layout.ts'
+import { characterBubbleSemantic, characterCanVoice } from './character-voice.ts'
 import { createTrustLayer } from './trust.ts'
 import {
   assertSafeForTts,
@@ -379,6 +381,11 @@ const HERO_CONFIG = resolveHeroConfig({
     }
   })(),
 })
+
+/** Cat/dog personas are silent: their bubbles are thoughts and TTS is skipped. */
+function currentCharacterCanVoice(): boolean {
+  return characterCanVoice(HERO_CONFIG.character, HERO_CONFIG.enabled)
+}
 let hero: HeroRuntime | null = null
 let heroCanvasEl: HTMLCanvasElement | null = null
 let heroCtx: CanvasRenderingContext2D | null = null
@@ -451,6 +458,7 @@ function showBubble(text: string): void {
   const bubble = $('bubble')
   // Final display guard: bubbles are short, plain text, always via textContent.
   bubble.textContent = sanitizePlainText(text, { maxChars: SECURITY_LIMITS.bubbleChars, allowNewlines: false })
+  bubble.classList.toggle('thought', characterBubbleSemantic(HERO_CONFIG.character, HERO_CONFIG.enabled) === 'thought')
   bubble.classList.add('show')
   if (bubbleTimer) clearTimeout(bubbleTimer)
   bubbleTimer = setTimeout(() => bubble.classList.remove('show'), 3200)
@@ -609,6 +617,8 @@ async function say(text: string, emotion: 'calm' | 'happy' = 'calm'): Promise<bo
   }
   const safeText = prepared.text
   showBubble(safeText)
+  // Cat/dog personas never receive DeepSeek TTS: thought bubble only.
+  if (!currentCharacterCanVoice()) return true
   // Hero hook: tag-based talk cue + expression/mouth QA envelope. The pixel
   // renderer's setExpression/setMouth are still no-ops (documented limitation);
   // voice/subtitles above stay on the unchanged path.
@@ -758,6 +768,39 @@ function doFold(): void {
   state = foldPaper(state, now())
   sayLater(pick(lines.fold), 'happy')
   render()
+}
+
+/**
+ * Desktop-shell hero actions (摸头（hero）/抛球/追球).
+ *
+ * These are hero-only: they emit FCI events on the live `HeroRuntime` and
+ * deliberately do NOT `.click()` the folded-paper DOM buttons, so the hero
+ * visual and the kernel/speech side effects cannot double-fire. The one
+ * follow-up (ball_throw -> ball_chase at 500ms, the v7 throw-clip length) is
+ * skipped if the hero runtime fell back or was disposed meanwhile.
+ */
+function handleHeroAction(action: HeroMenuAction): void {
+  const runtime = hero
+  if (!runtime) return
+  try {
+    for (const step of heroActionPlan(action)) {
+      if (step.delayMs <= 0) {
+        runtime.emit(step.event)
+        continue
+      }
+      setTimeout(() => {
+        if (hero !== runtime) return
+        try {
+          hero.emit(step.event)
+        } catch (error) {
+          reportFailure(uiBoundary, error)
+        }
+      }, step.delayMs)
+    }
+  } catch (error) {
+    // A disposed/misbehaving runtime must not break the menu click handler.
+    reportFailure(uiBoundary, error)
+  }
 }
 
 $('pet').addEventListener('pointerdown', () => {
@@ -2387,7 +2430,13 @@ function initializeApp(): void {
     wired.consent = true
   }
   if (!wired.shell) {
-    initDesktopShell({ openComposer: openTypedInput })
+    initDesktopShell({
+      openComposer: openTypedInput,
+      // Live getters: the shell initializes before hero boot, and the menu is
+      // rendered on open, so it sees the actual renderer state each time.
+      heroActive: () => hero !== null,
+      onHeroAction: handleHeroAction,
+    })
     wired.shell = true
   }
   if (!wired.setup) {

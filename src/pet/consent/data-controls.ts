@@ -83,6 +83,7 @@ export const KNOWN_PET_STORAGE_KEYS = [
   'desktop-games/pet/chat-import/v1',
   'desktop-games/pet/volume',
   'desktop-games/pet/hero',
+  'desktop-games/pet/heroCharacter',
   'desktop-games/pet/scale',
   'desktop-games/pet/text-scale',
   'desktop-games/pet/setup-ack-v1',
@@ -156,6 +157,7 @@ export function classifyStorageKey(key: string): string {
   if (key === 'desktop-games/pet/window') return 'window-position'
   if (key === 'desktop-games/pet/volume') return 'preferences'
   if (key === 'desktop-games/pet/hero') return 'preferences'
+  if (key === 'desktop-games/pet/heroCharacter') return 'preferences'
   if (key === 'desktop-games/pet/scale') return 'preferences'
   if (key === 'desktop-games/pet/text-scale') return 'preferences'
   if (key === 'desktop-games/pet/setup-ack-v1') return 'preferences'
