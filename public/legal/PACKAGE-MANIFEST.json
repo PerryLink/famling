@@ -6,19 +6,19 @@
       "source": "docs/legal/TOS.md",
       "dest": "TOS.md",
       "required": true,
-      "sha256": "2418566b9d50dbeedd4ba198128b4c46dea794974e6f4508fcf26b8dd446061c"
+      "sha256": "63d307dfa15759d0e5ac481ed8f6d201e6086bd4fce7f3ce693d5cf2ebab9984"
     },
     {
       "source": "docs/legal/PRIVACY.md",
       "dest": "PRIVACY.md",
       "required": true,
-      "sha256": "34a6368aec5ef629e4cc58655401fd228e93f76a9c420f396f708770871ea706"
+      "sha256": "5c380303666529ca6d97718fc3b5472a6050c552cb0f1d4df5af48054f2c0842"
     },
     {
       "source": "docs/legal/AI-LABELING.md",
       "dest": "AI-LABELING.md",
       "required": true,
-      "sha256": "9fc50fd54e8b57ae7e6c50807e31e36860d2f1118141b92c4bf28d63b011f2a4"
+      "sha256": "357c3fe200ea67a986e1b7f54e3fd025cc01d4a6bec3b6cf0b1280b94f9f0263"
     },
     {
       "source": "docs/legal/USE-RESTRICTIONS-2026-11-19.md",
@@ -30,7 +30,7 @@
       "source": "docs/legal/TTS-TERMS.md",
       "dest": "TTS-TERMS.md",
       "required": true,
-      "sha256": "98339eb99c092f66cbfb05a6ee1feaaa8791de2880f431ff776822b18278ed94"
+      "sha256": "1485acda54f2879b537286b9de1b76acfc770c351ce36e524ef6a97baf5ae887"
     },
     {
       "source": "docs/legal/DLC-AND-PLUGIN-TERMS.md",
@@ -54,7 +54,7 @@
       "source": "DECLARATIONS.md",
       "dest": "DECLARATIONS.md",
       "required": true,
-      "sha256": "1c3a9598a8dd1a9b77ee12b6113c8932c774fc9daa3aa50ac0a60937762f91c0"
+      "sha256": "f1fca66ae92a0db162c703456c60fa23ec8d9b11c509c1ade80d0f095dc12ab4"
     },
     {
       "source": "NOTICE",
@@ -102,7 +102,7 @@
       "source": "docs/legal/AI-CONTENT-POLICY.md",
       "dest": "AI-CONTENT-POLICY.md",
       "required": true,
-      "sha256": "2f1635aee51e14b2da50ff49dba94a1e491d6e29c361f117c4a74f85e481de8c"
+      "sha256": "8fdb00b418878eea90e64111da0b17f249ee150f398cfe91305224b5431cf791"
     },
     {
       "source": "docs/research/AI-COMPANION-REGULATION-2026-11-16.md",
@@ -120,31 +120,31 @@
       "source": "docs/legal/APP-DISCLOSURE-TEXTS.md",
       "dest": "APP-DISCLOSURE-TEXTS.md",
       "required": false,
-      "sha256": "796358129232d95e4b23033cd580411c9ad892d3dc0713093a141de48f47352c"
+      "sha256": "1c5afde49e9b15880935768559211d87b06c5412181b569b3336e2810ca8f0c0"
     },
     {
       "source": "docs/legal/APPROVALS.md",
       "dest": "APPROVALS.md",
       "required": false,
-      "sha256": "6ae96ec2d6091c26c0d7ed962663c97e43fe3602f9ffb0f32e52e0f91a640c1d"
+      "sha256": "8a57c6d89cff61324c93dabc7ba6c28e642eb60467af4e9c40891d2cad36a140"
     },
     {
       "source": "docs/legal/ASSET-REPLACEMENT-AND-MODDING-POLICY.md",
       "dest": "ASSET-REPLACEMENT-AND-MODDING-POLICY.md",
       "required": false,
-      "sha256": "4c0cb5416e16321ccb9d018c0fefd82af43a519fd2ff75f357ba68cca2980c52"
+      "sha256": "6e7254d382620943412ab6e3f8b279ad6a8f61c842e899b75450eec3bfc284cc"
     },
     {
       "source": "docs/legal/CONSUMER-MINORS-HEALTH.md",
       "dest": "CONSUMER-MINORS-HEALTH.md",
       "required": false,
-      "sha256": "e91d6934b9bedeffc37920bec4f21ee262ae60a853d22445938dbe04b8db48af"
+      "sha256": "96829f3d12bf7fc31b46fbf85febe586f258013a2b2df4d17d600ad0e234139f"
     },
     {
       "source": "docs/legal/CONTENT-POLICY.md",
       "dest": "CONTENT-POLICY.md",
       "required": false,
-      "sha256": "076a8273d9bf91ed5bc2bf4adccc5d3be7f5a5d1d207a8c6a160c037a84658d7"
+      "sha256": "25a7566511ede2a0a83ac5f8c92e7a32531ab3d33627a0604696e9c95c3a6803"
     },
     {
       "source": "docs/legal/CONTRIBUTOR-TERMS.md",
@@ -156,7 +156,7 @@
       "source": "docs/legal/DECLARATION-MATRIX.md",
       "dest": "DECLARATION-MATRIX.md",
       "required": false,
-      "sha256": "8fc629d70e3560614c7e1624a447907a98c99a9cbbd5b61635b99a9a907d6953"
+      "sha256": "098cfbb90dc9e216af333d1b23e6954590fb759992578566f126f19678e80fc8"
     },
     {
       "source": "docs/legal/FANWORK-POLICY.md",
@@ -168,25 +168,25 @@
       "source": "docs/legal/LAWYER-REVIEW-CHECKLIST-2026-11-19.md",
       "dest": "LAWYER-REVIEW-CHECKLIST-2026-11-19.md",
       "required": false,
-      "sha256": "0ae2244a58247aed682b6bef9528652af0757a42e1353a047753b6d1ef795cf9"
+      "sha256": "1692c7b6aca9295de20364d5189d50fe1778b6c2f7abb722872c122ac0a23157"
     },
     {
       "source": "docs/legal/LEGAL-BASELINE.md",
       "dest": "LEGAL-BASELINE.md",
       "required": false,
-      "sha256": "01aead0eaa0f827bef3f1629d321dcf570a4dc3f11743a3eaae1c608041f06ea"
+      "sha256": "aa83bdc9291353ad1f0d3c4f8d6c9700bcc44ab79222e2ce5c624f59e4d651ff"
     },
     {
       "source": "docs/legal/README.md",
       "dest": "README.md",
       "required": false,
-      "sha256": "f6a8b1cd31e8f714e7f86868020dfcaaae3bfbc6db23960acd6c246c87bd22e6"
+      "sha256": "b9006620af2c2bbb40749b7ce824e5fddd20dbace231d4df76f5f1242a1d4aac"
     },
     {
       "source": "docs/legal/RELEASE-BLOCKERS.md",
       "dest": "RELEASE-BLOCKERS.md",
       "required": false,
-      "sha256": "fa0bf40bd280eda98d5d244a2209f799e967cca68bd974d4ebcc437922742a6c"
+      "sha256": "2ccece877c9423390d9a1a24fe0c55580beb978603882284ba2e0cf8bec757f1"
     },
     {
       "source": "docs/legal/SAFETY.md",

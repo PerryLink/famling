@@ -37,6 +37,17 @@ export interface LegalSection {
 /**
  * TOS version. Bump together with any wording/law-list change.
  *
+ * 2026-11-20.1 (user decision D6 / MB-073+074): TOS / KEY FACTS FIRST. The
+ * earlier order (age self-report -> TOS) is retired: first launch now shows the
+ * key-facts layer and the full TOS FIRST, and the self-reported birth date is
+ * collected ONLY when the user enters an age-gated feature (roleplay/emotional
+ * companionship, 18+) or opts in from About. Declining age no longer puts the
+ * whole app in safe read-only; it only blocks the age-gated entry. General
+ * features and TOS consent never require a birth date. The TOS body states this
+ * explicit, data-minimising order (and that a TOS acceptance is NOT an age
+ * verification). TOS text changed => TOS_VERSION bumped + new TOS_HASH, so
+ * existing users re-consent. TTS/ASR/ROLEPLAY texts are unchanged.
+ *
  * 2026-11-17.3 (user decision): ALL-AGES policy. The former "roleplay/emotional
  * support is 18+ only" limit is removed; roleplay is available to all ages and
  * its content must stay all-ages (no adult sexual content, no virtual intimacy,
@@ -77,7 +88,7 @@ export interface LegalSection {
  * claimed as shipped. Only the TOS text changed, so TTS/ASR/ROLEPLAY
  * versions/hashes stay pinned.
  */
-export const TOS_VERSION = '2026-11-17.6'
+export const TOS_VERSION = '2026-11-20.1'
 export const TOS_TITLE = '《Pagefold / 汀岚 使用条款、免责声明与用户同意书》'
 export const TTS_VERSION = '2026-11-17.4'
 export const TTS_TITLE = '《TTS / AI 合成语音使用声明与确认》'
@@ -149,9 +160,10 @@ export const TOS_SECTIONS: readonly LegalSection[] = [
     paragraphs: [
       '本文件适用于 Pagefold / 汀岚（下称“本应用”）的桌面端、网页端、角色包（DLC/pack）、语音（TTS）、语音识别（ASR）、导入/导出与本地工具。',
       '本应用是工作助手类的本地工具。角色扮演（roleplay）入口当前仅提供本地模板、声明与设定，不提供自由 LLM 对话、情感陪伴或虚拟亲密关系（不伪造聊天引擎）；未上线能力不会以“已提供”对外宣传。',
-      '本应用的一般功能（本地互动、存档/记忆、设置、导入导出等）全年龄可用；角色扮演（roleplay）/情感陪伴类互动仅面向年满 18 周岁的用户，首次启动必须先完成自报出生日期的年龄核验。角色扮演内容仍须保持全年龄适宜：禁止成人性内容、虚拟亲密关系、未成年人性化、自伤他伤、违法、诈骗与冒充，不诱导依赖或付费关系。',
+      '本应用的一般功能（本地互动、存档/记忆、设置、导入导出等）全年龄可用；角色扮演（roleplay）/情感陪伴类互动仅面向年满 18 周岁的用户。首次启动先展示关键事实与完整条款并征得同意；年龄自报核验只在进入 age-gated 功能（角色扮演/情感陪伴）或你主动在 About 完成/更正时采集，不是首次启动的必经步骤。角色扮演内容仍须保持全年龄适宜：禁止成人性内容、虚拟亲密关系、未成年人性化、自伤他伤、违法、诈骗与冒充，不诱导依赖或付费关系。',
       `当前版本为 ${TOS_VERSION}，文本 SHA-256 哈希见弹窗顶部。条款、版本或哈希变化时，你必须重新阅读并明确同意；旧版本的同意不当然延续。`,
-      '同意必须由你主动完成：勾选“我已阅读并理解”并点击同意按钮。按 Escape、关闭弹窗、点击遮罩或忽略弹窗都不构成同意。',
+      '同意必须由你主动完成：勾选“我已阅读并理解”并点击同意按钮。按 Escape、关闭弹窗、点击遮罩或忽略弹窗都不构成同意。完整条款始终可在弹窗内滚动查看，也可在 About 打开只读全文视图。',
+      '同意本 TOS 不等于完成年龄核验，年龄核验也不能替代本 TOS：一般功能与 TOS 同意不要求你提供出生日期；只有 18+ 角色扮演/情感陪伴需要年龄自报核验。',
       '角色扮演每次开始或设定变更（场景/关系边界/语气/称呼/角色）都会重新展示完整本条款与角色扮演声明，并要求你重新填写、逐项确认；TOS/TTS/ASR 的同意均不能替代角色扮演确认，反之亦然。',
       '本文件不是法律意见，也不构成法律建议；不替代服务提供者依法应承担的责任或律师审查。正式发布、商业化或面向公众运营前，应由执业律师出具意见。',
     ],
@@ -161,10 +173,11 @@ export const TOS_SECTIONS: readonly LegalSection[] = [
     title: '一之二、年龄核验（自报出生日期）与 18+ 角色扮演门槛',
     paragraphs: [
       '一般桌面宠物功能（本地互动、存档/记忆、设置、导入导出等）全年龄可用，不因未成年人身份整体锁死；但角色扮演（roleplay）/情感陪伴类互动仅面向年满 18 周岁的用户，未满 18 周岁不得启动。',
-      '首次启动必须先完成年龄核验：由你本人选择出生年/月/日并显式确认，之后才展示并征得对本 TOS 的同意；出生日期不会预填、没有默认值、不提供“全选/跳过”。未完成核验不得进入正常交互，只能安全只读或退出。',
+      '首次启动不采集年龄：只有在你进入 age-gated 功能（角色扮演/情感陪伴，仅限 18+）或主动在 About 完成/更正年龄核验时，才会由你本人选择出生年/月/日并显式确认；出生日期不会预填、没有默认值、不提供“全选/跳过”。未完成核验不影响一般功能，只阻止角色扮演。',
       '年龄核验是你自报出生日期的自述记录，不是官方身份证核验：本应用不采集、不读取、不上传身份证、照片、住址或任何官方身份信息，也不接入实名认证或政府数据库，因此无法证明你的真实身份。请如实填写；虚假填写、冒用他人身份或规避 18+ 门槛由你自行承担后果。',
       '本应用会校验日期的基本合法性（公历闰年、月份天数、未来日期、1900 年至今天、年龄上限 120 周岁），按生日是否已过计算年龄，并把出生日期与核验时间仅保存在本机（localStorage），不联网、不写日志。你可以在 About/设置中更正年龄（重新核验并清除角色扮演会话）；“删除全部本地数据”会删除年龄核验记录。',
       '未满 18 周岁的用户仍可使用一般功能，但角色扮演入口会被阻止并提示原因；由于年龄为自报，冒用他人身份、修改数据或第三方修改版本仍可能绕过门槛，本应用不承诺绝对阻止，但会尽合理努力执行该门槛并保留安全/健康/危机保护要求。',
+      '数据最小化（D6，2026-11-20.1）：不进入 age-gated 功能时，本应用不会采集或存储出生日期；拒绝或取消年龄核验只会阻止本次角色扮演进入，不影响一般功能与已同意的普通使用。',
     ],
     bullets: [
       '年龄核验与 TOS/TTS/ASR/角色扮演确认相互独立，不能互相替代；角色扮演每次开始或设定变更仍须重新阅读完整 TOS 与角色扮演声明并重新填写设定。',
@@ -196,7 +209,7 @@ export const TOS_SECTIONS: readonly LegalSection[] = [
     id: 'ai-labeling',
     title: '三之二、AI 生成合成内容标识',
     bullets: [
-      '本应用在首启 TOS/年龄核验、「声明」面板、TTS 独立声明与语音播放器标签等处提醒「AI 生成/合成、不是真人」；界面不常驻浮层角标（不遮挡桌宠与桌面操作）。角色美术、对话文本与语音均为 AI 生成或 AI 合成，不是真人。',
+      '本应用在首启 TOS、age-gated 入口的年龄核验、「声明」面板、TTS 独立声明与语音播放器标签等处提醒「AI 生成/合成、不是真人」；界面不常驻浮层角标（不遮挡桌宠与桌面操作）。角色美术、对话文本与语音均为 AI 生成或 AI 合成，不是真人。',
       '显式的图片角标、音频播放器「AI 语音 · 合成」标签与首播提示、导出/分享文件的可感知标识与机器可读元数据（工具/模型/日期/内容编号等），当前版本仍在建设，发布前必须补齐；补齐前不对外宣称已完成。',
       '本应用不提供删除、隐藏、伪造或规避 AI 生成合成内容标识的能力，也不提供“去标识”功能；不得要求他人去标识，不得把 AI 生成内容说成真人作品、真实录音或实拍。',
       '按法律法规与平台规则申请无显式标识的例外须另行书面约定并留存日志（不少于 6 个月）；本应用当前不提供该功能。',
@@ -233,7 +246,7 @@ export const TOS_SECTIONS: readonly LegalSection[] = [
     paragraphs: [
       '本应用的官方定位是工作助手类本地工具。自由 LLM 角色扮演、情感陪伴等用法，是部分用户参照本应用的工作助手（秘书）用法、按自身需求自行延伸创造出来的用法，不是本应用官方提供的功能、定位或推荐用途；官方不提供、不鼓励，并明确反对将本应用用于自由 LLM 情感陪伴、虚拟亲密/恋爱关系或付费关系（含“付费解锁关系”），也不以此作为宣传卖点。',
       '你可以自行选择第三方模型/服务、第三方客户端或修改本应用来实现这类用法。这是你自己的用法与自主选择，不是官方功能；你必须自行遵守法律法规、第三方服务条款，以及隐私、内容、未成年人保护等规定。官方无法监控、审核或强制阻止你在本机、第三方客户端或修改后版本中的自行接入行为，也不对由此产生的行为与法律后果承担或分担责任。',
-      '运营者已尽最大努力防止违法使用与不当情感陪伴，现有措施包括：本机安全规则与内容审核、TTS/ASR 单独声明与同意、TOS 同意门禁、首次启动年龄自报核验（角色扮演 18+ 门槛）、举报/求助与危机资源入口，以及按 DeepSeek 内容安全指南设计的安全审核请求（safety_check；其服务端审核与实际效果以 DeepSeek 为准）。年龄自报核验不是官方身份证/实名认证，无法排除虚假自报、设备被修改或第三方使用；但技术手段无法绝对阻止用户自行接入、修改或第三方使用，本应用不能保证零违法或零伤害；相应责任由你自行承担。',
+      '运营者已尽最大努力防止违法使用与不当情感陪伴，现有措施包括：本机安全规则与内容审核、TTS/ASR 单独声明与同意、TOS 同意门禁、age-gated 入口（角色扮演）的年龄自报核验（18+ 门槛）、举报/求助与危机资源入口，以及按 DeepSeek 内容安全指南设计的安全审核请求（safety_check；其服务端审核与实际效果以 DeepSeek 为准）。年龄自报核验不是官方身份证/实名认证，无法排除虚假自报、设备被修改或第三方使用；但技术手段无法绝对阻止用户自行接入、修改或第三方使用，本应用不能保证零违法或零伤害；相应责任由你自行承担。',
     ],
     bullets: [
       '当前版本仍只提供本地模板/声明与设定，不提供自由 LLM 对话、情感陪伴或虚拟亲密关系；本节不表示官方支持、鼓励或已具备自由 LLM 陪伴能力，也不表示官方对该用法负有持续支持义务。',
@@ -277,7 +290,7 @@ export const TOS_SECTIONS: readonly LegalSection[] = [
     title: '九、隐私、记忆与数据',
     bullets: [
       '本同意门禁为纯前端/本地实现，不联网；同意记录与审计仅保存在本机 localStorage（或本机文件），不上传。',
-      '年龄核验记录：你自报的出生日期与核验时间仅保存在本机 localStorage，不联网、不写日志、不上传；About 只显示年龄段/是否 18+，不显示完整生日；可在 About 更正年龄，“删除全部本地数据”会删除该记录。',
+      '年龄核验记录（仅在进入 age-gated 功能或你主动在 About 核验时产生）：你自报的出生日期与核验时间仅保存在本机 localStorage，不联网、不写日志、不上传；About 只显示年龄段/是否 18+，不显示完整生日；可在 About 更正年龄，“删除全部本地数据”会删除该记录。首次启动、一般功能使用与 TOS 同意都不会采集出生日期。',
       '存档/记忆默认保存在本机并加密（浏览器用 AES-GCM；Tauri 用系统 DPAPI；加密不可用时拒绝写入）；你可以通过折页簿/About 查看、修改、导出或删除存档，导出的备份由你自行保管。',
       '云语音：只有在你启用并单独确认 TTS 或 ASR 后，待朗读文本或录音音频才会发送至 DeepSeek（深度求索）API（TTS 发送文本、ASR 上传音频），可能涉及数据出境，并受 DeepSeek 服务条款与隐私政策约束；其留存期限、处理地点等以其披露为准，本应用当前无法确认，发布前补齐告知。',
       '本机还会保存 TTS 音频缓存与每日 TTS 用量计数（quota）；清除语音缓存不会清除用量计数。ASR 录音不落盘、识别文本仅用于当次交互与安全审核，不写入存档。',
@@ -349,7 +362,7 @@ export const TOS_SECTIONS: readonly LegalSection[] = [
       '我已在未受胁迫的情况下阅读并理解全文；我自愿同意并承担使用风险。',
       '我理解本次同意不构成永久豁免、不替代法律或服务提供者责任，也不是法律建议。',
       '我确认不会将本应用用于违法、侵权、伤害自己或他人、诈骗、侵犯隐私或绕过安全审核的目的；如不同意，我将使用安全只读模式或退出。',
-      '我确认已如实选择本人出生日期完成年龄核验；我理解一般功能全年龄可用、角色扮演仅限 18+，且该核验是自报而非官方身份证核验。',
+      '如我进入角色扮演/情感陪伴（仅限 18+）或主动完成年龄核验，我确认已如实选择本人出生日期；我理解一般功能全年龄可用、角色扮演仅限 18+，且该核验是自报而非官方身份证核验。首次启动与一般功能不要求我提供出生日期。',
     ],
   },
 ]
@@ -533,6 +546,52 @@ export const ROLEPLAY_SECTIONS: readonly LegalSection[] = [
     ],
   },
 ]
+
+/** One item of the first-screen key-facts layer (UI copy, not part of TOS_TEXT). */
+export interface TosKeyFact {
+  readonly id: string
+  readonly label: string
+  readonly text: string
+}
+
+/**
+ * First-screen "key facts" layer shown ABOVE the full scrollable TOS in every
+ * full-TOS prompt (D6 / MB-073, 2026-11-20.1). Readability + ordering are
+ * locked by tests; each item must stay traceable to the canonical TOS text.
+ * This is UI copy only: it is deliberately NOT part of TOS_TEXT/the hash, so
+ * wording tweaks to the summary block do not silently change the contract.
+ */
+export const TOS_KEY_FACTS: readonly TosKeyFact[] = [
+  {
+    id: 'ai',
+    label: 'AI · 不是真人，也不是情感陪伴',
+    text: '回话、美术与语音由 AI 生成或合成，不是真人，也不是情感陪伴；不构成医疗、心理、法律、财务等专业建议。',
+  },
+  {
+    id: 'data',
+    label: '数据 · 默认只存本机',
+    text: '同意记录、存档与记忆默认只存本机；只有单独确认 TTS/ASR 后，文本或录音才会发给你配置的服务商（可能跨境并产生费用）。出生日期只在进入 18+ 功能或你主动核验时采集。',
+  },
+  {
+    id: 'crisis',
+    label: '危机 · 先停下来求助',
+    text: '出现自伤/自杀/他伤等危机信号时立即停止互动；紧急拨 110/120，心理援助拨 12356，并联系可信任的人或专业机构。',
+  },
+  {
+    id: 'withdraw',
+    label: '可撤回 · 可删除',
+    text: '可随时在 About/设置撤回同意、删除全部本地数据（含 TOS 同意记录与年龄核验记录）；残留会如实列出，不会伪造成功。',
+  },
+  {
+    id: 'exit',
+    label: '可随时关闭 · 不构成永久豁免',
+    text: '按 Escape、点击遮罩或关闭弹窗都不构成同意；本次同意只对当前 TOS 版本/哈希有效，版本升级必须重新同意。',
+  },
+]
+
+/** One-line affordance under the key facts: the full text is still available. */
+export const TOS_KEY_FACTS_NOTE =
+  '完整条款在下方滚动区，可随时查阅；About →「查看完整 TOS」可打开只读全文。摘要不改变完整条款的版本/哈希与同意语义。'
 
 export const TOS_CHECKBOX_LABEL =
   '我已完整阅读并理解上述《使用条款、免责声明与用户同意书》，自愿同意并承担使用风险；我明白本次同意不构成永久豁免。'

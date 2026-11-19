@@ -1,8 +1,8 @@
 # 声明与合规文档（docs/legal/）— 索引 · 草案
 
 > **状态：DRAFT（草案）· 2026-11-15（2026-11-17 增补；2026-11-19 事实同步）· 非法律意见。** 本目录全部文件待用户（PerryLink）+ 律师确认后方可作为对外生效文本；**不得**引用为“已批准 / 已检索 / 已获法律意见”。许可方向由用户 2026-11-16 决定，律师审查暂缓；`DRAFT` 标记 = **文本未定稿/未经律师**，不因“用户已决定许可方向”而变成生效文本。
-> **2026-11-17.5 年龄口径（现行）：一般功能全年龄可用；roleplay/情感陪伴仅限年满 18 周岁用户，首启须完成自报出生日期的年龄核验（非官方身份证/实名核验）。旧“全年龄、不设年龄门”口径已作废；全年龄内容边界、2h/危机/未成年人保护保留；律师项仍暂缓。**
-> **2026-11-19 真值注记（当前实现，不得写成目标）：① famling 桌面端无自由 LLM 对话（roleplay 仅本地模板）；`dsh-famling` 插件另有真实 LLM 文本聊天（经 DSH Host `ctx.llm.stream`，文本发往用户配置的模型供应商），两端口径不得混写。② TTS/ASR 独立声明+单独同意、撤回同意、删除全部本地数据已实现；仍缺 ASR 独立常驻开关/日配额、第三方跨境具体披露与生效隐私政策。③ 首启顺序现状 = 年龄自报核验 → 完整 TOS → 应用；D6 目标（TOS/关键事实先读、年龄只在 age-gated 入口）已排期、未实现。④ 远程内容市场默认不联网（未注入 transport 时零请求）；未来启用时的数据流见 PRIVACY §2B。⑤ 随包 baked WAV = 42（21 stella + 21 tide），用户 2026-11-17 授权随包，DeepSeek 书面再分发许可仍 TBD。⑥ `node scripts/legal-check.mjs --strict` 2026-11-19 实测 34 blockers/34 warnings（warning 在 strict 下被复制为 blocker，不是 34 个独立问题）。**
+> **2026-11-17.5 年龄口径（现行）：一般功能全年龄可用；roleplay/情感陪伴仅限年满 18 周岁用户。**2026-11-20.1 D6：首启不采集年龄；年龄自报只在进入 18+ roleplay 入口或 About 主动核验/更正时采集（非官方身份证/实名核验），拒绝只阻止该入口**。旧“全年龄、不设年龄门”口径已作废；全年龄内容边界、2h/危机/未成年人保护保留；律师项仍暂缓。**
+> **2026-11-19 真值注记（当前实现，不得写成目标）：① famling 桌面端无自由 LLM 对话（roleplay 仅本地模板）；`dsh-famling` 插件另有真实 LLM 文本聊天（经 DSH Host `ctx.llm.stream`，文本发往用户配置的模型供应商），两端口径不得混写。② TTS/ASR 独立声明+单独同意、撤回同意、删除全部本地数据已实现；仍缺 ASR 独立常驻开关/日配额、第三方跨境具体披露与生效隐私政策。③ **D6 已实现（2026-11-20.1）**：首启 = 关键事实层 + 完整 TOS → 应用（不采集出生日期）；年龄自报只在 age-gated 入口/About 主动核验时采集。④ 远程内容市场默认不联网（未注入 transport 时零请求）；未来启用时的数据流见 PRIVACY §2B。⑤ 随包 baked WAV = 42（21 stella + 21 tide），用户 2026-11-17 授权随包，DeepSeek 书面再分发许可仍 TBD。⑥ `node scripts/legal-check.mjs --strict` 2026-11-19 实测 34 blockers/34 warnings（warning 在 strict 下被复制为 blocker，不是 34 个独立问题）。**
 > 适用对象：`desktop-games` 仓库（工程名；**产品名未定**）、桌宠层代号 Famling、角色「**汀岚**」（暂定名，未经商标检索）、内部工作名 **Orca OC**（**不得**作产品名/包名/域名）。
 > ⚠️ **统一使用限制（canonical，2026-11-19）**：本项目及其全部代码、美术、音频、文案、角色素材和衍生物仅用于技术研究与原型验证，不得用于情感陪伴、虚拟伴侣、心理治疗/医疗/法律/金融建议、未成年人亲密关系、冒充真人/官方，或任何违反法律法规/平台规则的用途。 单一规范文本与 SHA-256 见 [USE-RESTRICTIONS-2026-11-19](/legal/USE-RESTRICTIONS-2026-11-19.md)；README 首屏、TOS/LEGAL、`public/legal/`、插件 README/LEGAL 都必须逐字一致。
 > 上位文件：[NOTICE](/legal/NOTICE) · [LICENSE](/legal/LICENSE.txt) · [LICENSE-COMMERCIAL.md](/legal/LICENSE-COMMERCIAL.md) · [LICENSE-ART](/legal/LICENSE-ART) · [CREDITS.md](/legal/CREDITS.md) · [THIRD-PARTY.md](/legal/THIRD-PARTY.md) · [AI-PROVENANCE.md](/legal/AI-PROVENANCE.md) · LEGAL-STATUS。
@@ -62,7 +62,7 @@
 | [USE-RESTRICTIONS-2026-11-19](/legal/USE-RESTRICTIONS-2026-11-19.md) | **统一使用限制（canonical 短句）**：仅技术研究与原型验证；禁情感陪伴/虚拟伴侣/专业建议/未成年人亲密关系/冒充真人或官方/违法用途；所有入口逐字一致 | **是** |
 | [PRIVACY](/legal/PRIVACY.md) | **对外隐私政策草案 + 数据流/保留/删除/撤回/第三方跨境/Advisers/未成年人/安全事件**（DRAFT；当前缺失如实标注） | **是** |
 | [AI-LABELING](/legal/AI-LABELING.md) | **AI 生成合成内容标识方案**：显式/隐式/音频/图片/导出/商店申报/C2PA·XMP TBD（现状 vs 待办） | **是** |
-| [CONSUMER-MINORS-HEALTH](/legal/CONSUMER-MINORS-HEALTH.md) | **免费 v1 固定条款、退款框架、年龄口径=一般功能全年龄 + roleplay/情感陪伴仅 18+（2026-11-17.5 拍板；首启自报出生日期核验）、roleplay 文案禁令、投诉 12377/12315/12356** | **是** |
+| [CONSUMER-MINORS-HEALTH](/legal/CONSUMER-MINORS-HEALTH.md) | **免费 v1 固定条款、退款框架、年龄口径=一般功能全年龄 + roleplay/情感陪伴仅 18+（2026-11-17.5 拍板；D6/2026-11-20.1 首启不采集年龄、进入 18+ 入口或 About 主动核验时才自报出生日期核验）、roleplay 文案禁令、投诉 12377/12315/12356** | **是** |
 | [APPROVALS](/legal/APPROVALS.md) | **批准矩阵**（窗口 flags/256 final/TTS·ASR/DLC/发布/名称商标/CC0/商业）；空白待签，不得伪造 | 是（签署） |
 | [RELEASE-BLOCKERS](/legal/RELEASE-BLOCKERS.md) | **发布阻断逐项**：gate 2026-11-19 实测 34 blockers/34 warnings（含 DRAFT/portable 缺件）、真实阻断、安装包/portable 资源清单、旧产物、42 WAV、AI 标识、隐私、许可生效 | 建议 |
 | [LAWYER-REVIEW-CHECKLIST-2026-11-19](/legal/LAWYER-REVIEW-CHECKLIST-2026-11-19.md) | **律师复核前检查清单与未决法律问题**：当前产品事实（两端边界/同意/数据流/D6 现状 vs 目标）、20 项待 owner/律师决定问题、复核材料与禁止宣称事项；**不是法律意见、不是审查结论** | **是**（复核索引） |

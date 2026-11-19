@@ -78,6 +78,20 @@ import {
   TTS_TITLE,
   TTS_VERSION,
 } from './terms.ts'
+import {
+  HEALTH_BANNER_CLAIM_MS,
+  acknowledgeHealthRest,
+  claimHealthBanner,
+  defaultHealthTiming,
+  deferHealthReminder,
+  isHealthReminderDue,
+  mergeHealthStates,
+  noteHealthInteraction,
+  readHealthState,
+  refreshHealthState,
+  writeHealthState,
+} from '../health-reminder.ts'
+import { isQuietHoursActive, readQuietHours } from '../low-disturb.ts'
 
 export interface ConsentRuntime {
   readonly gate: ConsentGate
@@ -107,6 +121,8 @@ let runtime: ConsentRuntime | null = null
 let blockedOverlay: BlockedOverlay | null = null
 let healthBanner: { hide(): void } | null = null
 let healthTimer: ReturnType<typeof setInterval> | null = null
+/** Interaction/visibility listeners installed by startHealthReminder (removed by stop). */
+const healthListeners: Array<{ target: EventTarget; type: string; listener: (event: Event) => void }> = []
 let aboutReturnFocus: HTMLElement | null = null
 let activeOptions: ConsentRuntimeOptions = {}
 
@@ -152,6 +168,10 @@ function createTauriDataHost(): DataControlHost | null {
     async clearVoiceCache(): Promise<void> {
       await invoke('voice_cache_clear')
     },
+    async clearHostConsent(): Promise<boolean> {
+      const cleared = await invoke('revoke_host_consent')
+      return cleared === true
+    },
   }
 }
 
@@ -191,8 +211,9 @@ export function initConsentRuntime(options: ConsentRuntimeOptions = {}): Consent
   let retryFromBlocked: () => Promise<void> = async () => {}
 
   const ui: ConsentUiPort = {
-    // First-run/age-correction self-report dialog. Fail closed when it cannot
-    // complete: `bootstrap()` then shows the age-required safe read-only view.
+    // Age-gated entry / About self-report dialog (D6: never part of first
+    // launch). Fail closed when it cannot complete: the gated feature is blocked
+    // and the rest of the app keeps working (no whole-app read-only).
     showAge: (prompt) => showAgeDialog(doc, prompt),
     showTos: (prompt) => showTosDialog(doc, prompt),
     showTts: (prompt) => showTtsDialog(doc, prompt),
@@ -354,7 +375,11 @@ export async function requestAgeCorrection(): Promise<boolean> {
   const doc = runtime.document
   const gate = runtime.gate
   if (!gate.canInteract()) return false
-  const decision = await showAgeDialog(doc, gate.agePrompt('correct'))
+  // About works as an explicit opt-in verification entry under D6: unverified
+  // users get the neutral 'gated' prompt copy, verified users get the correction
+  // flow. Neither changes the TOS acceptance or the rest of the app.
+  const reason = gate.ageSnapshot().verified ? 'correct' : 'gated'
+  const decision = await showAgeDialog(doc, gate.agePrompt(reason))
   if (!decision.verified) return false
   const result = gate.reverifyAge({
     year: typeof decision.year === 'number' ? decision.year : null,
@@ -387,7 +412,7 @@ export async function requestAgeCorrection(): Promise<boolean> {
       result.roleplayCleared
         ? '已结束当前角色扮演会话并清除其状态；如需继续，需重新完成完整 TOS + 声明确认。'
         : '当前没有进行中的角色扮演会话。',
-      '一般功能不受影响；TOS 文本与版本/哈希未变，不需要重新同意 TOS。',
+      '一般功能不受影响；TOS 文本与版本/哈希未因年龄核验/更正而改变，不需要重新同意 TOS。',
       '这是自报核验，不是官方身份证/实名认证。',
     ],
     closeLabel: '知道了',
@@ -475,10 +500,10 @@ export function refreshAboutPanel(): void {
     const band = age.verified
       ? `已核验（自报）· ${age.band}${age.adult ? ' · roleplay 18+ 门槛已满足' : ' · roleplay 不可用（仅限 18+）'}`
       : age.status === 'corrupt'
-        ? '未核验（本机记录损坏，会重新核验）· roleplay 不可用'
+        ? '未核验（本机记录损坏，进入 18+ 功能时会重新核验）· roleplay 不可用'
         : age.status === 'invalid'
-          ? '未核验（本机记录已失效，会重新核验）· roleplay 不可用'
-          : '未核验 · roleplay 不可用'
+          ? '未核验（本机记录已失效，进入 18+ 功能时会重新核验）· roleplay 不可用'
+          : '未核验（首次启动不采集；进入 18+ 功能或在此主动核验时才采集）· roleplay 不可用'
     const persistence = age.persistence === 'local' ? '本机 localStorage' : '仅本次会话内存（存储不可用）'
     ageMeta.textContent = `年龄核验（自报出生日期）：${band} · 记录：${persistence} · 仅显示年龄段，不显示完整生日 · 不是官方身份证/实名核验；“删除全部本地数据”会删除年龄记录`
   }
@@ -492,7 +517,7 @@ export function refreshAboutPanel(): void {
       ? 'age 18+ 门槛：已满足'
       : age.verified
         ? 'age 18+ 门槛：未满足（当前未满 18 周岁，roleplay 被阻止）'
-        : 'age 18+ 门槛：未满足（未核验，roleplay 被阻止）'
+        : 'age 18+ 门槛：未满足（未核验；进入 roleplay 入口时会先询问，或可在此主动核验）'
     roleplayMeta.textContent = `角色扮演声明 ${ROLEPLAY_VERSION} · SHA-256 ${ROLEPLAY_HASH.slice(0, 16)}… · ${ROLEPLAY_SECTIONS.length} 节 · 仅限年满 18 周岁（一般功能全年龄可用）；内容须全年龄适宜 · ${ageGate} · 状态：${status} · 每次开始/设定变更需重新完整 TOS + 声明并重新填写`
   }
   const roleplayExit = doc.getElementById('about-roleplay-exit')
@@ -967,28 +992,82 @@ export interface HealthReminderOptions {
 }
 
 /**
- * Non-blocking reminder required by the health-use policy: after ~2h of
- * continuous visible use, show a dismissible banner with rest/About entries.
- * It never blocks the pet and pauses while the document is hidden.
+ * Non-blocking 2h health reminder required by the health-use policy (MB-072).
+ *
+ * Q-03 semantics implemented here:
+ * - the start time is a persisted wall-clock timestamp, so switching to a game
+ *   window, hiding the pet page or restarting does not reset the clock;
+ * - a page becoming hidden no longer pauses anything: visibility only gates
+ *   whether the banner may be painted (it appears when the window is visible);
+ * - a no-interaction gap longer than the shared idle window starts a fresh
+ *   continuous-use session instead of counting "app left open" as use;
+ * - quiet hours defer the banner to the first tick after the window ends;
+ * - the banner offers only "休息一下（2 小时后仍会提醒）" and
+ *   "10 分钟后再提醒" -- there is no permanent dismiss.
  */
 export function startHealthReminder(options: HealthReminderOptions = {}): void {
   if (healthTimer !== null) return
   const doc = requireRuntime().document
-  const afterMs = options.afterMs ?? HEALTH_REMINDER_MS
+  const timing = defaultHealthTiming({ afterMs: options.afterMs ?? HEALTH_REMINDER_MS })
   const tickMs = options.tickMs ?? 1_000
-  let elapsedMs = 0
-  healthTimer = setInterval(() => {
+  let state = refreshHealthState(readHealthState(undefined, Date.now()), Date.now(), timing)
+
+  const persist = (): void => {
+    writeHealthState(state)
+  }
+
+  const noteInteraction = (): void => {
+    const at = Date.now()
+    // 1s resolution: wheel/pointer input must not cause a localStorage write per
+    // event just to refresh a 15-minute idle-gap decision.
+    if (state.lastInteractionAt !== 0 && at - state.lastInteractionAt < 1_000) return
+    const next = noteHealthInteraction(state, at, timing)
+    if (next !== state) {
+      state = next
+      persist()
+    }
+  }
+
+  const tick = (): void => {
     try {
       if (!gateRefAvailable()) return
+      const nowMs = Date.now()
+      // The game windows write the same record: merge their interactions/claims
+      // before evaluating, so one 2h clock spans pet <-> game without a host.
+      state = refreshHealthState(mergeHealthStates(state, readHealthState(undefined, nowMs)), nowMs, timing)
+      const due = isHealthReminderDue(state, nowMs, timing)
+      if (healthBanner) {
+        // Another window may have rested/deferred/finished the session.
+        if (!due) {
+          healthBanner.hide()
+          healthBanner = null
+        }
+        return
+      }
+      if (!due) return
+      // Hidden windows keep counting time but cannot paint a banner; the
+      // visibility listener below runs tick() again when the window returns.
       if (doc.visibilityState === 'hidden') return
-      if (healthBanner) return
-      elapsedMs += tickMs
-      if (elapsedMs < afterMs) return
-      elapsedMs = 0
+      // Quiet hours (MB-070): defer, never drop. The persisted start time stays
+      // untouched, so the banner appears after the quiet window ends.
+      if (isQuietHoursActive(new Date(nowMs), readQuietHours())) return
+      // Cross-window dedupe: another same-origin window may have just claimed it
+      // (state.lastShownAt already includes the merged stored value).
+      const claimedAt = state.lastShownAt
+      if (nowMs - claimedAt < HEALTH_BANNER_CLAIM_MS) return
+      state = claimHealthBanner(state, nowMs)
+      persist()
       runtime?.gate.recordHealthReminder()
       healthBanner = showHealthBanner(doc, {
         text: HEALTH_REMINDER_TEXT,
         onRest: () => {
+          state = acknowledgeHealthRest(state, Date.now())
+          persist()
+          healthBanner = null
+        },
+        onDefer: () => {
+          state = deferHealthReminder(state, Date.now(), timing)
+          persist()
           healthBanner = null
         },
         onAbout: () => {
@@ -999,7 +1078,27 @@ export function startHealthReminder(options: HealthReminderOptions = {}): void {
     } catch {
       /* never let the reminder break the app */
     }
-  }, tickMs)
+  }
+
+  const register = (type: string, listener: (event: Event) => void): void => {
+    try {
+      doc.addEventListener(type, listener)
+      healthListeners.push({ target: doc as unknown as EventTarget, type, listener })
+    } catch {
+      /* listener registration is best-effort */
+    }
+  }
+  // Any user interaction keeps the current continuous-use session alive (and
+  // restarts it after an idle gap). Reads/wheel count as presence too.
+  register('pointerdown', noteInteraction)
+  register('keydown', noteInteraction)
+  register('touchstart', noteInteraction)
+  register('wheel', noteInteraction)
+  register('visibilitychange', () => {
+    if (doc.visibilityState === 'visible') tick()
+  })
+  tick()
+  healthTimer = setInterval(tick, tickMs)
 }
 
 function gateRefAvailable(): boolean {
@@ -1012,4 +1111,12 @@ export function stopHealthReminder(): void {
   healthTimer = null
   healthBanner?.hide()
   healthBanner = null
+  for (const entry of healthListeners) {
+    try {
+      entry.target.removeEventListener(entry.type, entry.listener)
+    } catch {
+      /* ignore */
+    }
+  }
+  healthListeners.length = 0
 }

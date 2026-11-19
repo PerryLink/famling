@@ -1,7 +1,7 @@
 # 发布阻断清单（RELEASE-BLOCKERS）— 逐项、可验收 · DRAFT
 
 > **Status: DRAFT（engineering draft）· 2026-11-17（2026-11-19 实测更新）· 不是法律意见。**
-> **2026-11-19 状态注记：年龄口径以 2026-11-17.5 为准（一般功能全年龄 + roleplay/情感陪伴仅 18+，首启自报出生日期核验；旧“全年龄、不设年龄门”作废）。baked WAV 为 42（21 stella + 21 tide，用户 2026-11-17 授权随包；DeepSeek 书面再分发仍 TBD）。ASR 独立声明+单独同意、撤回同意、删除全部本地数据已实现；仍缺 ASR 独立常驻开关/日配额与第三方跨境披露。发布阻断以本文件 §3 为准，gate 计数只是快照。**
+> **2026-11-19 状态注记：年龄口径以 2026-11-17.5 为准（一般功能全年龄 + roleplay/情感陪伴仅 18+；旧“全年龄、不设年龄门”作废）。**2026-11-20.1 D6：首启不采集年龄（关键事实层 + 完整 TOS 先读），年龄自报只在进入 18+ roleplay 入口或 About 主动核验时采集；TOS 升 `2026-11-20.1`。**baked WAV 为 42（21 stella + 21 tide，用户 2026-11-17 授权随包；DeepSeek 书面再分发仍 TBD）。ASR 独立声明+单独同意、撤回同意、删除全部本地数据已实现；仍缺 ASR 独立常驻开关/日配额与第三方跨境披露。发布阻断以本文件 §3 为准，gate 计数只是快照。**
 > 本文把“发布前必须”落成**可勾选、可复验**的清单：gate 当前条目的具体内容、真实阻断、安装包/portable 资源清单、旧产物清理、42 WAV/AI 标识/隐私政策/许可生效的放行条件。**全绿之前不得公开发布/上架/收费**；本文不改变任何代码/构建。
 > 基线证据（2026-11-19 本机实测，含 `--sync` 后）：`node scripts/legal-check.mjs --strict` → **exit 1，BLOCKED 34 blocker(s), 34 warning(s)**（34 条 blocker 均为 warning 在 strict 下被复制；无 hard 文件缺失类 blocker）；warn-only 34 warnings = 16 条 DRAFT + 18 条 portable 缺 `legal/` 文件（二者相加 34，无 staging-过小 warning）。`node scripts/release-win.mjs --verify` → **exit 1，missing artifacts/SHA256SUMS.txt**。计数会随改动变化，发布前必须重跑并以输出为准。来源：`docs/legal/review-2026-11-17/06-release-ops-ui.md`（主）、01/02/03/05 线；[APPROVALS](/legal/APPROVALS.md) · CONSOLIDATED · PATCH-PLAN。
 
@@ -29,7 +29,7 @@
 | 音频 | **42 WAV（21 stella + 21 tide）** 再分发未确认；用户 2026-11-17 授权 baked 随包但**不等于** DeepSeek 书面再分发许可；旧包已内嵌旧语音；WAV 无 AI 音频标识/首播提示 | R-P0-02 | §6 决策树完成 + 服务商书面结论或替换/移除 + 旧产物清理 + 音频标识（A-16） |
 | AI 标识 | 2026-11-18 用户决定移除常驻 AI 角标（改为首启/About/TTS 流程提示）；无隐式元数据/导出标识/音频起始提示；显式标识“显著性”待律师复核；TOS 无方法样式；商店问卷未定 | R-P0-03 | [AI-LABELING](/legal/AI-LABELING.md) §8 全勾 + A-16 + 律师确认“流程提示是否足够显著” |
 | 隐私 | 无生效隐私政策；ASR 独立声明+单独同意/拒绝不上传、撤回同意、删除全部本地数据**已实现**；仍缺 ASR 独立常驻开关/日配额/费用提示、TTS/ASR 第三方留存与跨境具体披露、卸载清理说明 | R-P0-04/05/06/07 | [PRIVACY](/legal/PRIVACY.md) §16 全勾 + A-05/A-13 |
-| 消费者/未成年人 | 年龄口径**已拍板 2026-11-17.5：一般功能全年龄 + roleplay/情感陪伴仅 18+**（首启自报出生日期核验；非官方身份证/实名核验，可被虚假自报或修改绕过；无未成年人模式/监护人验证，须如实披露）；roleplay 仅本地模板并可如实说明；消费者条款缺失；投诉通道不足 | R-P0-01/08/09/10 | [CONSUMER-MINORS-HEALTH](/legal/CONSUMER-MINORS-HEALTH.md) §3/§4/§6 落地 + A-14（文本层已解，律师项仍暂缓） |
+| 消费者/未成年人 | 年龄口径**已拍板 2026-11-17.5：一般功能全年龄 + roleplay/情感陪伴仅 18+**（D6/2026-11-20.1：首启不采集年龄，进入 18+ 入口或 About 主动核验时才自报出生日期核验；非官方身份证/实名核验，可被虚假自报或修改绕过；无未成年人模式/监护人验证，须如实披露）；roleplay 仅本地模板并可如实说明；消费者条款缺失；投诉通道不足 | R-P0-01/08/09/10 | [CONSUMER-MINORS-HEALTH](/legal/CONSUMER-MINORS-HEALTH.md) §3/§4/§6 落地 + A-14（文本层已解，律师项仍暂缓） |
 | 内容安全 | 零容忍漏放+空格绕过；审核零留痕 | R-P0-20/21 | 红线回归全绿 + 最小审核审计（不存原文） |
 | 包/安装器 | portabe/zip 0 声明；安装器无 licensePage、资源不齐；docs 链接 404 | R-P0-18/19 | §4 清单齐 + 实机安装核验 + 链接可达 |
 | 商标/名称 | Pagefold/折角/DesktopGames 未清即用 | R-P0-14 | A-09 定名+检索 |

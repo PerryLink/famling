@@ -9,8 +9,8 @@
  * deliberately contains NO TOS acceptance write (it never calls
  * `createAcceptance`/`saveAcceptance` and never writes the acceptance key).
  *
- * Voice switch (VOICE-SWITCH-2026-11-17): the user can pick the DeepSeek cloud
- * TTS voice `stella` (default) or `tide` (system TTS ignores the id); the choice is persisted in
+ * Voice switch (VOICE-SWITCH-2026-11-17): the user can pick the baked DeepSeek
+ * voice `stella` (default) or `tide`; the choice is persisted in
  * `desktop-games/pet/voice`. Because the voice is part of the TTS config
  * signature, changing it makes the pet window re-show the separate TTS
  * declaration (memory-only gate); this page never claims that taking the TOS

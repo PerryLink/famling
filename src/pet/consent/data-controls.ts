@@ -61,6 +61,12 @@ export interface DataControlHost {
   isSaveGone(slot: string): Promise<boolean>
   /** Tauri `voice_cache_clear` (removes the WAV cache directory). */
   clearVoiceCache(): Promise<void>
+  /**
+   * Tauri `revoke_host_consent` (P1-4): clears the Rust-side TOS/voice consent
+   * state and deletes the durable host marker; resolves true only when the marker
+   * is verified gone. Optional so older/mocked hosts keep working.
+   */
+  clearHostConsent?(): Promise<boolean>
 }
 
 export interface DeleteAllOptions {
@@ -108,6 +114,7 @@ export const DATA_ITEM_LABELS: Readonly<Record<string, string>> = {
   'safety-audit': '安全审核记录（不含原文）',
   'tts-cache': 'TTS 音频缓存（Tauri 本机）',
   'tts-quota': 'TTS 每日用量计数 quota.json（Tauri 本机）',
+  'host-consent': '宿主同意状态（Rust 侧 consent 标记，用于 --game=/IPC 门）',
   'other-pet': '其他本机桌宠数据',
   'runtime-state': '当前会话内存状态',
   'webview-profile': 'WebView2 配置/缓存目录（非应用管理）',
@@ -350,6 +357,30 @@ async function deleteHostFiles(
     clampStatus(quota, 'residual')
     quota.details.push('本版本 Rust 侧未提供清除 voice/quota.json 的命令；文件仍留在本机')
     residual.push('TTS 用量计数 quota.json: 当前无 Rust 清除命令，文件仍保留（需 Rust 侧补齐或手动清理）')
+  }
+
+  const clearHostConsent = host.clearHostConsent?.bind(host)
+  if (clearHostConsent) {
+    const hostConsent = itemMap.set('host-consent', {
+      id: 'host-consent',
+      label: DATA_ITEM_LABELS['host-consent']!,
+      status: 'deleted',
+      details: [],
+    }).get('host-consent')!
+    try {
+      const cleared = await clearHostConsent()
+      if (cleared) {
+        hostConsent.details.push('宿主 consent 状态/标记已清除并核验（revoke_host_consent）')
+      } else {
+        clampStatus(hostConsent, 'residual')
+        hostConsent.details.push('revoke_host_consent 调用后标记仍存在')
+        residual.push('Rust 侧同意状态: 删除后仍存在（revoke_host_consent 核验失败）')
+      }
+    } catch (error) {
+      clampStatus(hostConsent, 'residual')
+      hostConsent.details.push('revoke_host_consent 失败')
+      residual.push(`Rust 侧同意状态: 删除失败（${errorMessage(error)}）`)
+    }
   }
 }
 

@@ -1,7 +1,7 @@
 # 替换与改模政策：动作 / 声音 / 形象 / 行为 / UI — 草案
 
 > **状态：DRAFT · 2026-11-15（2026-11-17 增补 §7A；2026-11-19 事实同步）· 非法律意见。** 待用户 + 律师确认。本文规定“对本项目角色/桌宠做替换与改模”时哪些可以做、哪些必须保留、哪些绝对禁止；**不改变**各素材自身的许可。法律基线见 [LEGAL-BASELINE](/legal/LEGAL-BASELINE.md)；应用内加载确认文本见 [APP-DISCLOSURE-TEXTS](/legal/APP-DISCLOSURE-TEXTS.md) `mod.loadConfirm`。
-> **2026-11-17.5 年龄口径（现行）：一般功能全年龄可用；roleplay/情感陪伴仅限年满 18 周岁用户（首启自报出生日期核验，非官方身份证核验）。旧“全年龄、不设年龄门”（2026-11-17）已作废；全年龄内容边界与 roleplay 声明保留。**
+> **2026-11-17.5 年龄口径（现行）：一般功能全年龄可用；roleplay/情感陪伴仅限年满 18 周岁用户（D6/2026-11-20.1：首启不采集年龄，进入 18+ 入口或 About 主动核验时才自报出生日期核验，非官方身份证核验）。旧“全年龄、不设年龄门”（2026-11-17）已作废；全年龄内容边界与 roleplay 声明保留。**
 > 适用载体（2026-11-15 实测）：FCI 角色包 `character.json`（tags/behaviors/render/atlas/audio/expressions）、内容包 `content.json`、资源目录 `public/assets/`；渲染格式 `pixel-hero | pixel-micro | hd-chibi`（第一方）。**包内永不执行脚本。**
 > 关联：[DLC-AND-PLUGIN-TERMS](/legal/DLC-TERMS.md) · [FANWORK-POLICY](/legal/FANWORK-POLICY.md) · [AI-CONTENT-POLICY](/legal/AI-CONTENT-POLICY.md) · [CONTENT-POLICY](/legal/CONTENT-POLICY.md) · 模板 TEMPLATES。
 

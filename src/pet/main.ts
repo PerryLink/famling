@@ -3552,10 +3552,11 @@ function initAboutPanel(): void {
   })
   // INTERNAL ONLY (public element intentionally absent from pet.html): the
   // optional chain is a no-op today. If a future/authorised surface re-creates
-  // the hidden node, it still goes through the same gate: age self-report check
-  // BEFORE any form; unverified => `age-required`, minor => `minor`; every
-  // start/settings change re-prompts the full TOS + roleplay declaration and
-  // re-fills the form; TOS/TTS/ASR never substitute for it.
+  // the hidden node, it still goes through the same gate. D6 (2026-11-20):
+  // the age self-report is collected AT THIS age-gated entry (never at first
+  // launch); a decline/`age-required` or a minor result opens no roleplay
+  // form. Every start/settings change re-prompts the full TOS + roleplay
+  // declaration and re-fills the form; TOS/TTS/ASR never substitute for it.
   document.getElementById('about-roleplay')?.addEventListener('click', () => {
     void beginRoleplayFlow().catch((error) => reportFailure(uiBoundary, error))
   })
@@ -3570,8 +3571,9 @@ function initAboutPanel(): void {
 /**
  * INTERNAL roleplay flow (retained; no public entry is created on any shipped
  * surface since the 2026-11-17 user decision). The gate first enforces the 18+
- * age self-report check (no roleplay state/form for unverified or minor users),
- * then ALWAYS re-runs the full TOS + separate roleplay declaration + mandatory
+ * age self-report check (D6: prompted here at the age-gated entry, not at first
+ * launch; no roleplay state/form for unverified or minor users), then ALWAYS
+ * re-runs the full TOS + separate roleplay declaration + mandatory
  * settings form (every start/every change). Declining starts/changes nothing.
  * When accepted, this build only shows a fixed LOCAL TEMPLATE line that is
  * explicitly labelled as non-LLM — there is no free-form roleplay engine and
@@ -3583,7 +3585,8 @@ async function beginRoleplayFlow(): Promise<void> {
   const result = await requireRoleplayConsent({ change })
   if (!result.accepted || !result.settings) {
     if (result.reason === 'age-required') {
-      const message = '角色扮演仅限年满 18 周岁用户：请先在 About 完成年龄核验（自报出生日期）后再开始；一般功能仍可使用。'
+      const message =
+        '角色扮演仅限年满 18 周岁用户：本次未完成年龄核验（取消或未选择出生日期），未开始；一般功能仍可使用。可重试，或先在 About 主动完成年龄核验（自报出生日期）。'
       showBubble(message)
       setAboutNote(message)
       openAboutPanel()
@@ -4014,14 +4017,15 @@ function showStartupFailure(error: unknown): void {
 
 /**
  * Single boot path: initialize the consent runtime BEFORE any pet interaction,
- * then `bootstrapConsent()` runs the mandated order
- *   1) first-run/upgrade AGE self-report verification (birth year/month/day,
- *      explicit confirmation, no prefill/default; 18+ age gate for age-gated
- *      features — the internal roleplay gate is retained), then
- *   2) the first-run/upgrade TOS,
- * and only then boots the pet. A later acceptance from the read-only screen (or
- * a retry) re-runs age -> TOS and boots the pet exactly once. There is no path
- * that silently skips age verification into normal interaction.
+ * then `bootstrapConsent()` runs the mandated D6 order (2026-11-20):
+ *   1) first-run/upgrade key-facts layer + full TOS (explicit checkbox +
+ *      button; no birth date is requested at first launch), and only then
+ *   2) boots the pet. The age self-report is NOT part of bootstrap: it is
+ *      requested only when the internal age-gated roleplay entry is used (or
+ *      the user opts in from About), and declining it blocks only that entry.
+ * A later acceptance from the read-only screen (or a retry) re-shows the
+ * full TOS and boots the pet exactly once. There is no path that silently
+ * skips the TOS into normal interaction.
  */
 async function startConsentApp(): Promise<void> {
   try {

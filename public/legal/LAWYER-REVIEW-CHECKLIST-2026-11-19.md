@@ -22,14 +22,14 @@
 |---|---|---|---|---|
 | 1 | famling 桌面端对话 | **无自由 LLM 对话**：无 chat-completion 调用点；roleplay 入口只提供本地模板/声明/设定，不伪造聊天引擎 | `src/pet/consent/terms.ts`、`src/pet/trust.ts`、`src/pet/main.ts` 注释与实现；`tests/roleplay*.test.ts` | 对外只能写“仅本地模板，不提供自由 LLM 对话” |
 | 2 | dsh-famling 插件对话 | **有真实 LLM 文本聊天**：`op:"chat"` → DSH Host `ctx.llm.stream`；provider/model 来自 DSH 默认模型或插件 Config；输入文本会发往对应模型供应商 | 插件仓 `index.js`（`ctx.llm.stream`）、`client.js`；插件 `docs/LEGAL-NOTICE-2026-11-18.md` §1.1 | 不能写“插件不提供自由 LLM 对话”；准确写法是“不提供角色扮演/情感陪伴，聊天为普通 AI 回复”；插件 LEGAL 的适用版本号已漂移（见 §3-9） |
-| 3 | 年龄核验与 roleplay | 一般功能全年龄可用；roleplay/情感陪伴仅限 18+；首启**自报出生年/月/日**（不预填、无默认；非官方身份证/实名核验，可被虚假自报或修改绕过）；未核验/未满 18 被阻止且不展示设定表单 | `src/pet/consent/age.ts`、`gate.ts`（`runRoleplayPrompt` 先年龄门再 TOS/声明） | 不得宣称实名核验、年龄识别、绝对阻止未成年人、监护人验证 |
-| 4 | **首启顺序：当前 vs D6 目标** | `[现状]` **年龄自报核验 → 完整 TOS → 应用**（`gate.ts runBootstrap` 注释 “ORDER IS A HARD CONTRACT”）<br>`[目标]` **D6**：TOS/关键事实**先读**，年龄只在 age-gated 功能入口做（数据最小化/合规）——**已排期、未实现** | `src/pet/consent/gate.ts`（age 在 TOS 前）、`docs/plan/MASTER-BACKLOG-2026-11-19.md` D6 | ⚠️ 任何文档不得把 D6 目标写成当前实现；TOS/PRIVACY 现有描述的是当前顺序；D6 实现需改代码 + TOS 版本/哈希，不在本任务范围 |
-| 5 | TOS/声明版本 | 应用内 canon `terms.ts`：TOS `2026-11-17.6`、TTS `2026-11-17.4`、ASR `2026-11-17.3`、ROLEPLAY `2026-11-17.4`；`docs/legal/TOS.md` 与 TTS-TERMS 的 pin 必须与之一致（tests 锁定） | `src/pet/consent/terms.ts`、`docs/legal/TOS.md`、`tests/consent-actions.test.ts`、`tests/legal-user-agency.test.ts` | 改条款正文必须 bump 版本+重算哈希+强制重新同意；本清单不重复哈希值 |
+| 3 | 年龄核验与 roleplay | 一般功能全年龄可用；roleplay/情感陪伴仅限 18+；**D6（2026-11-20.1）：首启不采集年龄**，只在进入 age-gated 角色扮演入口或 About 主动核验时要求**自报出生年/月/日**（不预填、无默认；非官方身份证/实名核验，可被虚假自报或修改绕过）；未核验/未满 18 被阻止且不展示设定表单，拒绝只阻止该入口 | `src/pet/consent/age.ts`、`gate.ts`（`runBootstrap` 不含年龄；`runRoleplayPrompt` 进入时才 prompt 年龄门，再 TOS/声明） | 不得宣称实名核验、年龄识别、绝对阻止未成年人、监护人验证；不得说首启强制采集年龄 |
+| 4 | **首启顺序（D6）** | `[现状 2026-11-20.1]` **关键事实层 + 完整 TOS → 应用**（首启不采集出生日期）；年龄自报只在进入 age-gated 功能（角色扮演/情感陪伴，18+）或 About 主动核验/更正时采集；拒绝只阻止该入口，不进入全应用只读（`gate.ts runBootstrap` 已移除年龄步骤，`runRoleplayPrompt` 进入时才 prompt） | `src/pet/consent/gate.ts`、`modal.ts`（`consent-key-facts`）、`terms.ts` `TOS_KEY_FACTS`、`tests/age-verification.test.ts` | 律师需复核：该顺序是否满足数据最小化/告知充分；TOS 已升 `2026-11-20.1` 并强制重新同意；HOST 常量/镜像已同步 |
+| 5 | TOS/声明版本 | 应用内 canon `terms.ts`：TOS `2026-11-20.1`、TTS `2026-11-17.4`、ASR `2026-11-17.3`、ROLEPLAY `2026-11-17.4`；`docs/legal/TOS.md` 与 TTS-TERMS 的 pin 必须与之一致（tests 锁定） | `src/pet/consent/terms.ts`、`docs/legal/TOS.md`、`tests/consent-actions.test.ts`、`tests/legal-user-agency.test.ts` | 改条款正文必须 bump 版本+重算哈希+强制重新同意；本清单不重复哈希值 |
 | 6 | TTS 同意 | TTS 声明独立于 TOS；按会话+配置签名生效；开启/切换 provider/音色/云本地/音量/新会话会再次确认；确认不持久化 | `src/pet/consent/tts.ts`、`gate.ts ensureTts`、`tests/consent-*.test.ts` | 见 [TTS-TERMS](/legal/TTS-TERMS.md) §2A |
 | 7 | ASR 同意 | **ASR 独立声明 + 单独同意已实现**：TOS/TTS 同意不能替代；未确认不调用 `getUserMedia`、不录音、不上传；拒绝/错误 fail-closed；按会话+配置签名重新确认；录音 ≤60s、WAV ≤8 MiB，经 Tauri 代理上传 `api.deepseek.com/v1/tools/asr` | `src/pet/consent/asr.ts`、`gate.ts ensureAsr`、`src/pet/main.ts beginTalkWithAsrConsent`、Rust `voice_asr`、`tests/consent-asr.test.ts` | **仍缺**：独立常驻开关、日配额/费用提示、供应商留存/跨境书面条款（见 PRIVACY §7、TTS-TERMS §2C） |
 | 8 | 数据控制 | **撤回同意 + 删除全部本地数据已实现**（二次确认、逐项核验、进入安全只读）；无法核验的 Rust 残留（TTS `quota` 计数、WebView2 配置目录等）会如实列**残留/未核验**，不谎报完全清除 | `src/pet/consent/data-controls.ts`、`runtime.ts`、`tests/data-controls.test.ts` | 对外不得写“已彻底删除全部数据”；卸载清理说明仍属工程待办 |
 | 9 | 远程内容市场 | **默认不联网**：无注入 transport 时 `transport-unavailable`，构造与导入不发起任何请求；famling 内容中心市场 tab（task-75/MB-086 后）显示“服务器未配置 · 默认不联网”，只有用户显式点击刷新且宿主注入 transport 时才可能联网 | `src/pet/content-market.ts`（transport 默认 null、无全局 fetch 回退）、`src/pet/content-hub.ts` 市场 tab | `[目标/未来数据流]` 若启用：HTTPS 拉取目录/内容包 → Ed25519 验签 + 逐文件 sha256 + 防回滚 → 本地安装；无账号/无遥测，标准 HTTP 元数据（IP/UA）由承载传输暴露；详见 PRIVACY §2B |
-| 10 | AI 生成内容标识 | 用户 2026-11-18 决定**移除界面常驻 AI 角标**；现为流程内提示（首启 TOS/年龄核验、About/「声明」面板、TTS 独立声明与 TOS 三之二）；汀岚 256 的 49 张 PNG 已嵌入 PNG `tEXt`（`scripts/embed-ai-labels.mjs`、`tests/ai-label.test.ts`）；**无** C2PA/XMP、**无**音频播放器标签/首播提示、**无**导出标识；`legal-check` 不检查图片/音频标识 | [AI-LABELING](/legal/AI-LABELING.md) §0/§2026-11-17 更新；`scripts/embed-ai-labels.mjs` | 显著性是否满足《标识办法》须律师判断；不得宣称“标识已闭环/已合规” |
+| 10 | AI 生成内容标识 | 用户 2026-11-18 决定**移除界面常驻 AI 角标**；现为流程内提示（首启 TOS、age-gated 入口年龄核验、About/「声明」面板、TTS 独立声明与 TOS 三之二）；汀岚 256 的 49 张 PNG 已嵌入 PNG `tEXt`（`scripts/embed-ai-labels.mjs`、`tests/ai-label.test.ts`）；**无** C2PA/XMP、**无**音频播放器标签/首播提示、**无**导出标识；`legal-check` 不检查图片/音频标识 | [AI-LABELING](/legal/AI-LABELING.md) §0/§2026-11-17 更新；`scripts/embed-ai-labels.mjs` | 显著性是否满足《标识办法》须律师判断；不得宣称“标识已闭环/已合规” |
 | 11 | 网络出站点（famling） | 云 TTS/ASR（用户显式同意后）、导入公开 DeepSeek 分享（读取公开 share 内容）、Sentry（默认关、aquarium opt-in）、远程市场（当前默认不联网、未配置 transport 即零请求）；其余本地 | `src/voice/*`、`src/pet/chat-import/*`、`src/observability.ts`、`src/pet/content-market.ts` | 不得笼统写“完全不联网”；也不得写“已上云服务” |
 | 12 | 数据存储 | 存档/记忆本机加密（DPAPI/AES-GCM，加密不可用拒写）；偏好/同意/审计/导入摘要 localStorage 明文；TTS WAV 缓存+quota；Advisers Pet Brief 只读不落盘（5 分钟 TTL/失焦 30s 清空）；遥测默认关闭 | `src/pet/crypto.ts`、`src/pet/consent/*`、`src/pet/main.ts` Advisers 段、`src/observability.ts` | 保留期/删除/撤回以 [PRIVACY](/legal/PRIVACY.md) 为准；本地数据删除无法远程执行 |
 | 13 | 记忆开关 | “关闭记忆”**当前无实现**（记忆在互动动作时自动写入）；文档不得写成已具备 | `src/kernel/pet.ts`、PRIVACY §9 | [工程待办] 实现或改文案 |
@@ -46,7 +46,7 @@
 | LQ-01 | 处理者主体与生效日期：个人 PerryLink 还是未来公司？隐私政策/服务条款的生效主体、地址、联系方式、生效日期 | 文档写“个人项目、非公司；生效日期无、草案” | PIPL 告知主体、消费者合同相对方、投诉/诉讼对象 | owner + 律师 | 是 |
 | LQ-02 | TOS/PRIVACY/AI 标识/许可文本定稿：哪些文本可以对外生效、版本与同意机制是否满足“知情—同意” | 全部 DRAFT；TOS 应用内已强制同意但文本未经律师 | 条款效力与免责边界；版本升级强制重新同意是否足够 | 律师（+owner 签发） | 是 |
 | LQ-03 | 年龄核验方案：自报出生日期（非实名、可绕过）是否足以支撑 roleplay 18+ 门禁？是否必须实名/年龄识别？ | 自报 DOB + 18+ 门禁已实现；无未成年人模式/监护人验证 | 未成年人保护义务与虚假自报风险；实名核验又涉及敏感个人信息最小化 | owner + 律师 | 是（roleplay 对外） |
-| LQ-04 | **首启顺序（D6）**：TOS/关键事实是否必须先于出生日期收集？当前“年龄→TOS”是否构成过度收集/告知不充分？ | `[现状]` 年龄→TOS；`[目标]` D6：TOS/关键事实先读、年龄只在 age-gated 入口——**未实现** | 数据最小化与同意有效性；改序需改代码 + TOS 版本/哈希 | owner + 律师 + 工程排期 | 建议发布前 |
+| LQ-04 | **首启顺序（D6）**：TOS/关键事实是否必须先于出生日期收集？ | `[现状 2026-11-20.1]` **D6 已实现**：首启 = 关键事实层 + 完整 TOS（不采集年龄）；年龄自报只在 age-gated 入口/About 主动核验时采集；TOS 已升版+哈希并强制重同意 | 律师评估：自报出生日期作为 18+ 门禁是否足够、About 主动核验入口是否恰当；数据最小化已改善（首启零年龄采集） | owner + 律师（工程已落地） | 建议发布前（法律意见） |
 | LQ-05 | TTS/ASR 第三方与跨境：DeepSeek 留存/训练/处理地/DPA；敏感个人信息（声纹）单独同意的形式；数据出境安全评估是否触发 | ASR 独立声明+同意已实现；供应商条款/留存/跨境**TBD**；无 DPA | PIPL 28/29、38/39；平台条款 | 律师 + 供应商书面（R） | 是（云语音） |
 | LQ-06 | 42 个 baked DeepSeek TTS WAV 的再分发/商用/署名条款 | 用户 2026-11-17 授权随包；**无** DeepSeek 书面再分发许可 | 版权/邻接权与平台条款风险；用户授权不等于服务商许可 | 律师 + DeepSeek 书面（R） | 是（公开发布） |
 | LQ-07 | 远程市场未来数据流：启用联网后谁告知/同意、是否需更新隐私政策、下载器由谁承载、传输层暴露哪些数据 | 当前**默认不联网**（无 transport 零请求）；未来走宿主注入 transport + Ed25519/逐文件 sha256/防回滚；无账号/无遥测 | 隐私政策须描述未来实际数据流；“预留接口”不等于已合规 | owner + 律师 + 工程 | 启用联网前 |
@@ -70,8 +70,8 @@
 
 | # | 事项 | 当前状态 | 复核前动作 | owner |
 |---|---|---|---|---|
-| 3-1 | TOS/声明版本与镜像一致 | TOS `2026-11-17.6`、TTS `2026-11-17.4`、ASR `2026-11-17.3`、ROLEPLAY `2026-11-17.4`；tests 锁定 | 改任何条款正文必须 bump 版本+哈希+重新同意；跑 `npm test` 相关用例 | 工程 |
-| 3-2 | **D6 首启顺序** | `[现状]` 年龄→TOS；D6（TOS/关键事实先读）**未实现** | 先让 owner 拍板 D6 是否做；做则改代码 + bump TOS 版本/哈希；在此之前文档必须分别标注“现状/目标” | owner + 工程 |
+| 3-1 | TOS/声明版本与镜像一致 | TOS `2026-11-20.1`、TTS `2026-11-17.4`、ASR `2026-11-17.3`、ROLEPLAY `2026-11-17.4`；tests 锁定 | 改任何条款正文必须 bump 版本+哈希+重新同意；跑 `npm test` 相关用例 | 工程 |
+| 3-2 | **D6 首启顺序** | **已实现（2026-11-20.1）**：首启=关键事实层+完整 TOS；年龄只在 age-gated 入口/About 主动核验时采集；TOS 升版+哈希、HOST 常量/public/legal 副本/测试同步 | 律师复核顺序与文案（LQ-04）；改任何条款正文仍需重新 bump 版本+哈希+重同意 | owner + 工程（律师意见待） |
 | 3-3 | TOS 正文内联统一使用限制 | **未做**：`src/pet/consent/terms.ts` 未含 canonical 短句；应用内 TOS 弹窗暂未内联该限制（USE-RESTRICTIONS §6/§9 已披露） | 需 owner 决定是否内联；内联会 bump TOS 版本并要求既有用户重新同意（跨模块决策） | owner + 工程 |
 | 3-4 | ASR 独立开关/日配额/费用提示 | 声明+单独同意+拒绝不上传已实现；独立常驻开关、日配额/费用提示未实现 | 补齐或改文案；补齐前不得宣传“可随时关闭/有配额” | 工程 + owner |
 | 3-5 | AI 标识缺口 | 无 C2PA/XMP、无音频播放器标签/首播提示、无导出标识、图片角标未落；`legal-check` 不检查图片/音频 | 先定显著性口径（律师）再实现；未实现前不得宣称“已标识/已合规” | 工程 + 律师 |
@@ -97,7 +97,7 @@
 - 不得称“隐私政策已生效”“TOS 已生效”“许可已生效”“已清权”“音频再分发已获许可”。
 - 不得称“已实现实名/官方身份证年龄核验”“已绝对阻止未成年人”“有未成年人模式/监护人验证”。
 - 不得称“已上线/已发布/已签名/可公开分发”（证书/签名/发布通道未就绪时）。
-- 不得把 `[目标]`（D6、隐式/导出/音频标识、独立 ASR 开关、远程市场联网等）写成已实现。
+- 不得把仍为 `[目标]` 的项目（隐式/导出/音频标识、独立 ASR 开关/日配额、远程市场联网等）写成已实现；D6 首启顺序已于 2026-11-20.1 实现，不得再写成“未实现/目标”。
 - 不得在应用内/README/商店页删除或弱化统一使用限制、AI 披露、非官方声明与安全门禁；不得提供去标识能力。
 
 ## 6. 未决问题登记流程
@@ -112,5 +112,6 @@
 | 日期 | 变更 | 状态 |
 |---|---|---|
 | 2026-11-19 | 首版：现状事实（含 famling 无自由 LLM / 插件有真实 LLM / TTS·ASR 单独同意 / 删除全部 / 市场默认离线 / 42 WAV / 年龄→TOS 现状与 D6 目标分开标注）+ 20 项未决法律问题 + 复核前核对清单 + 材料清单 + 禁止宣称事项 | DRAFT 工程清单；非法律意见；待 owner/律师 |
+| 2026-11-20.1 | **D6 落地**：§1 第 3/4/5/10 项改为现状；LQ-04 / §3-1 / §3-2 更新；TOS 升 `2026-11-20.1`（首启=关键事实层+完整 TOS；年龄只在 age-gated 入口/About 主动核验时采集；拒绝只阻止入口）；HOST 常量/public/legal 副本/测试同步；律师复核项保留 | DRAFT 工程清单；非法律意见；律师意见仍待 |
 
 > **本文件不是法律意见，不构成律师审查、合规认证或任何批准；不得引用为“已审核/已合规/已获法律意见”。** 律师意见到位后，本文件只作为索引回填，不替代律师意见原件。

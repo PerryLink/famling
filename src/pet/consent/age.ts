@@ -1,20 +1,26 @@
 /**
  * Age verification (SELF-REPORTED birth date) for the roleplay 18+ gate.
  *
- * Policy (user decision 2026-11-17.5):
- * - General desk-pet features stay all-ages.
+ * Policy (user decisions 2026-11-17.5 + D6 2026-11-20):
+ * - General desk-pet features stay all-ages and are never gated by a birth date.
  * - Roleplay / emotional-companionship interaction is 18+ ONLY. A minor (or a
  *   user who has not completed verification) can use the app but must never
  *   start roleplay: `ConsentGate.requestRoleplay()` rejects with a typed
  *   reason (`age-required` / `minor`) before any TOS/declaration form opens.
+ * - D6 / data minimisation: the self-report is NOT collected at first launch.
+ *   It is asked ONLY when the user actually enters an age-gated feature
+ *   (roleplay) or explicitly chooses to verify/correct it from About. A
+ *   declined/cancelled age prompt only blocks that gated entry; it never puts
+ *   the whole app in safe read-only.
  *
  * Honesty / safety invariants (locked by tests/age-*.test.ts):
  * - This is NOT an official identity check (no ID card, photo, address,
  *   government database or real-name service). It only records what the user
  *   says their birth date is, plus when they said it. It cannot prove identity.
- * - The user must pick year/month/day themselves on first launch: no prefill,
- *   no default value, no "select all"/"skip". A missing/corrupt/invalid record
- *   always fails closed (the user is treated as NOT verified).
+ * - The user must pick year/month/day themselves when the age-gated feature asks
+ *   (or from About): no prefill, no default value, no "select all"/"skip". A
+ *   missing/corrupt/invalid record always fails closed (the user is treated as
+ *   NOT verified).
  * - Dates are validated for real (Gregorian leap years, month lengths, not in
  *   the future, year range 1900..today, age ceiling 120). Age is recomputed
  *   from the birth date each time (birthday-passed rule).
@@ -37,14 +43,14 @@ export const AGE_MIN_YEAR = 1900
 /** Upper bound: a declared age above this is treated as an input error. */
 export const AGE_MAX_AGE = 120
 
-/** Copy shared by the first-run modal, About and the setup page. */
+/** Copy shared by the age-gated modal, About and the setup page. */
 export const AGE_ROLEPLAY_POLICY =
   '一般桌宠功能全年龄可用；角色扮演/情感陪伴（roleplay）仅限年满 18 周岁用户，未满 18 周岁不能启动角色扮演。'
 export const AGE_SELF_REPORT_NOTICE =
   '这是你自报出生日期的年龄核验：不是官方身份证核验，也不等同实名认证，无法证明你的真实身份；请如实填写，虚假填写由你自行承担后果。'
 export const AGE_DATA_NOTICE =
-  '出生日期只保存在本机（localStorage）并记录核验时间，不上传、不写日志；不采集身份证、照片、住址；可在 About 更正年龄，“删除全部本地数据”会一并删除年龄记录。'
-export const AGE_DECLINE_NOTICE = '拒绝或取消年龄核验会进入安全只读/退出，不会静默跳过，也不能正常使用应用。'
+  '出生日期只保存在本机（localStorage）并记录核验时间，不上传、不写日志；不采集身份证、照片、住址；首次启动与一般功能不采集出生日期，只在进入 18+ 功能或你主动核验时采集。可在 About 更正年龄，“删除全部本地数据”会一并删除年龄记录。'
+export const AGE_DECLINE_NOTICE = '拒绝或取消年龄核验只会阻止本次进入 18+ 功能（角色扮演/情感陪伴），不会静默跳过或伪造成年；一般功能仍可正常使用。'
 export const AGE_MINORS_NOTE =
   '未满 18 周岁仍可使用一般功能，但角色扮演会被阻止并提示原因；监护人可通过 novelnexusai@outlook.com 要求删除/举报。'
 

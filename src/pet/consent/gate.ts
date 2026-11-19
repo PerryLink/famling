@@ -18,6 +18,11 @@
  *    microphone is requested. Declining it means `getUserMedia` must not be
  *    called and no audio may be uploaded. It is memory-only, never satisfied by
  *    the TOS or the TTS declaration, and never satisfies either of them.
+ * 5. Age self-report (D6, 2026-11-20): NOT collected at first launch. It is
+ *    requested only when the user actually enters an age-gated feature
+ *    (roleplay/emotional companionship, 18+) or explicitly opts in from About.
+ *    Declining only blocks that gated entry (never whole-app read-only), and a
+ *    TOS acceptance never substitutes for it.
  */
 import {
   createAcceptance,
@@ -112,13 +117,15 @@ export interface AsrPrompt {
   readonly config: string
 }
 
-export type AgePromptReason = 'first-run' | 'correct'
+export type AgePromptReason = 'gated' | 'correct'
 
 /**
- * First-run age verification prompt (self-reported birth date). Shown BEFORE
- * the TOS, always with empty year/month/day selects (no prefill/default). The
- * gate re-validates whatever the UI returns, so a broken/injected dialog can
- * never store a fake future/invalid date.
+ * Age verification prompt (self-reported birth date). D6: NOT part of first
+ * launch — shown only when entering an age-gated feature (roleplay) or when the
+ * user opts to verify/correct the record from About. Always with empty
+ * year/month/day selects (no prefill/default). The gate re-validates whatever
+ * the UI returns, so a broken/injected dialog can never store a fake
+ * future/invalid date.
  */
 export interface AgePrompt {
   readonly reason: AgePromptReason
@@ -219,7 +226,7 @@ export interface RoleplaySessionState {
 }
 
 export interface BlockedView {
-  readonly reason: 'declined' | 'declined-action' | 'withdrawn' | 'data-wiped' | 'age-required'
+  readonly reason: 'declined' | 'declined-action' | 'withdrawn' | 'data-wiped'
   readonly title: string
   readonly detail: string
 }
@@ -241,8 +248,9 @@ export interface ConsentUiPort {
    */
   showAsr?(prompt: AsrPrompt): Promise<boolean>
   /**
-   * Optional first-run/age-correction prompt. When absent the gate FAILS
-   * CLOSED (no verified age => safe read-only, roleplay never starts).
+   * Optional age-gated-entry/About-verification prompt (D6: never part of the
+   * first-launch TOS). When absent the gate FAILS CLOSED for the gated feature
+   * (no verified age => roleplay never starts; the rest of the app is usable).
    */
   showAge?(prompt: AgePrompt): Promise<AgeDecision>
   /**
@@ -318,19 +326,6 @@ export const READONLY_BLOCKED_VIEW: BlockedView = {
     '你未同意《使用条款、免责声明与用户同意书》。为避免在你未同意时加载内容或写入本机数据，应用已进入安全只读模式；可重新阅读条款并同意，或退出应用。',
 }
 
-/**
- * Shown when the first-run age verification is declined/cancelled or cannot be
- * completed. This is NOT a consent step that can be silently skipped: without a
- * verified self-reported birth date the app stays read-only, and roleplay can
- * never start. Retrying re-runs age -> TOS in that order.
- */
-export const AGE_REQUIRED_BLOCKED_VIEW: BlockedView = {
-  reason: 'age-required',
-  title: '未完成年龄核验，进入安全只读模式',
-  detail:
-    '首次启动必须先完成年龄核验（由你选择出生年/月/日并显式确认，仅存本机）：一般桌宠功能全年龄可用，但角色扮演/情感陪伴仅限年满 18 周岁用户。你取消或未完成核验，应用不会进入正常交互，也不会静默跳过；可重新完成年龄核验并阅读同意 TOS，或退出应用。',
-}
-
 export class ConsentGate {
   private readonly ui: ConsentUiPort
   private readonly store: ConsentStorePort
@@ -374,14 +369,9 @@ export class ConsentGate {
   }
 
   private async runBootstrap(): Promise<ConsentMode> {
-    // ORDER IS A HARD CONTRACT (user decision): age self-report -> TOS -> app.
-    // General features stay all-ages; roleplay is 18+ and checked separately.
-    const ageOk = await this.ensureAgeVerification()
-    if (!ageOk) {
-      this.modeValue = 'readonly'
-      this.ui.showBlocked?.(AGE_REQUIRED_BLOCKED_VIEW)
-      return this.modeValue
-    }
+    // ORDER IS A HARD CONTRACT (user decision D6, 2026-11-20): TOS/key facts
+    // first -> app. Age self-report is NOT part of bootstrap: it is requested
+    // only when an age-gated feature is entered (see `runRoleplayPrompt`).
     const snapshot = this.store.load()
     this.latestSnapshot = snapshot
     if (snapshot.status === 'accepted') {
@@ -430,7 +420,7 @@ export class ConsentGate {
       title:
         reason === 'correct'
           ? '更正年龄（重新核验，自报出生日期）'
-          : '首次启动：年龄核验（请选择你的出生年/月/日）',
+          : '年龄核验（自报出生日期，仅用于 18+ 角色扮演/情感陪伴）',
       minYear: AGE_MIN_YEAR,
       maxYear: now.getFullYear(),
       selfReportNotice: AGE_SELF_REPORT_NOTICE,
@@ -449,11 +439,13 @@ export class ConsentGate {
   }
 
   /**
-   * First-run/upgrade age step. Fail closed: no UI -> no verification -> no app.
-   * Declining/cancelling resolves false (the caller shows safe read-only) and is
+   * Age-gated entry step (D6): called only when the user actually enters an
+   * age-gated feature (roleplay) or opts in from About — never during bootstrap.
+   * Fail closed: no UI -> no verification -> the gated feature is blocked while
+   * the rest of the app keeps working. Declining/cancelling resolves false and is
    * audit-recorded without any birth-date data.
    */
-  private async ensureAgeVerification(): Promise<boolean> {
+  private async ensureAgeVerification(reason: AgePromptReason = 'gated'): Promise<boolean> {
     const now = this.now()
     const loaded = this.store.loadAge(now)
     this.ageReadStatusValue = loaded.status
@@ -465,7 +457,7 @@ export class ConsentGate {
     if (!this.ui.showAge) return false
     let decision: AgeDecision
     try {
-      decision = await this.ui.showAge(this.agePromptValue('first-run'))
+      decision = await this.ui.showAge(this.agePromptValue(reason))
     } catch {
       decision = { verified: false }
     }
@@ -796,13 +788,18 @@ export class ConsentGate {
   private async runRoleplayPrompt(options: RoleplayRequest): Promise<RoleplayResult> {
     if (this.modeValue === 'pending') await this.bootstrap()
     if (this.modeValue !== 'accepted') return { accepted: false, reason: 'readonly' }
-    // AGE GATE (roleplay/emotional companionship is 18+ ONLY): check BEFORE
-    // showing the full TOS/declaration form. No verification or a minor result
-    // creates no roleplay state and opens no form. General features remain
-    // available to everyone (only roleplay is age-restricted).
+    // AGE GATE (roleplay/emotional companionship is 18+ ONLY): this is the
+    // actual age-gated entry, so D6 collects the self-report HERE (never at
+    // first launch). No UI / decline creates no roleplay state and opens no
+    // form; general features remain available to everyone.
     this.refreshAgeFromStore()
-    if (!this.ageValue) return { accepted: false, reason: 'age-required' }
-    if (!ageBandView(this.ageValue, this.now()).adult) return { accepted: false, reason: 'minor' }
+    if (!this.ageValue) {
+      const verified = await this.ensureAgeVerification('gated')
+      if (!verified) return { accepted: false, reason: 'age-required' }
+    }
+    if (!this.ageValue || !ageBandView(this.ageValue, this.now()).adult) {
+      return { accepted: false, reason: 'minor' }
+    }
     const change = options.change === true && this.roleplaySignature !== null
     const action = change ? CONSENT_ACTIONS.roleplayChange : CONSENT_ACTIONS.roleplayStart
     // Step 1: FULL TOS every time (never exempted by the first-run acceptance).

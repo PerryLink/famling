@@ -2,7 +2,8 @@
  * Accessible DOM modals for the consent gate. No framework, no network.
  *
  * Hard rules (locked by tests and by the "Escape is not consent" requirement):
- * - the full TOS always renders in a scrollable `role=region` inside the modal;
+ * - a short key-facts layer renders ABOVE the full scrollable TOS (D6/MB-073)
+ *   and is followed by the full TOS in a scrollable `role=region`;
  * - consent requires an explicit checkbox + explicit accept-button activation;
  *   Escape / backdrop / closing NEVER resolves as consent (Escape resolves as a
  *   decline so the gate can enter safe read-only mode);
@@ -15,6 +16,7 @@
  */
 import type { LegalSection } from './terms.ts'
 import type { TosPrompt } from './core.ts'
+import { HEALTH_DEFER_LABEL, HEALTH_REST_LABEL } from '../health-reminder.ts'
 import {
   ASR_ACCEPT_LABEL,
   ASR_CHECKBOX_LABEL,
@@ -26,6 +28,8 @@ import {
   TOS_ACCEPT_LABEL,
   TOS_CHECKBOX_LABEL,
   TOS_DECLINE_LABEL,
+  TOS_KEY_FACTS,
+  TOS_KEY_FACTS_NOTE,
   TTS_ACCEPT_LABEL,
   TTS_CHECKBOX_LABEL,
   TTS_DECLINE_LABEL,
@@ -152,6 +156,21 @@ export function nextDialogId(prefix: string): string {
   return `${prefix}-${dialogSequence}`
 }
 
+/**
+ * Readability baseline for legal/consent text (MB-073, 2026-11-20.1).
+ *
+ * Applied as inline styles on the rendered text nodes rather than only in
+ * pet.css so the consent surface keeps a hard floor even if a stale/foreign
+ * stylesheet is loaded: body >= 12px, headings >= 13px, meta >= 10px, and a
+ * high-contrast body colour on the dark dialog. `--ui-scale` can only scale
+ * UP from that floor (max()), never below it; when the variable is missing
+ * the shipped 2x default reproduces the 12/13px floor exactly.
+ */
+export const LEGAL_BODY_FONT_SIZE = 'max(12px, calc(6px * var(--ui-scale, 2)))'
+export const LEGAL_HEADING_FONT_SIZE = 'max(13px, calc(6.5px * var(--ui-scale, 2)))'
+export const LEGAL_BODY_COLOR = '#dbe6f5'
+export const LEGAL_HEADING_COLOR = '#cfe3ff'
+
 /** Render structured legal sections; text only (never innerHTML for user data). */
 export function renderLegalSections(
   doc: Document,
@@ -160,11 +179,24 @@ export function renderLegalSections(
 ): void {
   container.replaceChildren()
   for (const section of sections) {
-    container.append(node(doc, 'h3', 'consent-section-title', section.title))
-    for (const paragraph of section.paragraphs ?? []) container.append(node(doc, 'p', 'consent-section-p', paragraph))
+    const heading = node(doc, 'h3', 'consent-section-title', section.title)
+    heading.style.fontSize = LEGAL_HEADING_FONT_SIZE
+    heading.style.color = LEGAL_HEADING_COLOR
+    container.append(heading)
+    for (const paragraph of section.paragraphs ?? []) {
+      const text = node(doc, 'p', 'consent-section-p', paragraph)
+      text.style.fontSize = LEGAL_BODY_FONT_SIZE
+      text.style.color = LEGAL_BODY_COLOR
+      container.append(text)
+    }
     if (section.bullets && section.bullets.length > 0) {
       const list = node(doc, 'ul', 'consent-section-list')
-      for (const bullet of section.bullets) list.append(node(doc, 'li', undefined, bullet))
+      for (const bullet of section.bullets) {
+        const item = node(doc, 'li', undefined, bullet)
+        item.style.fontSize = LEGAL_BODY_FONT_SIZE
+        item.style.color = LEGAL_BODY_COLOR
+        list.append(item)
+      }
       container.append(list)
     }
     // h3 is deliberate: the modal outline stays predictable (h2 title -> h3 sections).
@@ -352,6 +384,46 @@ export function showTosDialog(doc: Document, prompt: TosPrompt): Promise<'accept
     useRestrictions.append(node(doc, 'span', undefined, USE_RESTRICTIONS_SHORT))
     dialog.append(useRestrictions)
 
+    // D6 / MB-073: a short, high-contrast, non-interactive key-facts layer is
+    // rendered BEFORE the scrollable full text and BEFORE the checkbox, so a
+    // reader sees the 5 essential facts without scrolling. It is a summary
+    // only: the full TOS below stays mandatory, scrollable and unchanged in
+    // consent semantics (explicit checkbox + button still required).
+    const keyFacts = node(doc, 'section', 'consent-key-facts')
+    keyFacts.setAttribute('role', 'note')
+    keyFacts.setAttribute('aria-label', '关键事实（先读）；完整条款在下方滚动区')
+    keyFacts.style.border = '1px solid #4d6f96'
+    keyFacts.style.background = '#101c2a'
+    keyFacts.style.padding = '8px 10px'
+    keyFacts.style.margin = '8px 0'
+    keyFacts.style.borderRadius = '8px'
+    keyFacts.style.color = '#e6eef8'
+    const keyFactsTitle = node(doc, 'h3', 'consent-key-facts-title', '关键事实（先读）')
+    keyFactsTitle.style.margin = '0 0 4px'
+    keyFactsTitle.style.fontSize = LEGAL_HEADING_FONT_SIZE
+    keyFactsTitle.style.color = '#ffe2a8'
+    keyFacts.append(keyFactsTitle)
+    const keyFactsList = node(doc, 'ul', 'consent-key-facts-list')
+    keyFactsList.style.margin = '0'
+    keyFactsList.style.paddingLeft = '18px'
+    for (const fact of TOS_KEY_FACTS) {
+      const item = node(doc, 'li', 'consent-key-fact')
+      item.style.fontSize = LEGAL_BODY_FONT_SIZE
+      item.style.lineHeight = '1.45'
+      item.style.color = '#e6eef8'
+      const label = node(doc, 'strong', 'consent-key-fact-label', `${fact.label}：`)
+      label.style.color = '#9fd0ff'
+      item.append(label, node(doc, 'span', undefined, fact.text))
+      keyFactsList.append(item)
+    }
+    keyFacts.append(keyFactsList)
+    const keyFactsNote = node(doc, 'p', 'consent-key-facts-note', TOS_KEY_FACTS_NOTE)
+    keyFactsNote.style.margin = '4px 0 0'
+    keyFactsNote.style.fontSize = 'max(10px, calc(5px * var(--ui-scale, 2)))'
+    keyFactsNote.style.color = '#b9c6da'
+    keyFacts.append(keyFactsNote)
+    dialog.append(keyFacts)
+
     const tos = node(doc, 'div', 'consent-tos')
     tos.id = ids.tos
     tos.tabIndex = 0
@@ -426,7 +498,7 @@ export function showAgeDialog(doc: Document, prompt: AgePrompt): Promise<AgeDeci
     })
     const dialog = handle.dialog
 
-    dialog.append(node(doc, 'p', 'consent-kicker', 'AGE · 年龄核验（自报出生日期，非官方身份证核验）'))
+    dialog.append(node(doc, 'p', 'consent-kicker', 'AGE · 年龄核验（自报出生日期，非官方身份证核验；仅用于 18+ 功能）'))
     const title = node(doc, 'h2', 'consent-title', prompt.title)
     title.id = ids.title
     dialog.append(title)
@@ -439,13 +511,16 @@ export function showAgeDialog(doc: Document, prompt: AgePrompt): Promise<AgeDeci
       'consent-reason',
       prompt.reason === 'correct'
         ? '更正年龄：请重新选择你的出生年/月/日并显式确认；更正会重新核验并清除当前角色扮演会话。旧记录不会预填。'
-        : '首次启动：在阅读并同意 TOS 之前，必须先由你本人选择出生年/月/日并显式确认；不预填、没有默认值，未完成核验不能进入正常交互。',
+        : '你正在进入或主动完成 age-gated 年龄核验（角色扮演/情感陪伴，仅限 18+）：由你本人选择出生年/月/日并显式确认，不预填、无默认值。取消只阻止本次进入 18+ 功能，一般功能仍可用；首次启动与一般功能不采集出生日期。',
     )
     desc.id = ids.desc
     dialog.append(desc)
 
     for (const line of [prompt.roleplayPolicy, prompt.selfReportNotice, prompt.dataNotice, prompt.minorsNote, prompt.declineNotice]) {
-      dialog.append(node(doc, 'p', 'consent-age-note', line))
+      const note = node(doc, 'p', 'consent-age-note', line)
+      note.style.fontSize = LEGAL_BODY_FONT_SIZE
+      note.style.color = LEGAL_BODY_COLOR
+      dialog.append(note)
     }
 
     const formRoot = node(doc, 'fieldset', 'consent-age-form')
@@ -531,7 +606,7 @@ export function showAgeDialog(doc: Document, prompt: AgePrompt): Promise<AgeDeci
     dialog.append(checkRow)
 
     const actions = node(doc, 'div', 'consent-actions')
-    const decline = node(doc, 'button', 'consent-decline', '拒绝/取消（进入安全只读）')
+    const decline = node(doc, 'button', 'consent-decline', '取消（不进入年龄受限功能）')
     decline.type = 'button'
     const accept = node(doc, 'button', 'consent-accept', prompt.reason === 'correct' ? '确认更正并重新核验' : '确认出生日期并继续')
     accept.type = 'button'
@@ -543,7 +618,7 @@ export function showAgeDialog(doc: Document, prompt: AgePrompt): Promise<AgeDeci
         doc,
         'p',
         'consent-foot',
-        '按 Escape、点“拒绝/取消”或关闭窗口都不会保存出生日期，应用会进入安全只读或退出；一般功能全年龄可用，角色扮演仅限 18+。',
+        '按 Escape、点“取消”或关闭窗口都不会保存出生日期，只会阻止本次进入 18+ 功能；一般功能全年龄可用，角色扮演仅限 18+。可重试或在 About 主动核验/更正。',
       ),
     )
 
@@ -1053,14 +1128,10 @@ export function showBlockedOverlay(
   }
   dialog.append(list)
   const actions = node(doc, 'div', 'consent-actions')
-  // Age-required read-only view: retry re-runs age verification, then TOS (never
-  // a silent skip into normal interaction).
-  const retry = node(
-    doc,
-    'button',
-    'consent-accept',
-    options.view.reason === 'age-required' ? '重新完成年龄核验并同意' : '重新阅读并同意',
-  )
+  // Read-only view retry re-runs the TOS gate (never a silent skip into normal
+  // interaction). Under D6 an age decline no longer reaches this screen at all:
+  // it only blocks the age-gated entry while the rest of the app keeps working.
+  const retry = node(doc, 'button', 'consent-accept', '重新阅读并同意')
   retry.type = 'button'
   const exit = node(doc, 'button', 'consent-decline', '退出应用')
   exit.type = 'button'
@@ -1112,22 +1183,39 @@ export function showBlockedOverlay(
   return { hide }
 }
 
-/** Non-blocking 2h health reminder banner (dismissible, never traps focus). */
+/**
+ * Non-blocking 2h health reminder banner (never traps focus, never permanently
+ * dismissible). Q-03: role/aria-live must not contradict each other, the two
+ * buttons are "休息一下（2 小时后仍会提醒）" and "10 分钟后再提醒", and About
+ * stays available as a third, optional entry.
+ */
 export function showHealthBanner(
   doc: Document,
-  options: { text: string; onRest: () => void; onAbout: () => void },
+  options: { text: string; onRest: () => void; onDefer: () => void; onAbout?: () => void },
 ): { hide(): void } {
   const root = node(doc, 'aside', 'consent-health-banner')
-  root.setAttribute('role', 'alert')
+  // Single semantic choice: status + polite (not role=alert + aria-live=polite,
+  // which used to ask screen readers for both assertive and polite behaviour).
+  root.setAttribute('role', 'status')
   root.setAttribute('aria-live', 'polite')
-  const title = node(doc, 'strong', undefined, '健康使用提醒 · 已连续使用 2 小时')
+  root.setAttribute('aria-atomic', 'true')
+  const title = node(doc, 'strong', undefined, '健康使用提醒 · 已连续使用约 2 小时')
   const text = node(doc, 'p', undefined, options.text)
   const actions = node(doc, 'div', 'consent-health-actions')
-  const rest = node(doc, 'button', 'consent-accept', '休息并关闭提醒')
+  const rest = node(doc, 'button', 'consent-accept', HEALTH_REST_LABEL)
   rest.type = 'button'
-  const about = node(doc, 'button', 'consent-secondary', '关于与求助入口')
-  about.type = 'button'
-  actions.append(rest, about)
+  const defer = node(doc, 'button', 'consent-secondary', HEALTH_DEFER_LABEL)
+  defer.type = 'button'
+  actions.append(rest, defer)
+  if (options.onAbout) {
+    const about = node(doc, 'button', 'consent-secondary', '健康使用与求助…')
+    about.type = 'button'
+    about.addEventListener('click', () => {
+      hide()
+      options.onAbout?.()
+    })
+    actions.append(about)
+  }
   root.append(title, text, actions)
   doc.body.append(root)
   const hide = (): void => root.remove()
@@ -1135,9 +1223,9 @@ export function showHealthBanner(
     hide()
     options.onRest()
   })
-  about.addEventListener('click', () => {
+  defer.addEventListener('click', () => {
     hide()
-    options.onAbout()
+    options.onDefer()
   })
   return { hide }
 }
