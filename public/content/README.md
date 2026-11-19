@@ -213,22 +213,22 @@ public/content/
 
 ### 3.5 与 dsh-famling 'content-extension.mjs' 的关系（只读说明）
 
-dsh-famling 0.9.0 已发布**自己的预留契约** 'content-extension.mjs'（'schemaVersion: 1'，4 类 kind：character / voice / dialogue / theme；source：bundled / local / remote；导出 'CONTENT_EXTENSION_POINTS'、'validateContentPack'、'CONTENT_PACK_EXAMPLE'，不加载任何 pack）。本仓的 'famling.content-pack/0.1' 是**共享模型的目标超集**，不是同一份 schema：
+dsh-famling **0.9.1** 已发布 **content-extension v2**（`schemaVersion: 2`，6 类 kind：character / voice / dialogue / theme / background / font；source：bundled / local / remote；导出 `CONTENT_EXTENSION_POINTS`、`validateContentPack`、`CONTENT_PACK_EXAMPLE`，不加载任何 pack）。它与共享 `famling.content-pack/0.1` 是**相近但独立的两套契约**：
 
-| 本规范（共享 0.1） | dsh-famling content-extension v1 | 说明 |
+| 本规范（共享 0.1） | dsh-famling content-extension v2 | 说明 |
 |---|---|---|
-| categories: characters / voices / dialoguePacks / themes / backgrounds / fonts | kinds: character / voice / dialogue / theme | 前四类可一一映射；backgrounds / fonts 插件侧暂无对应 |
+| characters / voices / dialoguePacks / themes / backgrounds / fonts | character / voice / dialogue / theme / background / font | 六类一一对应；命名/字段仍各自校验 |
 | source: builtin / local / remote | bundled / local / remote | builtin ≡ bundled |
-| entries 内联六类字段 | entry = kind + preview + apply + permissions | 插件契约把"应用动作"建模为 apply；共享模型是目录条目 + 解析函数 |
-| pack id 保留 'famling.*' | pack 无保留前缀规则 | 共享模型更严格 |
-| 'validateContentPack' 返回 issues 对象 | 返回 '{ ok, errors: string[] }' | 调用方必须分别适配 |
+| entries 内联六类字段 | entry = kind + preview + apply + permissions | 插件把“应用动作”建模为 apply；共享模型是目录条目 + 解析函数 |
+| pack id 保留 `famling.*` | pack 无保留前缀规则 | 共享模型更严格 |
+| `validateContentPack` 返回 issues 对象 | 返回 `{ ok, errors: string[] }` | 调用方分别适配 |
 
-收敛建议（**不在本任务改插件**）：
+当前收敛策略：**不强行合并 schema**。
 
-1. 先做**适配层**：把共享目录中四类内置内容投影成插件 v1 entry（character→select:character、voice→select:voice、dialogue→select:dialogue、theme→apply:theme），保留插件 0.9.0 的存储键与 UI 不破坏；
-2. 插件已实现的声音 tab 是**浏览器 speechSynthesis 动态列表**，与共享目录的 DeepSeek stella/tide 不是同一来源，不能互相覆盖；适配层只映射"是否允许 TTS"策略；
-3. 主题 CSS 前缀不同（共享 '--famling-content-*'，插件 '--dsh-famling-*'），适配层做变量名翻译；
-4. 等方案稳定后再考虑 content-extension v2（增加 backgrounds/fonts 与统一校验结果），按 MAJOR 版本做迁移；在此之前两套契约并存、各自 fail-closed。
+1. 共享目录是 famling 的 canonical；插件保留自己的 v2 契约与存储键，六类 UI 已对齐，不再需要 4→6 的适配层；
+2. 插件声音 tab 是**浏览器 speechSynthesis 动态列表**，与 famling 的 DeepSeek stella/tide 不是同一来源；只映射“是否允许 TTS”策略，不互相覆盖；
+3. CSS 前缀不同（共享 `--famling-content-*`，插件 `--dsh-famling-*`），主题/背景/字体选择分别生效；
+4. 两套契约各自 fail-closed，第三方 pack 均只接受纯数据；未来若要统一，必须 MAJOR bump + 双读迁移，不能静默放宽。
 
 ---
 

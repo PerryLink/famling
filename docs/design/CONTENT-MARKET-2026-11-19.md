@@ -20,7 +20,7 @@
 | D2 | **核心是纯 TS 模块** 'src/pet/content-library.ts'：严格解析、第三方包校验、合并、选择持久化、对话行为解析、外观应用；无 DOM 生命周期、无定时器、无网络、无第三方依赖。 | 浏览器/Node/测试三处同构；UI 只做渲染，安全边界集中在纯函数。 |
 | D3 | **外观通过命名空间 CSS 变量 + data 属性应用**：'--famling-content-*' + 'data-content-*'；幂等、可清理、可回退默认；禁止 url()/网络字体。 | 主题/背景/字体是纯 token，不应引入图片或远程资源；UI 只需 apply/clear 两个调用。 |
 | D4 | **第三方内容包 = 封闭声明式 schema** 'famling.content-pack/0.1'：内联 entries + 许可 + AI 标识 + 兼容性 + 四项全 false 的安全边界 + 路径/文本/颜色上限；内置条目不可被覆盖。 | 与既有 DLC 签名/同意/注入审计（P1-1/P1-3）同一威胁模型；先有可审计数据，再谈市场。 |
-| D5 | **dsh-famling 先做适配层，不破坏 0.9.0 内容中心与 content-extension v1**；两套契约并存，目标超集是共享 0.1，收敛放到 content-extension v2（MAJOR）。 | 插件已发布 0.9.0 内容中心（4 tab、自己的存储键/契约）；直接替换会破坏已验证行为与测试。 |
+| D5 | **共享目录与插件 v2 已对齐六类**：插件 0.9.1 发布 content-extension v2（character/voice/dialogue/theme/background/font），不再需要 4→6 适配层；两套 schema 仍独立，收敛到统一 schema 必须 MAJOR + 双读迁移。 | 插件 0.9.1 已完成六分类 UI 与 v2 纯数据契约；强行合并字段会破坏已验证的 fail-closed 行为。 |
 | D6 | **远程市场仅预留字段与签名接口，0.1 不联网、不自动安装**；内容市场只做静态研究性内容，明确不做付费情感关系/情感陪伴变现。 | 复用 P1-1 的 fail-closed 信任根方案；产品定位是技术研究与原型验证。 |
 
 验证证据（2026-11-19）：
@@ -93,7 +93,7 @@
 2. **纯函数在核心、副作用在宿主**：StorageLike/DocumentLike 都注入；核心不做生命周期。
 3. **内置优先、外置不可覆盖**：合并规则保证内置 id 永远赢，第三方包只能新增自己的 id。
 4. **fail-closed**：任何未知字段、未知分类、不安全 token、超限文本/路径一律拒绝；不存在"宽松透传"路径。
-5. **两产品独立发版**：dsh-famling 可以继续用自己的 content-extension v1，直到适配层验证完成。
+5. **两产品独立发版**：dsh-famling 0.9.1 已用自己的 content-extension v2（6 kind）；两套契约保持独立，统一需 MAJOR + 双读迁移。
 
 ---
 
@@ -114,7 +114,7 @@ dsh-famling（本地插件 0.9.0，未修改）：
 - 已实现 4-tab 内容中心（人物右侧第 4 个按钮）：characters / voices / dialogue / themes，切换即时生效、不刷新；
 - 存储键：'dsh-famling/character'、'dsh-famling/dialogue'、'dsh-famling/theme'、'dsh-famling/settings'.voiceURI；
 - 声音 tab 是浏览器 speechSynthesis 动态列表（非 DeepSeek stella/tide）；
-- 已发布预留契约 'content-extension.mjs'（schemaVersion 1，4 kind，source bundled/local/remote，纯数据 validateContentPack，不加载 pack）；
+- 已发布预留契约 'content-extension.mjs'（0.9.1：schemaVersion 2，6 kind，source bundled/local/remote，纯数据 validateContentPack，不加载 pack）；
 - 动画按角色懒加载；主题变量前缀 '--dsh-famling-*'。
 
 ### 3.2 分类映射总表
@@ -187,23 +187,25 @@ dsh-famling（本地插件 0.9.0，未修改）：
 - 插件 default 主题的 panel 用 'var(--dsw-alias-...)'，共享模型的 'isSafeCssColor' 不接受 'var()'（这是有意的：共享主题只允许具体安全颜色，不跨产品变量）。适配层不能把共享 theme 直接塞进插件现有的 vars 对象；
 - high-contrast 是共享新增主题，插件可后续增加同名主题；背景/字体在插件侧可能永远不适用（widget 需要透明）。
 
-### 3.7 扩展契约映射（famling.content-pack/0.1 ↔ dsh content-extension v1）
+### 3.7 扩展契约映射（famling.content-pack/0.1 ↔ dsh content-extension v2）
 
-| 维度 | 共享 0.1 | 插件 v1 | 兼容策略 |
+插件 0.9.1 已发布 **content-extension v2**（`schemaVersion: 2`，6 kind：character / voice / dialogue / theme / background / font），六类 UI 已对齐；两套 schema 仍独立、各自 fail-closed。
+
+| 维度 | 共享 0.1 | 插件 v2 | 兼容策略 |
 |---|---|---|---|
-| 包 schema | 'schema' = 'famling.content-pack/0.1' | 'schemaVersion' = 1 | 适配层转换字段 |
-| 分类 | 6 categories | 4 kinds | 前四类一一映射；backgrounds/fonts 暂不支持 |
+| 包 schema | `schema` = `famling.content-pack/0.1` | `schemaVersion` = 2 | 独立校验；未来统一需 MAJOR |
+| 分类 | 6 categories | 6 kinds | 一一对应（命名：dialoguePacks ↔ dialogue；backgrounds ↔ background；fonts ↔ font） |
 | source | builtin/local/remote | bundled/local/remote | builtin ≡ bundled |
-| 条目 | 目录条目（含 vars/family/kind/preview 等） | kind + preview + apply + permissions | 适配层把条目投影成 apply 载荷 |
-| 校验结果 | '{ ok, issues: [{path,code,message}] }' | '{ ok, errors: string[] }' | 适配层转换 |
+| 条目 | 目录条目（含 vars/family/kind/preview 等） | kind + preview + apply + permissions | 分别校验；apply 载荷由插件定义 |
+| 校验结果 | `{ ok, issues: [{path,code,message}] }` | `{ ok, errors: string[] }` | 调用方分别适配 |
 | 远程 | remote 字段预留、不联网 | allowRemote 默认 false | 都 fail-closed |
+| 主题变量 | `--famling-content-*` | `--dsh-famling-*` | 前缀不同，各自应用 |
 
 收敛路径（建议，未实施）：
 
-1. **阶段 A（低风险）**：共享目录 → 插件只读投影；插件存储/行为/UI 完全不变；
-2. **阶段 B**：插件内容中心从硬编码常量改为读投影出的 catalog（仍用插件自己的行为数值）；
-3. **阶段 C**：统一包契约 → content-extension v2（增加 backgrounds/fonts、统一 issues、schema id），MAJOR bump + 迁移文档 + 双读兼容；
-4. **阶段 D**：本地 pack 安装器 + 同意门 + 签名验证；远程市场最后。
+1. 两套契约保持独立，共享读取/测试语料，不互塞 schema；
+2. 若未来要统一包格式，先定义超集 schema + 双读迁移，MAJOR bump；
+3. 本地 pack 安装器 + 同意门 + 签名验证是后续任务；远程市场最后。
 
 任何阶段都不得破坏：猫狗静音/thought、TTS 独立同意、无网络/无脚本/无 HTML、未知字段拒绝。
 
@@ -414,7 +416,7 @@ data 属性（data-content-*，由 dataset 写入）：
 3. **外观接入是独立小步**：先让 'pet.css' 气泡/面板颜色改为 'var(--famling-content-*, 原值)'，再接 applyAppearance；这样即使 UI 未完成也不改变默认视觉。
 4. **不要碰共享模块**：如需新 helper（如 CMS 文案/i18n），在 UI 层实现或另立任务加导出；不要放宽 validate/parse 规则。
 5. **不要加载第三方包**：安装器/签名/同意是后续任务；0.1 只有契约与校验。
-6. **dsh-famling**：先做适配层投影（只读 catalog），不要改 0.9.0 content-extension v1 与行为数值；等共享目录冻结后再谈 v2。
+6. **dsh-famling**：0.9.1 已对齐六类 UI 与 content-extension v2；两套 schema 仍独立，不要强行互塞字段。
 
 ---
 
@@ -479,7 +481,7 @@ node --import tsx --test tests/content-library.test.ts
 | # | 问题 | 建议 owner/动作 |
 |---|---|---|
 | Q1 | famling 现有渲染器键与共享 content/character 如何收敛？ | UI agent：先双写 + 读优先，观察一个版本后定迁移 |
-| Q2 | 插件 content-extension v1 与共享 0.1 的收敛版本节奏 | 插件维护者：适配层 → catalog 投影 → v2 |
+| Q2 | 插件 content-extension v2 与共享 0.1 的收敛版本节奏 | 两套独立；未来统一需 MAJOR + 双读迁移 |
 | Q3 | pet.css 气泡/面板硬编码颜色何时改为 var() 回退 | UI agent 单独任务（不改本模块） |
 | Q4 | 远程市场的签名验证实现与密钥 ceremony | 发布/安全任务（P1-1 后续） |
 | Q5 | 主题 high-contrast 是否进入插件 | 插件产品决定（不是共享模型阻塞项） |
