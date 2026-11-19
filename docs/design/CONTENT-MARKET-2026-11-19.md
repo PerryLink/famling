@@ -2,9 +2,9 @@
 
 | 项 | 内容 |
 |---|---|
-| 状态 | **核心模型 + 扩展规范已落地；UI / 安装器 / 远程市场未实现**。本文件是设计决策记录，不含 UI 改动。2026-11-19 追加 v2（task-52）——角色即主题、内容包 0.2、远程市场契约，见 §10。 |
+| 状态 | **核心模型 + 扩展规范已落地；UI / 安装器 / 真实市场服务器未实现**。本文件是设计决策记录，不含 UI 改动。2026-11-19 追加 v2（task-52）——角色即主题、内容包 0.2、远程市场契约，见 §10；v3（task-66）——远程市场客户端 v1（默认不联网）已实现并通过离线测试，见 §11。 |
 | 日期 | 2026-11-19（Asia/Shanghai） |
-| 任务 | task-48：为 famling + dsh-famling 建集中式内容中心/主题市场的共享数据模型与扩展规范。task-52：按产品澄清做 v2（角色主题主入口 / 内容包 0.2 / 远程市场契约 / 三份设计参考）。 |
+| 任务 | task-48：为 famling + dsh-famling 建集中式内容中心/主题市场的共享数据模型与扩展规范。task-52：按产品澄清做 v2（角色主题主入口 / 内容包 0.2 / 远程市场契约 / 三份设计参考）。task-66：远程市场客户端 v1（可注入 fetch/clock/storage/verifier，签名目录/防回滚/下载校验/适配器，默认不联网）。 |
 | 写范围 | 'public/content/library.json'、'public/content/README.md'、'src/pet/content-library.ts'、'tests/content-library.test.ts'、'tests/content-pack-v2.test.ts'、'docs/content-packs/**'、'public/content/library.json'、本文件。 |
 | 不写范围 | 'src/pet/main.ts'、'src/pet/desktop-shell.ts'、'pet.html'、'plugins/dsh-famling/**'、任何 UI/main/plugin 文件；未 commit/push；未联网；未安装依赖。 |
 | 读者 | 后续接手的 UI agent（famling 菜单/内容面板）、dsh-famling 维护者、发布/法务。 |
@@ -28,6 +28,7 @@
 | D10 | **内容包 schema 升 'famling.content-pack/0.2'**：角色主题包（1..8 roleThemes）+ 可选六组件 components；强制 usageDeclaration / license / aiProvenance / compatibility / files(sha256)；支持 zip 素材包与 JSON 清单；资产仅 png/webp/json/woff2，路径/大小/哈希/压缩比全校验。 | 导入不只是 JSON，还要素材包；先 fail-closed 再谈市场。 |
 | D11 | **统一用途声明是硬门**：每条角色主题/内容包必须逐字引用 USE-RESTRICTIONS canonical 短句 + researchOnly=true + 六条 prohibitedUses；UI 导入前必须显式确认。 | 与 2026-11-19 法务短句单一事实源对齐；防止内容包被用于情感陪伴/虚拟伴侣/专业建议/未成年人亲密/冒充/违法。 |
 | D12 | **远程在线市场一定会做，但只先定义契约**：catalog（version/updatedAt/packs[]/signature/keyId）+ zip sha256 + Ed25519 验签接口；核心模块不联网；未签名/未知 key/吊销 key/未验签 remote pack 一律拒绝。 | 先有可审计的数据/验签契约与信任根语义，UI/安装器/支付后才能安全接。 |
+| D13 | **远程市场客户端 v1 已实现，但默认不联网**：新模块 content-market.ts 提供可注入 fetch/clock/storage/verifier 的 MarketplaceClient；refreshCatalog 做 HTTPS/私网/redirect/超时/大小/串行限制 + 目录验签 + serial 防回滚；downloadPack 只允许已验签目录条目的精确 URL 并先大小/SHA-256/Ed25519；installPack 只调用宿主注入的 unpack/install，remote pack 二次验签；content-hub 通过 createRemoteMarketSource/createRemoteMarketRefresh 适配。 | 让远程市场在真实服务器/审核/支付前就有可测试、fail-closed 的客户端核心；UI 默认零请求，后续只做注入。 |
 
 验证证据（2026-11-19）：
 
@@ -42,6 +43,15 @@ v2 追加证据（2026-11-19，WSL2 Node 24.22.1）：
 - 全仓 'npm test' → **1075 tests / 1075 pass / 0 fail**（22.6 s，含全部既有回归）；
 - 其中 v2 新测试 **29 项**覆盖：一键角色主题解析/六组件、role-theme 持久化、派生主题、内容包 0.2 声明硬门、zip 路径/大小/资产类型/哈希、远程 catalog/zip sha256/Ed25519 fail-closed、v1 deprecated 适配、human/cat/dog 设计参考与 example 结构；
 - 未改 main/UI/plugin；未联网；未 commit/push。
+
+v3 追加证据（2026-11-19，task-66，WSL2 Node 24.22.1）：
+
+- 'npx tsc --noEmit' → exit 0；
+- 'node --import tsx --test tests/content-market.test.ts' → **29 tests / 29 pass / 0 fail**（全部注入 fetch/clock/storage/verifier，无真实网络）；
+- 'tests/content-market + content-hub + content-library + content-pack-v2' → **146 tests / 146 pass / 0 fail**；
+- 全仓 'npm test' → **1176 tests / 1176 pass / 0 fail**（18.6 s）；
+- 覆盖：目录验签/篡改/未知/过期/吊销/retired key、serial 回滚、http/私网/redirect/超限/超时/abort、pack SHA/签名/大小/私网/fragment、install 回调顺序与 remote pack 二次验签、content-hub 适配、脱敏日志、零配置零请求；
+- 未改 content-library 签名/校验函数；未改 main.ts/插件；未联网；未 commit/push。
 
 ---
 
@@ -497,7 +507,7 @@ node --import tsx --test tests/content-library.test.ts
 | Q1 | famling 现有渲染器键与共享 content/character 如何收敛？ | UI agent：先双写 + 读优先，观察一个版本后定迁移 |
 | Q2 | 插件 content-extension v2 与共享 0.1 的收敛版本节奏 | 两套独立；未来统一需 MAJOR + 双读迁移 |
 | Q3 | pet.css 气泡/面板硬编码颜色何时改为 var() 回退 | UI agent 单独任务（不改本模块） |
-| Q4 | 远程市场的签名验证实现与密钥 ceremony | 发布/安全任务（P1-1 后续） |
+| Q4 | 远程市场的客户端验签已实现（§11）；生产密钥 ceremony/信任根分发/轮换自动化未做 | 发布/安全任务（P1-1 后续） |
 | Q5 | 主题 high-contrast 是否进入插件 | 插件产品决定（不是共享模型阻塞项） |
 | Q6 | 背景/字体在插件 widget 透明背景下是否适用 | 插件产品决定 |
 | Q7 | library.json 的 i18n 文案 | UI/i18n 任务：name/description key 化，不改 schema |
@@ -517,6 +527,8 @@ node --import tsx --test tests/content-library.test.ts
 | 日期 | 变更 |
 |---|---|
 | 2026-11-19 | 初版：六分类共享目录、严格解析/第三方包校验/合并、选择持久化、外观应用、对话行为；两产品映射与右键菜单集中化方案；远程市场预留与产品红线。 |
+| 2026-11-19 | v2（task-52）：角色主题主入口、内容包 0.2、远程市场契约，见 §10。 |
+| 2026-11-19 | v3（task-66）：远程市场客户端 v1（默认不联网），见 §11。 |
 
 ---
 
@@ -561,6 +573,7 @@ node --import tsx --test tests/content-library.test.ts
 - **fail-closed**：未知 key、吊销 key、过期 key、缺失签名、哈希不符、没有 `verifyRemote` 回调的 remote pack 一律拒绝；retired 只用于验旧包；
 - 下载/安装流程（UI/安装器后续接）：catalog 验签 → 用户确认 usageDeclaration → 下载 zip → zip sha256+签名 → 解压 validatePackZip → remote pack 验签 → mergeCharacterThemes → 可卸载/离线缓存/不静默更新；
 - 本模块没有 fetch/网络代码；`download.url` 只是元数据。
+- **v1 客户端已实现（task-66）**：传输/限制/防回滚/下载校验/适配器见 §11；真实市场服务器、审核后台、支付与密钥 ceremony 仍未实现。
 
 ### 10.4 设计实例 / 参考（第三方起步）
 
@@ -604,3 +617,251 @@ node --import tsx --test tests/content-library.test.ts
 | 日期 | 变更 |
 |---|---|
 | 2026-11-19 | v2（task-52）：角色主题主入口（rolePresets/characterThemes + 一键应用/派生）、库 schema 0.2 + v1 deprecated 适配、内容包 0.2（zip 素材包 + 统一用途声明 + sha256 + 资产白名单）、远程市场 catalog + Ed25519 验签契约、docs/content-packs 三份设计参考 + 三个 example、v2 测试。未改 UI/main/plugin，未 commit/push，未联网。 |
+
+---
+
+## 11. v3（task-66）：远程市场客户端 v1（已实现，默认不联网）
+
+### 11.1 范围与不变量
+
+本任务把 §10.3 的"只定义契约"推进为**可测试的 transport + verification 客户端**：
+新模块 [src/pet/content-market.ts](../../src/pet/content-market.ts)（~1.2k 行，纯 TS，可注入依赖），
+复用 content-library.ts 的 validateMarketCatalog / verifyMarketCatalogSignature /
+verifyMarketPackDownload / verifyRemoteContentPack 与 content-hub.ts 的 RemoteMarketSource 契约。
+**没有修改** content-library 的签名/校验函数，也没有改插件。
+
+不变量（全部 fail-closed）：
+
+| # | 不变量 |
+|---|---|
+| I1 | 构造 client / 创建 RemoteMarketSource / 创建 UI refresh 回调都**不发请求**；只有显式调用 refreshCatalog / downloadPack / installPack 才可能联网。 |
+| I2 | 默认 UI 注入 null ⇒ configured:false，市场按钮禁用，页面只显示"服务器未配置 · 默认不联网"。 |
+| I3 | 目录与 zip 只接受 HTTPS；HTTP 需显式 allowHttp:true（测试/开发），生产构建不得开启。 |
+| I4 | 目录必须 validateMarketCatalog 通过 + Ed25519 验签通过，才可被使用/持久化 serial。 |
+| I5 | serial 回退（更旧 updatedAt / 同 serial 不同内容）一律 catalog-rollback，不采用、不覆盖已保存的最高 serial。 |
+| I6 | zip 只允许"最近一次已验证目录"中某条目的**精确 download.url**；大小、SHA-256、pack 签名全过才返回 bytes。 |
+| I7 | 安装只发生在 unpack → validateContentPackV2 → (remote) verifyRemoteContentPack → install 全部通过之后；模块自己不写盘。 |
+| I8 | 用户显式确认统一用途声明是 UI 责任；installPack 被调用即视为"用户已确认"的边界。 |
+| I9 | 日志只含 hostname/状态/字节数/keyId 等脱敏字段，从不含完整 URL、query/fragment、签名值或响应体。 |
+| I10 | 模块无遥测、无自动重试、无后台轮询、无定时器（除单次请求的 timeout 定时器）。 |
+
+### 11.2 导出接口
+
+| 类别 | 导出 |
+|---|---|
+| 客户端 | MarketplaceClient、createMarketplaceClient(config) |
+| UI 适配 | createRemoteMarketSource(client)、createRemoteMarketRefresh(client)、createRemoteMarketWiring(client)、MarketplaceError、describeMarketFailure(failure) |
+| 纯函数 | validateMarketRequestUrl、isPrivateOrLoopbackHost、marketCatalogSerial、compareMarketCatalogSerial、marketCatalogFingerprint、parseMarketCatalogTimestamp、readMarketCatalogSerial |
+| 常量 | MARKET_CLIENT_DEFAULTS、MARKET_CLIENT_HARD_LIMITS、MARKET_FAILURE_CODES、MARKET_SERIAL_STORAGE_KEY |
+| 类型 | MarketplaceClientConfig、MarketplaceFetch / MarketResponseLike / MarketplaceRequestInit、MarketCatalogSerial、MarketCatalogRefreshResult、MarketPackDownloadResult、MarketPackInstallResult、MarketUnpackResult / MarketplaceUnpackHook、MarketInstallOutcome / MarketplaceInstallHook、MarketLogEvent / MarketplaceLogger、MarketFailure |
+
+关键用法（宿主只需注入 client，UI 点击才触发）：
+
+~~~ts
+import { createMarketplaceClient, createRemoteMarketWiring } from './content-market.ts'
+
+// 生产默认：不创建 client（或显式传 null），市场保持未配置、零请求。
+const client = reviewedServerReady
+  ? createMarketplaceClient({
+      catalogUrl: TRUSTED_CATALOG_URL,        // 显式注入，无内置默认 URL
+      trustRoot,                              // keyId/公钥/status/有效期
+      verifier,                               // Ed25519 verify 注入（WebCrypto/node:crypto 均可）
+      now: () => Date.now(),
+      storage: localStorage,                  // serial 防回滚持久化；缺省则 fail-closed
+      unpack: (input) => hostUnzipAndParse(input),    // 只解包/解析，不落盘
+      install: (input) => hostPersistAndMerge(input), // 唯一落盘/合并路径
+    })
+  : null
+
+const wiring = createRemoteMarketWiring(client, { sourceLabel: '官方内容市场' })
+initContentHub({
+  // ...
+  getMarketState: wiring.getMarketState,
+  refreshMarket: wiring.refreshMarket, // 只有用户点「刷新市场目录…」才被调用
+})
+~~~
+
+### 11.3 配置项（默认值 / 硬上限）
+
+| 配置 | 默认 | 硬上限/约束 | 说明 |
+|---|---|---|---|
+| catalogUrl | 无（必填） | ≤512 字符；无 userinfo/fragment | 显式注入；没有内置市场服务器 |
+| trustRoot | 必填 | 1..16 个 ed25519 key；active/retired/revoked + notBefore/notAfter | 复用 P1-1 信任根语义 |
+| verifier | 必填 | verify(message, signatureBase64, publicKeyPem) | 浏览器 WebCrypto / Node crypto 皆可 |
+| fetch | 全局 fetch | 注入式 MarketplaceFetch | 构造时绝不调用 |
+| now | Date.now | 返回 ms | 用于密钥有效期 + serial 比较 + 结果时间戳 |
+| timeoutMs | **8 000** | 1..30 000 | 覆盖 redirect + body read |
+| maxCatalogBytes | **1 MiB** | ≤4 MiB | 等于 maxMarketJsonBytes |
+| maxPackBytes | **16 MiB** | ≤64 MiB | 等于 maxZipBytes |
+| maxRedirects | **3** | 0..5 | 手动 redirect，同 host |
+| maxConcurrentDownloads | **2** | 1..4 | 目录刷新本身强制串行 |
+| storage | 无 | StorageLike | 缺省且 requireSerialStorage:true ⇒ 拒绝联网 |
+| requireSerialStorage | true | — | 显式 false 才允许无持久化（测试/无痕模式，结果标记 rollbackProtection=false） |
+| allowHttp | false | 测试/开发专用 | 开启会记一条 warning 日志 |
+| allowPrivateHosts | false | 测试/开发专用 | 允许 loopback/私网 CI mock |
+| allowedCatalogHosts | 无 | 精确 host 列表 | 可选目录 host 白名单 |
+| serialStorageKey | desktop-games/pet/content/market/catalog-serial | ≤128 字符 | 升级 key 需迁移/运维确认 |
+| unpack / install | 无 | 均为函数才 installConfigured:true | 两段式：先解包解析，再落盘合并 |
+| logger | 无 | 脱敏事件 | 抛异常也不会中断市场操作 |
+
+### 11.4 协议流程（fail-closed 顺序）
+
+**A. refreshCatalog（目录）**
+
+1. 配置检查（configured；失败返回 not-configured / invalid-config，不联网）；
+2. URL 策略：HTTPS（或显式 allowHttp）/ 无 userinfo / 无 fragment / 非私网（或显式例外）/ 可选 host 白名单；
+3. 读本地最高 serial；storage 缺失（requireSerialStorage=true）、不可读、损坏 ⇒ 直接失败，**不联网**；
+4. 注入 fetch 发 GET：redirect:'manual'、credentials:'omit'、cache:'no-store'、referrerPolicy:'no-referrer'，8 s 超时 + 大小上限 + 手动逐跳 redirect；
+5. body 必须 ≤ maxCatalogBytes（先看 content-length，再量实际 bytes）；空 body/非 UTF-8/非 JSON ⇒ catalog-invalid / empty-response；
+6. validateMarketCatalog（严格 schema/上限/URL/声明）；
+7. verifyMarketCatalogSignature（trust root key 状态 + 有效期 + Ed25519）；
+8. 计算 serial = updatedAt（ms，主序）+ version（semver，tie-break）+ 规范化 payload sha256；
+9. 与本地最高 serial 比较：更旧 ⇒ catalog-rollback；同序不同 hash ⇒ catalog-rollback；
+10. 通过后才写 serial、才更新内存目录、才返回 packs。
+
+**B. downloadPack（下载）**
+
+1. 必须已成功 refresh；传入条目必须与**已验签目录**中的 id/version/url/sha/signature 完全一致，否则 pack-not-in-catalog；
+2. 目录声明的 bytes > maxPackBytes ⇒ too-large（不下载）；
+3. 精确请求目录中的 download.url；同 host 手动 redirect、超时/大小上限同 A；
+4. 实际字节数必须等于目录声明 bytes ⇒ 否则 size-mismatch；
+5. 本地计算 SHA-256；verifyMarketPackDownload 先比 hash 再验 Ed25519（未知/吊销/过期 key fail-closed）；
+6. 全过才把 Uint8Array 交给调用方。
+
+**C. installPack（安装）**
+
+1. 必须注入 unpack + install，否则 install-unconfigured；
+2. 再次执行 B 的条目标识 + 实际 bytes 大小 + SHA-256 + Ed25519 校验（防调用方传入被换掉的 bytes）；
+3. unpack(bytes)：宿主只做有界解包 + 解析 pack.json（不落盘）；
+4. validateContentPackV2(pack.json)：严格 0.2 声明/路径/哈希/兼容性；
+5. 若 contentPack.source === 'remote'：必须再过 verifyRemoteContentPack（remote.signature 的 Ed25519 + trust root），失败 invalid-signature 且 install 不调用；
+6. 全部通过后才调用 install({pack, bytes, sha256, contentPack, remotePackVerified, ...})；宿主负责按既有同意门/validatePackZip/mergeCharacterThemes 落盘；
+7. 安装回调返回的结果原样（脱敏后）回传；异常/拒绝 ⇒ install-failed。
+
+### 11.5 传输层安全细节
+
+| 风险 | 处置 |
+|---|---|
+| 明文/降级 | 只接受 HTTPS；HTTP 需显式测试开关；HTTPS→HTTP 的 redirect 永远 redirect-insecure |
+| URL 注入 | 拒绝 userinfo、fragment、控制字符、超长（>512）、非 http(s) scheme |
+| SSRF/内网 | 拒绝 loopback（127/8、::1）、私网（10/8、172.16/12、192.168/16）、link-local（169.254/16、fe80::/10）、CGNAT（100.64/10）、保留/文档/组播段、localhost/.local/.internal/home.arpa；DNS rebinding 不在纯函数能力内，生产需在宿主/代理层固定解析策略（见 §11.11） |
+| 开放重定向 | redirect:'manual' 自己跟；每跳同 hostname、协议不降级、逐跳重新套用 URL 策略、最多 maxRedirects 跳 |
+| 超时/挂起 | 每请求单 AbortController + 8 s 定时器，覆盖 redirect 与 body read；取消返回 aborted |
+| 内存/压缩炸弹 | 目录 ≤1 MiB、zip ≤16 MiB 双层限制（content-length 预检 + 实际 bytes 复核）；解压/压缩比仍由宿主 validatePackZip/CONTENT_ASSET_LIMITS 负责 |
+| 并发/竞态 | refresh 串行链（同一时刻最多 1 个目录请求）；download 由 maxConcurrentDownloads 信号量限流；serial 只在验签成功后写 |
+| 缓存/陈旧 | cache:'no-store'，不信任 HTTP 缓存；serial 防回滚提供应用层保护 |
+
+### 11.6 签名与信任根
+
+- 所有密码学复用 content-library.ts：marketCatalogSignaturePayload（去掉顶层 signature 的 canonical JSON）、marketPackSignaturePayload、verifyMarketCatalogSignature、verifyMarketPackDownload；**本模块不实现自己的签名算法**。
+- 信任根 key 状态：active/retired 可用于验旧内容；revoked 一律拒绝；notBefore/notAfter 按注入 clock 的 UTC 日期判定。
+- 顺序固定：**先大小，再 SHA-256，再 Ed25519**；目录验签先于 serial 判定；remote pack.json 验签先于 install 回调。
+- 未知 key / 吊销 / 过期 / 缺签 / 哈希不符 ⇒ 对应失败码，绝不"降级信任"。
+
+### 11.7 防回滚（serial）
+
+- serial = (updatedAtMs, version, catalogSha256)：
+  - updatedAtMs 主序（date-only 视为 UTC 00:00:00）；
+  - version 仅在 updatedAt 相同时比较（SemVer）；
+  - catalogSha256 = canonical signed payload（不含顶层 signature）的 SHA-256，用于识别"同 serial 不同内容"。
+- 持久化信封（单 key，≤2048 字符）：{"v":1,"data":{"catalogVersion","updatedAt","updatedAtMs","catalogSha256"}}。
+- 规则：incoming < stored ⇒ catalog-rollback；incoming == stored 且 hash 相同 ⇒ 幂等成功（不重复写）；incoming == stored 且 hash 不同 ⇒ catalog-rollback；只有**验签通过且顺序更新**才写盘。
+- storage 缺失/不可读/JSON 损坏/未知 v/空值：一律 storage-unavailable / storage-corrupt 并**拒绝联网**（不会静默重置基线）。
+- 唯一恢复口：client.resetRollbackProtection()（显式运维动作，仅用于已确认的本地记录损坏；重置后下一次 refresh 建立新基线）。UI 不应自动调用。
+- 为什么不用 catalog.version 单独做 serial：version 可被"重发旧目录"复用；updatedAt + payload hash 同时约束时间与字节身份，能拒绝 replay。
+
+### 11.8 失败码
+
+| 分组 | 失败码 |
+|---|---|
+| 配置/URL | not-configured、invalid-config、invalid-argument、invalid-url、insecure-transport、url-credentials、url-fragment、private-host、host-not-allowed |
+| 传输 | network-error、timeout、aborted、http-error、redirect-invalid、redirect-limit、redirect-cross-host、redirect-insecure、empty-response、too-large |
+| 目录 | catalog-invalid、catalog-rollback、storage-unavailable、storage-corrupt、serial-write-failed |
+| 下载/安装 | pack-not-in-catalog、size-mismatch、install-unconfigured、unpack-failed、pack-invalid、install-failed |
+| 签名 | missing-signature、invalid-signature、unknown-signing-key、revoked-signing-key、key-outside-validity、hash-mismatch |
+| 兜底 | internal-error |
+
+约定：失败值永远是 {ok:false, code, message, retryable?, detailCode?, httpStatus?, host?, issues?}，不 throw；
+retryable 仅对 network/timeout/408/425/429/5xx 为 true；host 只含 hostname；issues 最多 8 条且已脱敏。
+UI 映射见 describeMarketFailure()（中文短句 + 稳定 code）。
+
+### 11.9 隐私 / 日志 / 遥测
+
+- 请求头只有 accept；credentials:'omit'、cache:'no-store'、referrerPolicy:'no-referrer'；不发送 cookie、Authorization、客户端 ID。
+- 持久化只有 serial 信封（版本/时间/hash），不存 URL、token、目录内容或 zip。
+- 不采集使用遥测/崩溃上报；logger 是宿主注入的可选内存回调。
+- MarketLogEvent 字段：level/event/code/detail/host/httpStatus/bytes/durationMs/redirects/keyId；
+  **不含**完整 URL、query、fragment、body、签名值、公钥、用户输入。
+- 生产运维如需日志，只上报 event+code+host+duration 聚合指标。
+
+### 11.10 UI 接入方式（content-hub）
+
+content-hub 的市场 UI **本来就不联网**，现有注入点已足够，本任务只做适配器：
+
+- ContentHubOptions.getMarketState ← wiring.getMarketState
+- ContentHubOptions.refreshMarket ← wiring.refreshMarket（按钮点击才调用；未配置时 configured:false，按钮 disabled）
+- 可选：ContentHubOptions.getMarketState 在成功刷新后返回 summarizeMarketCatalog（适配器已缓存 client.lastCatalog）。
+- createRemoteMarketSource(client) 实现 RemoteMarketSource 的 fetchCatalog / fetchPackBytes / verifyCatalog / verifyPack / installPack，供后续安装器/其他 UI 复用。
+- 安装按钮/用途声明确认/进度提示仍由 UI 任务实现；本模块只提供 installPack 的"已验签 + 已解包 + 已复核"入口，绝不自动安装。
+- **未改 main.ts**：宿主接线（activeMarketSource / refreshMarket）留给 UI/宿主任务；本任务保证默认 null 行为与当前构建完全一致（零联网）。
+
+### 11.11 运维手册
+
+| 场景 | 动作 |
+|---|---|
+| 生产构建 | allowHttp=false、allowPrivateHosts=false；CI 增加静态断言（本任务测试已覆盖 URL 拒绝） |
+| 新市场服务器上线 | 先以 allowedCatalogHosts + 测试 URL 灰度；确认目录可验签、pack sha/签名正确后再打开用户入口 |
+| 密钥轮换 | 信任根先加入新 key（active，notBefore=生效日）；旧 key 转 retired 继续验旧包；确认旧目录过期后再 revoked；客户端升级 trust root 需走发布流程 |
+| serial 回滚告警 | 视为供应链事件：不采用旧目录、不自动重置；核对发布记录/服务器时间；确认后走 resetRollbackProtection() 运维流程并记录 |
+| storage 损坏 | fail-closed 会阻止联网；确认是本地损坏（非攻击）后显式 reset，再 refresh |
+| 超时/5xx | retryable:true 由 UI 提示用户手动重试；本模块不做自动重试/退避（避免放大故障） |
+| 监控 | 只聚合 event+code+host+durationMs；对 unknown-signing-key / revoked-signing-key / catalog-rollback / hash-mismatch 配置告警 |
+| DNS rebinding | 生产代理/宿主必须固定解析策略（或走固定 IP/CDN allow-list）；纯客户端只能拒绝字面私网地址 |
+
+### 11.12 测试与验证证据（task-66 实测）
+
+新增 [tests/content-market.test.ts](../../tests/content-market.test.ts)，**29 tests / 29 pass / 0 fail**，全部用注入 fetch/clock/storage/verifier，**无真实网络**。
+
+覆盖：
+- 默认值/失败码稳定性；构造、createRemoteMarketSource(null)、createRemoteMarketRefresh(null) 均零请求；
+- 合法目录：严格校验 + Ed25519 + serial 持久化 + 请求 init（manual redirect/omit/no-store/no-referrer）；
+- 篡改目录、未知 key、吊销 key、过期 key、notBefore、retired key 语义；
+- serial 回退、同 serial 不同内容、更新 serial 接受；并发 refresh 强制串行；
+- http/userinfo/fragment/非法 URL；私网/回环/保留网段；显式 allowHttp+allowPrivateHosts 例外；
+- 同 host redirect、跨 host、HTTPS→HTTP 降级、redirect 超限、缺 Location；
+- 目录 content-length/实际 body 超限、8 s 超时、调用方 abort、HTTP 500/429、空响应、非 JSON、未签名目录；
+- storage 缺失/损坏/不可读/写失败/reset；下载前置/大小/SHA/pack 签名/超限/私网/fragment/非目录条目/并发上限；
+- install：成功顺序 unpack→install、bytes 篡改、长度不符、remote pack.json 有效/无效签名、缺 hook、解包失败、pack.json 非法、安装回调拒绝；
+- content-hub 适配器/接线、脱敏 logger（无完整 URL/签名）、抛异常 logger 不破坏操作、非法配置 fail-closed。
+
+命令与结果（WSL2 Node 24.22.1）：
+
+~~~text
+npx tsc --noEmit                                  -> exit 0
+node --import tsx --test tests/content-market.test.ts
+                                                  -> tests 29, pass 29, fail 0
+node --import tsx --test tests/content-market.test.ts tests/content-hub.test.ts tests/content-library.test.ts tests/content-pack-v2.test.ts
+                                                  -> tests 146, pass 146, fail 0
+npm test                                          -> tests 1176, pass 1176, fail 0
+~~~
+
+未改 content-library 签名/校验函数；未改插件；未 commit/push；未联网。
+
+### 11.13 明确未实现（后续任务）
+
+1. **真实服务器/CDN/审核后台**：目录发布流水线、pack 托管、镜像/回源、灰度、审核工作流；
+2. **支付/订单/退款/地区与年龄门**（产品红线：不做付费情感关系）；
+3. **生产密钥 ceremony/轮换自动化**（P1-1 后续）；
+4. **离线缓存/断点续传/自动重试/进度条**：本 v1 刻意只做显式、一次性、fail-closed 拉取；
+5. **安装器 UI**（用途声明展示 + 显式确认按钮 + 解压进度）+ 宿主 main.ts 接线；
+6. **多市场/多 trust root/镜像选择**；preview 图片的远程加载（当前仍不联网取图）；
+7. 法务复核与独立律师意见、平台商店政策/税务/退款/地区限制；远程市场联网前必须完成。
+
+### 11.14 变更记录（v3 追加）
+
+| 日期 | 变更 |
+|---|---|
+| 2026-11-19 | v3（task-66）：新增 src/pet/content-market.ts 远程市场客户端 v1（可注入 fetch/clock/storage/verifier；HTTPS/私网/redirect/超时/大小/并发限制；目录 Ed25519 验签 + serial 防回滚；pack 大小/SHA-256/签名校验；注入式 unpack/install；remote pack 二次验签；content-hub createRemoteMarketSource / createRemoteMarketRefresh 适配；脱敏日志）+ tests/content-market.test.ts 29 项离线测试。未改 content-library 签名函数、未改插件、未 commit/push、未联网。 |
+
+
+

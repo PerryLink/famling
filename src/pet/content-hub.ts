@@ -1079,6 +1079,12 @@ export interface RemoteMarketVerifyDeps {
  * Remote market source contract (fetch / verify / install). The UI NEVER calls
  * it by itself: the default state is unconfigured and no network request is
  * made until a host explicitly wires a configured source + installer.
+ *
+ * v1 implementation: createRemoteMarketSource() in src/pet/content-market.ts
+ * implements this interface (catalog verification, anti-rollback, bounded
+ * download, injected install callbacks). Wire its createRemoteMarketRefresh()
+ * into ContentHubOptions.refreshMarket after an explicit user click; this
+ * module stays fetch-free either way.
  */
 export interface RemoteMarketSource {
   readonly id: string
@@ -1235,6 +1241,11 @@ export interface ContentHubOptions {
   readonly commitImport: (pending: PreparedThemePackImport) => Promise<ContentHubImportResult>
   readonly getInstalledPacks?: () => readonly ContentHubInstalledPack[]
   readonly getMarketState?: () => ContentMarketUiState
+  /**
+   * Called ONLY from the user's 「刷新市场目录…」 click. The host should wire
+   * createRemoteMarketRefresh(client) from content-market.ts; leaving it
+   * undefined keeps the market button disabled and the build offline.
+   */
   readonly refreshMarket?: () => Promise<ContentHubMarketRefreshResult>
   /** Local object URL for an installed pack preview (builtin themes use path). */
   readonly resolvePreviewUrl?: (theme: ContentCharacterTheme) => string | null
