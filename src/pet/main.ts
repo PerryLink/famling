@@ -35,6 +35,7 @@ import {
   type HeroStatus,
 } from './hero-runtime.ts'
 import { startTinglanPreview } from './tinglan-preview.ts'
+import { isBuiltinCharacterId } from './character/builtin.ts'
 import { resolveHeroRegionReaction, type HeroRegionAction, type HeroRegionReaction } from './anim/regions.ts'
 import { shouldStartWindowDrag } from './hero-drag.ts'
 import { loadDigest } from './chat-import/store.ts'
@@ -53,7 +54,14 @@ import {
   type AdvisersPanelPolicyView,
 } from './advisers/face.ts'
 import { describeAdvisersFaceView, heroPlaceholderView, type HeroPlaceholderView } from './ui-state.ts'
-import { initDesktopShell, createComposerController, type ComposerController, type HeroMenuActionItem } from './desktop-shell.ts'
+import {
+  applyRendererChoice,
+  initDesktopShell,
+  createComposerController,
+  type ComposerController,
+  type HeroMenuActionItem,
+  type PetRendererChoice,
+} from './desktop-shell.ts'
 import { heroActionPlan, isHeroMenuAction, type HeroMenuAction } from './hero-actions.ts'
 import { startHitRegionSync } from './hit-regions.ts'
 import { startDesktopShellLayout } from './shell-layout.ts'
@@ -68,7 +76,7 @@ import {
 } from './safety/gate.ts'
 import { MAX_TALK_MS, MAX_WAV_BYTES, TalkRecorder, type MediaStreamLike, type TalkState } from './recording.ts'
 import { checkRelativePath } from './security/path-safety.ts'
-import { readClampedInt, removeKey, safeGetItem, safeSetItem } from './security/safe-storage.ts'
+import { readClampedInt, removeKey, resolveStorage, safeGetItem, safeSetItem } from './security/safe-storage.ts'
 import { SECURITY_LIMITS, sanitizePlainText, utf8ByteLength } from './security/limits.ts'
 import { createErrorBoundary, toUserMessage, type ErrorBoundary } from './security/error-boundary.ts'
 import { createSecurityRateLimits, RateLimitError } from './security/rate-limit.ts'
@@ -80,6 +88,7 @@ import {
   loadCharacterPackWithConsent,
 } from './consent/content.ts'
 import { CONSENT_OVERLAY_EVENT } from './consent/modal.ts'
+import { hasOpenConsentOverlay } from './consent/modal.ts'
 import {
   bootstrapConsent,
   canInteract,
@@ -108,10 +117,40 @@ import {
   startHealthReminder,
 } from './consent/runtime.ts'
 import { getSafetyAuditLedger, type SafetyReviewLike } from './consent/safety-audit.ts'
+import { grantHostVoiceConsent, revokeHostConsent, syncHostConsent } from './consent/host.ts'
 import { asrConfigSignature } from './consent/asr.ts'
 import { ttsConfigSignature } from './consent/tts.ts'
-import { formatVoiceModeLabel, isTtsVoiceId, readVoicePref, VOICE_PREF_STORAGE_KEY } from './voice-prefs.ts'
+import { formatVoiceModeLabel, isTtsVoiceId, readVoicePref, writeVoicePref, VOICE_PREF_STORAGE_KEY } from './voice-prefs.ts'
 import { roleplayTemplateReply } from './consent/roleplay.ts'
+import {
+  applyContentSelectionAppearance,
+  decideDialogueLine,
+  initContentHub,
+  prepareContentPackImport,
+  readInstalledContentPacks,
+  writeInstalledContentPacks,
+  type ContentHubController,
+  type ContentHubImportResult,
+  type ContentHubSelectResult,
+  type DialogueLineKind,
+} from './content-hub.ts'
+import {
+  CONTENT_CHARACTER_PRODUCT_IDS,
+  CONTENT_SELECTION_CATEGORY,
+  findContent,
+  mergeInstalledPacks,
+  parseContentLibrary,
+  readContentSelection,
+  resolveContentSelection,
+  resolveDialogueBehavior,
+  writeContentSelection,
+  type ContentCharacterEntry,
+  type ContentLibrary,
+  type ContentSelection,
+  type ContentVoiceEntry,
+  type DialogueBehavior,
+  type SelectionKey,
+} from './content-library.ts'
 import './pet.css'
 
 /**
@@ -597,8 +636,18 @@ function currentAsrConfig(): string {
  * Fire-and-forget speech helper: every async failure is reported through the
  * TTS boundary instead of becoming an unhandled rejection.
  */
-function sayLater(text: string, emotion: 'calm' | 'happy' = 'calm'): void {
-  void say(text, emotion).catch((error) => reportFailure(ttsBoundary, error))
+function sayLater(
+  text: string,
+  emotion: 'calm' | 'happy' = 'calm',
+  kind: DialogueLineKind = 'interactive',
+): void {
+  // Content-center dialogue policy: `brief`/`quiet` clamp interaction lines
+  // (shorter bubbles), `quiet` additionally suppresses automatic/ambient lines.
+  // Explicit errors/notices use showBubble directly, so this policy can never
+  // hide a failure or a safety/consent prompt.
+  const decision = decideDialogueLine(dialogueBehavior, kind, text)
+  if (!decision.show || decision.text === null) return
+  void say(decision.text, emotion).catch((error) => reportFailure(ttsBoundary, error))
 }
 
 /**
@@ -659,6 +708,9 @@ async function say(text: string, emotion: 'calm' | 'happy' = 'calm'): Promise<bo
     animateMouth(safeText.length * 120)
     return true
   }
+  // P1-4: mirror the TTS declaration confirmation into the host before any
+  // cloud synthesis; `voice_synthesize` rejects unconfirmed direct invocations.
+  await grantHostVoiceConsent('tts')
   try {
     const clip = await voice.speak({ text: safeText, persona: 'pagefold', emotion, priority: 'bark', voice: currentVoice })
     if (clip.audio) await playClipAudio(clip.audio)
@@ -750,6 +802,292 @@ function render(): void {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Content center / theme market runtime (famling.content/0.1, task-50)
+//
+// The catalog, strict validation, pack merge, selection persistence, appearance
+// and dialogue resolution are pure modules (src/pet/content-library.ts and
+// src/pet/content-hub.ts). This host section owns only the side effects:
+// - startup: read /content/library.json (same-origin static asset, never a
+//   remote market), read the versioned local pack list, merge it, read the saved
+//   selection, apply theme/background/font and resolve dialogue behaviour;
+// - character switch: the existing applyRendererChoice() write+reload path
+//   (consent gate re-checked here; the renderer lifecycle is NOT rewritten);
+// - voice switch: persist the existing voice-preference key, then the existing
+//   applyVoicePreference() re-prompts the TTS config-signature declaration —
+//   a voice change is never silent;
+// - theme/background/font/dialogue: write the versioned selection and apply
+//   immediately (no reload);
+// - local pack import: prepareContentPackImport() + versioned storage write,
+//   then re-merge/refresh. Characters/voices and remote packs are refused by
+//   the pure helper with a visible explanation, and nothing is fetched.
+// ---------------------------------------------------------------------------
+
+interface ContentRuntimeState {
+  readonly baseLibrary: ContentLibrary
+  installedPacks: readonly unknown[]
+  library: ContentLibrary
+  selection: ContentSelection
+  dialogue: DialogueBehavior
+  hub: ContentHubController | null
+}
+
+let contentRuntime: ContentRuntimeState | null = null
+let contentLoad: Promise<ContentRuntimeState | null> | null = null
+/** Active dialogue policy for sayLater/pickSays (null = catalog not loaded yet). */
+let dialogueBehavior: DialogueBehavior | null = null
+
+const CONTENT_KEY_LABELS: Readonly<Record<SelectionKey, string>> = Object.freeze({
+  character: '角色',
+  voice: '声音',
+  dialoguePack: '对话模式',
+  theme: '主题',
+  background: '背景',
+  font: '字体',
+})
+
+function contentStorage() {
+  return resolveStorage()
+}
+
+/** Fail closed when the TOS gate is not accepted or a consent overlay is open. */
+function contentHubBlocked(): boolean {
+  try {
+    return !canInteract() || hasOpenConsentOverlay(document)
+  } catch {
+    return true
+  }
+}
+
+/** Map the live renderer state to a catalog character id (runtime truth wins). */
+function contentCharacterIdFromRenderer(): string {
+  if (!HERO_CONFIG.enabled) return 'origami'
+  if (HERO_CONFIG.character === 'tinglan') return 'humanoid'
+  return HERO_CONFIG.character
+}
+
+/**
+ * Merge the saved content selection with the two legacy keys that still own
+ * runtime behaviour (heroCharacter / voice). No write happens at startup.
+ */
+function initialContentSelection(library: ContentLibrary): ContentSelection {
+  const stored = readContentSelection(library)
+  const character = contentCharacterIdFromRenderer()
+  const voice = isTtsVoiceId(currentVoice) ? currentVoice : stored.voice
+  return resolveContentSelection(library, { ...stored, character, voice }).selection
+}
+
+function buildContentHubController(runtime: ContentRuntimeState): ContentHubController {
+  return initContentHub({
+    document,
+    getLibrary: () => contentRuntime?.library ?? null,
+    getSelection: () => contentRuntime?.selection ?? null,
+    select: selectContent,
+    importPack: importContentPackText,
+    getPackSummary: () => ({ installed: contentRuntime?.installedPacks.length ?? 0 }),
+  })
+}
+
+/**
+ * Load + merge the catalog once (retryable after a failure) and apply the saved
+ * appearance/dialogue selection. This is a local static fetch only.
+ */
+async function ensureContentRuntime(): Promise<ContentRuntimeState | null> {
+  if (contentRuntime) return contentRuntime
+  if (contentLoad) return contentLoad
+  const pending = (async (): Promise<ContentRuntimeState | null> => {
+    try {
+      const response = await fetch('/content/library.json', { credentials: 'same-origin' })
+      if (!response.ok) throw new Error('content library request failed: ' + response.status)
+      const baseLibrary = parseContentLibrary(await response.json())
+      const stored = readInstalledContentPacks(contentStorage())
+      const merged = mergeInstalledPacks(baseLibrary, stored.packs)
+      const selection = initialContentSelection(merged.library)
+      const runtime: ContentRuntimeState = {
+        baseLibrary,
+        installedPacks: stored.packs,
+        library: merged.library,
+        selection,
+        dialogue: resolveDialogueBehavior(merged.library, selection),
+        hub: null,
+      }
+      contentRuntime = runtime
+      dialogueBehavior = runtime.dialogue
+      try {
+        applyContentSelectionAppearance(document, runtime.library, runtime.selection)
+      } catch (error) {
+        reportFailure(uiBoundary, error)
+      }
+      runtime.hub = buildContentHubController(runtime)
+      return runtime
+    } catch (error) {
+      reportFailure(uiBoundary, error)
+      return null
+    }
+  })()
+  contentLoad = pending
+  try {
+    return await pending
+  } finally {
+    if (contentLoad === pending) contentLoad = null
+  }
+}
+
+/** Desktop-menu entry: open the single consolidated content center panel. */
+function openContentHubFromMenu(): void {
+  void (async () => {
+    if (contentHubBlocked()) {
+      showBubble('请先同意完整声明后再打开内容中心。')
+      return
+    }
+    const runtime = await ensureContentRuntime()
+    if (!runtime || !runtime.hub) {
+      showBubble('内容目录没有加载出来，请稍后再试。')
+      return
+    }
+    if (!runtime.hub.open()) showBubble('内容中心暂时无法打开。')
+  })().catch((error) => reportFailure(uiBoundary, error))
+}
+
+function selectContent(key: SelectionKey, id: string): ContentHubSelectResult {
+  const runtime = contentRuntime
+  if (!runtime) return { ok: false, message: '内容目录尚未加载，请稍后再试。' }
+  if (contentHubBlocked()) return { ok: false, message: '请先同意完整声明后再修改内容。' }
+  const entry = findContent(runtime.library, CONTENT_SELECTION_CATEGORY[key], id)
+  if (!entry || !entry.available) return { ok: false, message: '该内容不可用或已失效，已保留原选择。' }
+  if (key === 'character') return selectContentCharacter(runtime, entry as ContentCharacterEntry)
+  if (key === 'voice') return selectContentVoice(runtime, entry as ContentVoiceEntry)
+  return selectContentAppearanceOrDialogue(runtime, key, id)
+}
+
+function selectContentCharacter(
+  runtime: ContentRuntimeState,
+  entry: ContentCharacterEntry,
+): ContentHubSelectResult {
+  const choice = CONTENT_CHARACTER_PRODUCT_IDS[entry.kind].famling as PetRendererChoice
+  const next = resolveContentSelection(runtime.library, { ...runtime.selection, character: entry.id }).selection
+  runtime.selection = next
+  const written = writeContentSelection(runtime.library, next, contentStorage())
+  const applied = applyRendererChoice(choice, {
+    storage: contentStorage(),
+    reload: () => { window.location.reload() },
+  })
+  if (!applied) return { ok: false, message: '本地存储不可用，无法切换角色（未刷新，原角色保持不变）。' }
+  const persisted = written.ok ? '' : '（内容选择未能持久化）'
+  return {
+    ok: true,
+    message: '正在切换到「' + entry.name + '」…页面会按既有渲染器生命周期刷新' + persisted + '。',
+    close: true,
+  }
+}
+
+function selectContentVoice(
+  runtime: ContentRuntimeState,
+  entry: ContentVoiceEntry,
+): ContentHubSelectResult {
+  const voiceId = entry.voiceId
+  if (!isTtsVoiceId(voiceId)) return { ok: false, message: '这个声音不是本机支持的 TTS 音色，未切换。' }
+  const changed = voiceId !== currentVoice
+  if (changed) {
+    // Persist the existing preference key first: if storage is blocked nothing
+    // changes, so the runtime voice and the saved preference can never diverge.
+    const savedPref = writeVoicePref(voiceId, contentStorage())
+    if (savedPref !== 'ok') return { ok: false, message: '无法保存音色偏好（本地存储不可用），未切换。' }
+  }
+  const next = resolveContentSelection(runtime.library, { ...runtime.selection, voice: entry.id }).selection
+  runtime.selection = next
+  const written = writeContentSelection(runtime.library, next, contentStorage())
+  if (changed) {
+    // Existing TTS config-signature path: stops old audio, re-renders the badge
+    // and re-shows the SEPARATE TTS declaration. Never auto-accepted.
+    applyVoicePreference(voiceId)
+  } else {
+    renderVoiceMode()
+  }
+  const character = findContent(runtime.library, 'characters', next.character) as ContentCharacterEntry | undefined
+  const silent = character !== undefined && character.voiceMode !== 'tts'
+  const note = silent
+    ? '当前角色（猫/狗）永不发声；切换到人形/折纸后使用该音色。'
+    : state.muted
+      ? '静音状态下不会播放；取消静音后需重新确认 TTS 声明。'
+      : '语音声明会按新的 TTS 配置签名重新弹出确认。'
+  if (!written.ok) return { ok: false, message: '音色已切换，但内容选择无法保存（本地存储不可用）。' }
+  if (!changed) return { ok: true, message: '「' + entry.name + '」已是当前音色。' + note }
+  return { ok: true, message: '已切换到「' + entry.name + '」；' + note }
+}
+
+function selectContentAppearanceOrDialogue(
+  runtime: ContentRuntimeState,
+  key: SelectionKey,
+  id: string,
+): ContentHubSelectResult {
+  const wanted = { ...runtime.selection, [key]: id } as ContentSelection
+  const resolved = resolveContentSelection(runtime.library, wanted)
+  if (resolved.selection[key] !== id) return { ok: false, message: '该选择不在当前内容目录中，已保留原选择。' }
+  runtime.selection = resolved.selection
+  const entry = findContent(runtime.library, CONTENT_SELECTION_CATEGORY[key], id)
+  const name = entry ? entry.name : id
+  // Immediate apply (visual + data-content-* attrs); no reload, no timer.
+  try {
+    applyContentSelectionAppearance(document, runtime.library, resolved.selection)
+  } catch (error) {
+    reportFailure(uiBoundary, error)
+  }
+  if (key === 'dialoguePack') {
+    runtime.dialogue = resolveDialogueBehavior(runtime.library, resolved.selection)
+    dialogueBehavior = runtime.dialogue
+  }
+  const written = writeContentSelection(runtime.library, resolved.selection, contentStorage())
+  if (key === 'dialoguePack') {
+    const pack = runtime.dialogue
+    const modeLabel = pack.mode === 'quiet'
+      ? '安静（自动环境气泡关闭，交互仍显示短句）'
+      : pack.mode === 'brief'
+        ? '简短（气泡更少、单行 ≤' + pack.maxChars + ' 字）'
+        : '标准（单行 ≤' + pack.maxChars + ' 字）'
+    if (!written.ok) return { ok: false, message: '对话模式已临时生效，但无法保存（本地存储不可用）。' }
+    return { ok: true, message: '对话模式：' + modeLabel + '；错误/关键提示不受影响。' }
+  }
+  if (!written.ok) return { ok: false, message: '已临时应用' + CONTENT_KEY_LABELS[key] + '「' + name + '」，但无法保存（本地存储不可用）。' }
+  return { ok: true, message: '已应用' + CONTENT_KEY_LABELS[key] + '「' + name + '」，无需刷新。' }
+}
+
+function importContentPackText(jsonText: string): ContentHubImportResult {
+  const runtime = contentRuntime
+  if (!runtime) return { ok: false, message: '内容目录尚未加载。' }
+  if (contentHubBlocked()) return { ok: false, message: '请先同意完整声明后再导入内容。' }
+  const prepared = prepareContentPackImport(jsonText, runtime.baseLibrary, runtime.installedPacks)
+  if (!prepared.ok) return { ok: false, message: prepared.message }
+  const stored = writeInstalledContentPacks(prepared.packs, contentStorage())
+  if (!stored.ok) {
+    const reason = stored.status === 'too-large'
+      ? '内容包存储超过大小上限'
+      : stored.status === 'quota'
+        ? '本地存储配额不足'
+        : '本地存储不可用'
+    return { ok: false, message: '内容包校验通过，但' + reason + '，未安装。' }
+  }
+  runtime.installedPacks = prepared.packs
+  runtime.library = prepared.library
+  runtime.selection = resolveContentSelection(prepared.library, runtime.selection).selection
+  runtime.dialogue = resolveDialogueBehavior(prepared.library, runtime.selection)
+  dialogueBehavior = runtime.dialogue
+  try {
+    applyContentSelectionAppearance(document, runtime.library, runtime.selection)
+  } catch (error) {
+    reportFailure(uiBoundary, error)
+  }
+  const verb = prepared.unchanged ? '已存在相同内容包' : prepared.replaced ? '已更新内容包' : '已导入内容包'
+  const detail = prepared.unchanged ? '' : '：' + prepared.added + ' 项'
+  return {
+    ok: true,
+    message: verb + '「' + prepared.pack.name + '」' + detail + '。仅本地数据，未联网、未执行脚本。',
+    installedCount: runtime.installedPacks.length,
+  }
+}
+
+
+
 function doPat(actorId?: string): void {
   state = patPet(state, now())
   hero?.emit('pat', actorId ? { actorId } : {})
@@ -778,6 +1116,13 @@ const lastRegionTouchAt = new Map<string, number>()
  * repeated taps feel responsive instead of stuck on one phrase).
  */
 function pickSays(says: readonly string[] | undefined, key: string): string | null {
+  // Installed dialogue packs may declare reserved per-key overrides; null means
+  // keep the host's data-driven regions.json lines (built-in packs use none).
+  const override = dialogueBehavior?.pickLine(key)
+  if (override !== null && override !== undefined) {
+    lastSaysByKey.set(key, override)
+    return override
+  }
   if (!says || says.length === 0) return null
   const previous = lastSaysByKey.get(key)
   const pool = says.length > 1 && previous !== undefined ? says.filter((line) => line !== previous) : says
@@ -975,6 +1320,9 @@ async function beginTalkWithAsrConsent(): Promise<void> {
     showBubble('未同意语音识别单独声明：本次不会录音、不会上传音频。')
     return
   }
+  // P1-4: mirror the ASR declaration confirmation so `voice_asr` rejects
+  // microphone uploads that never confirmed the declaration.
+  await grantHostVoiceConsent('asr')
   if (!talkPointerDown) {
     showBubble('已确认语音识别声明；再次按住说话即可使用。')
     return
@@ -1493,6 +1841,11 @@ let chatImportWired = false
 async function bootPetOnce(): Promise<void> {
   if (booted || !canInteract()) return
   booted = true
+  // P1-4: mirror the accepted TOS into the host (Rust) so IPC commands can
+  // verify consent; if a `--game=` launch was held at startup, the host opens
+  // that window and closes this gate window, so skip the rest of the boot.
+  const hostConsent = await syncHostConsent(consentSnapshot())
+  if (hostConsent?.launched) return
   // loadNow() may throw (corrupt/unreadable save); never leave the boot chain
   // unhandled or boot a half-rendered pet (P0-2).
   const loaded = await loadBoundary.guardAsync(() => loadNow())
@@ -1504,13 +1857,13 @@ async function bootPetOnce(): Promise<void> {
   if (!loaded.ok || !loaded.value) {
     state = createPet(now())
     render()
-    sayLater('你来了。', 'calm')
+    sayLater('你来了。', 'calm', 'ambient')
   } else {
     const away = now() - state.lastSeenMs
     state = { ...state, lastSeenMs: now() }
     render()
     if (away > 60 * 60 * 1000) {
-      sayLater('你回来了。书页一直停在这里。', 'happy')
+      sayLater('你回来了。书页一直停在这里。', 'happy', 'ambient')
     } else {
       const memoryItems = Array.isArray(state.memory?.items) ? state.memory.items : []
       const activeMemories = memoryItems.filter((item) => item.status === 'active')
@@ -1518,13 +1871,13 @@ async function bootPetOnce(): Promise<void> {
       const canRecall = canRecallMemory(state, now())
       if (canRecall && last && activeMemories.length > 2) {
         state = markMemoryRecalled(state, now())
-        sayLater(`我还记得：${last.text}`, 'calm')
+        sayLater(`我还记得：${last.text}`, 'calm', 'ambient')
         void saveNow().catch((error) => {
           if (!(error instanceof RateLimitError)) reportFailure(saveBoundary, error)
         })
       } else {
         const hour = new Date().getHours()
-        sayLater(hour >= 23 || hour < 6 ? '……这么晚。我给你留了灯。' : hour < 12 ? '早。今天书页很轻。' : '你忙你的，我在这里。', 'calm')
+        sayLater(hour >= 23 || hour < 6 ? '……这么晚。我给你留了灯。' : hour < 12 ? '早。今天书页很轻。' : '你忙你的，我在这里。', 'calm', 'ambient')
       }
     }
   }
@@ -1553,6 +1906,15 @@ startDesktopShellLayout()
     preference: (): TtsVoiceId => currentVoice,
     storageKey: VOICE_PREF_STORAGE_KEY,
     ttsConfig: (): string => currentTtsConfig(),
+  },
+  // Content-center surface (task-50): read-only selection/dialogue/installed
+  // metadata plus the same gate-checked open path as the desktop menu. There is
+  // no write bypass here; selection still goes through the panel callbacks.
+  content: {
+    selection: (): ContentSelection | null => contentRuntime?.selection ?? null,
+    dialoguePack: (): string | null => dialogueBehavior?.packId ?? null,
+    installedPacks: (): number => contentRuntime?.installedPacks.length ?? 0,
+    open: openContentHubFromMenu,
   },
   // P1-2: the QA/console hook is NOT an exemption. State-mutating entries are
   // funnelled through the same consent gate as the UI handlers (and there is no
@@ -2048,7 +2410,7 @@ async function startHeroPage(): Promise<void> {
     const rect = book?.getBoundingClientRect()
     const hour = new Date().getHours()
     const night = hour >= 23 || hour < 6
-    const result = await startHeroRuntime({
+    const runtimeOptions = {
       config: HERO_CONFIG,
       canvas,
       ctx,
@@ -2058,7 +2420,30 @@ async function startHeroPage(): Promise<void> {
         ? Math.min(3, Math.max(1, window.devicePixelRatio))
         : 1,
       sleeping: night,
-    })
+    }
+    // P1-4: a non-built-in hero character (e.g. ?character=tinglan, which is a
+    // non-final DLC concept preview) must pass the same full-TOS per-load gate as
+    // other character packs. Built-in humanoid/cat/dog stay covered by the
+    // first-run TOS and are deliberately exempt from the per-load prompt.
+    let result: Awaited<ReturnType<typeof startHeroRuntime>>
+    if (!isBuiltinCharacterId(HERO_CONFIG.character)) {
+      const gate = getConsentGate()
+      if (!gate) {
+        fallbackHero('consent-runtime-missing')
+        return
+      }
+      try {
+        result = await loadCharacterPackWithConsent(gate, HERO_CONFIG.character, () => startHeroRuntime(runtimeOptions))
+      } catch (error) {
+        if (error instanceof ConsentDeclinedError) {
+          fallbackHero('consent-declined: character-pack')
+          return
+        }
+        throw error
+      }
+    } else {
+      result = await startHeroRuntime(runtimeOptions)
+    }
     if (!result.ok) {
       fallbackHero(result.reason, result.error)
       return
@@ -2579,6 +2964,11 @@ function endRoleplayFlow(): void {
  * the mute flag also prevents any new TTS gate from passing while read-only.
  */
 async function stopVoiceProcessing(): Promise<void> {
+  // P1-4: withdrawing consent / deleting all data must also clear the host
+  // (Rust) consent state + marker so no command can run on stale consent.
+  try {
+    await revokeHostConsent()
+  } catch {}
   try {
     voice.stop()
   } catch {}
@@ -2623,6 +3013,8 @@ const wired = {
   setup: false,
   about: false,
   health: false,
+  content: false,
+  contentOverlay: false,
 }
 
 function initializeApp(): void {
@@ -2635,7 +3027,11 @@ function initializeApp(): void {
   if (!wired.consent) {
     initConsentRuntime({
       onConsentAccepted: () => {
-        void runPetBoot()
+        void (async () => {
+          const hostConsent = await syncHostConsent(consentSnapshot())
+          if (hostConsent?.launched) return
+          await runPetBoot()
+        })()
       },
       exitApplication,
       saveSlot: SAVE_SLOT,
@@ -2659,6 +3055,9 @@ function initializeApp(): void {
   if (!wired.shell) {
     initDesktopShell({
       openComposer: openTypedInput,
+      // Single consolidated content-center entry (replaces the four renderer
+      // rows); main.ts opens the panel and re-checks the consent gate there.
+      openContentHub: openContentHubFromMenu,
       // Live getters: the shell initializes before hero boot, and the menu is
       // rendered on open, so it sees the actual renderer state each time.
       heroActive: () => hero !== null,
@@ -2666,6 +3065,24 @@ function initializeApp(): void {
       onHeroAction: handleHeroAction,
     })
     wired.shell = true
+  }
+  if (!wired.content) {
+    wired.content = true
+    // Static same-origin catalog (never a remote market): parse + merge the
+    // installed local packs, restore the saved selection, apply appearance and
+    // resolve the dialogue policy. Failures are logged and the content-center
+    // entry shows a visible retry instead of blocking the pet.
+    void ensureContentRuntime()
+  }
+  if (!wired.contentOverlay) {
+    wired.contentOverlay = true
+    // Any TOS/TTS/blocked overlay closes the body-level content panel: the
+    // consent layer also inerts body-level siblings, but closing avoids a stale
+    // panel (and its feedback) remaining behind the modal.
+    document.addEventListener(CONSENT_OVERLAY_EVENT, (event) => {
+      const detail = (event as CustomEvent<{ open?: boolean }>).detail
+      if (detail && detail.open === true) contentRuntime?.hub?.close(false)
+    })
   }
   if (!wired.setup) {
     initSetupNotice()

@@ -1,0 +1,266 @@
+{
+  "schema": "famling.content/0.1",
+  "version": "0.1.0",
+  "updatedAt": "2026-11-19",
+  "defaults": {
+    "character": "humanoid",
+    "voice": "stella",
+    "dialoguePack": "standard",
+    "theme": "default",
+    "background": "transparent",
+    "font": "system"
+  },
+  "characters": [
+    {
+      "id": "humanoid",
+      "name": "汀岚",
+      "description": "人形工作搭子：实心对话气泡，可用 stella / tide 语音（TTS 需单独同意）。",
+      "preview": "/assets/pet/anim/human/idle/idle_00.png",
+      "kind": "humanoid",
+      "source": "builtin",
+      "available": true,
+      "voiceMode": "tts",
+      "bubbleSemantic": "speech",
+      "characterDir": "pet-tinglan-anim",
+      "products": [
+        "famling",
+        "dsh-famling"
+      ]
+    },
+    {
+      "id": "dog",
+      "name": "金毛",
+      "description": "金毛寻回犬桌宠：空心心理活动气泡，永不 TTS。",
+      "preview": "/assets/pet/anim/dog/idle/idle_00.png",
+      "kind": "dog",
+      "source": "builtin",
+      "available": true,
+      "voiceMode": "none",
+      "bubbleSemantic": "thought",
+      "characterDir": "pet-dog",
+      "products": [
+        "famling",
+        "dsh-famling"
+      ]
+    },
+    {
+      "id": "cat",
+      "name": "塞尔凯克卷毛猫",
+      "description": "塞尔凯克卷毛猫桌宠：空心心理活动气泡，永不 TTS。",
+      "preview": "/assets/pet/anim/cat/idle/idle_00.png",
+      "kind": "cat",
+      "source": "builtin",
+      "available": true,
+      "voiceMode": "none",
+      "bubbleSemantic": "thought",
+      "characterDir": "pet-cat",
+      "products": [
+        "famling",
+        "dsh-famling"
+      ]
+    },
+    {
+      "id": "origami",
+      "name": "折纸",
+      "description": "默认折纸形态（DOM/CSS 绘制，非动画包）：人形展示，可用语音。",
+      "preview": "/assets/ui/menu/U-MENU-03a_32x32.png",
+      "kind": "origami",
+      "source": "builtin",
+      "available": true,
+      "voiceMode": "tts",
+      "bubbleSemantic": "speech",
+      "products": [
+        "famling"
+      ]
+    }
+  ],
+  "voices": [
+    {
+      "id": "stella",
+      "name": "stella · 海星",
+      "description": "DeepSeek TTS 合成女声，默认音色；仅人形/折纸展示可用，猫狗永不发声。",
+      "voiceId": "stella",
+      "languages": [
+        "zh-CN",
+        "en-US"
+      ],
+      "availableFor": [
+        "humanoid",
+        "origami"
+      ],
+      "source": "builtin",
+      "available": true,
+      "provider": "deepseek-tts",
+      "aiGenerated": true
+    },
+    {
+      "id": "tide",
+      "name": "tide · 暗潮",
+      "description": "DeepSeek TTS 合成男声，可选音色；仅人形/折纸展示可用，猫狗永不发声。",
+      "voiceId": "tide",
+      "languages": [
+        "zh-CN",
+        "en-US"
+      ],
+      "availableFor": [
+        "humanoid",
+        "origami"
+      ],
+      "source": "builtin",
+      "available": true,
+      "provider": "deepseek-tts",
+      "aiGenerated": true
+    }
+  ],
+  "dialoguePacks": [
+    {
+      "id": "standard",
+      "name": "标准",
+      "description": "默认：交互与环境气泡按 70% 概率出现，单行最多 240 字。",
+      "mode": "standard",
+      "bubbleChance": 0.7,
+      "maxChars": 240,
+      "source": "builtin",
+      "available": true
+    },
+    {
+      "id": "brief",
+      "name": "简短",
+      "description": "短句模式：更少、更短的气泡，适合工作时段。",
+      "mode": "brief",
+      "bubbleChance": 0.4,
+      "maxChars": 80,
+      "source": "builtin",
+      "available": true
+    },
+    {
+      "id": "quiet",
+      "name": "安静",
+      "description": "接近静默：关闭自动环境气泡，仅显式交互显示短句（最多 50 字）。",
+      "mode": "quiet",
+      "bubbleChance": 0.05,
+      "maxChars": 50,
+      "source": "builtin",
+      "available": true
+    }
+  ],
+  "themes": [
+    {
+      "id": "default",
+      "name": "默认",
+      "description": "白色气泡、浅灰面板，跟随系统明暗前的安全基线。",
+      "vars": {
+        "bubbleBg": "#ffffff",
+        "bubbleFg": "#111111",
+        "bubbleBorder": "#d6d6d6",
+        "bubbleShadow": "0 1px 2px rgba(0,0,0,0.12)",
+        "panelBg": "#f7f7f7",
+        "panelFg": "#1b1b1b",
+        "bg": "#ffffff"
+      },
+      "source": "builtin",
+      "available": true
+    },
+    {
+      "id": "paper",
+      "name": "纸张",
+      "description": "暖白纸张配色，日间低对比度，适合桌面常驻。",
+      "vars": {
+        "bubbleBg": "#fffdf7",
+        "bubbleFg": "#2b2620",
+        "bubbleBorder": "#d8ccb4",
+        "bubbleShadow": "0 1px 2px rgba(90,70,40,0.18)",
+        "panelBg": "#f6f1e7",
+        "panelFg": "#2b2620",
+        "bg": "#fbf7ef"
+      },
+      "source": "builtin",
+      "available": true
+    },
+    {
+      "id": "night",
+      "name": "夜间",
+      "description": "深色气泡与面板，降低夜间眩光；不使用任何外部图片。",
+      "vars": {
+        "bubbleBg": "#1f232b",
+        "bubbleFg": "#e8eaf0",
+        "bubbleBorder": "#3a4150",
+        "bubbleShadow": "0 2px 6px rgba(0,0,0,0.55)",
+        "panelBg": "#171a20",
+        "panelFg": "#e8eaf0",
+        "bg": "#101317"
+      },
+      "source": "builtin",
+      "available": true
+    },
+    {
+      "id": "high-contrast",
+      "name": "高对比度",
+      "description": "黑底白字、无阴影，减少视觉噪声并满足高对比度阅读。",
+      "vars": {
+        "bubbleBg": "#000000",
+        "bubbleFg": "#ffffff",
+        "bubbleBorder": "#ffffff",
+        "bubbleShadow": "none",
+        "bg": "#000000"
+      },
+      "source": "builtin",
+      "available": true
+    }
+  ],
+  "backgrounds": [
+    {
+      "id": "transparent",
+      "name": "透明",
+      "description": "无背景；透明窗口/点击穿透模式的默认值。",
+      "kind": "transparent",
+      "value": "transparent",
+      "source": "builtin",
+      "available": true
+    },
+    {
+      "id": "paper",
+      "name": "纸张",
+      "description": "暖白纸张底色，适合日间桌面。",
+      "kind": "color",
+      "value": "#f6f1e7",
+      "source": "builtin",
+      "available": true
+    },
+    {
+      "id": "dark",
+      "name": "暗色",
+      "description": "深色底色，减少夜间眩光。",
+      "kind": "color",
+      "value": "#14161a",
+      "source": "builtin",
+      "available": true
+    }
+  ],
+  "fonts": [
+    {
+      "id": "system",
+      "name": "系统",
+      "description": "跟随系统 UI 字体（默认，本地字体栈，无网络字体）。",
+      "family": "system-ui, -apple-system, 'Segoe UI', 'Noto Sans SC', sans-serif",
+      "source": "builtin",
+      "available": true
+    },
+    {
+      "id": "serif",
+      "name": "衬线",
+      "description": "衬线字体栈，本地字体优先，不使用 Google Fonts。",
+      "family": "Georgia, 'Noto Serif SC', 'Songti SC', serif",
+      "source": "builtin",
+      "available": true
+    },
+    {
+      "id": "mono",
+      "name": "等宽",
+      "description": "等宽字体栈，适合代码/时间显示。",
+      "family": "ui-monospace, 'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', monospace",
+      "source": "builtin",
+      "available": true
+    }
+  ]
+}

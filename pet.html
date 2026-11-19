@@ -7,7 +7,7 @@
     <meta name="ai-disclosure" content="AI 桌宠/角色与语音均为 AI 生成，不是真人，不构成专业建议；一般功能全年龄可用，部分互动功能按适用法律/协议需完成年龄核验（自报出生日期，非官方身份证核验），具体以完整 TOS 为准；内容须全年龄适宜。" />
     <meta name="disclaimer" content="使用前必须阅读并同意完整 TOS/免责声明：首次启动、每次修改/DLC 加载、TTS 启用均需显式同意。见 /legal/TOS.md。" />
     <meta name="legal-terms" content="/legal/TOS.md" />
-    <title>Famling · 汀岚</title>
+    <title>Pagefold</title>
 
   </head>
   <body>
@@ -82,7 +82,7 @@
           <label class="volume">音量 <input id="vol" type="range" min="0" max="100" step="5" value="70" /></label>
           <div id="memories" class="memories"></div>
           <p id="schedule" class="note">它现在：……</p>
-          <p id="voice-mode" class="note" title="AI 合成语音/系统 TTS，请以字幕为准">语音：系统/云端 TTS · AI 合成</p>
+          <p id="voice-mode" class="note" title="AI 合成语音/系统 TTS，请以字幕为准">语音：预生成/系统 TTS · AI 合成</p>
           <div class="advisers-status-row">
             <button id="advisers-status" class="note advisers-status" type="button" aria-haspopup="dialog" aria-controls="advisers-panel" aria-expanded="false" aria-live="polite" title="点击查看只读简报">Advisers：未启用（可选，只读）</button>
             <button id="advisers-retry" class="advisers-retry" type="button" aria-label="重试读取 Advisers 简报" hidden>重试</button>
@@ -107,6 +107,12 @@
            Shift+F10 or this button (hidden by CSS in ?shell=window). -->
       <button id="pet-menu-button" class="pet-menu-button" type="button" aria-haspopup="menu" aria-controls="pet-shell-menu" aria-expanded="false" aria-label="打开桌面菜单" title="桌面菜单（右键 / Shift+F10）">⋯</button>
     </div>
+    <!-- Content center / theme market mount point (famling.content/0.1). The
+         single desktop-menu entry 「内容中心（角色/声音/主题/对话）…」 opens this
+         full-screen panel. content-hub.ts builds every child node with
+         createElement + textContent (no innerHTML) and manages the ARIA dialog,
+         focus trap and Escape close. It stays hidden until opened. -->
+    <div id="content-hub-root" class="content-hub-root" hidden></div>
     <div id="advisers-panel" class="advisers-panel" role="dialog" aria-modal="true" aria-label="Advisers 只读简报" hidden>
       <div class="advisers-card">
         <div class="advisers-head"><div><p class="title-kicker">ADVISERS</p><h2>只读简报</h2></div><button id="advisers-close" type="button">合上</button></div>

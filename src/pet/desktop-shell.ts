@@ -199,9 +199,13 @@ export interface RendererMenuItem {
 }
 
 /**
- * Renderer menu rows: the three animated hero characters plus the folded-paper
- * default. Exported so the menu wiring is unit-tested without a browser; the
- * labels are the exact user-facing strings (`渲染器：…`).
+ * Legacy renderer rows (kept for back-compat tests / callers).
+ *
+ * The desktop menu no longer renders these four scattered rows: character
+ * switching is consolidated into the single 「内容中心（角色/声音/主题/对话）…」
+ * entry, which opens the six-category content center. `applyRendererChoice()` and
+ * `rendererChoiceWrites()` below are still the renderer lifecycle used by that
+ * panel (persist + reload, consent-gated by the caller).
  */
 export const RENDERER_MENU_ITEMS: readonly RendererMenuItem[] = [
   { choice: 'dog', label: '渲染器：金毛（动画）' },
@@ -339,6 +343,12 @@ export interface DesktopShellOptions {
    * action cannot double-fire the kernel/speech side effects).
    */
   readonly onHeroAction?: (action: string) => void
+  /**
+   * The ONE consolidated content-center entry (characters / voices / dialogue /
+   * themes / backgrounds / fonts). `main.ts` opens the panel; the four scattered
+   * renderer rows are no longer rendered by this menu.
+   */
+  readonly openContentHub?: () => void
 }
 
 function writeNumber(key: string, value: number): void {
@@ -413,22 +423,11 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
   const consentOverlayOpen = options.consentOverlayOpen ?? (() => hasOpenConsentOverlay(docRef))
   /** V1 typed input: same-window composer opener supplied by main.ts. */
   const openComposer = options.openComposer
+  /** The single content-center entry opener supplied by main.ts (default inert). */
+  const openContentHub = options.openContentHub
   /** Hero canvas state + menu action sink supplied by main.ts (defaults inert). */
   const heroActive = options.heroActive ?? ((): boolean => false)
   const onHeroAction = options.onHeroAction
-  /**
-   * Renderer switch: persist the choice, then reload so `resolveHeroConfig()`
-   * picks it up. The menu re-checks the consent gate before calling this.
-   */
-  const applyRenderer = (choice: PetRendererChoice): void => {
-    let storage: Pick<Storage, 'setItem'> | null = null
-    try {
-      storage = typeof localStorage === 'undefined' ? null : localStorage
-    } catch {
-      storage = null
-    }
-    applyRendererChoice(choice, { storage, reload: () => winRef.location.reload() })
-  }
   /** Fail closed if the gate accessor itself throws (runtime missing/torn down). */
   const menuBlocked = (): boolean => {
     try {
@@ -645,10 +644,11 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
       }
     }
     add('模型 / API Key 设置…', openSetup, '', 'menu/U-MENU-07a_32x32.png')
-    addHeading('渲染器')
-    // Renderer switches persist a preference and reload the pet page; they are
-    // available in both modes so the user can always switch back.
-    for (const item of RENDERER_MENU_ITEMS) add(item.label, () => applyRenderer(item.choice))
+    // ONE consolidated content entry (right-click menu stays short): roles,
+    // voices, dialogue, theme/background/font all live in the content center.
+    // The four old 「渲染器：…」 rows are intentionally NOT rendered any more;
+    // the character switch inside the panel still uses applyRendererChoice().
+    add('内容中心（角色/声音/主题/对话）…', () => { openContentHub?.() }, '', 'menu/U-MENU-08a_32x32.png')
     addHeading(`宠物缩放 · ${formatScaleLabel(scale)}`)
     const scaleRow = docRef.createElement('div')
     scaleRow.className = 'pet-menu-inline'
