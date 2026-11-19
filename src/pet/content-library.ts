@@ -1,6 +1,23 @@
 /**
  * Content library / theme market shared core for famling + dsh-famling.
  *
+ * v2 (2026-11-19) product clarification: the theme is the ROLE, not the
+ * bubble/background/font. The primary catalog unit is now a **character theme**
+ * ("角色主题"): one entry that bundles character + voice + dialogue + appearance
+ * (theme/background/font) + optional behaviour. The user can apply one
+ * character theme in a single action, then customise individual components or
+ * import a derived/third-party character theme. The six component categories
+ * (characters / voices / dialoguePacks / themes / backgrounds / fonts) stay in
+ * the catalog as the optional building blocks behind those bundles.
+ *
+ * Schemas:
+ * - built-in catalog: `famling.content/0.2` (canonical; `0.1` is a deprecated
+ *   adapter that still parses and yields empty rolePresets/characterThemes);
+ * - third-party packs: `famling.content-pack/0.2` (zip asset bundle or JSON
+ *   manifest; mandatory unified usage declaration + licence + AI provenance +
+ *   sha256 files). The v1 `famling.content-pack/0.1` API is kept as a
+ *   deprecated adapter and is NOT deleted.
+ *
  * This module is the single, versioned data model behind the future
  * "内容中心 / 主题市场" (content center / theme market) in both products:
  *
@@ -16,7 +33,7 @@
  * owns the document. The only storage helper is the existing safe-storage
  * wrapper (injectable StorageLike; localStorage is never touched in Node).
  *
- * Security boundary (0.1):
+ * Security boundary (0.2):
  * - catalog + packs are declarative JSON only; no scripts, no HTML, no URLs are
  *   fetched by this module;
  * - every text field is plain text (no "<" / ">"), bounded, no control/bidi
@@ -24,14 +41,18 @@
  * - every path is relative and canonical (no "..", absolute/UNC/drive/ADS);
  * - every theme color/shadow/pattern/font value is a strict CSS token that
  *   cannot smuggle \`url(...)\`, \`@import\`, \`var(...)\` or a declaration break;
- * - third-party packs must declare licence, AI disclosure and closed safety
- *   boundaries before they can be merged.
+ * - every character theme and v2 pack MUST carry the unified usage declaration
+ *   (researchOnly + six prohibited uses + canonical legal sentence);
+ * - v2 zip bundles are validated through an injected inventory (paths, sizes,
+ *   allowed asset types, sha256); no archive bytes are parsed here;
+ * - remote packs/catalogs are refused unless structurally signed AND verified
+ *   through the injected Ed25519 verifier + trust root; unverified = fail-closed.
  *
- * Remote market fields (\`source: "remote"\` / \`remote\`) are RESERVED data
- * shapes. Nothing in this module fetches, verifies on the network or installs
- * anything; signature fields are metadata only (see public/content/README.md).
+ * Remote market data shapes are contracts only: nothing in this module fetches,
+ * installs or signs anything on the network (see public/content/README.md).
  */
 
+import { canonicalJson } from '../pack/canonical.ts'
 import { countCodePoints, stripBidiControls, stripControlChars, SECURITY_LIMITS } from './security/limits.ts'
 import { checkRelativePath } from './security/path-safety.ts'
 import { toPlainText } from './security/html.ts'
@@ -47,10 +68,23 @@ import {
 // Schema + categories
 // ---------------------------------------------------------------------------
 
-/** Schema id of the built-in catalog document (public/content/library.json). */
-export const CONTENT_LIBRARY_SCHEMA = 'famling.content/0.1'
-/** Schema id of one third-party content pack document. */
-export const CONTENT_PACK_SCHEMA = 'famling.content-pack/0.1'
+/** Legacy (v1) catalog schema. Parsed through a deprecated adapter only. */
+export const CONTENT_LIBRARY_SCHEMA_V1 = 'famling.content/0.1'
+/** v2 canonical catalog schema: role/character themes are the primary entry. */
+export const CONTENT_LIBRARY_SCHEMA_V2 = 'famling.content/0.2'
+/**
+ * Schema id of the built-in catalog document (public/content/library.json).
+ *
+ * Kept under the historical export name for existing consumers; the value is
+ * the v2 schema. `CONTENT_LIBRARY_SCHEMA_V1` is the deprecated v1 value.
+ */
+export const CONTENT_LIBRARY_SCHEMA = CONTENT_LIBRARY_SCHEMA_V2
+/** Legacy (v1) content-pack schema; kept for the deprecated v1 adapter. */
+export const CONTENT_PACK_SCHEMA_V1 = 'famling.content-pack/0.1'
+/** @deprecated Use `CONTENT_PACK_SCHEMA_V2` for new packs. Kept for the v1 adapter. */
+export const CONTENT_PACK_SCHEMA = CONTENT_PACK_SCHEMA_V1
+/** v2 content-pack schema: role-theme bundle + usage declaration + zip assets. */
+export const CONTENT_PACK_SCHEMA_V2 = 'famling.content-pack/0.2'
 
 /** The six catalog categories. Order is stable (menu/render order). */
 export const CONTENT_CATEGORIES = ['characters', 'voices', 'dialoguePacks', 'themes', 'backgrounds', 'fonts'] as const
@@ -103,6 +137,66 @@ export const CONTENT_LIMITS = Object.freeze({
 
 /** Extensions a declarative 0.1 pack may reference. No executables/fonts/HTML. */
 export const CONTENT_FILE_EXTENSIONS = ['png', 'webp', 'json', 'md', 'txt', 'wav', 'ogg'] as const
+
+/**
+ * Canonical unified use declaration (exact copy of the short sentence in
+ * docs/legal/USE-RESTRICTIONS-2026-11-19.md §1). Every character theme and
+ * every v2 content pack MUST carry this exact text; the UI MUST show it and ask
+ * for explicit confirmation before importing/activating third-party content.
+ * Do not edit this string without bumping the legal document and its hash.
+ */
+export const CONTENT_USAGE_STATEMENT =
+  '本项目及其全部代码、美术、音频、文案、角色素材和衍生物仅用于技术研究与原型验证，不得用于情感陪伴、虚拟伴侣、心理治疗/医疗/法律/金融建议、未成年人亲密关系、冒充真人/官方，或任何违反法律法规/平台规则的用途。'
+/** UTF-8 SHA-256 of CONTENT_USAGE_STATEMENT (matches USE-RESTRICTIONS §1). */
+export const CONTENT_USAGE_STATEMENT_SHA256 = '0353536cefd702014b12a8365c4a486f19848d049652e9692027216adb80c743'
+/** Canonical legal document this declaration points at. */
+export const CONTENT_USAGE_STATEMENT_REF = 'docs/legal/USE-RESTRICTIONS-2026-11-19.md'
+/** UI contract: third-party import/activation requires explicit user confirmation. */
+export const CONTENT_USAGE_CONFIRMATION_REQUIRED = true
+
+/**
+ * Mandatory prohibited-use ids for every declaration. Order is canonical and
+ * mirrors USE-RESTRICTIONS §4.1–§4.6 (emotional companionship / virtual partner
+ * / professional advice / minor intimacy / impersonation / illegal use).
+ */
+export const PROHIBITED_USES = [
+  'emotional-companionship',
+  'virtual-partner',
+  'professional-advice',
+  'minor-intimacy',
+  'impersonation',
+  'illegal-use',
+] as const
+export type ProhibitedUse = (typeof PROHIBITED_USES)[number]
+
+/**
+ * v2 pack security limits. Zip bundles are capped before and after inflation
+ * (the host unzips; this module only validates the inventory it is given).
+ */
+export const CONTENT_PACK_V2_LIMITS = Object.freeze({
+  maxRoleThemesPerPack: 8,
+  maxComponentsPerCategory: 64,
+  maxPackFiles: 128,
+  maxZipBytes: 16 * 1024 * 1024,
+  maxZipEntries: 256,
+  maxAssetBytes: 8 * 1024 * 1024,
+  maxTotalUncompressedBytes: 32 * 1024 * 1024,
+  maxCompressionRatio: 128,
+  maxPackJsonBytes: 256 * 1024,
+  maxPreviewChars: 160,
+  maxDesignRefChars: 160,
+  maxAuthorChars: 80,
+  maxAiTools: 8,
+  maxAiToolChars: 48,
+  maxMarketPacks: 256,
+  maxMarketJsonBytes: 1024 * 1024,
+  maxMarketDescriptionChars: 280,
+})
+
+/** Asset types a v2 zip pack may contain under assets/. No scripts/HTML/SVG. */
+export const CONTENT_PACK_V2_ASSET_EXTENSIONS = ['png', 'webp', 'json', 'woff2'] as const
+/** Root-level human-readable docs a v2 zip pack may contain (outside assets/). */
+export const CONTENT_PACK_V2_DOC_FILES = ['LICENSE.md', 'NOTICE.md', 'README.md', 'DESIGN.md'] as const
 
 // ---------------------------------------------------------------------------
 // Types: catalog entries
@@ -227,13 +321,22 @@ export interface ContentLibrary {
   readonly schema: typeof CONTENT_LIBRARY_SCHEMA
   readonly version: string
   readonly updatedAt: string
+  /** Six-component default selection (still the persistence layer of the UI). */
   readonly defaults: ContentSelection
+  /** Default one-click character theme id (optional). */
+  readonly defaultRoleTheme?: string
+  /** Built-in one-click character themes ("角色就是主题"). */
+  readonly rolePresets: readonly ContentCharacterTheme[]
+  /** Installed/derived character themes (from v2 packs or user derivation). */
+  readonly characterThemes: readonly ContentCharacterTheme[]
   readonly characters: readonly ContentCharacterEntry[]
   readonly voices: readonly ContentVoiceEntry[]
   readonly dialoguePacks: readonly ContentDialoguePackEntry[]
   readonly themes: readonly ContentThemeEntry[]
   readonly backgrounds: readonly ContentBackgroundEntry[]
   readonly fonts: readonly ContentFontEntry[]
+  /** True when this normalized view was produced from a deprecated v1 document. */
+  readonly legacy?: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -331,6 +434,32 @@ export type ContentIssueCode =
   | 'duplicate-installed'
   | 'duplicate-pack-id'
   | 'incompatible-pack'
+  // v2: unified use declaration / AI provenance / role themes
+  | 'missing-usage-declaration'
+  | 'invalid-usage-declaration'
+  | 'usage-statement-mismatch'
+  | 'invalid-prohibited-use'
+  | 'missing-prohibited-use'
+  | 'missing-ai-provenance'
+  // v2: zip bundle inventory
+  | 'invalid-zip'
+  | 'unsafe-zip-entry'
+  | 'forbidden-asset-type'
+  | 'missing-file'
+  | 'unlisted-file'
+  | 'file-size-mismatch'
+  | 'hash-mismatch'
+  | 'zip-too-large'
+  // v2: role themes / remote market cryptography
+  | 'invalid-role-theme'
+  | 'missing-signature'
+  | 'invalid-signature'
+  | 'unknown-signing-key'
+  | 'revoked-signing-key'
+  | 'key-outside-validity'
+  | 'invalid-market-catalog'
+  | 'unverified-remote'
+  | 'missing-references'
 
 export interface ContentIssue {
   /** JSON-ish location, e.g. "$.themes[0].vars.bubbleBg". */
@@ -356,6 +485,246 @@ export type ContentPackValidation =
   | { readonly ok: false; readonly issues: readonly ContentIssue[] }
 
 // ---------------------------------------------------------------------------
+// v2 types: unified usage declaration + AI provenance
+// ---------------------------------------------------------------------------
+
+/**
+ * Mandatory unified use declaration. `statement` must equal the canonical
+ * short sentence of docs/legal/USE-RESTRICTIONS-2026-11-19.md §1 and
+ * `prohibitedUses` must contain the six canonical red lines.
+ */
+export interface ContentUsageDeclaration {
+  readonly researchOnly: true
+  readonly statement: typeof CONTENT_USAGE_STATEMENT
+  readonly statementRef: typeof CONTENT_USAGE_STATEMENT_REF
+  readonly prohibitedUses: readonly ProhibitedUse[]
+}
+
+/** AI/automation provenance for one theme or pack (honest either way). */
+export interface ContentAiProvenance {
+  readonly generated: boolean
+  /** Mandatory human-readable disclosure, rendered as plain text. */
+  readonly disclosure: string
+  /** Optional tool ids (e.g. "deepseek-image"), metadata only. */
+  readonly tools?: readonly string[]
+}
+
+// ---------------------------------------------------------------------------
+// v2 types: character themes ("角色就是主题") - the primary catalog unit
+// ---------------------------------------------------------------------------
+
+/** Six-component appearance chosen by one character theme. */
+export interface ContentRoleAppearance {
+  readonly themeId: string
+  readonly backgroundId: string
+  readonly fontId: string
+}
+
+/**
+ * One character theme: applying it switches the whole role in one action
+ * (character look + voice + dialogue + behaviour + appearance tokens).
+ * Components remain separate catalog entries so users can override any of
+ * them after applying the bundle.
+ */
+export interface ContentCharacterTheme {
+  readonly id: string
+  readonly name: string
+  readonly description: string
+  readonly characterId: string
+  /** A voice catalog id, or "none" for silent characters (cat/dog). */
+  readonly voiceId: string
+  readonly dialoguePackId: string
+  readonly appearance: ContentRoleAppearance
+  /** Optional behaviour pack directory/id (public/characters/<dir>). */
+  readonly behaviorPreset?: string
+  /** Local preview image (built-in: root-relative; pack: pack-relative). */
+  readonly preview: string
+  /** Design/reference doc for third-party authors (relative .md path). */
+  readonly designRef: string
+  readonly usageDeclaration: ContentUsageDeclaration
+  readonly version: string
+  readonly source: ContentSource
+  readonly author: string
+  readonly license: ContentPackLicense
+  readonly aiProvenance: ContentAiProvenance
+}
+
+/** Alias used by the v2 work order; identical to ContentCharacterTheme. */
+export type ContentRolePreset = ContentCharacterTheme
+
+// ---------------------------------------------------------------------------
+// v2 types: third-party content packs (famling.content-pack/0.2)
+// ---------------------------------------------------------------------------
+
+/** A v2 pack file entry: size + sha256 are mandatory. */
+export interface ContentPackFileV2 {
+  readonly path: string
+  readonly bytes: number
+  readonly sha256: string
+}
+
+/** Optional six-component overrides bundled with a character-theme pack. */
+export interface ContentPackComponents {
+  readonly characters?: readonly ContentCharacterEntry[]
+  readonly voices?: readonly ContentVoiceEntry[]
+  readonly dialoguePacks?: readonly ContentDialoguePackEntry[]
+  readonly themes?: readonly ContentThemeEntry[]
+  readonly backgrounds?: readonly ContentBackgroundEntry[]
+  readonly fonts?: readonly ContentFontEntry[]
+}
+
+export type ContentPackSource = 'local' | 'remote'
+
+/** One validated `famling.content-pack/0.2` document (pack.json manifest). */
+export interface ContentPackV2 {
+  readonly schema: typeof CONTENT_PACK_SCHEMA_V2
+  readonly id: string
+  readonly name: string
+  readonly version: string
+  readonly description: string
+  readonly usageDeclaration: ContentUsageDeclaration
+  readonly license: ContentPackLicense
+  readonly aiProvenance: ContentAiProvenance
+  readonly compatibility: ContentPackCompatibility
+  /** One-click character themes shipped by this pack (1..8). */
+  readonly roleThemes: readonly ContentCharacterTheme[]
+  /** Optional component overrides used for customisation/derivation. */
+  readonly components?: ContentPackComponents
+  /** Asset inventory; every entry has bytes + sha256. */
+  readonly files: readonly ContentPackFileV2[]
+  /** Optional bundle preview path (must be listed in files). */
+  readonly preview?: string
+  /** Local packs need no signature; remote packs are rejected unless signed. */
+  readonly source: ContentPackSource
+  readonly remote?: ContentRemoteOrigin
+  readonly createdAt?: string
+}
+
+export type ContentPackV2Validation =
+  | { readonly ok: true; readonly pack: ContentPackV2 }
+  | { readonly ok: false; readonly issues: readonly ContentIssue[] }
+
+// ---------------------------------------------------------------------------
+// v2 types: zip bundle inventory (the host unzips + hashes; this module validates)
+// ---------------------------------------------------------------------------
+
+/**
+ * One file recorded in a zip bundle inventory. The host (Node/main or a future
+ * installer) MUST unzip the archive and compute the sha256 of every file; this
+ * pure module never touches bytes or the network.
+ */
+export interface ContentPackZipEntry {
+  readonly path: string
+  /** Uncompressed size in bytes. */
+  readonly bytes: number
+  /** Compressed size as stored in the zip (optional, used for bomb ratio). */
+  readonly compressedBytes?: number
+  /** Lowercase hex sha256 computed by the host for file entries. */
+  readonly sha256?: string
+  readonly isDirectory?: boolean
+}
+
+export interface ContentPackZipInventory {
+  /** Size of the .zip file itself in bytes. */
+  readonly bytes: number
+  readonly entries: readonly ContentPackZipEntry[]
+}
+
+export type ContentPackZipValidation =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly issues: readonly ContentIssue[] }
+
+// ---------------------------------------------------------------------------
+// v2 types: remote market catalog + Ed25519 signature verification contract
+// ---------------------------------------------------------------------------
+
+/** Schema id of the remote market catalog (metadata only; never fetched here). */
+export const CONTENT_MARKET_CATALOG_SCHEMA = 'famling.market-catalog/0.1'
+
+export interface ContentMarketSignature {
+  readonly algorithm: 'ed25519'
+  readonly keyId: string
+  /** Detached base64 signature over the canonical payload (see payload helpers). */
+  readonly value: string
+}
+
+export interface ContentMarketDownload {
+  /** Credential-free HTTPS URL of the .zip bundle (metadata only). */
+  readonly url: string
+  /** SHA-256 of the downloaded .zip; required before any install. */
+  readonly zipSha256: string
+  readonly bytes: number
+}
+
+export interface ContentMarketPack {
+  readonly id: string
+  readonly name: string
+  readonly version: string
+  readonly description: string
+  /** Optional preview URL for the listing (informational, never fetched here). */
+  readonly preview?: string
+  /** Shown by the UI before download/import; import still requires confirmation. */
+  readonly usageDeclaration: ContentUsageDeclaration
+  readonly download: ContentMarketDownload
+  /** Ed25519 signature over marketPackSignaturePayload(pack). */
+  readonly signature: ContentMarketSignature
+}
+
+/** Remote market catalog document (version + packs + detached Ed25519 signature). */
+export interface ContentMarketCatalog {
+  readonly schema: typeof CONTENT_MARKET_CATALOG_SCHEMA
+  readonly version: string
+  readonly updatedAt: string
+  /** Key id of the key that signed the catalog. */
+  readonly keyId: string
+  /** Ed25519 signature over marketCatalogSignaturePayload(catalog). */
+  readonly signature: ContentMarketSignature
+  readonly packs: readonly ContentMarketPack[]
+}
+
+export type ContentMarketCatalogValidation =
+  | { readonly ok: true; readonly catalog: ContentMarketCatalog }
+  | { readonly ok: false; readonly issues: readonly ContentIssue[] }
+
+/** Trust-root key record; mirrors the DLC signing trust root semantics. */
+export type ContentSigningKeyStatus = 'active' | 'retired' | 'revoked'
+
+export interface ContentSigningKey {
+  readonly keyId: string
+  readonly algorithm: 'ed25519'
+  /** SPKI PEM public key. */
+  readonly publicKeyPem: string
+  /** Optional SPKI DER SHA-256 fingerprint (lowercase hex). */
+  readonly fingerprintSha256?: string
+  readonly status: ContentSigningKeyStatus
+  /** Inclusive validity window (YYYY-MM-DD, UTC). */
+  readonly notBefore?: string
+  readonly notAfter?: string
+}
+
+export interface ContentTrustRoot {
+  readonly keys: readonly ContentSigningKey[]
+}
+
+/** Injectable Ed25519 verifier: Node can use node:crypto, browser WebCrypto. */
+export interface ContentEd25519Verifier {
+  verify(message: Uint8Array, signatureBase64: string, publicKeyPem: string): boolean
+}
+
+export type ContentSignatureFailureCode =
+  | 'missing-signature'
+  | 'invalid-signature'
+  | 'unknown-signing-key'
+  | 'revoked-signing-key'
+  | 'key-outside-validity'
+  | 'hash-mismatch'
+  | 'invalid-market-catalog'
+
+export type ContentSignatureVerification =
+  | { readonly ok: true; readonly keyId: string; readonly status: ContentSigningKeyStatus }
+  | { readonly ok: false; readonly code: ContentSignatureFailureCode; readonly message: string }
+
+// ---------------------------------------------------------------------------
 // Small validation utilities (pure, exported where useful to UI/tests)
 // ---------------------------------------------------------------------------
 
@@ -371,6 +740,11 @@ const SPDX_PATTERN = /^[A-Za-z0-9][A-Za-z0-9.+-]{1,63}$/
 const SHA256_PATTERN = /^[a-f0-9]{64}$/
 const REMOTE_KEY_ID_PATTERN = /^[a-z0-9][a-z0-9._-]{0,63}$/
 const SIGNATURE_VALUE_PATTERN = /^[A-Za-z0-9+/=_-]{16,2048}$/
+const VALIDATION_VALUE_PATTERN = /^[A-Za-z0-9+/=_-]{16,4096}$/
+const BEHAVIOR_PRESET_PATTERN = /^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$/
+const AI_TOOL_PATTERN = /^[a-z0-9][a-z0-9._-]{0,47}$/
+const ROOT_PACK_DOC_PATTERN = /^(?:LICENSE|NOTICE|README|DESIGN)\.md$/
+const ISO_DATE_TIME_PATTERN = /^[0-9]{4}-[0-9]{2}-[0-9]{2}(?:T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{1,6})?Z)?$/
 
 const SAFE_NAMED_COLORS = new Set([
   'transparent',
@@ -1448,17 +1822,44 @@ function checkDefaultsReferences(
   }
 }
 
-/** Strictly parse + validate public/content/library.json (or a merged catalog). */
+/**
+ * Strictly parse + validate public/content/library.json (or a merged catalog).
+ *
+ * v2 canonical schema: `famling.content/0.2` — rolePresets / characterThemes are
+ * the primary entry; the six component categories are the building blocks.
+ * The deprecated `famling.content/0.1` document is still accepted and yields a
+ * normalized v2 view with `legacy: true` and empty rolePresets/characterThemes.
+ */
 export function parseContentLibrary(input: unknown): ContentLibrary {
   const issues: ContentIssue[] = []
   if (!isRecord(input)) {
     addIssue(issues, '$', 'invalid-type', 'content library must be an object')
     throw new ContentLibraryError(failSummary('invalid content library', issues), issues)
   }
-  checkUnknownKeys(input, ['schema', 'version', 'updatedAt', 'defaults', ...CONTENT_CATEGORIES], '$', issues)
+  checkUnknownKeys(
+    input,
+    [
+      'schema',
+      'version',
+      'updatedAt',
+      'defaults',
+      'defaultRoleTheme',
+      'rolePresets',
+      'characterThemes',
+      'legacy',
+      ...CONTENT_CATEGORIES,
+    ],
+    '$',
+    issues,
+  )
   const schema = readStringField(input, 'schema', '$.schema', issues)
-  if (schema !== undefined && schema !== CONTENT_LIBRARY_SCHEMA) {
-    addIssue(issues, '$.schema', 'invalid-schema', 'expected ' + CONTENT_LIBRARY_SCHEMA)
+  let legacy = false
+  if (schema !== undefined) {
+    if (schema === CONTENT_LIBRARY_SCHEMA_V1) {
+      legacy = true
+    } else if (schema !== CONTENT_LIBRARY_SCHEMA) {
+      addIssue(issues, '$.schema', 'invalid-schema', 'expected ' + CONTENT_LIBRARY_SCHEMA + ' (or deprecated ' + CONTENT_LIBRARY_SCHEMA_V1 + ')')
+    }
   }
   const version = readStringField(input, 'version', '$.version', issues)
   if (version !== undefined && !SEMVER_PATTERN.test(version)) {
@@ -1485,15 +1886,48 @@ export function parseContentLibrary(input: unknown): ContentLibrary {
     }
     categories[category] = parseEntryArray(raw, '$.' + category, issues, category, LIBRARY_ENTRY_OPTIONS, CONTENT_LIMITS.maxEntriesPerCategory)
   }
+  const rolePresets = parseRoleThemeArray(input.rolePresets, '$.rolePresets', issues, {
+    required: false,
+    allowedSources: ['builtin'],
+    previewLeadingSlash: true,
+    max: CONTENT_PACK_V2_LIMITS.maxRoleThemesPerPack,
+  })
+  const characterThemes = parseRoleThemeArray(input.characterThemes, '$.characterThemes', issues, {
+    required: false,
+    allowedSources: ['local', 'remote'],
+    previewLeadingSlash: true,
+    previewMode: 'either',
+    max: CONTENT_PACK_V2_LIMITS.maxRoleThemesPerPack * 8,
+  })
+  checkRoleThemeDuplicates(rolePresets, characterThemes, issues)
+  let defaultRoleTheme: string | undefined
+  if (input.defaultRoleTheme !== undefined) {
+    const rawDefault = readStringField(input, 'defaultRoleTheme', '$.defaultRoleTheme', issues)
+    if (rawDefault !== undefined) {
+      if (!ENTRY_ID_PATTERN.test(rawDefault)) {
+        addIssue(issues, '$.defaultRoleTheme', 'invalid-id', 'defaultRoleTheme must be a character-theme id')
+      } else {
+        defaultRoleTheme = rawDefault
+      }
+    }
+  }
+  if (defaultRoleTheme !== undefined && findRoleThemeIn(rolePresets, characterThemes, defaultRoleTheme) === undefined) {
+    addIssue(issues, '$.defaultRoleTheme', 'unknown-reference', 'default character theme not found: ' + defaultRoleTheme)
+  }
+  checkRoleThemeReferences(rolePresets, '$.rolePresets', categories, issues)
+  checkRoleThemeReferences(characterThemes, '$.characterThemes', categories, issues)
   if (defaults !== undefined) checkDefaultsReferences(defaults, categories, issues)
   if (issues.length > 0 || defaults === undefined) {
-    throw new ContentLibraryError(failSummary('invalid content library', issues.length > 0 ? issues : [{ path: '$', code: 'invalid-defaults', message: 'defaults missing' }]), issues.length > 0 ? issues : [{ path: '$', code: 'invalid-defaults', message: 'defaults missing' }])
+    const finalIssues = issues.length > 0 ? issues : [{ path: '$', code: 'invalid-defaults' as const, message: 'defaults missing' }]
+    throw new ContentLibraryError(failSummary('invalid content library', finalIssues), finalIssues)
   }
   const library: ContentLibrary = {
     schema: CONTENT_LIBRARY_SCHEMA,
     version: version as string,
     updatedAt: updatedAt as string,
     defaults,
+    rolePresets,
+    characterThemes,
     characters: categories.characters as ContentCharacterEntry[],
     voices: categories.voices as ContentVoiceEntry[],
     dialoguePacks: categories.dialoguePacks as ContentDialoguePackEntry[],
@@ -1501,6 +1935,8 @@ export function parseContentLibrary(input: unknown): ContentLibrary {
     backgrounds: categories.backgrounds as ContentBackgroundEntry[],
     fonts: categories.fonts as ContentFontEntry[],
   }
+  if (defaultRoleTheme !== undefined) (library as { -readonly [K in keyof ContentLibrary]: ContentLibrary[K] }).defaultRoleTheme = defaultRoleTheme
+  if (legacy) (library as { -readonly [K in keyof ContentLibrary]: ContentLibrary[K] }).legacy = true
   return deepFreeze(library)
 }
 
@@ -1564,7 +2000,7 @@ function parsePackCompatibility(raw: unknown, path: string, issues: ContentIssue
   }
   checkUnknownKeys(raw, ['library', 'minAppVersion', 'maxAppVersion'], path, issues)
   const library = readStringField(raw, 'library', path + '.library', issues)
-  if (library !== undefined && library !== CONTENT_LIBRARY_SCHEMA) {
+  if (library !== undefined && library !== CONTENT_LIBRARY_SCHEMA_V1 && library !== CONTENT_LIBRARY_SCHEMA) {
     addIssue(issues, path + '.library', 'incompatible', 'pack targets ' + library + ', host is ' + CONTENT_LIBRARY_SCHEMA)
   }
   let minAppVersion: string | undefined
@@ -1581,7 +2017,7 @@ function parsePackCompatibility(raw: unknown, path: string, issues: ContentIssue
       addIssue(issues, path + '.maxAppVersion', 'invalid-version', 'maxAppVersion must be SemVer')
     }
   }
-  if (library === undefined || library !== CONTENT_LIBRARY_SCHEMA) return undefined
+  if (library === undefined || (library !== CONTENT_LIBRARY_SCHEMA && library !== CONTENT_LIBRARY_SCHEMA_V1)) return undefined
   const compatibility: { library: string; minAppVersion?: string; maxAppVersion?: string } = { library }
   if (minAppVersion !== undefined) compatibility.minAppVersion = minAppVersion
   if (maxAppVersion !== undefined) compatibility.maxAppVersion = maxAppVersion
@@ -1890,7 +2326,10 @@ function compareSemver(left: string, right: string): number {
 }
 
 function packCompatible(pack: ContentPack, library: ContentLibrary): boolean {
-  if (pack.compatibility.library !== library.schema) return false
+  // v1 packs target famling.content/0.1; a v2 host keeps accepting them through
+  // the deprecated adapter (their six-component payload is still safe data).
+  const target = pack.compatibility.library
+  if (target !== library.schema && !(target === CONTENT_LIBRARY_SCHEMA_V1 && library.schema === CONTENT_LIBRARY_SCHEMA)) return false
   const min = pack.compatibility.minAppVersion
   if (min !== undefined && compareSemver(library.version, min) < 0) return false
   const max = pack.compatibility.maxAppVersion
@@ -2444,4 +2883,1686 @@ export function clearAppearance(doc: ContentAppearanceDocumentLike): number {
 /** The catalog default selection (validated at parse time). */
 export function defaultContentSelection(library: ContentLibrary): ContentSelection {
   return deepFreeze({ ...library.defaults })
+}
+
+// ===========================================================================
+// v2: character themes ("角色就是主题") — parsing + resolution
+// ===========================================================================
+
+/** Preview path style: root-relative (built-in), pack-relative (pack), or either (installed). */
+type RolePreviewPathMode = 'root' | 'relative' | 'either'
+
+interface RoleThemeParseOptions {
+  /** True for pack role themes (1..max required); false for optional library arrays. */
+  readonly required: boolean
+  readonly allowedSources: readonly ContentSource[]
+  /** Built-in previews are root-relative; pack previews are pack-relative. */
+  readonly previewLeadingSlash: boolean
+  readonly previewMode?: RolePreviewPathMode
+  readonly max: number
+}
+
+function parseUsageDeclaration(raw: unknown, path: string, issues: ContentIssue[]): ContentUsageDeclaration | undefined {
+  if (raw === undefined) {
+    addIssue(issues, path, 'missing-usage-declaration', 'usageDeclaration is required (researchOnly + canonical statement + prohibitedUses)')
+    return undefined
+  }
+  if (!isRecord(raw)) {
+    addIssue(issues, path, 'missing-usage-declaration', 'usageDeclaration must be an object')
+    return undefined
+  }
+  checkUnknownKeys(raw, ['researchOnly', 'statement', 'statementRef', 'prohibitedUses'], path, issues)
+  let ok = true
+  const researchOnly = readBooleanField(raw, 'researchOnly', path + '.researchOnly', issues)
+  if (researchOnly !== true) {
+    addIssue(issues, path + '.researchOnly', 'invalid-usage-declaration', 'researchOnly must be true: this project is research/prototype only')
+    ok = false
+  }
+  const statement = readStringField(raw, 'statement', path + '.statement', issues)
+  if (statement !== undefined && statement !== CONTENT_USAGE_STATEMENT) {
+    addIssue(issues, path + '.statement', 'usage-statement-mismatch', 'statement must be the exact canonical USE-RESTRICTIONS short sentence')
+    ok = false
+  }
+  if (statement === undefined) ok = false
+  const statementRef = readStringField(raw, 'statementRef', path + '.statementRef', issues)
+  if (statementRef !== undefined && statementRef !== CONTENT_USAGE_STATEMENT_REF) {
+    addIssue(issues, path + '.statementRef', 'invalid-usage-declaration', 'statementRef must be ' + CONTENT_USAGE_STATEMENT_REF)
+    ok = false
+  }
+  if (statementRef === undefined) ok = false
+  let prohibitedUses: ProhibitedUse[] | undefined
+  const rawList = readArrayField(raw, 'prohibitedUses', path + '.prohibitedUses', issues)
+  if (rawList !== undefined) {
+    const list = parseStringList(rawList, path + '.prohibitedUses', issues, {
+      min: 0,
+      max: PROHIBITED_USES.length + 6,
+      values: PROHIBITED_USES,
+    })
+    if (list === undefined) {
+      ok = false
+    } else {
+      const present = new Set(list)
+      for (const required of PROHIBITED_USES) {
+        if (!present.has(required)) {
+          addIssue(issues, path + '.prohibitedUses', 'missing-prohibited-use', 'prohibitedUses must include "' + required + '"')
+          ok = false
+        }
+      }
+      prohibitedUses = list as ProhibitedUse[]
+    }
+  } else {
+    ok = false
+  }
+  if (!ok || prohibitedUses === undefined) return undefined
+  return {
+    researchOnly: true,
+    statement: CONTENT_USAGE_STATEMENT,
+    statementRef: CONTENT_USAGE_STATEMENT_REF,
+    prohibitedUses,
+  }
+}
+
+function parseAiProvenance(raw: unknown, path: string, issues: ContentIssue[]): ContentAiProvenance | undefined {
+  if (raw === undefined) {
+    addIssue(issues, path, 'missing-ai-provenance', 'aiProvenance is required (generated + disclosure)')
+    return undefined
+  }
+  if (!isRecord(raw)) {
+    addIssue(issues, path, 'missing-ai-provenance', 'aiProvenance must be an object')
+    return undefined
+  }
+  checkUnknownKeys(raw, ['generated', 'disclosure', 'tools'], path, issues)
+  const generated = readBooleanField(raw, 'generated', path + '.generated', issues)
+  const disclosure = readPlainText(raw, 'disclosure', path + '.disclosure', issues, {
+    maxChars: CONTENT_LIMITS.maxAiDisclosureChars,
+  })
+  if (generated === true && disclosure !== undefined && countCodePoints(disclosure) < 4) {
+    addIssue(issues, path + '.disclosure', 'missing-ai-provenance', 'AI-generated content needs a real disclosure')
+    return undefined
+  }
+  let tools: string[] | undefined
+  if (raw.tools !== undefined) {
+    tools = parseStringList(raw.tools, path + '.tools', issues, {
+      min: 1,
+      max: CONTENT_PACK_V2_LIMITS.maxAiTools,
+      pattern: AI_TOOL_PATTERN,
+      patternMessage: 'tool ids are lowercase ids like "deepseek-image"',
+    })
+    if (tools === undefined) return undefined
+  }
+  if (generated === undefined || disclosure === undefined) return undefined
+  const provenance: { -readonly [K in keyof ContentAiProvenance]: ContentAiProvenance[K] } = { generated, disclosure }
+  if (tools !== undefined) provenance.tools = tools
+  return provenance
+}
+
+function parseRoleAppearance(raw: unknown, path: string, issues: ContentIssue[]): ContentRoleAppearance | undefined {
+  if (!isRecord(raw)) {
+    addIssue(issues, path, 'invalid-role-theme', 'appearance must be an object')
+    return undefined
+  }
+  checkUnknownKeys(raw, ['themeId', 'backgroundId', 'fontId'], path, issues)
+  const themeId = parseEntryId(raw.themeId, path + '.themeId', issues)
+  const backgroundId = parseEntryId(raw.backgroundId, path + '.backgroundId', issues)
+  const fontId = parseEntryId(raw.fontId, path + '.fontId', issues)
+  if (themeId === undefined || backgroundId === undefined || fontId === undefined) return undefined
+  return { themeId, backgroundId, fontId }
+}
+
+function parseRoleThemePreview(
+  raw: unknown,
+  path: string,
+  issues: ContentIssue[],
+  options: { readonly previewLeadingSlash: boolean; readonly previewMode?: RolePreviewPathMode },
+): string | undefined {
+  const mode: RolePreviewPathMode = options.previewMode ?? (options.previewLeadingSlash ? 'root' : 'relative')
+  if (mode === 'either') {
+    if (typeof raw !== 'string') {
+      addIssue(issues, path, 'invalid-path', 'expected a path string')
+      return undefined
+    }
+    return parseSafePath(raw, path, issues, {
+      leadingSlash: raw.startsWith('/'),
+      extensions: ['png', 'webp'],
+      maxChars: CONTENT_PACK_V2_LIMITS.maxPreviewChars,
+    })
+  }
+  return parseSafePath(raw, path, issues, {
+    leadingSlash: options.previewLeadingSlash,
+    extensions: ['png', 'webp'],
+    maxChars: CONTENT_PACK_V2_LIMITS.maxPreviewChars,
+  })
+}
+
+function parseRoleTheme(
+  raw: unknown,
+  path: string,
+  issues: ContentIssue[],
+  options: { allowedSources: readonly ContentSource[]; previewLeadingSlash: boolean; previewMode?: RolePreviewPathMode },
+): ContentCharacterTheme | undefined {
+  if (!isRecord(raw)) {
+    addIssue(issues, path, 'invalid-role-theme', 'character theme must be an object')
+    return undefined
+  }
+  checkUnknownKeys(
+    raw,
+    [
+      'id',
+      'name',
+      'description',
+      'characterId',
+      'voiceId',
+      'dialoguePackId',
+      'appearance',
+      'behaviorPreset',
+      'preview',
+      'designRef',
+      'usageDeclaration',
+      'version',
+      'source',
+      'author',
+      'license',
+      'aiProvenance',
+    ],
+    path,
+    issues,
+  )
+  const id = parseEntryId(raw.id, path + '.id', issues)
+  const name = readPlainText(raw, 'name', path + '.name', issues, { maxChars: CONTENT_LIMITS.maxNameChars })
+  const description = readPlainText(raw, 'description', path + '.description', issues, {
+    maxChars: CONTENT_LIMITS.maxDescriptionChars,
+  })
+  const characterId = parseEntryId(raw.characterId, path + '.characterId', issues)
+  const dialoguePackId = parseEntryId(raw.dialoguePackId, path + '.dialoguePackId', issues)
+  let voiceId: string | undefined
+  const rawVoiceId = readStringField(raw, 'voiceId', path + '.voiceId', issues)
+  if (rawVoiceId !== undefined) {
+    voiceId = rawVoiceId === 'none' ? 'none' : parseEntryId(rawVoiceId, path + '.voiceId', issues)
+  }
+  const appearance = parseRoleAppearance(raw.appearance, path + '.appearance', issues)
+  let behaviorPreset: string | undefined
+  if (raw.behaviorPreset !== undefined) {
+    const rawBehavior = readStringField(raw, 'behaviorPreset', path + '.behaviorPreset', issues)
+    if (rawBehavior !== undefined) {
+      if (!BEHAVIOR_PRESET_PATTERN.test(rawBehavior) || rawBehavior.length > 64) {
+        addIssue(issues, path + '.behaviorPreset', 'invalid-id', 'behaviorPreset must be a lowercase dot/dash id (max 64)')
+      } else {
+        behaviorPreset = rawBehavior
+      }
+    }
+  }
+  const preview = parseRoleThemePreview(raw.preview, path + '.preview', issues, options)
+  const designRef = parseSafePath(raw.designRef, path + '.designRef', issues, {
+    leadingSlash: false,
+    extensions: ['md'],
+    maxChars: CONTENT_PACK_V2_LIMITS.maxDesignRefChars,
+  })
+  const usageDeclaration = parseUsageDeclaration(raw.usageDeclaration, path + '.usageDeclaration', issues)
+  const version = readStringField(raw, 'version', path + '.version', issues)
+  if (version !== undefined && !SEMVER_PATTERN.test(version)) {
+    addIssue(issues, path + '.version', 'invalid-version', 'version must be SemVer')
+  }
+  let source: ContentSource | undefined
+  const rawSource = raw.source
+  if (typeof rawSource !== 'string' || !(CONTENT_SOURCES as readonly string[]).includes(rawSource)) {
+    addIssue(issues, path + '.source', 'invalid-type', 'source must be builtin, local or remote')
+  } else if (!options.allowedSources.includes(rawSource as ContentSource)) {
+    addIssue(issues, path + '.source', 'invalid-type', 'source is not allowed for this document')
+  } else {
+    source = rawSource as ContentSource
+  }
+  const author = readPlainText(raw, 'author', path + '.author', issues, {
+    maxChars: CONTENT_PACK_V2_LIMITS.maxAuthorChars,
+  })
+  const license = raw.license === undefined
+    ? (addIssue(issues, path + '.license', 'missing-field', 'license is required'), undefined)
+    : parsePackLicense(raw.license, path + '.license', issues)
+  const aiProvenance = parseAiProvenance(raw.aiProvenance, path + '.aiProvenance', issues)
+  if (
+    id === undefined ||
+    name === undefined ||
+    description === undefined ||
+    characterId === undefined ||
+    voiceId === undefined ||
+    dialoguePackId === undefined ||
+    appearance === undefined ||
+    (raw.behaviorPreset !== undefined && behaviorPreset === undefined) ||
+    preview === undefined ||
+    designRef === undefined ||
+    usageDeclaration === undefined ||
+    version === undefined ||
+    source === undefined ||
+    author === undefined ||
+    license === undefined ||
+    aiProvenance === undefined
+  ) {
+    return undefined
+  }
+  const theme: { -readonly [K in keyof ContentCharacterTheme]: ContentCharacterTheme[K] } = {
+    id,
+    name,
+    description,
+    characterId,
+    voiceId,
+    dialoguePackId,
+    appearance,
+    preview,
+    designRef,
+    usageDeclaration,
+    version,
+    source,
+    author,
+    license,
+    aiProvenance,
+  }
+  if (behaviorPreset !== undefined) theme.behaviorPreset = behaviorPreset
+  return theme
+}
+
+function parseRoleThemeArray(
+  raw: unknown,
+  path: string,
+  issues: ContentIssue[],
+  options: RoleThemeParseOptions,
+): ContentCharacterTheme[] {
+  if (raw === undefined) {
+    if (options.required) addIssue(issues, path, 'missing-field', 'roleThemes array is required')
+    return []
+  }
+  if (!Array.isArray(raw)) {
+    addIssue(issues, path, 'invalid-type', 'expected an array of character themes')
+    return []
+  }
+  if (raw.length === 0 && options.required) {
+    addIssue(issues, path, 'invalid-role-theme', 'at least one character theme is required')
+    return []
+  }
+  if (raw.length > options.max) {
+    addIssue(issues, path, 'too-many-entries', raw.length + ' character themes > ' + options.max)
+    return []
+  }
+  const out: ContentCharacterTheme[] = []
+  const seen = new Set<string>()
+  for (let index = 0; index < raw.length; index += 1) {
+    const theme = parseRoleTheme(raw[index], path + '[' + index + ']', issues, {
+      allowedSources: options.allowedSources,
+      previewLeadingSlash: options.previewLeadingSlash,
+      ...(options.previewMode !== undefined ? { previewMode: options.previewMode } : {}),
+    })
+    if (theme === undefined) continue
+    if (seen.has(theme.id)) {
+      addIssue(issues, path + '[' + index + '].id', 'duplicate-id', 'duplicate character theme id: ' + theme.id)
+      continue
+    }
+    seen.add(theme.id)
+    out.push(theme)
+  }
+  return out
+}
+
+function checkRoleThemeDuplicates(
+  presets: readonly ContentCharacterTheme[],
+  installed: readonly ContentCharacterTheme[],
+  issues: ContentIssue[],
+): void {
+  const presetIds = new Set(presets.map((theme) => theme.id))
+  for (const theme of installed) {
+    if (presetIds.has(theme.id)) {
+      addIssue(issues, '$.characterThemes', 'builtin-shadow', 'character theme id shadows a built-in role preset: ' + theme.id)
+    }
+  }
+}
+
+/** All available character themes: built-in presets first, then installed/derived. */
+export function listCharacterThemes(library: ContentLibrary): readonly ContentCharacterTheme[] {
+  return Object.freeze([...library.rolePresets, ...library.characterThemes])
+}
+
+/** Find one character theme by id across rolePresets and installed characterThemes. */
+export function findCharacterTheme(library: ContentLibrary, id: string): ContentCharacterTheme | undefined {
+  return findRoleThemeIn(library.rolePresets, library.characterThemes, id)
+}
+
+function findRoleThemeIn(
+  presets: readonly ContentCharacterTheme[],
+  installed: readonly ContentCharacterTheme[],
+  id: string,
+): ContentCharacterTheme | undefined {
+  return presets.find((theme) => theme.id === id) ?? installed.find((theme) => theme.id === id)
+}
+
+function checkRoleThemeReferences(
+  themes: readonly ContentCharacterTheme[],
+  basePath: string,
+  categories: Readonly<Record<ContentCategory, readonly ContentEntry[]>>,
+  issues: ContentIssue[],
+): void {
+  for (let index = 0; index < themes.length; index += 1) {
+    const theme = themes[index]
+    if (theme === undefined) continue
+    const path = basePath + '[' + index + ']'
+    const character = categories.characters.find((entry) => entry.id === theme.characterId) as ContentCharacterEntry | undefined
+    if (character === undefined) {
+      addIssue(issues, path + '.characterId', 'unknown-reference', 'character not found: ' + theme.characterId)
+    } else {
+      if (!character.available) addIssue(issues, path + '.characterId', 'unavailable', 'character is not available: ' + theme.characterId)
+      if (character.voiceMode === 'none') {
+        if (theme.voiceId !== 'none') {
+          addIssue(issues, path + '.voiceId', 'invalid-role-theme', 'silent characters (cat/dog) require voiceId "none"')
+        }
+      } else if (theme.voiceId === 'none') {
+        addIssue(issues, path + '.voiceId', 'invalid-role-theme', 'human presentations need a voice (cannot be "none")')
+      } else {
+        const voice = categories.voices.find((entry) => entry.id === theme.voiceId) as ContentVoiceEntry | undefined
+        if (voice === undefined) {
+          addIssue(issues, path + '.voiceId', 'unknown-reference', 'voice not found: ' + theme.voiceId)
+        } else if (!voice.available) {
+          addIssue(issues, path + '.voiceId', 'unavailable', 'voice is not available: ' + theme.voiceId)
+        } else if (!isVoiceAvailableFor(voice, theme.characterId)) {
+          addIssue(issues, path + '.voiceId', 'invalid-role-theme', 'voice ' + theme.voiceId + ' is not available for character ' + theme.characterId)
+        }
+      }
+    }
+    const dialoguePack = categories.dialoguePacks.find((entry) => entry.id === theme.dialoguePackId)
+    if (dialoguePack === undefined) {
+      addIssue(issues, path + '.dialoguePackId', 'unknown-reference', 'dialogue pack not found: ' + theme.dialoguePackId)
+    } else if (!dialoguePack.available) {
+      addIssue(issues, path + '.dialoguePackId', 'unavailable', 'dialogue pack is not available: ' + theme.dialoguePackId)
+    }
+    const appearanceChecks: ReadonlyArray<readonly [ContentCategory, string, string]> = [
+      ['themes', 'themeId', theme.appearance.themeId],
+      ['backgrounds', 'backgroundId', theme.appearance.backgroundId],
+      ['fonts', 'fontId', theme.appearance.fontId],
+    ]
+    for (const [category, field, id] of appearanceChecks) {
+      const entry = categories[category].find((candidate) => candidate.id === id)
+      if (entry === undefined) {
+        addIssue(issues, path + '.appearance.' + field, 'unknown-reference', category + ' entry not found: ' + id)
+      } else if (!entry.available) {
+        addIssue(issues, path + '.appearance.' + field, 'unavailable', category + ' entry is not available: ' + id)
+      }
+    }
+  }
+}
+
+/** A character theme resolved against the live catalog. */
+export interface ResolvedCharacterTheme {
+  readonly theme: ContentCharacterTheme
+  readonly character: ContentCharacterEntry
+  /** null for silent characters (cat/dog). */
+  readonly voice: ContentVoiceEntry | null
+  readonly dialoguePack: ContentDialoguePackEntry
+  readonly appearanceTheme: ContentThemeEntry
+  readonly background: ContentBackgroundEntry
+  readonly font: ContentFontEntry
+  /** Six-component selection that applies the whole role in one action. */
+  readonly selection: ContentSelection
+}
+
+function themeLookupError(message: string, code: ContentIssueCode = 'unknown-reference'): ContentLibraryError {
+  return new ContentLibraryError('invalid character theme', [{ path: '$', code, message }])
+}
+
+/**
+ * Resolve one character theme against the catalog: verifies every referenced
+ * component and returns the six-component selection that applies it in one go.
+ * Throws ContentLibraryError when the theme or a component is missing.
+ */
+export function resolveCharacterTheme(library: ContentLibrary, themeId: string): ResolvedCharacterTheme {
+  const theme = findCharacterTheme(library, themeId)
+  if (theme === undefined) throw themeLookupError('character theme not found: ' + themeId)
+  const character = findContent(library, 'characters', theme.characterId) as ContentCharacterEntry | undefined
+  if (character === undefined) throw themeLookupError('character not found: ' + theme.characterId)
+  if (!character.available) throw themeLookupError('character is not available: ' + theme.characterId, 'unavailable')
+  let voice: ContentVoiceEntry | null = null
+  if (character.voiceMode === 'tts') {
+    if (theme.voiceId === 'none') throw themeLookupError('human presentation needs a voice: ' + theme.id, 'invalid-role-theme')
+    const resolvedVoice = findContent(library, 'voices', theme.voiceId) as ContentVoiceEntry | undefined
+    if (resolvedVoice === undefined || !resolvedVoice.available || !isVoiceAvailableFor(resolvedVoice, character.id)) {
+      throw themeLookupError('voice is not available for character: ' + theme.voiceId, 'unavailable')
+    }
+    voice = resolvedVoice
+  } else if (theme.voiceId !== 'none') {
+    throw themeLookupError('silent character requires voiceId "none": ' + theme.id, 'invalid-role-theme')
+  }
+  const dialoguePack = findContent(library, 'dialoguePacks', theme.dialoguePackId) as ContentDialoguePackEntry | undefined
+  if (dialoguePack === undefined || !dialoguePack.available) {
+    throw themeLookupError('dialogue pack is not available: ' + theme.dialoguePackId, 'unavailable')
+  }
+  const appearanceTheme = findContent(library, 'themes', theme.appearance.themeId) as ContentThemeEntry | undefined
+  const background = findContent(library, 'backgrounds', theme.appearance.backgroundId) as ContentBackgroundEntry | undefined
+  const font = findContent(library, 'fonts', theme.appearance.fontId) as ContentFontEntry | undefined
+  if (appearanceTheme === undefined || !appearanceTheme.available) {
+    throw themeLookupError('theme is not available: ' + theme.appearance.themeId, 'unavailable')
+  }
+  if (background === undefined || !background.available) {
+    throw themeLookupError('background is not available: ' + theme.appearance.backgroundId, 'unavailable')
+  }
+  if (font === undefined || !font.available) {
+    throw themeLookupError('font is not available: ' + theme.appearance.fontId, 'unavailable')
+  }
+  const selection: ContentSelection = {
+    character: character.id,
+    voice: voice ? voice.id : library.defaults.voice,
+    dialoguePack: dialoguePack.id,
+    theme: appearanceTheme.id,
+    background: background.id,
+    font: font.id,
+  }
+  return Object.freeze({
+    theme,
+    character,
+    voice,
+    dialoguePack,
+    appearanceTheme,
+    background,
+    font,
+    selection: deepFreeze(selection),
+  })
+}
+
+/** Result of a one-click "apply this character theme" resolution. */
+export interface CharacterThemeApplication {
+  readonly ok: boolean
+  readonly theme?: ContentCharacterTheme
+  readonly selection?: ContentSelection
+  readonly issues: readonly ContentIssue[]
+}
+
+/**
+ * One-click apply: resolve a character theme into a full six-component selection
+ * (optionally with user overrides for individual components). The UI writes the
+ * returned selection with writeContentSelection + writeRoleThemeSelection.
+ */
+export function applyCharacterTheme(
+  library: ContentLibrary,
+  themeId: string,
+  overrides: Partial<ContentSelection> = Object.freeze({}),
+): CharacterThemeApplication {
+  let resolved: ResolvedCharacterTheme
+  try {
+    resolved = resolveCharacterTheme(library, themeId)
+  } catch (error) {
+    const issues = error instanceof ContentLibraryError ? error.issues : [{ path: '$', code: 'unknown-reference' as const, message: 'character theme resolution failed' }]
+    return Object.freeze({ ok: false, issues: Object.freeze([...issues]) })
+  }
+  const issues: ContentIssue[] = []
+  const selection: Record<SelectionKey, string> = { ...resolved.selection }
+  for (const key of SELECTION_KEYS) {
+    const override = overrides[key]
+    if (override === undefined) continue
+    if (typeof override !== 'string' || !availableSelectionEntry(library, key, override)) {
+      issues.push({ path: '$.selection.' + key, code: 'unknown-reference', message: 'override is not an available ' + key + ': ' + String(override) })
+      continue
+    }
+    selection[key] = override
+  }
+  if (issues.length > 0) return Object.freeze({ ok: false, theme: resolved.theme, issues: Object.freeze(issues) })
+  return Object.freeze({
+    ok: true,
+    theme: resolved.theme,
+    selection: deepFreeze(selection as ContentSelection),
+    issues: Object.freeze([]),
+  })
+}
+
+/** Alias matching the v2 work-order wording. */
+export const applyRoleTheme = applyCharacterTheme
+
+/** Character themes whose six components match the given selection. */
+export function matchCharacterThemes(
+  library: ContentLibrary,
+  selection: Partial<ContentSelection> | null | undefined,
+): readonly ContentCharacterTheme[] {
+  const wanted = { ...library.defaults, ...(selection ?? {}) }
+  return Object.freeze(
+    listCharacterThemes(library).filter((theme) => {
+      if (theme.characterId !== wanted.character) return false
+      if (theme.voiceId !== 'none' && theme.voiceId !== wanted.voice) return false
+      return theme.dialoguePackId === wanted.dialoguePack &&
+        theme.appearance.themeId === wanted.theme &&
+        theme.appearance.backgroundId === wanted.background &&
+        theme.appearance.fontId === wanted.font
+    }),
+  )
+}
+
+/** Input for deriving a custom character theme from a built-in preset. */
+export interface CharacterThemeDerivationInput {
+  readonly id: string
+  readonly name: string
+  readonly description: string
+  readonly voiceId?: string
+  readonly dialoguePackId?: string
+  readonly appearance?: Partial<ContentRoleAppearance>
+  readonly behaviorPreset?: string
+  readonly preview?: string
+  readonly version?: string
+  readonly author: string
+  readonly license: ContentPackLicense
+  readonly aiProvenance: ContentAiProvenance
+}
+
+export type CharacterThemeDerivationResult =
+  | { readonly ok: true; readonly theme: ContentCharacterTheme }
+  | { readonly ok: false; readonly issues: readonly ContentIssue[] }
+
+/**
+ * Derive a custom "my character theme" from a built-in preset. The unified usage
+ * declaration is copied from the base theme (never user-editable). The result is
+ * validated against the live catalog; the caller can persist it as local content
+ * or export it as a v2 pack (with its own preview asset).
+ */
+export function createDerivedCharacterTheme(
+  library: ContentLibrary,
+  baseThemeId: string,
+  input: CharacterThemeDerivationInput,
+): CharacterThemeDerivationResult {
+  const base = findCharacterTheme(library, baseThemeId)
+  if (base === undefined) {
+    return Object.freeze({ ok: false, issues: Object.freeze([{ path: '$', code: 'unknown-reference' as const, message: 'base character theme not found: ' + baseThemeId }]) })
+  }
+  const raw: Record<string, unknown> = {
+    id: input.id,
+    name: input.name,
+    description: input.description,
+    characterId: base.characterId,
+    voiceId: input.voiceId ?? base.voiceId,
+    dialoguePackId: input.dialoguePackId ?? base.dialoguePackId,
+    appearance: {
+      themeId: input.appearance?.themeId ?? base.appearance.themeId,
+      backgroundId: input.appearance?.backgroundId ?? base.appearance.backgroundId,
+      fontId: input.appearance?.fontId ?? base.appearance.fontId,
+    },
+    preview: input.preview ?? base.preview,
+    designRef: base.designRef,
+    usageDeclaration: base.usageDeclaration,
+    version: input.version ?? '1.0.0',
+    source: 'local',
+    author: input.author,
+    license: input.license,
+    aiProvenance: input.aiProvenance,
+  }
+  if (input.behaviorPreset !== undefined) raw.behaviorPreset = input.behaviorPreset
+  const issues: ContentIssue[] = []
+  const theme = parseRoleTheme(raw, '$.theme', issues, { allowedSources: ['local'], previewLeadingSlash: true })
+  const categories: Record<ContentCategory, readonly ContentEntry[]> = {
+    characters: library.characters,
+    voices: library.voices,
+    dialoguePacks: library.dialoguePacks,
+    themes: library.themes,
+    backgrounds: library.backgrounds,
+    fonts: library.fonts,
+  }
+  if (theme !== undefined) checkRoleThemeReferences([theme], '$.theme', categories, issues)
+  if (issues.length > 0 || theme === undefined) {
+    return Object.freeze({ ok: false, issues: Object.freeze(issues.length > 0 ? issues : [{ path: '$.theme', code: 'invalid-role-theme' as const, message: 'derived theme is invalid' }]) })
+  }
+  return Object.freeze({ ok: true, theme: deepFreeze(theme) as ContentCharacterTheme })
+}
+
+// ---------------------------------------------------------------------------
+// v2: character-theme selection persistence (separate from six component keys)
+// ---------------------------------------------------------------------------
+
+/** Storage key remembering the last applied character theme. */
+export const CONTENT_ROLE_THEME_STORAGE_KEY = 'desktop-games/pet/content/role-theme'
+
+export type RoleThemeSelectionSource = 'stored' | 'default' | 'missing' | 'invalid'
+
+export interface RoleThemeSelectionReadResult {
+  readonly roleThemeId: string | null
+  readonly source: RoleThemeSelectionSource
+}
+
+/** Read the last applied character theme (falls back to defaultRoleTheme). */
+export function readRoleThemeSelection(
+  library: ContentLibrary,
+  storage?: StorageLike | null,
+): RoleThemeSelectionReadResult {
+  const fallback = library.defaultRoleTheme ?? null
+  const result = readVersioned<{ id: string }>(
+    CONTENT_ROLE_THEME_STORAGE_KEY,
+    {
+      version: 1,
+      maxBytes: CONTENT_LIMITS.maxSelectionBytes,
+      validate: (value) => {
+        if (!isRecord(value) || typeof value.id !== 'string') return undefined
+        return findCharacterTheme(library, value.id) ? { id: value.id } : undefined
+      },
+    },
+    storage,
+  )
+  if (result.status === 'ok' && result.value !== undefined) {
+    return Object.freeze({ roleThemeId: result.value.id, source: 'stored' })
+  }
+  if (result.status === 'missing') {
+    return Object.freeze({ roleThemeId: fallback, source: fallback === null ? 'missing' : 'default' })
+  }
+  return Object.freeze({ roleThemeId: fallback, source: 'invalid' })
+}
+
+export interface RoleThemeSelectionWriteResult {
+  readonly ok: boolean
+  readonly status: StorageWriteStatus | 'invalid'
+}
+
+/** Persist the selected character theme id (refuses unknown ids). */
+export function writeRoleThemeSelection(
+  library: ContentLibrary,
+  roleThemeId: string,
+  storage?: StorageLike | null,
+): RoleThemeSelectionWriteResult {
+  if (typeof roleThemeId !== 'string' || findCharacterTheme(library, roleThemeId) === undefined) {
+    return Object.freeze({ ok: false, status: 'invalid' })
+  }
+  const status = writeVersioned(
+    CONTENT_ROLE_THEME_STORAGE_KEY,
+    { id: roleThemeId },
+    { version: 1, maxBytes: CONTENT_LIMITS.maxSelectionBytes },
+    storage,
+  )
+  return Object.freeze({ ok: status.status === 'ok', status: status.status })
+}
+
+/** Remove the persisted character-theme id. */
+export function clearRoleThemeSelection(storage?: StorageLike | null): boolean {
+  return removeKey(CONTENT_ROLE_THEME_STORAGE_KEY, storage)
+}
+
+export interface CharacterThemeStorageWriteResult {
+  readonly ok: boolean
+  readonly roleTheme: RoleThemeSelectionWriteResult
+  readonly selection: ContentSelectionWriteResult
+}
+
+/**
+ * One-call persistence for "apply character theme": writes the six component
+ * selection keys plus the role-theme key. Returns per-key statuses; no partial
+ * state is hidden from the caller.
+ */
+export function writeCharacterThemeSelection(
+  library: ContentLibrary,
+  themeId: string,
+  storage?: StorageLike | null,
+  overrides: Partial<ContentSelection> = Object.freeze({}),
+): CharacterThemeStorageWriteResult {
+  const application = applyCharacterTheme(library, themeId, overrides)
+  if (!application.ok || application.selection === undefined) {
+    return Object.freeze({
+      ok: false,
+      roleTheme: Object.freeze({ ok: false, status: 'invalid' as const }),
+      selection: Object.freeze({
+        ok: false,
+        results: Object.freeze({
+          character: 'invalid',
+          voice: 'invalid',
+          dialoguePack: 'invalid',
+          theme: 'invalid',
+          background: 'invalid',
+          font: 'invalid',
+        }) as Readonly<Record<SelectionKey, StorageWriteStatus | 'invalid'>>,
+      }),
+    })
+  }
+  const roleTheme = writeRoleThemeSelection(library, themeId, storage)
+  const selection = writeContentSelection(library, application.selection, storage)
+  return Object.freeze({ ok: roleTheme.ok && selection.ok, roleTheme, selection })
+}
+
+// ===========================================================================
+// v2: content-pack 0.2 parsing (role themes + declaration + sha256 files)
+// ===========================================================================
+
+function packV2FileKind(relativePath: string): 'asset' | 'doc' | null {
+  const slash = relativePath.lastIndexOf('/')
+  const base = slash === -1 ? relativePath : relativePath.slice(slash + 1)
+  if (slash === -1 && ROOT_PACK_DOC_PATTERN.test(base)) return 'doc'
+  const extension = fileExtension(relativePath)
+  if ((CONTENT_PACK_V2_ASSET_EXTENSIONS as readonly string[]).includes(extension)) return 'asset'
+  return null
+}
+
+function parsePackFileV2(raw: unknown, path: string, issues: ContentIssue[]): ContentPackFileV2 | undefined {
+  if (!isRecord(raw)) {
+    addIssue(issues, path, 'invalid-type', 'file must be an object with path/bytes/sha256')
+    return undefined
+  }
+  checkUnknownKeys(raw, ['path', 'bytes', 'sha256'], path, issues)
+  const filePath = parseSafePath(raw.path, path + '.path', issues, { leadingSlash: false, maxChars: 160 })
+  let kind: 'asset' | 'doc' | null = null
+  if (filePath !== undefined) {
+    kind = packV2FileKind(filePath)
+    if (kind === null) {
+      addIssue(issues, path + '.path', 'forbidden-asset-type', 'asset type is not allowed (png/webp/json/woff2 only; root LICENSE/NOTICE/README/DESIGN.md docs)')
+    }
+  }
+  const bytes = readNumberField(raw, 'bytes', path + '.bytes', issues, {
+    min: 1,
+    max: CONTENT_PACK_V2_LIMITS.maxAssetBytes,
+    integer: true,
+  })
+  const rawSha = readStringField(raw, 'sha256', path + '.sha256', issues)
+  let sha256: string | undefined
+  if (rawSha !== undefined) {
+    if (!SHA256_PATTERN.test(rawSha)) {
+      addIssue(issues, path + '.sha256', 'invalid-type', 'sha256 must be lowercase hex (64 chars)')
+    } else {
+      sha256 = rawSha
+    }
+  }
+  if (filePath === undefined || kind === null || bytes === undefined || sha256 === undefined) return undefined
+  return { path: filePath, bytes, sha256 }
+}
+
+function parsePackComponents(raw: unknown, path: string, issues: ContentIssue[]): ContentPackComponents | undefined {
+  if (!isRecord(raw)) {
+    addIssue(issues, path, 'invalid-type', 'components must be an object of optional six-category arrays')
+    return undefined
+  }
+  checkUnknownKeys(raw, CONTENT_CATEGORIES, path, issues)
+  const out: Record<string, ContentEntry[]> = {}
+  for (const category of CONTENT_CATEGORIES) {
+    const rawCategory = raw[category]
+    if (rawCategory === undefined) continue
+    if (!Array.isArray(rawCategory) || rawCategory.length === 0) {
+      addIssue(issues, path + '.' + category, 'out-of-range', 'components array must have 1..' + CONTENT_LIMITS.maxEntriesPerCategory + ' entries')
+      continue
+    }
+    out[category] = parseEntryArray(rawCategory, path + '.' + category, issues, category, PACK_ENTRY_OPTIONS, CONTENT_LIMITS.maxEntriesPerCategory)
+  }
+  return out as ContentPackComponents
+}
+
+function collectPackFilePaths(files: readonly ContentPackFileV2[]): Set<string> {
+  return new Set(files.map((file) => file.path))
+}
+
+function checkPackV2AssetReferences(pack: {
+  files: readonly ContentPackFileV2[]
+  preview?: string
+  license: ContentPackLicense
+  roleThemes: readonly ContentCharacterTheme[]
+}, issues: ContentIssue[]): void {
+  const declared = collectPackFilePaths(pack.files)
+  if (pack.preview !== undefined && !declared.has(pack.preview)) {
+    addIssue(issues, '$.preview', 'missing-file', 'pack preview is not listed in files: ' + pack.preview)
+  }
+  if (pack.license.file !== undefined && !declared.has(pack.license.file)) {
+    addIssue(issues, '$.license.file', 'missing-file', 'license file is not listed in files: ' + pack.license.file)
+  }
+  for (let index = 0; index < pack.roleThemes.length; index += 1) {
+    const theme = pack.roleThemes[index]
+    if (theme === undefined) continue
+    if (!declared.has(theme.preview)) {
+      addIssue(issues, '$.roleThemes[' + index + '].preview', 'missing-file', 'character theme preview is not listed in files: ' + theme.preview)
+    }
+  }
+}
+
+function parseContentPackV2(input: unknown, issues: ContentIssue[]): ContentPackV2 | undefined {
+  if (!isRecord(input)) {
+    addIssue(issues, '$', 'invalid-type', 'content pack must be an object')
+    return undefined
+  }
+  checkUnknownKeys(
+    input,
+    [
+      'schema',
+      'id',
+      'name',
+      'version',
+      'description',
+      'usageDeclaration',
+      'license',
+      'aiProvenance',
+      'compatibility',
+      'roleThemes',
+      'components',
+      'files',
+      'preview',
+      'source',
+      'remote',
+      'createdAt',
+    ],
+    '$',
+    issues,
+  )
+  const schema = readStringField(input, 'schema', '$.schema', issues)
+  if (schema !== undefined && schema !== CONTENT_PACK_SCHEMA_V2) {
+    addIssue(issues, '$.schema', 'invalid-schema', 'expected ' + CONTENT_PACK_SCHEMA_V2)
+  }
+  const id = parsePackId(input.id, '$.id', issues)
+  const name = readPlainText(input, 'name', '$.name', issues, { maxChars: CONTENT_LIMITS.maxNameChars })
+  const version = readStringField(input, 'version', '$.version', issues)
+  if (version !== undefined && !SEMVER_PATTERN.test(version)) {
+    addIssue(issues, '$.version', 'invalid-version', 'version must be SemVer')
+  }
+  const description = readPlainText(input, 'description', '$.description', issues, {
+    maxChars: CONTENT_LIMITS.maxDescriptionChars,
+  })
+  const usageDeclaration = parseUsageDeclaration(input.usageDeclaration, '$.usageDeclaration', issues)
+  const license = input.license === undefined
+    ? (addIssue(issues, '$.license', 'missing-field', 'license is required'), undefined)
+    : parsePackLicense(input.license, '$.license', issues)
+  const aiProvenance = parseAiProvenance(input.aiProvenance, '$.aiProvenance', issues)
+  const compatibility = parsePackCompatibility(input.compatibility, '$.compatibility', issues)
+  if (compatibility !== undefined && compatibility.library !== CONTENT_LIBRARY_SCHEMA) {
+    addIssue(issues, '$.compatibility.library', 'incompatible', 'content-pack/0.2 must target ' + CONTENT_LIBRARY_SCHEMA)
+  }
+  const roleThemes = parseRoleThemeArray(input.roleThemes, '$.roleThemes', issues, {
+    required: true,
+    allowedSources: ['local'],
+    previewLeadingSlash: false,
+    max: CONTENT_PACK_V2_LIMITS.maxRoleThemesPerPack,
+  })
+  const components = input.components === undefined ? undefined : parsePackComponents(input.components, '$.components', issues)
+  let files: ContentPackFileV2[] = []
+  const rawFiles = readArrayField(input, 'files', '$.files', issues)
+  if (rawFiles !== undefined) {
+    if (rawFiles.length === 0 || rawFiles.length > CONTENT_PACK_V2_LIMITS.maxPackFiles) {
+      addIssue(issues, '$.files', 'too-many-files', 'files must be 1..' + CONTENT_PACK_V2_LIMITS.maxPackFiles)
+    } else {
+      const seenPaths = new Set<string>()
+      let totalBytes = 0
+      for (let index = 0; index < rawFiles.length; index += 1) {
+        const file = parsePackFileV2(rawFiles[index], '$.files[' + index + ']', issues)
+        if (file === undefined) continue
+        if (seenPaths.has(file.path)) {
+          addIssue(issues, '$.files[' + index + '].path', 'duplicate-id', 'duplicate file path: ' + file.path)
+          continue
+        }
+        seenPaths.add(file.path)
+        totalBytes += file.bytes
+        files.push(file)
+      }
+      if (totalBytes > CONTENT_PACK_V2_LIMITS.maxTotalUncompressedBytes) {
+        addIssue(issues, '$.files', 'zip-too-large', 'declared files ' + totalBytes + ' bytes > ' + CONTENT_PACK_V2_LIMITS.maxTotalUncompressedBytes)
+      }
+    }
+  }
+  let preview: string | undefined
+  if (input.preview !== undefined) {
+    preview = parseSafePath(input.preview, '$.preview', issues, {
+      leadingSlash: false,
+      extensions: ['png', 'webp'],
+      maxChars: CONTENT_PACK_V2_LIMITS.maxPreviewChars,
+    })
+  }
+  let source: ContentPackSource = 'local'
+  if (input.source !== undefined) {
+    const rawSource = readStringField(input, 'source', '$.source', issues)
+    if (rawSource !== undefined) {
+      if (rawSource !== 'local' && rawSource !== 'remote') {
+        addIssue(issues, '$.source', 'invalid-type', 'source must be local or remote')
+      } else {
+        source = rawSource
+      }
+    }
+  }
+  let remote: ContentRemoteOrigin | undefined
+  if (input.remote !== undefined) {
+    if (source !== 'remote') {
+      addIssue(issues, '$.remote', 'invalid-remote', 'remote is only allowed when source is "remote"')
+    } else {
+      remote = parseRemoteOrigin(input.remote, '$.remote', issues)
+      if (remote !== undefined && remote.signature === undefined) {
+        addIssue(issues, '$.remote.signature', 'missing-signature', 'remote packs must carry an Ed25519 signature')
+      }
+    }
+  } else if (source === 'remote') {
+    addIssue(issues, '$.remote', 'missing-signature', 'remote packs must carry a signed remote origin')
+  }
+  let createdAt: string | undefined
+  if (input.createdAt !== undefined) {
+    createdAt = readStringField(input, 'createdAt', '$.createdAt', issues)
+    if (createdAt !== undefined && !DATE_PATTERN.test(createdAt)) {
+      addIssue(issues, '$.createdAt', 'invalid-text', 'createdAt must be YYYY-MM-DD')
+    }
+  }
+  if (usageDeclaration !== undefined && roleThemes.length > 0) {
+    checkPackV2AssetReferences({ files, preview, license: license ?? { spdx: '', attribution: '' }, roleThemes }, issues)
+  }
+  let jsonBytes = 0
+  try {
+    jsonBytes = countCodePoints(JSON.stringify(input))
+  } catch {
+    jsonBytes = 0
+  }
+  if (jsonBytes > CONTENT_PACK_V2_LIMITS.maxPackJsonBytes) {
+    addIssue(issues, '$', 'too-large', 'pack JSON is ' + jsonBytes + ' chars > ' + CONTENT_PACK_V2_LIMITS.maxPackJsonBytes)
+  }
+  if (
+    issues.length > 0 ||
+    schema !== CONTENT_PACK_SCHEMA_V2 ||
+    id === undefined ||
+    name === undefined ||
+    version === undefined ||
+    description === undefined ||
+    usageDeclaration === undefined ||
+    license === undefined ||
+    aiProvenance === undefined ||
+    compatibility === undefined ||
+    roleThemes.length === 0 ||
+    files.length === 0
+  ) {
+    return undefined
+  }
+  const pack: ContentPackV2 = {
+    schema: CONTENT_PACK_SCHEMA_V2,
+    id,
+    name,
+    version,
+    description,
+    usageDeclaration,
+    license,
+    aiProvenance,
+    compatibility,
+    roleThemes,
+    files,
+    source,
+  }
+  if (components !== undefined) (pack as { -readonly [K in keyof ContentPackV2]: ContentPackV2[K] }).components = components
+  if (preview !== undefined) (pack as { -readonly [K in keyof ContentPackV2]: ContentPackV2[K] }).preview = preview
+  if (remote !== undefined) (pack as { -readonly [K in keyof ContentPackV2]: ContentPackV2[K] }).remote = remote
+  if (createdAt !== undefined) (pack as { -readonly [K in keyof ContentPackV2]: ContentPackV2[K] }).createdAt = createdAt
+  return deepFreeze(pack)
+}
+
+/**
+ * Validate one `famling.content-pack/0.2` manifest. Returns every issue instead
+ * of throwing. Missing/mismatched usage declaration, licence, AI provenance,
+ * files+sha256 or an unsigned remote origin are always rejected.
+ */
+export function validateContentPackV2(input: unknown): ContentPackV2Validation {
+  const issues: ContentIssue[] = []
+  const pack = parseContentPackV2(input, issues)
+  return issues.length === 0 && pack !== undefined ? { ok: true, pack } : { ok: false, issues }
+}
+
+// ===========================================================================
+// v2: zip bundle inventory validation (paths / size / asset type / sha256)
+// ===========================================================================
+
+function isSafeZipEntryPath(rawPath: string): boolean {
+  if (rawPath.length === 0 || countCodePoints(rawPath) > 160) return false
+  if (CONTROL_TEST.test(rawPath) || MARKUP_TEST.test(rawPath)) return false
+  if (rawPath.includes('\\') || rawPath.includes(':') || rawPath.includes('#') || rawPath.includes('?')) return false
+  if (rawPath.startsWith('/') || SOURCE_SCHEME_TEST.test(rawPath)) return false
+  const segments = rawPath.split('/')
+  if (segments.some((segment) => segment.length === 0 || segment === '.' || segment === '..')) return false
+  const checked = checkRelativePath(rawPath, { allowBackslash: false })
+  return checked.ok && checked.normalized === rawPath
+}
+
+/**
+ * Validate an unzipped bundle inventory against a v2 manifest. The host unzips
+ * the .zip and computes sha256 for every file; this function enforces:
+ * canonical relative paths (no traversal/absolute/URL), allowed asset types,
+ * per-file/total/compression caps, pack.json presence, exact manifest coverage
+ * (no unlisted files, no missing files) and sha256/size equality.
+ */
+export function validatePackZip(pack: ContentPackV2, inventory: ContentPackZipInventory): ContentPackZipValidation {
+  const issues: ContentIssue[] = []
+  if (!isRecord(inventory)) {
+    addIssue(issues, '$', 'invalid-zip', 'zip inventory must be an object')
+    return Object.freeze({ ok: false, issues: Object.freeze(issues) })
+  }
+  const zipBytes = inventory.bytes
+  if (typeof zipBytes !== 'number' || !Number.isInteger(zipBytes) || zipBytes <= 0 || zipBytes > CONTENT_PACK_V2_LIMITS.maxZipBytes) {
+    addIssue(issues, '$.bytes', 'zip-too-large', 'zip size must be 1..' + CONTENT_PACK_V2_LIMITS.maxZipBytes + ' bytes')
+  }
+  const rawEntries: readonly unknown[] = Array.isArray(inventory.entries) ? inventory.entries : []
+  if (!Array.isArray(inventory.entries)) addIssue(issues, '$.entries', 'invalid-zip', 'zip entries must be an array')
+  if (rawEntries.length > CONTENT_PACK_V2_LIMITS.maxZipEntries) {
+    addIssue(issues, '$.entries', 'zip-too-large', rawEntries.length + ' entries > ' + CONTENT_PACK_V2_LIMITS.maxZipEntries)
+  }
+  const files = new Map<string, ContentPackZipEntry>()
+  const seenLower = new Set<string>()
+  let totalUncompressed = 0
+  for (let index = 0; index < rawEntries.length; index += 1) {
+    const rawEntry = rawEntries[index]
+    const path = '$.entries[' + index + ']'
+    if (!isRecord(rawEntry)) {
+      addIssue(issues, path, 'invalid-zip', 'zip entry must be an object')
+      continue
+    }
+    if (typeof rawEntry.path !== 'string') {
+      addIssue(issues, path + '.path', 'invalid-zip', 'zip entry path must be a string')
+      continue
+    }
+    const isDirectory = rawEntry.isDirectory === true || rawEntry.path.endsWith('/')
+    const entryPath = isDirectory ? rawEntry.path.replace(/\/+$/, '') : rawEntry.path
+    if (!isSafeZipEntryPath(entryPath)) {
+      addIssue(issues, path + '.path', 'unsafe-zip-entry', 'unsafe zip entry path: ' + String(rawEntry.path).slice(0, 64))
+      continue
+    }
+    const lower = entryPath.toLowerCase()
+    if (seenLower.has(lower)) {
+      addIssue(issues, path + '.path', 'duplicate-id', 'duplicate/case-colliding zip entry: ' + entryPath)
+      continue
+    }
+    seenLower.add(lower)
+    if (isDirectory) continue
+    const bytes = rawEntry.bytes
+    if (typeof bytes !== 'number' || !Number.isInteger(bytes) || bytes < 0 || bytes > CONTENT_PACK_V2_LIMITS.maxAssetBytes) {
+      addIssue(issues, path + '.bytes', 'zip-too-large', 'file size must be 0..' + CONTENT_PACK_V2_LIMITS.maxAssetBytes + ' bytes')
+      continue
+    }
+    if (entryPath !== 'pack.json') {
+      const kind = packV2FileKind(entryPath)
+      if (kind === null) {
+        addIssue(issues, path + '.path', 'forbidden-asset-type', 'asset type is not allowed: ' + entryPath)
+        continue
+      }
+      if (kind === 'asset' && !entryPath.startsWith('assets/')) {
+        addIssue(issues, path + '.path', 'forbidden-asset-type', 'assets must live under assets/: ' + entryPath)
+        continue
+      }
+    }
+    if (rawEntry.sha256 !== undefined && (typeof rawEntry.sha256 !== 'string' || !SHA256_PATTERN.test(rawEntry.sha256))) {
+      addIssue(issues, path + '.sha256', 'hash-mismatch', 'sha256 must be lowercase hex (64 chars)')
+      continue
+    }
+    totalUncompressed += bytes
+    files.set(entryPath, {
+      path: entryPath,
+      bytes,
+      ...(typeof rawEntry.compressedBytes === 'number' ? { compressedBytes: rawEntry.compressedBytes } : {}),
+      ...(typeof rawEntry.sha256 === 'string' ? { sha256: rawEntry.sha256 } : {}),
+    })
+  }
+  if (!files.has('pack.json')) {
+    addIssue(issues, '$.entries', 'missing-file', 'bundle must contain pack.json at the root')
+  }
+  if (totalUncompressed > CONTENT_PACK_V2_LIMITS.maxTotalUncompressedBytes) {
+    addIssue(issues, '$.entries', 'zip-too-large', 'uncompressed total ' + totalUncompressed + ' > ' + CONTENT_PACK_V2_LIMITS.maxTotalUncompressedBytes)
+  }
+  if (typeof zipBytes === 'number' && zipBytes > 0 && totalUncompressed > zipBytes * CONTENT_PACK_V2_LIMITS.maxCompressionRatio) {
+    addIssue(issues, '$.entries', 'zip-too-large', 'compression ratio > ' + CONTENT_PACK_V2_LIMITS.maxCompressionRatio + ' (possible zip bomb)')
+  }
+  const declared = collectPackFilePaths(pack.files)
+  for (let index = 0; index < pack.files.length; index += 1) {
+    const declaredFile = pack.files[index]
+    if (declaredFile === undefined) continue
+    const entry = files.get(declaredFile.path)
+    if (entry === undefined) {
+      addIssue(issues, '$.files[' + index + ']', 'missing-file', 'declared file is missing from the zip: ' + declaredFile.path)
+      continue
+    }
+    if (entry.bytes !== declaredFile.bytes) {
+      addIssue(issues, '$.files[' + index + '].bytes', 'file-size-mismatch', 'declared ' + declaredFile.bytes + ' bytes, actual ' + entry.bytes)
+    }
+    if (entry.sha256 === undefined) {
+      addIssue(issues, '$.files[' + index + '].sha256', 'hash-mismatch', 'host must compute sha256 for ' + declaredFile.path)
+    } else if (entry.sha256.toLowerCase() !== declaredFile.sha256) {
+      addIssue(issues, '$.files[' + index + '].sha256', 'hash-mismatch', 'sha256 mismatch for ' + declaredFile.path)
+    }
+  }
+  for (const path of files.keys()) {
+    if (path !== 'pack.json' && !declared.has(path)) {
+      addIssue(issues, '$.entries', 'unlisted-file', 'zip file is not declared in pack.files: ' + path)
+    }
+  }
+  if (pack.preview !== undefined && !declared.has(pack.preview)) {
+    addIssue(issues, '$.preview', 'missing-file', 'pack preview is not declared in files')
+  }
+  for (let index = 0; index < pack.roleThemes.length; index += 1) {
+    const theme = pack.roleThemes[index]
+    if (theme === undefined) continue
+    if (!declared.has(theme.preview)) {
+      addIssue(issues, '$.roleThemes[' + index + '].preview', 'missing-file', 'character theme preview is not declared in files')
+    }
+  }
+  return issues.length === 0 ? Object.freeze({ ok: true }) : Object.freeze({ ok: false, issues: Object.freeze(issues) })
+}
+
+// ===========================================================================
+// v2: merge installed character-theme packs (atomic per pack, fail-closed)
+// ===========================================================================
+
+export type CharacterThemePackSkipCode =
+  | 'invalid-pack'
+  | 'duplicate-pack-id'
+  | 'incompatible-pack'
+  | 'unverified-remote'
+  | 'missing-references'
+
+export interface CharacterThemePackSkip {
+  readonly packId: string
+  readonly code: CharacterThemePackSkipCode
+  readonly reason: string
+  readonly issues?: readonly ContentIssue[]
+}
+
+export interface CharacterThemeConflict {
+  readonly packId: string
+  readonly id: string
+  readonly code: ContentMergeConflictCode
+  readonly kind: 'roleTheme' | 'component'
+  readonly category?: ContentCategory
+}
+
+/** Injected verification hook; normally wraps verifyRemoteContentPack(). */
+export interface RemotePackVerification {
+  readonly ok: boolean
+  readonly reason?: string
+}
+
+export interface CharacterThemeMergeOptions {
+  /**
+   * Cryptographic verification hook for remote packs. When absent, every remote
+   * pack is skipped with "unverified-remote" (fail-closed, never silently
+   * trusted just because it carries signature-shaped metadata).
+   */
+  readonly verifyRemote?: (pack: ContentPackV2) => RemotePackVerification
+}
+
+export interface CharacterThemeMergeResult {
+  readonly library: ContentLibrary
+  readonly addedThemes: readonly ContentCharacterTheme[]
+  readonly addedComponents: readonly ContentEntry[]
+  readonly conflicts: readonly CharacterThemeConflict[]
+  readonly skippedPacks: readonly CharacterThemePackSkip[]
+  readonly packIds: readonly string[]
+}
+
+function packV2Compatible(pack: ContentPackV2, library: ContentLibrary): boolean {
+  if (pack.compatibility.library !== library.schema) return false
+  const min = pack.compatibility.minAppVersion
+  if (min !== undefined && compareSemver(library.version, min) < 0) return false
+  const max = pack.compatibility.maxAppVersion
+  if (max !== undefined && compareSemver(library.version, max) > 0) return false
+  return true
+}
+
+function allCategories(library: ContentLibrary): Record<ContentCategory, readonly ContentEntry[]> {
+  return {
+    characters: library.characters,
+    voices: library.voices,
+    dialoguePacks: library.dialoguePacks,
+    themes: library.themes,
+    backgrounds: library.backgrounds,
+    fonts: library.fonts,
+  }
+}
+
+/**
+ * Merge validated `famling.content-pack/0.2` packs into a v2 catalog.
+ *
+ * Rules (deterministic, atomic per pack):
+ * 1. invalid packs are skipped with all issues; duplicate pack ids are skipped;
+ * 2. remote packs are skipped unless the caller supplies verifyRemote() and it
+ *    returns ok — a signature-shaped field is never trusted on its own;
+ * 3. a pack whose role themes reference missing components is skipped as a
+ *    whole ("missing-references") so no broken theme is ever installed;
+ * 4. built-in rolePresets can never be shadowed ("builtin-shadow"); component
+ *    ids and character-theme ids follow the same first-wins rule as v1;
+ * 5. the input library is never mutated.
+ */
+export function mergeCharacterThemes(
+  library: ContentLibrary,
+  packs: readonly unknown[],
+  options: CharacterThemeMergeOptions = Object.freeze({}),
+): CharacterThemeMergeResult {
+  const skippedPacks: CharacterThemePackSkip[] = []
+  const conflicts: CharacterThemeConflict[] = []
+  const addedThemes: ContentCharacterTheme[] = []
+  const addedComponents: ContentEntry[] = []
+  const packIds: string[] = []
+  const validated: ContentPackV2[] = []
+  const packIdCounts = new Map<string, number>()
+  for (let index = 0; index < packs.length; index += 1) {
+    const raw = packs[index]
+    const fallbackId = isRecord(raw) && typeof raw.id === 'string' ? raw.id.slice(0, 64) : '#packs[' + index + ']'
+    const result = validateContentPackV2(raw)
+    if (!result.ok) {
+      skippedPacks.push({ packId: fallbackId, code: 'invalid-pack', reason: 'pack failed v2 validation', issues: result.issues })
+      continue
+    }
+    validated.push(result.pack)
+    packIdCounts.set(result.pack.id, (packIdCounts.get(result.pack.id) ?? 0) + 1)
+  }
+  const duplicatePackIds = new Set<string>()
+  for (const [packId, count] of packIdCounts) {
+    if (count > 1) duplicatePackIds.add(packId)
+  }
+  const categories: Record<ContentCategory, ContentEntry[]> = {
+    characters: [...library.characters],
+    voices: [...library.voices],
+    dialoguePacks: [...library.dialoguePacks],
+    themes: [...library.themes],
+    backgrounds: [...library.backgrounds],
+    fonts: [...library.fonts],
+  }
+  const installedThemes: ContentCharacterTheme[] = [...library.characterThemes]
+  const presetIds = new Set(library.rolePresets.map((theme) => theme.id))
+  const installedIds = new Set(installedThemes.map((theme) => theme.id))
+  for (const pack of validated) {
+    if (duplicatePackIds.has(pack.id)) {
+      skippedPacks.push({ packId: pack.id, code: 'duplicate-pack-id', reason: 'multiple packs share this id' })
+      continue
+    }
+    if (!packV2Compatible(pack, library)) {
+      skippedPacks.push({ packId: pack.id, code: 'incompatible-pack', reason: 'pack requires a different content-library version' })
+      continue
+    }
+    if (pack.source === 'remote') {
+      let verification: RemotePackVerification | undefined
+      if (options.verifyRemote !== undefined) {
+        try {
+          verification = options.verifyRemote(pack)
+        } catch {
+          verification = { ok: false, reason: 'verification hook threw' }
+        }
+      }
+      if (verification === undefined || !verification.ok) {
+        skippedPacks.push({
+          packId: pack.id,
+          code: 'unverified-remote',
+          reason: verification?.reason ?? 'remote pack needs an Ed25519 signature verified against the trust root',
+        })
+        continue
+      }
+    }
+    // Build the candidate component catalog for this pack first (its own
+    // components may satisfy its role-theme references), then validate refs.
+    const candidate: Record<ContentCategory, readonly ContentEntry[]> = {
+      characters: [...categories.characters],
+      voices: [...categories.voices],
+      dialoguePacks: [...categories.dialoguePacks],
+      themes: [...categories.themes],
+      backgrounds: [...categories.backgrounds],
+      fonts: [...categories.fonts],
+    }
+    const packComponents = pack.components
+    if (packComponents !== undefined) {
+      for (const category of CONTENT_CATEGORIES) {
+        const entries = packComponents[category]
+        if (entries === undefined) continue
+        const existingIds = new Set(candidate[category].map((entry) => entry.id))
+        for (const entry of entries) {
+          if (existingIds.has(entry.id)) continue
+          existingIds.add(entry.id)
+          ;(candidate[category] as ContentEntry[]).push({ ...entry, source: 'local' })
+        }
+      }
+    }
+    const referenceIssues: ContentIssue[] = []
+    checkRoleThemeReferences(pack.roleThemes, '$.roleThemes', candidate, referenceIssues)
+    if (referenceIssues.length > 0) {
+      skippedPacks.push({ packId: pack.id, code: 'missing-references', reason: 'role theme references are not satisfied by the catalog', issues: referenceIssues })
+      continue
+    }
+    // Atomic apply: components then role themes; conflicts are per entry.
+    if (packComponents !== undefined) {
+      for (const category of CONTENT_CATEGORIES) {
+        const entries = packComponents[category]
+        if (entries === undefined) continue
+        for (const entry of entries) {
+          const existingEntry = categories[category].find((candidateEntry) => candidateEntry.id === entry.id)
+          if (existingEntry !== undefined) {
+            conflicts.push({
+              packId: pack.id,
+              id: entry.id,
+              kind: 'component',
+              category,
+              code: existingEntry.source === 'builtin' ? 'builtin-shadow' : 'duplicate-installed',
+            })
+            continue
+          }
+          const installedEntry: ContentEntry = { ...entry, source: 'local' }
+          categories[category].push(installedEntry)
+          addedComponents.push(installedEntry)
+        }
+      }
+    }
+    for (const theme of pack.roleThemes) {
+      if (presetIds.has(theme.id)) {
+        conflicts.push({ packId: pack.id, id: theme.id, kind: 'roleTheme', code: 'builtin-shadow' })
+        continue
+      }
+      if (installedIds.has(theme.id)) {
+        conflicts.push({ packId: pack.id, id: theme.id, kind: 'roleTheme', code: 'duplicate-installed' })
+        continue
+      }
+      const installedTheme: ContentCharacterTheme = { ...theme, source: 'local' }
+      installedThemes.push(installedTheme)
+      installedIds.add(installedTheme.id)
+      addedThemes.push(installedTheme)
+    }
+    packIds.push(pack.id)
+  }
+  const nextLibrary = deepFreeze({
+    ...library,
+    characters: categories.characters as readonly ContentCharacterEntry[],
+    voices: categories.voices as readonly ContentVoiceEntry[],
+    dialoguePacks: categories.dialoguePacks as readonly ContentDialoguePackEntry[],
+    themes: categories.themes as readonly ContentThemeEntry[],
+    backgrounds: categories.backgrounds as readonly ContentBackgroundEntry[],
+    fonts: categories.fonts as readonly ContentFontEntry[],
+    characterThemes: installedThemes,
+  }) as ContentLibrary
+  return Object.freeze({
+    library: nextLibrary,
+    addedThemes: Object.freeze(addedThemes),
+    addedComponents: Object.freeze(addedComponents),
+    conflicts: Object.freeze(conflicts),
+    skippedPacks: Object.freeze(skippedPacks),
+    packIds: Object.freeze(packIds),
+  })
+}
+
+// ===========================================================================
+// v2: remote market catalog + Ed25519 verification contract (no network here)
+// ===========================================================================
+
+function parseMarketSignature(raw: unknown, path: string, issues: ContentIssue[]): ContentMarketSignature | undefined {
+  if (!isRecord(raw)) {
+    addIssue(issues, path, 'invalid-signature', 'signature must be an object')
+    return undefined
+  }
+  checkUnknownKeys(raw, ['algorithm', 'keyId', 'value'], path, issues)
+  const algorithm = readEnumField(raw, 'algorithm', path + '.algorithm', issues, ['ed25519'] as const)
+  const keyId = readStringField(raw, 'keyId', path + '.keyId', issues)
+  if (keyId !== undefined && !REMOTE_KEY_ID_PATTERN.test(keyId)) {
+    addIssue(issues, path + '.keyId', 'invalid-id', 'invalid signing key id')
+  }
+  const value = readStringField(raw, 'value', path + '.value', issues)
+  if (value !== undefined && !VALIDATION_VALUE_PATTERN.test(value)) {
+    addIssue(issues, path + '.value', 'invalid-signature', 'signature must be a detached base64/base64url value')
+  }
+  if (algorithm === undefined || keyId === undefined || value === undefined) return undefined
+  return { algorithm, keyId, value }
+}
+
+function parseMarketDownload(raw: unknown, path: string, issues: ContentIssue[]): ContentMarketDownload | undefined {
+  if (!isRecord(raw)) {
+    addIssue(issues, path, 'invalid-market-catalog', 'download must be an object')
+    return undefined
+  }
+  checkUnknownKeys(raw, ['url', 'zipSha256', 'bytes'], path, issues)
+  const url = parseHttpsUrl(raw.url, path + '.url', issues)
+  const rawSha = readStringField(raw, 'zipSha256', path + '.zipSha256', issues)
+  let zipSha256: string | undefined
+  if (rawSha !== undefined) {
+    if (!SHA256_PATTERN.test(rawSha)) {
+      addIssue(issues, path + '.zipSha256', 'invalid-market-catalog', 'zipSha256 must be lowercase hex (64 chars)')
+    } else {
+      zipSha256 = rawSha
+    }
+  }
+  const bytes = readNumberField(raw, 'bytes', path + '.bytes', issues, {
+    min: 1,
+    max: CONTENT_PACK_V2_LIMITS.maxZipBytes,
+    integer: true,
+  })
+  if (url === undefined || zipSha256 === undefined || bytes === undefined) return undefined
+  return { url, zipSha256, bytes }
+}
+
+function parseMarketPack(raw: unknown, path: string, issues: ContentIssue[]): ContentMarketPack | undefined {
+  if (!isRecord(raw)) {
+    addIssue(issues, path, 'invalid-market-catalog', 'catalog pack must be an object')
+    return undefined
+  }
+  checkUnknownKeys(raw, ['id', 'name', 'version', 'description', 'preview', 'usageDeclaration', 'download', 'signature'], path, issues)
+  const id = parsePackId(raw.id, path + '.id', issues)
+  const name = readPlainText(raw, 'name', path + '.name', issues, { maxChars: CONTENT_LIMITS.maxNameChars })
+  const version = readStringField(raw, 'version', path + '.version', issues)
+  if (version !== undefined && !SEMVER_PATTERN.test(version)) {
+    addIssue(issues, path + '.version', 'invalid-version', 'version must be SemVer')
+  }
+  const description = readPlainText(raw, 'description', path + '.description', issues, {
+    maxChars: CONTENT_PACK_V2_LIMITS.maxMarketDescriptionChars,
+  })
+  let preview: string | undefined
+  if (raw.preview !== undefined) preview = parseHttpsUrl(raw.preview, path + '.preview', issues)
+  const usageDeclaration = parseUsageDeclaration(raw.usageDeclaration, path + '.usageDeclaration', issues)
+  const download = parseMarketDownload(raw.download, path + '.download', issues)
+  const signature = parseMarketSignature(raw.signature, path + '.signature', issues)
+  if (id === undefined || name === undefined || version === undefined || description === undefined || usageDeclaration === undefined || download === undefined || signature === undefined) {
+    return undefined
+  }
+  const pack: { -readonly [K in keyof ContentMarketPack]: ContentMarketPack[K] } = {
+    id,
+    name,
+    version,
+    description,
+    usageDeclaration,
+    download,
+    signature,
+  }
+  if (preview !== undefined) pack.preview = preview
+  return pack
+}
+
+function parseMarketCatalog(input: unknown, issues: ContentIssue[]): ContentMarketCatalog | undefined {
+  if (!isRecord(input)) {
+    addIssue(issues, '$', 'invalid-market-catalog', 'market catalog must be an object')
+    return undefined
+  }
+  checkUnknownKeys(input, ['schema', 'version', 'updatedAt', 'keyId', 'signature', 'packs'], '$', issues)
+  const schema = readStringField(input, 'schema', '$.schema', issues)
+  if (schema !== undefined && schema !== CONTENT_MARKET_CATALOG_SCHEMA) {
+    addIssue(issues, '$.schema', 'invalid-schema', 'expected ' + CONTENT_MARKET_CATALOG_SCHEMA)
+  }
+  const version = readStringField(input, 'version', '$.version', issues)
+  if (version !== undefined && !SEMVER_PATTERN.test(version)) {
+    addIssue(issues, '$.version', 'invalid-version', 'catalog version must be SemVer')
+  }
+  const updatedAt = readStringField(input, 'updatedAt', '$.updatedAt', issues)
+  if (updatedAt !== undefined && !ISO_DATE_TIME_PATTERN.test(updatedAt)) {
+    addIssue(issues, '$.updatedAt', 'invalid-text', 'updatedAt must be YYYY-MM-DD or an ISO-8601 UTC timestamp')
+  }
+  const keyId = readStringField(input, 'keyId', '$.keyId', issues)
+  if (keyId !== undefined && !REMOTE_KEY_ID_PATTERN.test(keyId)) {
+    addIssue(issues, '$.keyId', 'invalid-id', 'invalid catalog signing key id')
+  }
+  const signature = parseMarketSignature(input.signature, '$.signature', issues)
+  if (signature !== undefined && keyId !== undefined && signature.keyId !== keyId) {
+    addIssue(issues, '$.signature.keyId', 'invalid-signature', 'catalog signature keyId must equal catalog.keyId')
+  }
+  const rawPacks = readArrayField(input, 'packs', '$.packs', issues)
+  const packs: ContentMarketPack[] = []
+  if (rawPacks !== undefined) {
+    if (rawPacks.length === 0 || rawPacks.length > CONTENT_PACK_V2_LIMITS.maxMarketPacks) {
+      addIssue(issues, '$.packs', 'out-of-range', 'packs must be 1..' + CONTENT_PACK_V2_LIMITS.maxMarketPacks)
+    } else {
+      const seen = new Set<string>()
+      for (let index = 0; index < rawPacks.length; index += 1) {
+        const pack = parseMarketPack(rawPacks[index], '$.packs[' + index + ']', issues)
+        if (pack === undefined) continue
+        if (seen.has(pack.id)) {
+          addIssue(issues, '$.packs[' + index + '].id', 'duplicate-id', 'duplicate market pack id: ' + pack.id)
+          continue
+        }
+        seen.add(pack.id)
+        packs.push(pack)
+      }
+    }
+  }
+  let jsonBytes = 0
+  try {
+    jsonBytes = countCodePoints(JSON.stringify(input))
+  } catch {
+    jsonBytes = 0
+  }
+  if (jsonBytes > CONTENT_PACK_V2_LIMITS.maxMarketJsonBytes) {
+    addIssue(issues, '$', 'too-large', 'catalog JSON is ' + jsonBytes + ' chars > ' + CONTENT_PACK_V2_LIMITS.maxMarketJsonBytes)
+  }
+  if (
+    issues.length > 0 ||
+    schema !== CONTENT_MARKET_CATALOG_SCHEMA ||
+    version === undefined ||
+    updatedAt === undefined ||
+    keyId === undefined ||
+    signature === undefined ||
+    packs.length === 0
+  ) {
+    return undefined
+  }
+  return deepFreeze({ schema: CONTENT_MARKET_CATALOG_SCHEMA, version, updatedAt, keyId, signature, packs }) as ContentMarketCatalog
+}
+
+/**
+ * Strictly validate a remote market catalog. This is data/contract validation
+ * only: no network request is ever made and no signature is verified here (see
+ * verifyMarketCatalogSignature / verifyMarketPackDownload).
+ */
+export function validateMarketCatalog(input: unknown): ContentMarketCatalogValidation {
+  const issues: ContentIssue[] = []
+  const catalog = parseMarketCatalog(input, issues)
+  return issues.length === 0 && catalog !== undefined ? { ok: true, catalog } : { ok: false, issues }
+}
+
+function withoutTopLevelSignature(value: unknown): Record<string, unknown> {
+  const clone = JSON.parse(JSON.stringify(value)) as Record<string, unknown>
+  delete clone.signature
+  return clone
+}
+
+/** Canonical bytes to sign for a market catalog (detached Ed25519). */
+export function marketCatalogSignaturePayload(catalog: ContentMarketCatalog): string {
+  return canonicalJson(withoutTopLevelSignature(catalog))
+}
+
+/** Canonical bytes to sign for one market pack entry. */
+export function marketPackSignaturePayload(pack: ContentMarketPack): string {
+  return canonicalJson(withoutTopLevelSignature(pack))
+}
+
+/** Canonical bytes to sign for a remote pack.json (remote.signature excluded). */
+export function remoteContentPackSignaturePayload(pack: ContentPackV2): string {
+  const clone = JSON.parse(JSON.stringify(pack)) as Record<string, unknown>
+  const remote = clone.remote
+  if (isRecord(remote)) delete remote.signature
+  return canonicalJson(clone)
+}
+
+export interface ContentSignatureVerifyOptions {
+  /** UTC date YYYY-MM-DD used for key validity windows (default: today). */
+  readonly now?: string
+}
+
+function todayUtcDate(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+function verifyDetachedSignature(
+  payload: string,
+  signature: ContentMarketSignature | undefined,
+  trustRoot: ContentTrustRoot,
+  verifier: ContentEd25519Verifier,
+  options: ContentSignatureVerifyOptions = Object.freeze({}),
+): ContentSignatureVerification {
+  if (signature === undefined) return Object.freeze({ ok: false, code: 'missing-signature', message: 'missing Ed25519 signature' })
+  if (signature.algorithm !== 'ed25519') return Object.freeze({ ok: false, code: 'invalid-signature', message: 'only ed25519 signatures are accepted' })
+  const key = trustRoot.keys.find((candidate) => candidate.keyId === signature.keyId)
+  if (key === undefined) return Object.freeze({ ok: false, code: 'unknown-signing-key', message: 'unknown signing key: ' + signature.keyId })
+  if (key.status === 'revoked') return Object.freeze({ ok: false, code: 'revoked-signing-key', message: 'signing key is revoked: ' + signature.keyId })
+  if (key.algorithm !== 'ed25519') return Object.freeze({ ok: false, code: 'invalid-signature', message: 'trust-root key is not ed25519: ' + signature.keyId })
+  const now = options.now ?? todayUtcDate()
+  if (key.notBefore !== undefined && now < key.notBefore) {
+    return Object.freeze({ ok: false, code: 'key-outside-validity', message: 'signing key is not valid before ' + key.notBefore })
+  }
+  if (key.notAfter !== undefined && now > key.notAfter) {
+    return Object.freeze({ ok: false, code: 'key-outside-validity', message: 'signing key expired after ' + key.notAfter })
+  }
+  let valid = false
+  try {
+    valid = verifier.verify(new TextEncoder().encode(payload), signature.value, key.publicKeyPem)
+  } catch {
+    valid = false
+  }
+  if (!valid) return Object.freeze({ ok: false, code: 'invalid-signature', message: 'Ed25519 signature does not match the canonical payload' })
+  return Object.freeze({ ok: true, keyId: key.keyId, status: key.status })
+}
+
+/** Verify the detached signature over a market catalog with the trust root. */
+export function verifyMarketCatalogSignature(
+  catalog: ContentMarketCatalog,
+  trustRoot: ContentTrustRoot,
+  verifier: ContentEd25519Verifier,
+  options?: ContentSignatureVerifyOptions,
+): ContentSignatureVerification {
+  const keyId = catalog.keyId
+  const rawSignature: ContentMarketSignature | undefined = catalog.signature
+  const signature = rawSignature === undefined ? undefined : rawSignature.keyId === keyId ? rawSignature : { ...rawSignature, keyId }
+  return verifyDetachedSignature(marketCatalogSignaturePayload(catalog), signature, trustRoot, verifier, options)
+}
+
+/**
+ * Verify one downloaded pack before install: the caller-provided zip sha256 must
+ * equal the catalog value, then the detached Ed25519 signature over the pack
+ * entry must verify. Only then may the zip be unzipped + validatePackZip'd.
+ */
+export function verifyMarketPackDownload(
+  pack: ContentMarketPack,
+  actualZipSha256: string,
+  trustRoot: ContentTrustRoot,
+  verifier: ContentEd25519Verifier,
+  options?: ContentSignatureVerifyOptions,
+): ContentSignatureVerification {
+  const actual = typeof actualZipSha256 === 'string' ? actualZipSha256.toLowerCase() : ''
+  if (actual.length !== 64 || actual !== pack.download.zipSha256) {
+    return Object.freeze({ ok: false, code: 'hash-mismatch', message: 'downloaded zip sha256 does not match the catalog' })
+  }
+  return verifyDetachedSignature(marketPackSignaturePayload(pack), pack.signature, trustRoot, verifier, options)
+}
+
+/**
+ * Verify a remote pack.json against the trust root. Local packs are implicitly
+ * trusted after validation (no signature required); remote packs are
+ * fail-closed unless a signature verifies. mergeCharacterThemes() additionally
+ * requires the caller to pass this result through its verifyRemote hook.
+ */
+export function verifyRemoteContentPack(
+  pack: ContentPackV2,
+  trustRoot: ContentTrustRoot,
+  verifier: ContentEd25519Verifier,
+  options?: ContentSignatureVerifyOptions,
+): ContentSignatureVerification {
+  if (pack.source !== 'remote') return Object.freeze({ ok: true, keyId: 'local', status: 'active' })
+  return verifyDetachedSignature(remoteContentPackSignaturePayload(pack), pack.remote?.signature, trustRoot, verifier, options)
+}
+
+// ===========================================================================
+// v2: usage declaration helpers for the UI (confirmation before import)
+// ===========================================================================
+
+/** True when a value is the exact canonical unified usage declaration. */
+export function isCanonicalUsageDeclaration(value: unknown): value is ContentUsageDeclaration {
+  if (!isRecord(value)) return false
+  if (value.researchOnly !== true) return false
+  if (value.statement !== CONTENT_USAGE_STATEMENT) return false
+  if (value.statementRef !== CONTENT_USAGE_STATEMENT_REF) return false
+  if (!Array.isArray(value.prohibitedUses)) return false
+  const list = value.prohibitedUses as readonly unknown[]
+  return PROHIBITED_USES.every((required) => list.includes(required))
+}
+
+/** Data the UI must render before asking the user to confirm an import. */
+export interface ContentUsageConfirmation {
+  readonly required: true
+  readonly statement: typeof CONTENT_USAGE_STATEMENT
+  readonly statementRef: typeof CONTENT_USAGE_STATEMENT_REF
+  readonly sha256: typeof CONTENT_USAGE_STATEMENT_SHA256
+  readonly prohibitedUses: readonly ProhibitedUse[]
+}
+
+/**
+ * UI contract: before importing/activating any third-party character theme or
+ * content pack, show this statement (with the legal-doc link) and require an
+ * explicit confirmation. Validation already rejects declarations that do not
+ * match, so this helper is for presentation, not for re-validation.
+ */
+export function describeUsageConfirmation(): ContentUsageConfirmation {
+  return Object.freeze({
+    required: CONTENT_USAGE_CONFIRMATION_REQUIRED,
+    statement: CONTENT_USAGE_STATEMENT,
+    statementRef: CONTENT_USAGE_STATEMENT_REF,
+    sha256: CONTENT_USAGE_STATEMENT_SHA256,
+    prohibitedUses: PROHIBITED_USES,
+  })
 }

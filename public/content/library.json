@@ -1,7 +1,8 @@
 {
-  "schema": "famling.content/0.1",
-  "version": "0.1.0",
+  "schema": "famling.content/0.2",
+  "version": "0.2.0",
   "updatedAt": "2026-11-19",
+  "defaultRoleTheme": "human",
   "defaults": {
     "character": "humanoid",
     "voice": "stella",
@@ -10,6 +11,180 @@
     "background": "transparent",
     "font": "system"
   },
+  "rolePresets": [
+    {
+      "id": "human",
+      "name": "汀岚 · 人形工作搭子",
+      "description": "一键切换到汀岚：人形角色、stella 语音、标准对话、默认外观与 68 帧动画行为。",
+      "characterId": "humanoid",
+      "voiceId": "stella",
+      "dialoguePackId": "standard",
+      "appearance": {
+        "themeId": "default",
+        "backgroundId": "transparent",
+        "fontId": "system"
+      },
+      "behaviorPreset": "pet-tinglan-anim",
+      "preview": "/assets/pet/anim/human/idle/idle_00.png",
+      "designRef": "docs/content-packs/HUMAN-DESIGN-REFERENCE.md",
+      "usageDeclaration": {
+        "researchOnly": true,
+        "statement": "本项目及其全部代码、美术、音频、文案、角色素材和衍生物仅用于技术研究与原型验证，不得用于情感陪伴、虚拟伴侣、心理治疗/医疗/法律/金融建议、未成年人亲密关系、冒充真人/官方，或任何违反法律法规/平台规则的用途。",
+        "statementRef": "docs/legal/USE-RESTRICTIONS-2026-11-19.md",
+        "prohibitedUses": [
+          "emotional-companionship",
+          "virtual-partner",
+          "professional-advice",
+          "minor-intimacy",
+          "impersonation",
+          "illegal-use"
+        ]
+      },
+      "version": "1.0.0",
+      "source": "builtin",
+      "author": "Famling maintainers",
+      "license": {
+        "spdx": "LicenseRef-PolyForm-Noncommercial-1.0.0",
+        "attribution": "Famling maintainers; placeholder art under LICENSE-ART (CC BY-NC-SA 4.0)"
+      },
+      "aiProvenance": {
+        "generated": false,
+        "disclosure": "内置占位像素帧由确定性脚本生成，未使用生成式 AI；最终美术替换后须更新本声明。",
+        "tools": [
+          "deterministic-python-renderer"
+        ]
+      }
+    },
+    {
+      "id": "cat",
+      "name": "塞尔凯克卷毛猫",
+      "description": "一键切换到灰白卷毛猫：空心心理气泡、永不 TTS、夜间外观与 72 帧动画行为。",
+      "characterId": "cat",
+      "voiceId": "none",
+      "dialoguePackId": "standard",
+      "appearance": {
+        "themeId": "night",
+        "backgroundId": "dark",
+        "fontId": "serif"
+      },
+      "behaviorPreset": "pet-cat",
+      "preview": "/assets/pet/anim/cat/idle/idle_00.png",
+      "designRef": "docs/content-packs/CAT-DESIGN-REFERENCE.md",
+      "usageDeclaration": {
+        "researchOnly": true,
+        "statement": "本项目及其全部代码、美术、音频、文案、角色素材和衍生物仅用于技术研究与原型验证，不得用于情感陪伴、虚拟伴侣、心理治疗/医疗/法律/金融建议、未成年人亲密关系、冒充真人/官方，或任何违反法律法规/平台规则的用途。",
+        "statementRef": "docs/legal/USE-RESTRICTIONS-2026-11-19.md",
+        "prohibitedUses": [
+          "emotional-companionship",
+          "virtual-partner",
+          "professional-advice",
+          "minor-intimacy",
+          "impersonation",
+          "illegal-use"
+        ]
+      },
+      "version": "1.0.0",
+      "source": "builtin",
+      "author": "Famling maintainers",
+      "license": {
+        "spdx": "LicenseRef-PolyForm-Noncommercial-1.0.0",
+        "attribution": "Famling maintainers; placeholder art under LICENSE-ART (CC BY-NC-SA 4.0)"
+      },
+      "aiProvenance": {
+        "generated": false,
+        "disclosure": "内置占位像素帧由确定性脚本生成，未使用生成式 AI；最终美术替换后须更新本声明。",
+        "tools": [
+          "deterministic-python-renderer"
+        ]
+      }
+    },
+    {
+      "id": "dog",
+      "name": "金毛",
+      "description": "一键切换到金毛寻回犬：空心心理气泡、永不 TTS、纸张外观与 68 帧动画行为。",
+      "characterId": "dog",
+      "voiceId": "none",
+      "dialoguePackId": "standard",
+      "appearance": {
+        "themeId": "paper",
+        "backgroundId": "paper",
+        "fontId": "system"
+      },
+      "behaviorPreset": "pet-dog",
+      "preview": "/assets/pet/anim/dog/idle/idle_00.png",
+      "designRef": "docs/content-packs/DOG-DESIGN-REFERENCE.md",
+      "usageDeclaration": {
+        "researchOnly": true,
+        "statement": "本项目及其全部代码、美术、音频、文案、角色素材和衍生物仅用于技术研究与原型验证，不得用于情感陪伴、虚拟伴侣、心理治疗/医疗/法律/金融建议、未成年人亲密关系、冒充真人/官方，或任何违反法律法规/平台规则的用途。",
+        "statementRef": "docs/legal/USE-RESTRICTIONS-2026-11-19.md",
+        "prohibitedUses": [
+          "emotional-companionship",
+          "virtual-partner",
+          "professional-advice",
+          "minor-intimacy",
+          "impersonation",
+          "illegal-use"
+        ]
+      },
+      "version": "1.0.0",
+      "source": "builtin",
+      "author": "Famling maintainers",
+      "license": {
+        "spdx": "LicenseRef-PolyForm-Noncommercial-1.0.0",
+        "attribution": "Famling maintainers; placeholder art under LICENSE-ART (CC BY-NC-SA 4.0)"
+      },
+      "aiProvenance": {
+        "generated": false,
+        "disclosure": "内置占位像素帧由确定性脚本生成，未使用生成式 AI；最终美术替换后须更新本声明。",
+        "tools": [
+          "deterministic-python-renderer"
+        ]
+      }
+    },
+    {
+      "id": "origami",
+      "name": "折纸",
+      "description": "一键切换到默认折纸形态：DOM/CSS 绘制、可用语音、高对比度外观，无动画包行为。",
+      "characterId": "origami",
+      "voiceId": "tide",
+      "dialoguePackId": "standard",
+      "appearance": {
+        "themeId": "high-contrast",
+        "backgroundId": "transparent",
+        "fontId": "mono"
+      },
+      "preview": "/assets/ui/menu/U-MENU-03a_32x32.png",
+      "designRef": "docs/content-packs/README.md",
+      "usageDeclaration": {
+        "researchOnly": true,
+        "statement": "本项目及其全部代码、美术、音频、文案、角色素材和衍生物仅用于技术研究与原型验证，不得用于情感陪伴、虚拟伴侣、心理治疗/医疗/法律/金融建议、未成年人亲密关系、冒充真人/官方，或任何违反法律法规/平台规则的用途。",
+        "statementRef": "docs/legal/USE-RESTRICTIONS-2026-11-19.md",
+        "prohibitedUses": [
+          "emotional-companionship",
+          "virtual-partner",
+          "professional-advice",
+          "minor-intimacy",
+          "impersonation",
+          "illegal-use"
+        ]
+      },
+      "version": "1.0.0",
+      "source": "builtin",
+      "author": "Famling maintainers",
+      "license": {
+        "spdx": "LicenseRef-PolyForm-Noncommercial-1.0.0",
+        "attribution": "Famling maintainers; placeholder art under LICENSE-ART (CC BY-NC-SA 4.0)"
+      },
+      "aiProvenance": {
+        "generated": false,
+        "disclosure": "内置占位像素帧由确定性脚本生成，未使用生成式 AI；最终美术替换后须更新本声明。",
+        "tools": [
+          "deterministic-python-renderer"
+        ]
+      }
+    }
+  ],
+  "characterThemes": [],
   "characters": [
     {
       "id": "humanoid",

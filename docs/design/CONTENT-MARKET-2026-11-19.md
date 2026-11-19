@@ -2,10 +2,10 @@
 
 | 项 | 内容 |
 |---|---|
-| 状态 | **核心模型 + 扩展规范已落地；UI / 安装器 / 远程市场未实现**。本文件是设计决策记录，不含 UI 改动。 |
+| 状态 | **核心模型 + 扩展规范已落地；UI / 安装器 / 远程市场未实现**。本文件是设计决策记录，不含 UI 改动。2026-11-19 追加 v2（task-52）——角色即主题、内容包 0.2、远程市场契约，见 §10。 |
 | 日期 | 2026-11-19（Asia/Shanghai） |
-| 任务 | task-48：为 famling + dsh-famling 建集中式内容中心/主题市场的共享数据模型与扩展规范。 |
-| 写范围 | 'public/content/library.json'、'public/content/README.md'、'src/pet/content-library.ts'、'tests/content-library.test.ts'、本文件。 |
+| 任务 | task-48：为 famling + dsh-famling 建集中式内容中心/主题市场的共享数据模型与扩展规范。task-52：按产品澄清做 v2（角色主题主入口 / 内容包 0.2 / 远程市场契约 / 三份设计参考）。 |
+| 写范围 | 'public/content/library.json'、'public/content/README.md'、'src/pet/content-library.ts'、'tests/content-library.test.ts'、'tests/content-pack-v2.test.ts'、'docs/content-packs/**'、'public/content/library.json'、本文件。 |
 | 不写范围 | 'src/pet/main.ts'、'src/pet/desktop-shell.ts'、'pet.html'、'plugins/dsh-famling/**'、任何 UI/main/plugin 文件；未 commit/push；未联网；未安装依赖。 |
 | 读者 | 后续接手的 UI agent（famling 菜单/内容面板）、dsh-famling 维护者、发布/法务。 |
 | 前置阅读 | '[FAMLING-DSH-ARCH-2026-11-18](FAMLING-DSH-ARCH-2026-11-18.md)'（两产品分层与契约原则）、'[RESOLUTION-DLC-SIGNING-2026-11-19](../audit/RESOLUTION-DLC-SIGNING-2026-11-19.md)'（签名信任根）、'[USE-RESTRICTIONS-2026-11-19](../legal/USE-RESTRICTIONS-2026-11-19.md)'（用途边界）。 |
@@ -22,12 +22,26 @@
 | D4 | **第三方内容包 = 封闭声明式 schema** 'famling.content-pack/0.1'：内联 entries + 许可 + AI 标识 + 兼容性 + 四项全 false 的安全边界 + 路径/文本/颜色上限；内置条目不可被覆盖。 | 与既有 DLC 签名/同意/注入审计（P1-1/P1-3）同一威胁模型；先有可审计数据，再谈市场。 |
 | D5 | **共享目录与插件 v2 已对齐六类**：插件 0.9.1 发布 content-extension v2（character/voice/dialogue/theme/background/font），不再需要 4→6 适配层；两套 schema 仍独立，收敛到统一 schema 必须 MAJOR + 双读迁移。 | 插件 0.9.1 已完成六分类 UI 与 v2 纯数据契约；强行合并字段会破坏已验证的 fail-closed 行为。 |
 | D6 | **远程市场仅预留字段与签名接口，0.1 不联网、不自动安装**；内容市场只做静态研究性内容，明确不做付费情感关系/情感陪伴变现。 | 复用 P1-1 的 fail-closed 信任根方案；产品定位是技术研究与原型验证。 |
+| D7 | **角色就是主题（v2 产品澄清）**：主数据单位改为**角色主题** 'rolePresets' / 'characterThemes'，一键切换角色/声音/对话/行为/外观配色；六个分类降级为**可选组件**（自定义/派生）。背景/字体/主题不再是主入口。 | 用户明确"主题并不适用于桌宠"；只切气泡/背景/字体不能表达角色差异。 |
+| D8 | **内置角色主题 = human / cat / dog / origami 四条**，每条含 characterId/voiceId/dialoguePackId/appearance/behaviorPreset?/preview/designRef/usageDeclaration/version/source/author/license/aiProvenance；'defaultRoleTheme' 指向 human。 | 与现有 4 套动画/渲染器一一对应；猫狗静音、人形可 TTS 的产品规则不变。 |
+| D9 | **库 schema 升 'famling.content/0.2'，v1 保留 deprecated 适配**：0.1 文档仍可解析（返回 v2 视图、legacy:true、rolePresets 为空）；v1 导出/函数不删除。 | 旧 UI/main 不改也能继续 parse + merge；明确迁移而不是静默破坏。 |
+| D10 | **内容包 schema 升 'famling.content-pack/0.2'**：角色主题包（1..8 roleThemes）+ 可选六组件 components；强制 usageDeclaration / license / aiProvenance / compatibility / files(sha256)；支持 zip 素材包与 JSON 清单；资产仅 png/webp/json/woff2，路径/大小/哈希/压缩比全校验。 | 导入不只是 JSON，还要素材包；先 fail-closed 再谈市场。 |
+| D11 | **统一用途声明是硬门**：每条角色主题/内容包必须逐字引用 USE-RESTRICTIONS canonical 短句 + researchOnly=true + 六条 prohibitedUses；UI 导入前必须显式确认。 | 与 2026-11-19 法务短句单一事实源对齐；防止内容包被用于情感陪伴/虚拟伴侣/专业建议/未成年人亲密/冒充/违法。 |
+| D12 | **远程在线市场一定会做，但只先定义契约**：catalog（version/updatedAt/packs[]/signature/keyId）+ zip sha256 + Ed25519 验签接口；核心模块不联网；未签名/未知 key/吊销 key/未验签 remote pack 一律拒绝。 | 先有可审计的数据/验签契约与信任根语义，UI/安装器/支付后才能安全接。 |
 
 验证证据（2026-11-19）：
 
 - 'npx tsc --noEmit' → exit 0（含新模块与新测试）；
 - 'node --import tsx --test tests/content-library.test.ts' → **34 tests / 34 pass / 0 fail**（Windows Node 24.22.1，仓内 node_modules 为 win32 依赖；WSL 下直接跑 tsx 会命中 esbuild 平台不匹配，见 §5.6）；
 - 未改 main/UI/plugin；未 commit/push。
+
+v2 追加证据（2026-11-19，WSL2 Node 24.22.1）：
+
+- 'npx tsc --noEmit' → exit 0；
+- 'node --import tsx --test tests/content-library.test.ts tests/content-hub.test.ts tests/content-pack-v2.test.ts' → **93 tests / 93 pass / 0 fail**（34 + 30 + 29）；
+- 全仓 'npm test' → **1075 tests / 1075 pass / 0 fail**（22.6 s，含全部既有回归）；
+- 其中 v2 新测试 **29 项**覆盖：一键角色主题解析/六组件、role-theme 持久化、派生主题、内容包 0.2 声明硬门、zip 路径/大小/资产类型/哈希、远程 catalog/zip sha256/Ed25519 fail-closed、v1 deprecated 适配、human/cat/dog 设计参考与 example 结构；
+- 未改 main/UI/plugin；未联网；未 commit/push。
 
 ---
 
@@ -503,3 +517,90 @@ node --import tsx --test tests/content-library.test.ts
 | 日期 | 变更 |
 |---|---|
 | 2026-11-19 | 初版：六分类共享目录、严格解析/第三方包校验/合并、选择持久化、外观应用、对话行为；两产品映射与右键菜单集中化方案；远程市场预留与产品红线。 |
+
+---
+
+## 10. v2（task-52）：角色主题 / 内容包 0.2 / 远程市场契约（2026-11-19 追加）
+
+### 10.1 产品模型：角色就是主题
+
+数据（`famling.content/0.2`，`public/content/library.json`）：
+
+- `rolePresets`（主入口，0..8，内置 4）：human / cat / dog / origami，每条含 `characterId` / `voiceId` / `dialoguePackId` / `appearance{themeId,backgroundId,fontId}` / `behaviorPreset?` / `preview` / `designRef` / `usageDeclaration` / `version` / `source` / `author` / `license` / `aiProvenance`；
+- `characterThemes`（导入/派生，0..64）：同结构，source 为 local/remote，不得与 rolePresets 同 id；
+- `defaultRoleTheme: 'human'`；
+- 六个分类保留为**可选组件**，角色主题引用它们；用户可以在应用角色主题后逐组件覆盖。
+
+纯函数（`src/pet/content-library.ts`，全部无 DOM/无网络）：
+
+| API | 用途 |
+|---|---|
+| `listCharacterThemes` / `findCharacterTheme` | 合并 rolePresets + characterThemes 的只读视图 |
+| `resolveCharacterTheme(library, id)` | 校验并解析六组件选择 + 角色/语音/对话/外观条目 |
+| `applyCharacterTheme(library, id, overrides?)` / `applyRoleTheme` | **一键应用全部**，可带单组件覆盖；返回 ok/selection/issues |
+| `matchCharacterThemes(library, selection)` | 当前六组件选择匹配哪些角色主题（UI 显示“当前主题”） |
+| `createDerivedCharacterTheme(library, baseId, input)` | 在角色基础上派生自定义主题；usageDeclaration 从 base 复制、不可改 |
+| `readRoleThemeSelection` / `writeRoleThemeSelection` / `clearRoleThemeSelection` | 单独的角色主题选择键 `desktop-games/pet/content/role-theme` |
+| `writeCharacterThemeSelection` | 六组件键 + role-theme 键一起写，逐键返回状态 |
+
+持久化：六组件键与 0.1 完全一致（旧 UI 不迁移也能读）；新增 role-theme 键不冲突。旧渲染器键（hero/heroCharacter）继续由 UI 双写，v2 不改运行时。
+
+### 10.2 内容包 0.2（`famling.content-pack/0.2`）
+
+- **主内容**：`roleThemes[]`（1..8 条角色主题）；**可选** `components`（六类组件，自定义/派生用）；
+- **强制声明**：`usageDeclaration`（researchOnly=true + canonical 短句逐字 + statementRef + 六条 prohibitedUses）、`license`、`aiProvenance`、`compatibility`；
+- **文件**：`files[]` 每条 path+bytes+sha256 必填；支持 **zip 素材包**（pack.json 在根 + `assets/` + preview）与 **JSON 清单**两种形态；
+- **zip 校验**：规范化相对路径（拒绝 .. / 绝对 / 盘符 / UNC / 反斜杠 / URL / 控制字符 / 大小写碰撞）、资产类型 **png/webp/json/woff2**、根目录文档白名单、zip ≤16 MiB、条目 ≤256、单文件 ≤8 MiB、解压总量 ≤32 MiB、压缩比 ≤128、`pack.json` 必须在根、`files[]` 与解压清单一一对应（missing/unlisted/size/hash）；
+- **拒绝**：无声明 → `missing-usage-declaration`；声明不符 → `usage-statement-mismatch`；缺禁止项 → `missing-prohibited-use`；远程无签名 → `missing-signature`；未知/吊销 key → `unknown-signing-key` / `revoked-signing-key`；
+- 支持的旧格式：v1 `famling.content-pack/0.1` 继续通过 `validateContentPack` / `mergeInstalledPacks` 工作（deprecated，未删除）；v2 合并入口是 `mergeCharacterThemes`。
+
+### 10.3 远程在线市场契约（只定义，不联网）
+
+- **catalog**（`famling.market-catalog/0.1`）：`version` / `updatedAt` / `keyId` / `signature` / `packs[]`（每条 id/name/version/description/preview?/usageDeclaration/download{url,zipSha256,bytes}/signature）；`validateMarketCatalog` 严格校验；
+- **Ed25519 验签接口**：`marketCatalogSignaturePayload` / `marketPackSignaturePayload` / `remoteContentPackSignaturePayload`（canonical JSON）；`verifyMarketCatalogSignature` / `verifyMarketPackDownload`（先比 zip sha256 再验签）/ `verifyRemoteContentPack`；注入 `ContentEd25519Verifier` + `ContentTrustRoot`（active/retired/revoked + notBefore/notAfter）；
+- **fail-closed**：未知 key、吊销 key、过期 key、缺失签名、哈希不符、没有 `verifyRemote` 回调的 remote pack 一律拒绝；retired 只用于验旧包；
+- 下载/安装流程（UI/安装器后续接）：catalog 验签 → 用户确认 usageDeclaration → 下载 zip → zip sha256+签名 → 解压 validatePackZip → remote pack 验签 → mergeCharacterThemes → 可卸载/离线缓存/不静默更新；
+- 本模块没有 fetch/网络代码；`download.url` 只是元数据。
+
+### 10.4 设计实例 / 参考（第三方起步）
+
+`docs/content-packs/`：
+
+| 文件 | 内容 |
+|---|---|
+| `README.md` | 0.2 规范、zip 布局、字段表、声明、作者自检、远程市场契约、第三方最短路径 |
+| `HUMAN-DESIGN-REFERENCE.md` | 人形：2.5–2.7 头身、96×96、12 clip / **68 帧**、锚点 48/96、地线 **y=89**、19 色盘、剪影、动作、语气、禁止 |
+| `CAT-DESIGN-REFERENCE.md` | 塞尔凯克卷毛猫：灰白+蓝眼 16 色盘、96×96、12 clip / **72 帧**（stand_wag 10）、地线 y=89、卷毛剪影、thought/永不 TTS、禁止 |
+| `DOG-DESIGN-REFERENCE.md` | 金毛：短腿成年、96×96、12 clip / **68 帧**、地线 y=89、18 色盘、剪影、动作、语气、禁止 |
+| `examples/*.example.pack.json` | human/cat/dog 三个可 `validateContentPackV2` 的 0.2 清单（占位资产引用，不加载） |
+
+### 10.5 兼容与迁移
+
+| 旧 0.1 | v2 处理 |
+|---|---|
+| `CONTENT_LIBRARY_SCHEMA`（旧值 `famling.content/0.1`） | 导出保留，值改为 `famling.content/0.2`；新增 `CONTENT_LIBRARY_SCHEMA_V1` / `_V2` |
+| `parseContentLibrary(0.1 文档)` | deprecated 适配：返回 v2 视图（legacy:true、rolePresets/characterThemes 为空、六分类照旧） |
+| `CONTENT_PACK_SCHEMA`（0.1） | 导出保留、deprecated；新增 `CONTENT_PACK_SCHEMA_V2` |
+| `validateContentPack` / `mergeInstalledPacks` | 保留；v1 包目标 0.1 在 v2 宿主上仍可合并（packCompatible 兼容） |
+| `applyAppearance` / 选择键 / 对话解析 | 未改；v2 只新增 role-theme 键与函数 |
+| 内置目录 version | 0.1.0 → 0.2.0；schema 0.1 → 0.2 |
+
+迁移建议：UI 先只读接入 `listCharacterThemes` + `applyCharacterTheme`（不改 hero 生命周期）；选择持久化先双写（六键 + role-theme 键），旧渲染器键保留；第三方包先只走本地导入 + validate，签名/远程市场等安装器任务。
+
+### 10.6 验证证据（task-52 实测）
+
+见 §11（本次追加的实测记录）。
+
+### 10.7 给 UI / 安装器的接入契约
+
+1. 角色主题：`listCharacterThemes(library)` → 卡片（name/description/preview/`usageDeclaration`）；点“应用” → `applyCharacterTheme(library, id)` → 写 `writeCharacterThemeSelection(library, id, storage)`；组件自定义 → 对返回的 `ContentSelection` 覆盖后 `writeContentSelection`；
+2. 导入第三方包：文件/zip 读取（宿主）→ `validateContentPackV2` →（zip）`validatePackZip` → **展示 `describeUsageConfirmation()` 并让用户显式确认** → `mergeCharacterThemes` → 持久化包 JSON + 刷新；远程包必须再传 `verifyRemote = (pack) => verifyRemoteContentPack(pack, trustRoot, verifier)`；
+3. 不要绕过：UI 不得自己 parse/放宽声明、不得跳过确认、不得把 `source:remote` 当本地信任、不得在无真实验签时合并；
+4. 保持产品规则：猫狗 `voiceId:none` + thought、永不走 TTS；人形 TTS 仍需既有单独同意；`usageDeclaration` 与 AI 标识必须在详情页可见；
+5. 未实现（明确不在本任务）：实际下载/支付/审核后台/密钥 ceremony/安装器 UI/签名执行器；远程市场联网前必须完成法务复核与 P1-1 生产信任根。
+
+### 10.8 变更记录（v2 追加）
+
+| 日期 | 变更 |
+|---|---|
+| 2026-11-19 | v2（task-52）：角色主题主入口（rolePresets/characterThemes + 一键应用/派生）、库 schema 0.2 + v1 deprecated 适配、内容包 0.2（zip 素材包 + 统一用途声明 + sha256 + 资产白名单）、远程市场 catalog + Ed25519 验签契约、docs/content-packs 三份设计参考 + 三个 example、v2 测试。未改 UI/main/plugin，未 commit/push，未联网。 |

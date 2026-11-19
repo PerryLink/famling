@@ -124,33 +124,63 @@ import { formatVoiceModeLabel, isTtsVoiceId, readVoicePref, writeVoicePref, VOIC
 import { roleplayTemplateReply } from './consent/roleplay.ts'
 import {
   applyContentSelectionAppearance,
+  commitPreparedThemePack,
   decideDialogueLine,
+  defaultContentMarketState,
+  describeContentMarketState,
+  evaluateRoleThemeSupport,
   initContentHub,
-  prepareContentPackImport,
+  planStartupRoleTheme,
+  prepareThemePackImport,
   readInstalledContentPacks,
-  writeInstalledContentPacks,
+  readInstalledThemePacks,
   type ContentHubController,
   type ContentHubImportResult,
+  type ContentHubInstalledPack,
   type ContentHubSelectResult,
+  type ContentMarketUiState,
+  type ContentPackFileSelection,
   type DialogueLineKind,
+  type PreparedThemePackImport,
+  type RemoteMarketSource,
+  type ThemePackPrepareResult,
 } from './content-hub.ts'
 import {
   CONTENT_CHARACTER_PRODUCT_IDS,
   CONTENT_SELECTION_CATEGORY,
+  applyCharacterTheme,
+  clearRoleThemeSelection,
+  findCharacterTheme,
   findContent,
+  mergeCharacterThemes,
   mergeInstalledPacks,
   parseContentLibrary,
-  readContentSelection,
   resolveContentSelection,
   resolveDialogueBehavior,
+  validateContentPack,
+  validateContentPackV2,
+  writeCharacterThemeSelection,
   writeContentSelection,
+  writeRoleThemeSelection,
   type ContentCharacterEntry,
+  type ContentCharacterTheme,
   type ContentLibrary,
   type ContentSelection,
   type ContentVoiceEntry,
   type DialogueBehavior,
   type SelectionKey,
 } from './content-library.ts'
+import {
+  buildAssetRecords,
+  contentAssetKey,
+  createAssetUrlRegistry,
+  openContentAssetStore,
+  persistAssetRecords,
+  registerPackFont,
+  type ContentAssetRecord,
+  type ContentAssetStore,
+  type ContentAssetUrls,
+} from './content-assets.ts'
 import './pet.css'
 
 /**
@@ -803,39 +833,67 @@ function render(): void {
 }
 
 // ---------------------------------------------------------------------------
-// Content center / theme market runtime (famling.content/0.1, task-50)
+// Role & content center runtime (famling.content/0.2, task-54)
 //
 // The catalog, strict validation, pack merge, selection persistence, appearance
-// and dialogue resolution are pure modules (src/pet/content-library.ts and
-// src/pet/content-hub.ts). This host section owns only the side effects:
+// and dialogue resolution are pure modules (src/pet/content-library.ts,
+// src/pet/content-hub.ts, src/pet/content-assets.ts). This host section owns
+// only the side effects:
 // - startup: read /content/library.json (same-origin static asset, never a
-//   remote market), read the versioned local pack list, merge it, read the saved
-//   selection, apply theme/background/font and resolve dialogue behaviour;
-// - character switch: the existing applyRendererChoice() write+reload path
-//   (consent gate re-checked here; the renderer lifecycle is NOT rewritten);
-// - voice switch: persist the existing voice-preference key, then the existing
-//   applyVoicePreference() re-prompts the TTS config-signature declaration —
-//   a voice change is never silent;
-// - theme/background/font/dialogue: write the versioned selection and apply
-//   immediately (no reload);
-// - local pack import: prepareContentPackImport() + versioned storage write,
-//   then re-merge/refresh. Characters/voices and remote packs are refused by
-//   the pure helper with a visible explanation, and nothing is fetched.
+//   remote market), merge v1 installed components + v2 role-theme packs, read
+//   the role theme + six-key selection (migrating old profiles), apply
+//   theme/background/font and resolve dialogue behaviour, then load locally
+//   stored pack assets (IndexedDB, memory fallback) for previews/fonts;
+// - one-click role: applyCharacterTheme -> writeCharacterThemeSelection (six
+//   keys + role-theme key). Character changes go through the existing
+//   applyRendererChoice() write+reload path; voice changes re-prompt the TTS
+//   declaration; appearance/dialogue apply immediately without reload;
+// - per-component customisation: one six-key write, immediate appearance,
+//   voice keeps the existing TTS config-signature lifecycle;
+// - local pack import (.json / .zip / webkitdirectory folder): bounded read ->
+//   canonical validateContentPackV2 (+ validatePackZip for bundles) ->
+//   unified usage declaration shown -> explicit user confirmation ->
+//   mergeCharacterThemes -> persist manifest + assets. Remote/unverified packs
+//   are refused by the pure helper; nothing is ever fetched here.
 // ---------------------------------------------------------------------------
 
+interface ContentPreviewTarget {
+  readonly packId: string
+  readonly path: string
+}
+
 interface ContentRuntimeState {
+  /** Built-in catalog document (no installed packs). */
   readonly baseLibrary: ContentLibrary
+  /** Built-in catalog + v1 installed components (v2 theme packs not merged). */
+  v1Library: ContentLibrary
   installedPacks: readonly unknown[]
+  themePacks: readonly unknown[]
   library: ContentLibrary
   selection: ContentSelection
+  roleThemeId: string | null
   dialogue: DialogueBehavior
   hub: ContentHubController | null
+  assetStore: ContentAssetStore | null
+  readonly assetUrls: ContentAssetUrls
+  /** Locally persisted pack asset records, keyed by contentAssetKey(). */
+  readonly assetRecords: Map<string, ContentAssetRecord>
+  /** Registered FontFace families per pack (local sample preview only). */
+  readonly fontFamiliesByPack: Map<string, string[]>
+  /** Installed role theme id -> its pack preview asset target. */
+  readonly previewTargets: Map<string, ContentPreviewTarget>
 }
 
 let contentRuntime: ContentRuntimeState | null = null
 let contentLoad: Promise<ContentRuntimeState | null> | null = null
 /** Active dialogue policy for sayLater/pickSays (null = catalog not loaded yet). */
 let dialogueBehavior: DialogueBehavior | null = null
+/**
+ * Remote market source is intentionally NOT configured in this build: the UI
+ * shows the honest "服务器未配置" state and nothing fetches. A future installer
+ * can inject a verified RemoteMarketSource here without changing the panel.
+ */
+let activeMarketSource: RemoteMarketSource | null = null
 
 const CONTENT_KEY_LABELS: Readonly<Record<SelectionKey, string>> = Object.freeze({
   character: '角色',
@@ -866,31 +924,86 @@ function contentCharacterIdFromRenderer(): string {
   return HERO_CONFIG.character
 }
 
-/**
- * Merge the saved content selection with the two legacy keys that still own
- * runtime behaviour (heroCharacter / voice). No write happens at startup.
- */
-function initialContentSelection(library: ContentLibrary): ContentSelection {
-  const stored = readContentSelection(library)
-  const character = contentCharacterIdFromRenderer()
-  const voice = isTtsVoiceId(currentVoice) ? currentVoice : stored.voice
-  return resolveContentSelection(library, { ...stored, character, voice }).selection
+function addFontFamily(runtime: ContentRuntimeState, packId: string, family: string): void {
+  const families = runtime.fontFamiliesByPack.get(packId) ?? []
+  if (families.includes(family)) return
+  families.push(family)
+  runtime.fontFamiliesByPack.set(packId, families)
 }
 
-function buildContentHubController(runtime: ContentRuntimeState): ContentHubController {
+/** Installed role theme id -> pack-relative preview asset (for object URLs). */
+function rebuildPreviewTargets(runtime: ContentRuntimeState): void {
+  runtime.previewTargets.clear()
+  for (const raw of runtime.themePacks) {
+    const validation = validateContentPackV2(raw)
+    if (!validation.ok) continue
+    for (const theme of validation.pack.roleThemes) {
+      runtime.previewTargets.set(theme.id, { packId: validation.pack.id, path: theme.preview })
+    }
+  }
+}
+
+/** Load persisted pack previews + register stored woff2 fonts (best effort). */
+async function hydrateInstalledAssets(runtime: ContentRuntimeState): Promise<void> {
+  rebuildPreviewTargets(runtime)
+  const store = runtime.assetStore
+  if (store === null) return
+  for (const target of runtime.previewTargets.values()) {
+    const record = await store.get(target.packId, target.path)
+    if (record !== null) runtime.assetRecords.set(record.key, record)
+  }
+  for (const raw of runtime.themePacks) {
+    const validation = validateContentPackV2(raw)
+    if (!validation.ok) continue
+    const metas = await store.list(validation.pack.id)
+    for (const meta of metas) {
+      if (!meta.path.endsWith('.woff2')) continue
+      const record = await store.get(meta.packId, meta.path)
+      if (record === null) continue
+      runtime.assetRecords.set(record.key, record)
+      try {
+        const registration = await registerPackFont(record)
+        if (registration.ok && registration.family !== undefined) {
+          addFontFamily(runtime, record.packId, registration.family)
+        }
+      } catch {
+        // A font that fails to load is not fatal: the pack metadata still works.
+      }
+    }
+  }
+}
+
+/** Host market status (default: unconfigured, no network). */
+function contentMarketState(): ContentMarketUiState {
+  try {
+    return describeContentMarketState(activeMarketSource)
+  } catch {
+    return defaultContentMarketState()
+  }
+}
+
+function buildContentHubController(): ContentHubController {
   return initContentHub({
     document,
     getLibrary: () => contentRuntime?.library ?? null,
     getSelection: () => contentRuntime?.selection ?? null,
-    select: selectContent,
-    importPack: importContentPackText,
-    getPackSummary: () => ({ installed: contentRuntime?.installedPacks.length ?? 0 }),
+    getRoleThemeId: () => contentRuntime?.roleThemeId ?? null,
+    getBaseLibrary: () => contentRuntime?.baseLibrary ?? null,
+    applyRole: (roleThemeId) => applyRoleThemeFromHub(roleThemeId, 'apply'),
+    customize: customizeRoleComponent,
+    restoreRole: restoreCurrentRoleDefaults,
+    prepareImport: prepareContentImport,
+    commitImport: commitContentImport,
+    getInstalledPacks: installedPackSummaries,
+    getMarketState: contentMarketState,
+    resolvePreviewUrl: resolveRolePreviewUrl,
   })
 }
 
 /**
- * Load + merge the catalog once (retryable after a failure) and apply the saved
- * appearance/dialogue selection. This is a local static fetch only.
+ * Load + merge the catalog once (retryable after a failure), restore/migrate the
+ * role theme selection and apply the saved appearance/dialogue. Local static
+ * fetch only (the built-in catalog), never a remote market.
  */
 async function ensureContentRuntime(): Promise<ContentRuntimeState | null> {
   if (contentRuntime) return contentRuntime
@@ -900,16 +1013,38 @@ async function ensureContentRuntime(): Promise<ContentRuntimeState | null> {
       const response = await fetch('/content/library.json', { credentials: 'same-origin' })
       if (!response.ok) throw new Error('content library request failed: ' + response.status)
       const baseLibrary = parseContentLibrary(await response.json())
-      const stored = readInstalledContentPacks(contentStorage())
-      const merged = mergeInstalledPacks(baseLibrary, stored.packs)
-      const selection = initialContentSelection(merged.library)
+      const storedV1 = readInstalledContentPacks(contentStorage())
+      const v1Merged = mergeInstalledPacks(baseLibrary, storedV1.packs)
+      const v1Library = v1Merged.library
+      const storedThemes = readInstalledThemePacks(contentStorage())
+      const themeMerged = mergeCharacterThemes(v1Library, storedThemes.packs)
+      const library = themeMerged.library
+      const plan = planStartupRoleTheme(library, contentStorage(), {
+        runtimeCharacter: contentCharacterIdFromRenderer(),
+        ...(isTtsVoiceId(currentVoice) ? { runtimeVoice: currentVoice } : {}),
+      })
+      if (plan.writeRoleTheme && plan.roleThemeId !== null) {
+        // Migration/default: persist the full six-key bundle + role-theme key so
+        // the next boot reads the same role instead of re-deriving it.
+        writeRoleThemeSelection(library, plan.roleThemeId, contentStorage())
+        writeContentSelection(library, plan.selection, contentStorage())
+      }
+      if (plan.clearRoleTheme) clearRoleThemeSelection(contentStorage())
       const runtime: ContentRuntimeState = {
         baseLibrary,
-        installedPacks: stored.packs,
-        library: merged.library,
-        selection,
-        dialogue: resolveDialogueBehavior(merged.library, selection),
+        v1Library,
+        installedPacks: storedV1.packs,
+        themePacks: storedThemes.packs,
+        library,
+        selection: plan.selection,
+        roleThemeId: plan.roleThemeId,
+        dialogue: resolveDialogueBehavior(library, plan.selection),
         hub: null,
+        assetStore: null,
+        assetUrls: createAssetUrlRegistry(),
+        assetRecords: new Map<string, ContentAssetRecord>(),
+        fontFamiliesByPack: new Map<string, string[]>(),
+        previewTargets: new Map<string, ContentPreviewTarget>(),
       }
       contentRuntime = runtime
       dialogueBehavior = runtime.dialogue
@@ -918,7 +1053,14 @@ async function ensureContentRuntime(): Promise<ContentRuntimeState | null> {
       } catch (error) {
         reportFailure(uiBoundary, error)
       }
-      runtime.hub = buildContentHubController(runtime)
+      try {
+        runtime.assetStore = await openContentAssetStore()
+        await hydrateInstalledAssets(runtime)
+      } catch (error) {
+        // Asset storage is a preview enhancement; the catalog still works.
+        reportFailure(uiBoundary, error)
+      }
+      runtime.hub = buildContentHubController()
       return runtime
     } catch (error) {
       reportFailure(uiBoundary, error)
@@ -933,11 +1075,11 @@ async function ensureContentRuntime(): Promise<ContentRuntimeState | null> {
   }
 }
 
-/** Desktop-menu entry: open the single consolidated content center panel. */
+/** Desktop-menu entry: open the single consolidated role & content center. */
 function openContentHubFromMenu(): void {
   void (async () => {
     if (contentHubBlocked()) {
-      showBubble('请先同意完整声明后再打开内容中心。')
+      showBubble('请先同意完整声明后再打开角色与内容中心。')
       return
     }
     const runtime = await ensureContentRuntime()
@@ -945,89 +1087,163 @@ function openContentHubFromMenu(): void {
       showBubble('内容目录没有加载出来，请稍后再试。')
       return
     }
-    if (!runtime.hub.open()) showBubble('内容中心暂时无法打开。')
+    if (!runtime.hub.open()) showBubble('角色与内容中心暂时无法打开。')
   })().catch((error) => reportFailure(uiBoundary, error))
 }
 
-function selectContent(key: SelectionKey, id: string): ContentHubSelectResult {
+/** Local object URL for an installed pack preview; built-in previews use paths. */
+function resolveRolePreviewUrl(theme: ContentCharacterTheme): string | null {
+  const runtime = contentRuntime
+  if (runtime === null) return null
+  if (typeof theme.preview === 'string' && theme.preview.startsWith('/') && !theme.preview.startsWith('//')) {
+    return theme.preview
+  }
+  const target = runtime.previewTargets.get(theme.id)
+  if (target === undefined) return null
+  const record = runtime.assetRecords.get(contentAssetKey(target.packId, target.path))
+  if (record === undefined) return null
+  try {
+    return runtime.assetUrls.urlFor(record)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * One-click role application: resolve the role into a six-component selection,
+ * persist six keys + role-theme key, then run the existing lifecycles:
+ *  - character differs -> applyRendererChoice() (persist + reload, TOS-gated);
+ *  - voice differs -> write the voice preference + applyVoicePreference()
+ *    (re-prompts the separate TTS declaration, never auto-accepted);
+ *  - appearance/dialogue -> apply immediately, no reload.
+ */
+function applyRoleThemeFromHub(
+  roleThemeId: string,
+  verb: 'apply' | 'restore',
+): ContentHubSelectResult {
+  const runtime = contentRuntime
+  if (!runtime) return { ok: false, message: '内容目录尚未加载，请稍后再试。' }
+  if (contentHubBlocked()) return { ok: false, message: '请先同意完整声明后再切换角色。' }
+  const theme = findCharacterTheme(runtime.library, roleThemeId)
+  if (theme === undefined) return { ok: false, message: '该角色主题不存在或已失效，已保留原角色。' }
+  const support = evaluateRoleThemeSupport(runtime.baseLibrary, theme)
+  if (!support.supported) return { ok: false, message: support.reason }
+  const application = applyCharacterTheme(runtime.library, roleThemeId)
+  if (!application.ok || application.selection === undefined) {
+    const first = application.issues[0]
+    return {
+      ok: false,
+      message:
+        '角色主题解析失败' + (first !== undefined ? '（' + first.message + '）' : '') + '，已保留原角色。',
+    }
+  }
+  const character = findContent(runtime.library, 'characters', application.selection.character) as
+    | ContentCharacterEntry
+    | undefined
+  if (character === undefined) {
+    return { ok: false, message: '角色主题引用的角色不在内容目录中，已保留原角色。' }
+  }
+  const targetRenderer = CONTENT_CHARACTER_PRODUCT_IDS[character.kind].famling as PetRendererChoice
+  const characterChanged = contentCharacterIdFromRenderer() !== application.selection.character
+  // Persist the whole role first: if storage is unavailable nothing changes.
+  const stored = writeCharacterThemeSelection(runtime.library, roleThemeId, contentStorage())
+  if (!stored.ok) return { ok: false, message: '本地存储不可用，角色主题未切换（原状态保持不变）。' }
+  const themeVoiceId =
+    character.voiceMode === 'tts' && isTtsVoiceId(application.selection.voice) ? application.selection.voice : null
+  const voiceChanged = themeVoiceId !== null && themeVoiceId !== currentVoice
+  let voicePrefNote = ''
+  if (voiceChanged && themeVoiceId !== null) {
+    const savedVoice = writeVoicePref(themeVoiceId, contentStorage())
+    if (savedVoice !== 'ok') voicePrefNote = '（音色偏好未能保存到本地存储）'
+  }
+  runtime.selection = application.selection
+  runtime.roleThemeId = roleThemeId
+  if (characterChanged) {
+    const applied = applyRendererChoice(targetRenderer, {
+      storage: contentStorage(),
+      reload: () => {
+        window.location.reload()
+      },
+    })
+    if (!applied) return { ok: false, message: '本地存储不可用，无法切换角色（未刷新，原角色保持不变）。' }
+    return {
+      ok: true,
+      message: '正在切换到「' + theme.name + '」…页面会按既有渲染器生命周期刷新。' + voicePrefNote,
+      close: true,
+    }
+  }
+  try {
+    applyContentSelectionAppearance(document, runtime.library, runtime.selection)
+  } catch (error) {
+    reportFailure(uiBoundary, error)
+  }
+  runtime.dialogue = resolveDialogueBehavior(runtime.library, runtime.selection)
+  dialogueBehavior = runtime.dialogue
+  if (voiceChanged) applyVoicePreference(themeVoiceId as TtsVoiceId)
+  else renderVoiceMode()
+  const prefix = verb === 'restore' ? '已恢复角色「' : '已应用角色「'
+  return {
+    ok: true,
+    message:
+      prefix +
+      theme.name +
+      '」：声音 / 对话 / 主题 / 背景 / 字体已同步。' +
+      (voiceChanged ? 'TTS 声明会按新的配置签名重新弹出确认。' : '') + voicePrefNote,
+  }
+}
+
+/** Restore the current role theme's six defaults (keeps the role key). */
+function restoreCurrentRoleDefaults(): ContentHubSelectResult {
+  const runtime = contentRuntime
+  if (!runtime) return { ok: false, message: '内容目录尚未加载，请稍后再试。' }
+  if (runtime.roleThemeId === null) {
+    return {
+      ok: false,
+      message: '当前是自定义组合，没有可恢复的角色主题；可在「角色」里一键应用一个角色。',
+    }
+  }
+  return applyRoleThemeFromHub(runtime.roleThemeId, 'restore')
+}
+
+/**
+ * Per-component customisation on top of the current role: writes only the six
+ * component keys (the role-theme key stays as the applied basis), applies
+ * appearance/dialogue immediately and keeps the voice TTS lifecycle.
+ */
+function customizeRoleComponent(key: SelectionKey, id: string): ContentHubSelectResult {
   const runtime = contentRuntime
   if (!runtime) return { ok: false, message: '内容目录尚未加载，请稍后再试。' }
   if (contentHubBlocked()) return { ok: false, message: '请先同意完整声明后再修改内容。' }
+  if (key === 'character') {
+    return { ok: false, message: '角色切换请在「角色」标签一键应用角色主题。' }
+  }
   const entry = findContent(runtime.library, CONTENT_SELECTION_CATEGORY[key], id)
-  if (!entry || !entry.available) return { ok: false, message: '该内容不可用或已失效，已保留原选择。' }
-  if (key === 'character') return selectContentCharacter(runtime, entry as ContentCharacterEntry)
-  if (key === 'voice') return selectContentVoice(runtime, entry as ContentVoiceEntry)
-  return selectContentAppearanceOrDialogue(runtime, key, id)
-}
-
-function selectContentCharacter(
-  runtime: ContentRuntimeState,
-  entry: ContentCharacterEntry,
-): ContentHubSelectResult {
-  const choice = CONTENT_CHARACTER_PRODUCT_IDS[entry.kind].famling as PetRendererChoice
-  const next = resolveContentSelection(runtime.library, { ...runtime.selection, character: entry.id }).selection
-  runtime.selection = next
-  const written = writeContentSelection(runtime.library, next, contentStorage())
-  const applied = applyRendererChoice(choice, {
-    storage: contentStorage(),
-    reload: () => { window.location.reload() },
-  })
-  if (!applied) return { ok: false, message: '本地存储不可用，无法切换角色（未刷新，原角色保持不变）。' }
-  const persisted = written.ok ? '' : '（内容选择未能持久化）'
-  return {
-    ok: true,
-    message: '正在切换到「' + entry.name + '」…页面会按既有渲染器生命周期刷新' + persisted + '。',
-    close: true,
+  if (entry === undefined || !entry.available) {
+    return { ok: false, message: '该内容不可用或已失效，已保留原选择。' }
   }
-}
-
-function selectContentVoice(
-  runtime: ContentRuntimeState,
-  entry: ContentVoiceEntry,
-): ContentHubSelectResult {
-  const voiceId = entry.voiceId
-  if (!isTtsVoiceId(voiceId)) return { ok: false, message: '这个声音不是本机支持的 TTS 音色，未切换。' }
-  const changed = voiceId !== currentVoice
-  if (changed) {
-    // Persist the existing preference key first: if storage is blocked nothing
-    // changes, so the runtime voice and the saved preference can never diverge.
-    const savedPref = writeVoicePref(voiceId, contentStorage())
-    if (savedPref !== 'ok') return { ok: false, message: '无法保存音色偏好（本地存储不可用），未切换。' }
+  const resolved = resolveContentSelection(runtime.library, { ...runtime.selection, [key]: id })
+  if (resolved.selection[key] !== id) {
+    return { ok: false, message: '该选择不在当前内容目录中，已保留原选择。' }
   }
-  const next = resolveContentSelection(runtime.library, { ...runtime.selection, voice: entry.id }).selection
-  runtime.selection = next
-  const written = writeContentSelection(runtime.library, next, contentStorage())
-  if (changed) {
-    // Existing TTS config-signature path: stops old audio, re-renders the badge
-    // and re-shows the SEPARATE TTS declaration. Never auto-accepted.
-    applyVoicePreference(voiceId)
-  } else {
-    renderVoiceMode()
+  const character = findContent(runtime.library, 'characters', resolved.selection.character) as
+    | ContentCharacterEntry
+    | undefined
+  let voiceNote = ''
+  if (key === 'voice' && character !== undefined && character.voiceMode === 'tts') {
+    const voice = entry as ContentVoiceEntry
+    if (!isTtsVoiceId(voice.voiceId)) {
+      return { ok: false, message: '这个声音不是本机支持的 TTS 音色，未切换。' }
+    }
+    if (voice.voiceId !== currentVoice) {
+      const savedPref = writeVoicePref(voice.voiceId, contentStorage())
+      if (savedPref !== 'ok') {
+        return { ok: false, message: '无法保存音色偏好（本地存储不可用），未切换。' }
+      }
+      voiceNote = ' TTS 声明会按新的配置签名重新弹出确认。'
+    }
   }
-  const character = findContent(runtime.library, 'characters', next.character) as ContentCharacterEntry | undefined
-  const silent = character !== undefined && character.voiceMode !== 'tts'
-  const note = silent
-    ? '当前角色（猫/狗）永不发声；切换到人形/折纸后使用该音色。'
-    : state.muted
-      ? '静音状态下不会播放；取消静音后需重新确认 TTS 声明。'
-      : '语音声明会按新的 TTS 配置签名重新弹出确认。'
-  if (!written.ok) return { ok: false, message: '音色已切换，但内容选择无法保存（本地存储不可用）。' }
-  if (!changed) return { ok: true, message: '「' + entry.name + '」已是当前音色。' + note }
-  return { ok: true, message: '已切换到「' + entry.name + '」；' + note }
-}
-
-function selectContentAppearanceOrDialogue(
-  runtime: ContentRuntimeState,
-  key: SelectionKey,
-  id: string,
-): ContentHubSelectResult {
-  const wanted = { ...runtime.selection, [key]: id } as ContentSelection
-  const resolved = resolveContentSelection(runtime.library, wanted)
-  if (resolved.selection[key] !== id) return { ok: false, message: '该选择不在当前内容目录中，已保留原选择。' }
   runtime.selection = resolved.selection
-  const entry = findContent(runtime.library, CONTENT_SELECTION_CATEGORY[key], id)
-  const name = entry ? entry.name : id
-  // Immediate apply (visual + data-content-* attrs); no reload, no timer.
+  const written = writeContentSelection(runtime.library, resolved.selection, contentStorage())
   try {
     applyContentSelectionAppearance(document, runtime.library, resolved.selection)
   } catch (error) {
@@ -1037,55 +1253,165 @@ function selectContentAppearanceOrDialogue(
     runtime.dialogue = resolveDialogueBehavior(runtime.library, resolved.selection)
     dialogueBehavior = runtime.dialogue
   }
-  const written = writeContentSelection(runtime.library, resolved.selection, contentStorage())
-  if (key === 'dialoguePack') {
-    const pack = runtime.dialogue
-    const modeLabel = pack.mode === 'quiet'
-      ? '安静（自动环境气泡关闭，交互仍显示短句）'
-      : pack.mode === 'brief'
-        ? '简短（气泡更少、单行 ≤' + pack.maxChars + ' 字）'
-        : '标准（单行 ≤' + pack.maxChars + ' 字）'
-    if (!written.ok) return { ok: false, message: '对话模式已临时生效，但无法保存（本地存储不可用）。' }
-    return { ok: true, message: '对话模式：' + modeLabel + '；错误/关键提示不受影响。' }
+  if (key === 'voice' && character !== undefined && character.voiceMode === 'tts') {
+    const voice = entry as ContentVoiceEntry
+    if (isTtsVoiceId(voice.voiceId)) {
+      if (voice.voiceId !== currentVoice) applyVoicePreference(voice.voiceId)
+      else renderVoiceMode()
+    }
   }
-  if (!written.ok) return { ok: false, message: '已临时应用' + CONTENT_KEY_LABELS[key] + '「' + name + '」，但无法保存（本地存储不可用）。' }
-  return { ok: true, message: '已应用' + CONTENT_KEY_LABELS[key] + '「' + name + '」，无需刷新。' }
+  const name = entry.name
+  if (!written.ok) {
+    return {
+      ok: false,
+      message: '已临时应用' + CONTENT_KEY_LABELS[key] + '「' + name + '」，但无法保存（本地存储不可用）。',
+    }
+  }
+  return {
+    ok: true,
+    message: '已自定义' + CONTENT_KEY_LABELS[key] + '「' + name + '」；其余组件仍跟随角色主题。' + voiceNote,
+  }
 }
 
-function importContentPackText(jsonText: string): ContentHubImportResult {
+/** Pure validation / merge preview for a selected local pack (nothing written). */
+async function prepareContentImport(selection: ContentPackFileSelection): Promise<ThemePackPrepareResult> {
   const runtime = contentRuntime
   if (!runtime) return { ok: false, message: '内容目录尚未加载。' }
   if (contentHubBlocked()) return { ok: false, message: '请先同意完整声明后再导入内容。' }
-  const prepared = prepareContentPackImport(jsonText, runtime.baseLibrary, runtime.installedPacks)
-  if (!prepared.ok) return { ok: false, message: prepared.message }
-  const stored = writeInstalledContentPacks(prepared.packs, contentStorage())
+  return prepareThemePackImport(selection, runtime.v1Library, runtime.themePacks)
+}
+
+/**
+ * Explicitly confirmed install: persist the validated manifest, persist verified
+ * assets (IndexedDB / memory fallback), re-merge the catalog and refresh UI.
+ */
+async function commitContentImport(pending: PreparedThemePackImport): Promise<ContentHubImportResult> {
+  const runtime = contentRuntime
+  if (!runtime) return { ok: false, message: '内容目录尚未加载。' }
+  if (contentHubBlocked()) return { ok: false, message: '请先同意完整声明后再导入内容。' }
+  const stored = commitPreparedThemePack(pending, contentStorage())
   if (!stored.ok) {
-    const reason = stored.status === 'too-large'
-      ? '内容包存储超过大小上限'
-      : stored.status === 'quota'
-        ? '本地存储配额不足'
-        : '本地存储不可用'
+    const reason =
+      stored.status === 'too-large'
+        ? '内容包存储超过大小上限'
+        : stored.status === 'quota'
+          ? '本地存储配额不足'
+          : '本地存储不可用'
     return { ok: false, message: '内容包校验通过，但' + reason + '，未安装。' }
   }
-  runtime.installedPacks = prepared.packs
-  runtime.library = prepared.library
-  runtime.selection = resolveContentSelection(prepared.library, runtime.selection).selection
-  runtime.dialogue = resolveDialogueBehavior(prepared.library, runtime.selection)
+  let assetNote = ''
+  if (pending.assets.length > 0) {
+    const records = buildAssetRecords(pending.pack.id, pending.assets)
+    const store = runtime.assetStore
+    if (store !== null) {
+      const persisted = await persistAssetRecords(store, records)
+      for (const record of records) runtime.assetRecords.set(record.key, record)
+      if (persisted.failed > 0) {
+        assetNote = '（' + persisted.failed + ' 个素材未能写入本地资产库，预览可能缺失）'
+      }
+      for (const record of records) {
+        if (!record.path.endsWith('.woff2')) continue
+        try {
+          const registration = await registerPackFont(record)
+          if (registration.ok && registration.family !== undefined) {
+            addFontFamily(runtime, record.packId, registration.family)
+          }
+        } catch {
+          // A font failure must not fail an otherwise valid pack install.
+        }
+      }
+    } else {
+      assetNote = '（本地资产库不可用，素材仅在本次会话可用）'
+    }
+  }
+  runtime.themePacks = pending.nextPacks
+  runtime.library = pending.library
+  runtime.selection = resolveContentSelection(pending.library, runtime.selection).selection
+  runtime.dialogue = resolveDialogueBehavior(pending.library, runtime.selection)
   dialogueBehavior = runtime.dialogue
+  rebuildPreviewTargets(runtime)
   try {
     applyContentSelectionAppearance(document, runtime.library, runtime.selection)
   } catch (error) {
     reportFailure(uiBoundary, error)
   }
-  const verb = prepared.unchanged ? '已存在相同内容包' : prepared.replaced ? '已更新内容包' : '已导入内容包'
-  const detail = prepared.unchanged ? '' : '：' + prepared.added + ' 项'
+  const verb = pending.unchanged ? '已存在相同内容包' : pending.replaced ? '已更新内容包' : '已导入内容包'
+  const unsupported = pending.pack.roleThemes.filter(
+    (theme) => !evaluateRoleThemeSupport(runtime.baseLibrary, theme).supported,
+  ).length
+  const supportNote =
+    unsupported > 0
+      ? '；其中 ' + unsupported + ' 个角色主题需远程市场安装器才能实际渲染，已导入但不可一键应用。'
+      : ''
   return {
     ok: true,
-    message: verb + '「' + prepared.pack.name + '」' + detail + '。仅本地数据，未联网、未执行脚本。',
-    installedCount: runtime.installedPacks.length,
+    message:
+      verb +
+      '「' +
+      pending.pack.name +
+      '」：' +
+      pending.pack.roleThemes.length +
+      ' 个角色主题，统一用途声明已确认，仅本地数据、未联网。' +
+      supportNote +
+      assetNote,
+    installedCount: runtime.themePacks.length + runtime.installedPacks.length,
   }
 }
 
+/** Rows for the 内容包 tab: v1 local packs + imported v2 role-theme packs. */
+function installedPackSummaries(): readonly ContentHubInstalledPack[] {
+  const runtime = contentRuntime
+  if (!runtime) return Object.freeze([])
+  const out: ContentHubInstalledPack[] = []
+  for (const raw of runtime.installedPacks) {
+    const validation = validateContentPack(raw)
+    if (!validation.ok) continue
+    const pack = validation.pack
+    out.push(
+      Object.freeze({
+        id: pack.id,
+        name: pack.name,
+        version: pack.version,
+        kind: 'v1' as const,
+        roleThemes: 0,
+        declaration: false,
+      }),
+    )
+  }
+  for (const raw of runtime.themePacks) {
+    const validation = validateContentPackV2(raw)
+    if (!validation.ok) continue
+    const pack = validation.pack
+    const unsupported = pack.roleThemes.filter(
+      (theme) => !evaluateRoleThemeSupport(runtime.baseLibrary, theme).supported,
+    )
+    const fontFamilies = runtime.fontFamiliesByPack.get(pack.id)
+    out.push(
+      Object.freeze({
+        id: pack.id,
+        name: pack.name,
+        version: pack.version,
+        kind: 'role-theme' as const,
+        roleThemes: pack.roleThemes.length,
+        declaration: true,
+        aiDisclosure: pack.aiProvenance.disclosure,
+        license: pack.license.spdx + ' / ' + pack.license.attribution,
+        ...(unsupported.length > 0
+          ? {
+              note:
+                '已导入但需远程市场安装器：' +
+                unsupported.map((theme) => theme.name).join('、') +
+                ' 的角色动画/声音本机暂不可用。',
+            }
+          : {}),
+        ...(fontFamilies !== undefined && fontFamilies.length > 0
+          ? { fontFamilies: Object.freeze([...fontFamilies]) }
+          : {}),
+      }),
+    )
+  }
+  return Object.freeze(out)
+}
 
 
 function doPat(actorId?: string): void {
@@ -1348,14 +1674,20 @@ document.addEventListener('pointercancel', () => {
   talkPointerDown = false
 })
 
-$('mute').addEventListener('click', () => {
+/**
+ * Single mute path shared by the panel button and the desktop settings dialog.
+ * Enabling voice is an explicit TTS config change, so the declaration is
+ * re-shown; muting stops any current playback immediately.
+ */
+function setMutedFromShell(next: boolean): void {
   if (!canInteract()) return
-  state = setMuted(state, !state.muted)
+  if (state.muted === next) return
+  state = setMuted(state, next)
   if (state.muted) voice.stop()
-  // Enabling voice is an explicit TTS config change: re-show the declaration.
   else void requestTtsConfirmation(currentTtsConfig()).catch((error) => reportFailure(ttsBoundary, error))
   render()
-})
+}
+$('mute').addEventListener('click', () => setMutedFromShell(!state.muted))
 
 interface DpapiCipher { v: 1; p: 'dpapi'; data: string }
 type SaveCipher = DpapiCipher | WebCryptoPayload
@@ -1577,13 +1909,17 @@ async function loadNow(): Promise<boolean> {
   return false
 }
 
-$('save').addEventListener('click', () => void saveNow()
-  .then(() => showBubble('记下了。'))
-  .catch((error) => {
-    if (!(error instanceof RateLimitError)) reportFailure(saveBoundary, error)
-    showBubble(toUserMessage(error))
-  }))
-$('load').addEventListener('click', () => {
+/** Save entry shared by the panel button, the desktop menu and settings. */
+function saveArchiveWithFeedback(): void {
+  void saveNow()
+    .then(() => showBubble('记下了。'))
+    .catch((error) => {
+      if (!(error instanceof RateLimitError)) reportFailure(saveBoundary, error)
+      showBubble(toUserMessage(error))
+    })
+}
+/** Load entry shared by the panel button and the desktop menu/settings. */
+function loadArchiveWithFeedback(): void {
   if (!guardLocalAction('save-load')) return
   void loadNow()
     .then((ok) => {
@@ -1593,7 +1929,9 @@ $('load').addEventListener('click', () => {
       reportFailure(loadBoundary, error)
       showBubble(toUserMessage(error))
     })
-})
+}
+$('save').addEventListener('click', () => saveArchiveWithFeedback())
+$('load').addEventListener('click', () => loadArchiveWithFeedback())
 $('voice-cache').addEventListener('click', () => void (async () => {
   if (!HAS_TAURI) {
     showBubble('浏览器模式没有本地语音缓存。')
@@ -1610,21 +1948,30 @@ $('voice-cache').addEventListener('click', () => void (async () => {
 })().catch((error) => reportFailure(voiceBoundary, error)))
 
 const vol = $('vol') as HTMLInputElement
-vol.value = String(volume)
-vol.addEventListener('input', () => {
-  if (!canInteract()) return
-  const nextVolume = Number(vol.value)
-  if (Number.isFinite(nextVolume)) volume = Math.max(0, Math.min(100, Math.round(nextVolume)))
+/**
+ * Single volume-apply path (panel slider + desktop settings slider). Persists
+ * the preference and updates the live audio gain; never runs before consent.
+ */
+function applyVolume(next: number): number {
+  if (!canInteract()) return volume
+  if (Number.isFinite(next)) volume = Math.max(0, Math.min(100, Math.round(next)))
   const stored = safeSetItem('desktop-games/pet/volume', String(volume))
   if (stored !== 'ok') reportFailure(storageBoundary, new Error(`volume-storage-${stored}`))
   if (audioGain) audioGain.gain.value = Math.max(0, Math.min(1, volume / 100))
-})
+  vol.value = String(volume)
+  return volume
+}
 // Volume is part of the TTS config: re-confirm the TTS declaration on release
 // (not on every slider tick) when voice is currently enabled.
-vol.addEventListener('change', () => {
+function volumeCommitted(): void {
   if (!canInteract() || state.muted) return
   void requestTtsConfirmation(currentTtsConfig()).catch((error) => reportFailure(ttsBoundary, error))
+}
+vol.value = String(volume)
+vol.addEventListener('input', () => {
+  applyVolume(Number(vol.value))
 })
+vol.addEventListener('change', () => volumeCommitted())
 
 const memoryScreen = $('memory-screen')
 function renderMemoryBook(): void {
@@ -1795,23 +2142,27 @@ $('memory-export').addEventListener('click', () => {
 })
 $('memory-close').addEventListener('click', () => memoryScreen.classList.add('hidden'))
 
-$('reset-window').addEventListener('click', () => void (async () => {
-  if (!HAS_TAURI) return
-  try {
-    const { getCurrentWindow, currentMonitor, PhysicalPosition } = await import('@tauri-apps/api/window')
-    const monitor = await currentMonitor()
-    if (!monitor) return
-    const win = getCurrentWindow()
-    const size = await win.outerSize()
-    const x = monitor.position.x + monitor.size.width - size.width - 12
-    const y = monitor.position.y + monitor.size.height - size.height - 12
-    await win.setPosition(new PhysicalPosition(x, y))
-    removeKey(WINDOW_KEY)
-    showBubble('回到右下角。')
-  } catch (error) {
-    reportFailure(storageBoundary, error)
-  }
-})().catch((error) => reportFailure(uiBoundary, error)))
+/** 复位窗口 entry shared by the panel button, the desktop menu and settings. */
+function resetPetWindow(): void {
+  void (async () => {
+    if (!HAS_TAURI) return
+    try {
+      const { getCurrentWindow, currentMonitor, PhysicalPosition } = await import('@tauri-apps/api/window')
+      const monitor = await currentMonitor()
+      if (!monitor) return
+      const win = getCurrentWindow()
+      const size = await win.outerSize()
+      const x = monitor.position.x + monitor.size.width - size.width - 12
+      const y = monitor.position.y + monitor.size.height - size.height - 12
+      await win.setPosition(new PhysicalPosition(x, y))
+      removeKey(WINDOW_KEY)
+      showBubble('回到右下角。')
+    } catch (error) {
+      reportFailure(storageBoundary, error)
+    }
+  })().catch((error) => reportFailure(uiBoundary, error))
+}
+$('reset-window').addEventListener('click', () => resetPetWindow())
 setInterval(() => {
   if (!canInteract() || saveRecoveryNeeded) return
   void saveNow().catch((error) => {
@@ -2095,9 +2446,13 @@ function heroFrame(timestamp: number): void {
   if (document.visibilityState === 'hidden') return
   const dt = Math.max(0, Math.min(250, timestamp - heroLastFrameMs))
   heroLastFrameMs = timestamp
-  heroSceneNow += dt
+  // 减少动态 (pet.css tokens + this loop): freeze the scene clock and skip
+  // tick/locomotion, so the canvas stays a static pose. Emits/speech still
+  // change renderKey, which redraws exactly one still frame below.
+  const reducedMotion = document.documentElement.dataset.reduceMotion === '1'
+  if (!reducedMotion) heroSceneNow += dt
   try {
-    hero.tick(heroSceneNow)
+    if (!reducedMotion) hero.tick(heroSceneNow)
     // 6-14 fps art on a 60 Hz host: redraw only when a frame actually changed.
     const renderKey = hero.renderKey(heroSceneNow)
     const renderedKey = heroCanvasEl?.dataset.heroRenderKey
@@ -2112,7 +2467,7 @@ function heroFrame(timestamp: number): void {
         }).join('|')
       }
     }
-    applyHeroLocomotion(dt)
+    if (!reducedMotion) applyHeroLocomotion(dt)
   } catch (error) {
     fallbackHero(`render-failed: ${error instanceof Error ? error.message : String(error)}`, error)
     return
@@ -3063,6 +3418,17 @@ function initializeApp(): void {
       heroActive: () => hero !== null,
       getHeroActions: currentHeroMenuActions,
       onHeroAction: handleHeroAction,
+      // 总设置 dialog wiring (task-65): every control reuses an existing
+      // audited path above instead of duplicating mute/volume/save/reset logic.
+      getAudioState: () => ({ muted: state.muted, volume }),
+      setMuted: setMutedFromShell,
+      setVolume: applyVolume,
+      onVolumeCommit: volumeCommitted,
+      saveArchive: saveArchiveWithFeedback,
+      loadArchive: loadArchiveWithFeedback,
+      resetWindow: resetPetWindow,
+      // The role & content center is above the body-level shell menu.
+      isHigherModalOpen: () => contentRuntime?.hub?.isOpen() === true,
     })
     wired.shell = true
   }

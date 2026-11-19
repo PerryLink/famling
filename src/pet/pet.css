@@ -399,6 +399,10 @@ html[data-pet-shell="desktop"] .setup-notice { font-size: calc(9px * var(--ui-sc
 
 /* Desktop-shell menu trigger (aria-haspopup/expanded). Subtle, desktop-only:
    the window/dev shell keeps its old full-page layout with no extra chrome. */
+/* Default-hidden (task-65): no persistent chrome around the character. The
+   author `display` above beats the UA [hidden] rule, so this explicit rule is
+   required for the button's static `hidden` attribute and the runtime toggle. */
+.pet-menu-button[hidden] { display: none; }
 .pet-menu-button {
   position: fixed;
   right: 6px;
@@ -406,17 +410,18 @@ html[data-pet-shell="desktop"] .setup-notice { font-size: calc(9px * var(--ui-sc
   z-index: 70;
   display: grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
+  /* WCAG 2.2 target size: 24x24 (UX review P1-6), still visually small. */
+  width: 24px;
+  height: 24px;
   min-height: 0;
   padding: 0;
   border: 1px solid #6a4a2e;
   border-radius: 7px;
   background: rgba(27, 20, 16, .82);
   color: #f0e4d4;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1;
-  opacity: .55;
+  opacity: .72;
   transition:
     opacity var(--ui-dur-120) var(--ui-ease-standard),
     transform var(--ui-dur-80) var(--ui-ease-standard);
@@ -502,6 +507,154 @@ html:not([data-pet-shell="desktop"]) .pet-menu-button { display: none; }
 }
 .pet-menu-inline { display: flex; gap: 3px; }
 .pet-menu-inline button { width: auto; flex: 1; text-align: center; }
+
+/* Consolidated settings dialog (#pet-settings, task-65). Body-level like the
+   menu/content center: above the menu (80) and the 2h health banner (90),
+   below the role & content center (150) and every consent layer (200). The
+   closed state stays inert/aria-hidden; desktop-shell.ts traps Tab and
+   Escape and closes it the moment a consent overlay opens. */
+.pet-settings {
+  position: fixed;
+  inset: 0;
+  z-index: 96;
+  display: grid;
+  place-items: center;
+  padding: 6px;
+  font-family: var(--famling-content-font-family, "Microsoft YaHei", "Segoe UI", sans-serif);
+}
+.pet-settings[inert] { pointer-events: none; }
+.pet-settings[data-state="closed"] {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+.pet-settings[data-state="open"] {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+}
+.pet-settings-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 7, 12, .62);
+}
+.pet-settings-card {
+  position: relative;
+  width: min(330px, calc(100vw - 12px));
+  max-height: calc(100vh - 12px);
+  overflow-y: auto;
+  padding: 9px 11px;
+  border: 1px solid #6a4a2e;
+  border-radius: 10px;
+  background: var(--famling-content-panel-bg, #1b1410);
+  color: var(--famling-content-panel-fg, #f0e4d4);
+  box-shadow: 0 14px 36px #000b;
+  font-size: calc(9px * var(--ui-scale, 1));
+  line-height: 1.45;
+}
+.pet-settings-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.pet-settings-title {
+  margin: 0;
+  color: #ffd98a;
+  font-size: calc(12px * var(--ui-scale, 1));
+}
+.pet-settings-close {
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0 6px;
+}
+.pet-settings-status {
+  margin: 2px 0 4px;
+  min-height: calc(13px * var(--ui-scale, 1));
+  color: #ffd98a;
+  font-size: calc(8px * var(--ui-scale, 1));
+}
+.pet-settings-group {
+  margin: 0 0 6px;
+  padding: 6px 7px;
+  border: 1px solid #3a2e24;
+  border-radius: 8px;
+  background: #14110e;
+}
+.pet-settings-group-title {
+  margin: 0 0 4px;
+  color: #c9a46a;
+  font-size: calc(9px * var(--ui-scale, 1));
+  letter-spacing: .04em;
+}
+.pet-settings-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin: 3px 0;
+}
+.pet-settings-label {
+  color: #e8d3a0;
+  font-size: calc(8px * var(--ui-scale, 1));
+}
+.pet-settings-value {
+  margin-left: auto;
+  color: #ffd98a;
+  font-size: calc(8px * var(--ui-scale, 1));
+}
+.pet-settings-check {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 22px;
+  cursor: pointer;
+}
+.pet-settings-check input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+}
+.pet-settings-check-text { font-size: calc(8px * var(--ui-scale, 1)); }
+.pet-settings-note {
+  margin: 1px 0 2px;
+  color: #a08a70;
+  font-size: calc(7px * var(--ui-scale, 1));
+  line-height: 1.4;
+}
+.pet-settings-action,
+.pet-settings-chip {
+  min-height: 24px;
+  padding: 2px 8px;
+  font-size: calc(8px * var(--ui-scale, 1));
+}
+.pet-settings-chip {
+  min-width: 34px;
+  text-align: center;
+}
+.pet-settings-chip[aria-pressed="true"] {
+  border-color: #e0b35a;
+  color: #ffd98a;
+  background: #362619;
+}
+.pet-settings-volume-field input[type="range"] {
+  flex: 1 1 100px;
+  accent-color: #e0b35a;
+}
+.pet-settings-danger {
+  border-color: #8a3a3a;
+  color: #ffb3a7;
+}
+.pet-settings-advanced {
+  margin-top: 4px;
+  padding: 4px 6px;
+  border: 1px dashed #4a3b2a;
+  border-radius: 6px;
+}
+.pet-settings-advanced-title {
+  color: #b9a58e;
+  font-size: calc(8px * var(--ui-scale, 1));
+  cursor: pointer;
+}
+.pet-settings :focus-visible {
+  outline: 2px solid #e0b35a;
+  outline-offset: 1px;
+}
 
 /* Hero renderer's minimal non-art state chip: loading (first frame pending),
    empty (no character/pack) and error (render/start failure). The default
@@ -687,6 +840,25 @@ html:not([data-pet-shell="desktop"]) .pet-menu-button { display: none; }
     transition-delay: 0ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* User-selected 「减少动态」 (设置 → 常用). Same collapse as the OS media
+   query, driven by the persisted html[data-reduce-motion] attribute;
+   main.ts additionally freezes the hero canvas tick loop for this state. */
+html[data-reduce-motion="1"] {
+  --ui-dur-80: 0ms;
+  --ui-dur-100: 0ms;
+  --ui-dur-120: 0ms;
+  --ui-dur-200: 0ms;
+}
+html[data-reduce-motion="1"] *,
+html[data-reduce-motion="1"] *::before,
+html[data-reduce-motion="1"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  transition-delay: 0ms !important;
+  scroll-behavior: auto !important;
 }
 
 /* ==========================================================================
@@ -1144,6 +1316,200 @@ html:not([data-pet-shell="desktop"]) .pet-menu-button { display: none; }
 .content-hub-import:hover { background: #362619; }
 .content-hub-import[disabled] { opacity: .4; cursor: not-allowed; }
 @media (max-width: 520px) { .content-hub-grid { grid-template-columns: 1fr; } }
+.content-hub-role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.content-hub-role-card {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  grid-template-areas: "media info" "actions actions" "note note";
+  gap: 6px 8px;
+  padding: 8px;
+  border: 1px solid #3a2e24;
+  border-radius: 9px;
+  background: #17120f;
+}
+.content-hub-role-card.current { border-color: #e0b35a; background: #2a1f13; }
+.content-hub-role-card.unsupported { opacity: .82; border-style: dashed; }
+.content-hub-role-card .content-hub-card-media { grid-area: media; align-self: start; }
+.content-hub-role-card .content-hub-card-info { grid-area: info; }
+.content-hub-role-actions { grid-area: actions; display: flex; flex-wrap: wrap; gap: 6px; }
+.content-hub-role-note {
+  grid-area: note;
+  margin: 0;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: #241b15;
+  color: #ffc98a;
+  font-size: 9px;
+  line-height: 1.45;
+}
+.content-hub-apply {
+  min-height: 26px;
+  padding: 4px 10px;
+  border: 1px solid #e0b35a;
+  border-radius: 6px;
+  background: #362619;
+  color: #ffd98a;
+  font-family: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+.content-hub-apply:hover { background: #4a3520; }
+.content-hub-apply[disabled] { opacity: .45; cursor: not-allowed; border-color: #6a4a2e; color: #b9a58e; }
+.content-hub-badges { display: flex; flex-wrap: wrap; gap: 4px; }
+.content-hub-badge {
+  padding: 0 6px;
+  border: 1px solid #3a2e24;
+  border-radius: 999px;
+  color: #b9a58e;
+  font-size: 8px;
+  line-height: 16px;
+}
+.content-hub-role-card.current .content-hub-badge { border-color: #e0b35a; color: #ffd98a; }
+.content-hub-design-ref { color: #99c8ff; font-size: 8px; overflow-wrap: anywhere; }
+.content-hub-group { display: flex; flex-direction: column; gap: 3px; padding: 6px 0; border-bottom: 1px solid #2a211a; }
+.content-hub-group-title { margin: 8px 0 2px; color: #f0d6a8; font-size: 12px; }
+.content-hub-group-heading { margin: 2px 0 0; color: #e0c9a2; font-size: 10px; }
+.content-hub-group-blurb { margin: 0; color: #8f7a5a; font-size: 9px; line-height: 1.4; }
+.content-hub-chip-row { display: flex; flex-wrap: wrap; gap: 4px; }
+.content-hub-chip {
+  min-height: 22px;
+  padding: 2px 8px;
+  border: 1px solid #5a402b;
+  border-radius: 999px;
+  background: #1b1410;
+  color: #cbb79f;
+  font-family: inherit;
+  font-size: 9px;
+  cursor: pointer;
+}
+.content-hub-chip:hover { background: #241b15; }
+.content-hub-chip.selected { border-color: #e0b35a; color: #ffd98a; background: #2a1f13; }
+.content-hub-chip[disabled] { opacity: .45; cursor: not-allowed; }
+.content-hub-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.content-hub-restore {
+  min-height: 24px;
+  padding: 3px 9px;
+  border: 1px solid #6a4a2e;
+  border-radius: 6px;
+  background: #1b1410;
+  color: #f0e4d4;
+  font-family: inherit;
+  font-size: 9px;
+  cursor: pointer;
+}
+.content-hub-restore:hover { background: #241b15; }
+.content-hub-restore[disabled] { opacity: .4; cursor: not-allowed; }
+.content-hub-pack-list { display: flex; flex-direction: column; gap: 5px; }
+.content-hub-pack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  padding: 6px 8px;
+  border: 1px solid #3a2e24;
+  border-radius: 8px;
+  background: #17120f;
+}
+.content-hub-pack-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; width: 100%; }
+.content-hub-pack-name { color: #f0d6a8; font-size: 11px; }
+.content-hub-pack-version { color: #8f7a5a; font-size: 9px; }
+.content-hub-pack-meta { margin: 0; color: #b9a58e; font-size: 9px; line-height: 1.4; overflow-wrap: anywhere; }
+.content-hub-pack-note { margin: 0; color: #ffc98a; font-size: 9px; line-height: 1.45; }
+.content-hub-font-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.content-hub-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 6px 0;
+  padding: 9px 10px;
+  border: 2px solid #a63d35;
+  border-radius: 9px;
+  background: #1c1210;
+}
+.content-hub-confirm-title { margin: 0; color: #ffd98a; font-size: 12px; }
+.content-hub-declaration-label { margin: 2px 0 0; color: #ffb3a7; font-size: 9px; }
+.content-hub-declaration {
+  margin: 0;
+  padding: 6px 8px;
+  border: 1px solid #5a2b27;
+  border-radius: 6px;
+  background: #241413;
+  color: #f0e4d4;
+  font-size: 10px;
+  line-height: 1.6;
+}
+.content-hub-declaration-ref { margin: 0; color: #8f7a5a; font-size: 8px; overflow-wrap: anywhere; }
+.content-hub-prohibited { margin: 0; padding-left: 16px; color: #e7b9b0; font-size: 9px; line-height: 1.5; }
+.content-hub-prohibited-item { margin: 0; }
+.content-hub-confirm-ok {
+  min-height: 26px;
+  padding: 4px 12px;
+  border: 1px solid #e0b35a;
+  border-radius: 6px;
+  background: #362619;
+  color: #ffd98a;
+  font-family: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+.content-hub-confirm-ok:hover { background: #4a3520; }
+.content-hub-confirm-cancel {
+  min-height: 26px;
+  padding: 4px 10px;
+  border: 1px solid #6a4a2e;
+  border-radius: 6px;
+  background: #1b1410;
+  color: #f0e4d4;
+  font-family: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+.content-hub-issues {
+  margin: 0;
+  padding: 4px 6px 4px 20px;
+  max-height: 80px;
+  overflow-y: auto;
+  border: 1px solid #5a2b27;
+  border-radius: 6px;
+  background: #1c1210;
+  color: #ffb3a7;
+  font-size: 8px;
+  line-height: 1.45;
+}
+.content-hub-issues[hidden] { display: none; }
+.content-hub-issue { margin: 0; overflow-wrap: anywhere; }
+.content-hub-market {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px 10px;
+  border: 1px solid #3a2e24;
+  border-radius: 9px;
+  background: #14110e;
+}
+.content-hub-market-status { margin: 0; color: #ffd98a; font-size: 12px; }
+.content-hub-market-status[data-status="unconfigured"] { color: #b9a58e; }
+.content-hub-market-steps { margin: 0; padding-left: 18px; color: #b9a58e; font-size: 9px; line-height: 1.55; }
+.content-hub-market-step { margin: 0; }
+.content-hub-market-refresh {
+  min-height: 24px;
+  padding: 3px 9px;
+  border: 1px solid #6a4a2e;
+  border-radius: 6px;
+  background: #1b1410;
+  color: #f0e4d4;
+  font-family: inherit;
+  font-size: 9px;
+  cursor: pointer;
+}
+.content-hub-market-refresh[disabled] { opacity: .45; cursor: not-allowed; }
+.content-hub-apply:focus-visible,
+.content-hub-chip:focus-visible,
+.content-hub-restore:focus-visible,
+.content-hub-confirm-ok:focus-visible,
+.content-hub-confirm-cancel:focus-visible,
+.content-hub-market-refresh:focus-visible,
+.content-hub-design-ref:focus-visible { outline: 2px solid #e0b35a; outline-offset: 1px; }
+@media (max-width: 520px) { .content-hub-role-grid { grid-template-columns: 1fr; } }
 
 
 /* UI-91 menu icons: 16px display from 32px source, nearest neighbour. */

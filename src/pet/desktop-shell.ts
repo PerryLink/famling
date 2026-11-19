@@ -53,6 +53,21 @@ import { countCodePoints, sanitizePlainText, truncateCodePoints } from './securi
 const PET_SCALE_KEY = 'desktop-games/pet/scale'
 const TEXT_SCALE_KEY = 'desktop-games/pet/text-scale'
 /**
+ * 「显示菜单按钮」setting (task-65): the desktop shell ships with NO persistent
+ * chrome around the character. The ⋯ trigger is hidden by default (pet.html
+ * `hidden`, re-applied by initDesktopShell) and can be enabled from 设置…;
+ * right-click / Shift+F10 / ContextMenu keep opening the menu while hidden.
+ */
+export const SHOW_MENU_BUTTON_KEY = 'desktop-games/pet/show-menu-button'
+/** 「减少动态」setting: collapses CSS motion tokens + pauses the hero loop. */
+export const REDUCE_MOTION_KEY = 'desktop-games/pet/reduce-motion'
+/** The consolidated settings dialog built by initDesktopShell. */
+export const SETTINGS_ID = 'pet-settings'
+/** Menu levels: root (≤5 entries), 互动… and 更多… (both have 返回). */
+export type ShellMenuView = 'root' | 'interact' | 'more'
+/** Root entries in order; the IA test asserts this stays ≤5. */
+export const SHELL_MENU_ROOT_ACTIONS = ['compose', 'interact', 'content', 'settings', 'more'] as const
+/**
  * Renderer-menu storage keys. Keep in sync with `hero-runtime.ts`
  * (`HERO_STORAGE_KEY` / `HERO_CHARACTER_STORAGE_KEY`); duplicated here as
  * plain strings so this module stays import-light and Node-test friendly.
@@ -140,6 +155,85 @@ export function readStoredNumber(
   }
 }
 
+/** Minimal storage surface for boolean preferences (injectable in Node tests). */
+export type FlagStorage = Pick<Storage, 'getItem'>
+
+/**
+ * Read a boolean preference. A missing/blank/malformed value keeps the
+ * fallback (never coerces to true), and an unreadable storage fails closed to
+ * the fallback so a blocked localStorage cannot flip a safety/UI default.
+ */
+export function readStoredFlag(
+  key: string,
+  fallback: boolean,
+  storage?: FlagStorage | null,
+): boolean {
+  try {
+    const store =
+      storage !== undefined
+        ? storage
+        : typeof localStorage === 'undefined'
+          ? null
+          : localStorage
+    if (!store) return fallback
+    const raw = store.getItem(key)
+    if (raw === null) return fallback
+    const value = raw.trim().toLowerCase()
+    if (value === '') return fallback
+    if (value === '1' || value === 'true' || value === 'on' || value === 'yes') return true
+    if (value === '0' || value === 'false' || value === 'off' || value === 'no') return false
+    return fallback
+  } catch {
+    return fallback
+  }
+}
+
+/** Persist one boolean preference; storage-denied is a silent no-op. */
+export function writeStoredFlag(key: string, value: boolean): boolean {
+  try {
+    if (typeof localStorage === 'undefined') return false
+    localStorage.setItem(key, value ? '1' : '0')
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** 「显示菜单按钮」: hidden by default (right-click/Shift+F10 still work). */
+export function resolveShowMenuButton(storage?: FlagStorage | null): boolean {
+  return readStoredFlag(SHOW_MENU_BUTTON_KEY, false, storage)
+}
+
+/**
+ * 「减少动态」: a stored preference wins; first run follows the OS
+ * prefers-reduced-motion media query (accessibility-first default).
+ */
+export function resolveReduceMotion(storage?: FlagStorage | null, prefersReduce = false): boolean {
+  return readStoredFlag(REDUCE_MOTION_KEY, prefersReduce, storage)
+}
+
+/**
+ * Dev/E2E surfaces (完整面板) are never in the release menu: only an explicit
+ * ?debug=1/?dev=1 URL (or the Vite dev build) may expose them.
+ */
+export function debugShellFromSearch(search: string): boolean {
+  try {
+    const params = new URLSearchParams(search)
+    return params.get('debug') === '1' || params.get('dev') === '1'
+  } catch {
+    return false
+  }
+}
+
+/** Vite dev build (never true in the packaged release; guarded for Node). */
+export function isViteDevBuild(): boolean {
+  try {
+    return (import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV === true
+  } catch {
+    return false
+  }
+}
+
 /** Pure first-run resolver: missing/malformed storage keeps the locked 2x. */
 export function resolvePetScale(storage?: NumberStorage | null): number {
   return clamp(readStoredNumber(PET_SCALE_KEY, 2, storage), PET_SCALE_MIN, PET_SCALE_MAX)
@@ -201,11 +295,11 @@ export interface RendererMenuItem {
 /**
  * Legacy renderer rows (kept for back-compat tests / callers).
  *
- * The desktop menu no longer renders these four scattered rows: character
- * switching is consolidated into the single 「内容中心（角色/声音/主题/对话）…」
- * entry, which opens the six-category content center. `applyRendererChoice()` and
- * `rendererChoiceWrites()` below are still the renderer lifecycle used by that
- * panel (persist + reload, consent-gated by the caller).
+ * The desktop menu no longer renders these four scattered rows: the role (which
+ * IS the theme in v2) is switched from the single 「角色与内容中心…」 entry.
+ * `applyRendererChoice()` and `rendererChoiceWrites()` below are still the
+ * renderer lifecycle used by that panel (persist + reload, consent-gated by the
+ * caller).
  */
 export const RENDERER_MENU_ITEMS: readonly RendererMenuItem[] = [
   { choice: 'dog', label: '渲染器：金毛（动画）' },
@@ -349,6 +443,43 @@ export interface DesktopShellOptions {
    * renderer rows are no longer rendered by this menu.
    */
   readonly openContentHub?: () => void
+  /**
+   * Settings wiring supplied by main.ts. Every callback is optional: absent
+   * handlers keep the control visible but inert (dev pages never fake them).
+   */
+  /** Current mute/volume state for the 常用 group (settings dialog). */
+  readonly getAudioState?: () => { readonly muted: boolean; readonly volume: number }
+  /** Mute toggle (same TTS re-confirmation semantics as the mute button). */
+  readonly setMuted?: (muted: boolean) => void
+  /** Live volume apply while dragging the settings slider (0-100). */
+  readonly setVolume?: (volume: number) => void
+  /** Slider released: re-confirm the TTS declaration when voice is enabled. */
+  readonly onVolumeCommit?: () => void
+  /** 保存 / 读取 archive buttons (main.ts feedback path; fallback clicks #save). */
+  readonly saveArchive?: () => void
+  readonly loadArchive?: () => void
+  /** 复位窗口 to the bottom-right (main.ts existing Tauri handler). */
+  readonly resetWindow?: () => void
+  /**
+   * True while a higher-level modal (the role & content center) is open. The
+   * body-level shell menu must not open above/behind it (UX review P1-4).
+   */
+  readonly isHigherModalOpen?: () => boolean
+}
+
+/** Element handles for the #pet-settings dialog (built once per init). */
+interface SettingsDom {
+  readonly root: HTMLElement
+  readonly status: HTMLElement
+  readonly showMenuButton: HTMLInputElement
+  readonly mute: HTMLInputElement
+  readonly volume: HTMLInputElement
+  readonly volumeValue: HTMLElement
+  readonly reduceMotion: HTMLInputElement
+  readonly scaleButtons: HTMLButtonElement[]
+  readonly textMinus: HTMLButtonElement
+  readonly textPlus: HTMLButtonElement
+  readonly textValue: HTMLElement
 }
 
 function writeNumber(key: string, value: number): void {
@@ -428,8 +559,12 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
   /** Hero canvas state + menu action sink supplied by main.ts (defaults inert). */
   const heroActive = options.heroActive ?? ((): boolean => false)
   const onHeroAction = options.onHeroAction
-  /** Fail closed if the gate accessor itself throws (runtime missing/torn down). */
-  const menuBlocked = (): boolean => {
+  /**
+   * Consent gate (fail closed if the accessor itself throws: runtime missing/
+   * torn down). This is also the gate for shell preferences (scale/text size),
+   * which must never be written before the TOS is accepted.
+   */
+  const consentBlocked = (): boolean => {
     try {
       return shellMenuBlocked({
         canInteract: consentGateOpen(),
@@ -439,8 +574,18 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
       return true
     }
   }
+  /**
+   * Whether the desktop-shell MENU may be operated. Beyond the consent gate,
+   * a higher-level modal (role & content center) or our own settings dialog
+   * must keep the body-level menu unreachable (UX review P1-4).
+   */
+  const menuBlocked = (): boolean => {
+    if (settingsOpen) return true
+    if (options.isHigherModalOpen?.() === true) return true
+    return consentBlocked()
+  }
   const setConsentState = (): void => {
-    docRef.documentElement.dataset.shellConsent = menuBlocked() ? 'blocked' : 'ready'
+    docRef.documentElement.dataset.shellConsent = consentBlocked() ? 'blocked' : 'ready'
   }
 
   const params = new URLSearchParams(winRef.location.search)
@@ -461,7 +606,7 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
   const applyScale = (): void => applyScaleVariables(scale, textScale)
   const setScale = (next: number): void => {
     // Defence in depth: never write a shell preference while consent is missing.
-    if (menuBlocked()) return
+    if (consentBlocked()) return
     scale = clamp(next, PET_SCALE_MIN, PET_SCALE_MAX)
     // Text follows the pet scale by default; A-/A+ remains an independent override.
     textScale = clamp(scale, TEXT_SCALE_MIN, TEXT_SCALE_MAX)
@@ -469,7 +614,7 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
     applyScale()
   }
   const setTextScale = (next: number): void => {
-    if (menuBlocked()) return
+    if (consentBlocked()) return
     textScale = clamp(next, TEXT_SCALE_MIN, TEXT_SCALE_MAX)
     writeNumber(TEXT_SCALE_KEY, textScale)
     applyScale()
@@ -498,7 +643,51 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
   }
 
   let menuOpen = false
+  let menuView: ShellMenuView = 'root'
   let returnFocus: HTMLElement | null = null
+
+  // ------------------------------------------------------------------
+  // Settings-backed shell state (task-65)
+  // ------------------------------------------------------------------
+  // 默认没有任何角色外常驻按钮: the ⋯ trigger is hidden unless the stored
+  // preference says otherwise; right-click / Shift+F10 / ContextMenu still
+  // open the menu. pet.html also ships the button with a static `hidden`
+  // attribute so the first paint cannot flash it.
+  let showMenuButton = resolveShowMenuButton()
+  const applyTriggerVisibility = (visible: boolean): void => {
+    if (!trigger) return
+    trigger.hidden = !visible
+    trigger.tabIndex = visible ? 0 : -1
+    trigger.dataset.visible = visible ? '1' : '0'
+  }
+  applyTriggerVisibility(showMenuButton)
+
+  const prefersReduceMotion = (): boolean => {
+    try {
+      return typeof winRef.matchMedia === 'function' && winRef.matchMedia('(prefers-reduced-motion: reduce)').matches
+    } catch {
+      return false
+    }
+  }
+  let reduceMotion = resolveReduceMotion(undefined, prefersReduceMotion())
+  /** Apply + persist 减少动态: CSS tokens collapse and main.ts pauses hero ticks. */
+  const applyReduceMotion = (enabled: boolean, persist = true): void => {
+    reduceMotion = enabled
+    try {
+      docRef.documentElement.dataset.reduceMotion = enabled ? '1' : '0'
+    } catch {}
+    if (persist) writeStoredFlag(REDUCE_MOTION_KEY, enabled)
+  }
+  applyReduceMotion(reduceMotion, false)
+
+  // Dev/E2E-only entry point (完整面板). Never rendered in the release menu.
+  const debugMode = debugShellFromSearch(winRef.location.search) || isViteDevBuild()
+
+  // The settings dialog is body-level like the menu/content center. It is
+  // created below; these state holders are declared first so the menu and the
+  // consent-overlay handler can coordinate with it.
+  let settingsOpen = false
+  let settingsReturnFocus: HTMLElement | null = null
 
   const menuItems = (): HTMLButtonElement[] =>
     Array.from(menu.querySelectorAll<HTMLButtonElement>('button[role="menuitem"], button[role="menuitemradio"]'))
@@ -604,113 +793,187 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
       })
       row.append(button)
     }
-    addHeading('汀岚 · 桌面')
-    // V1 typed input (PET-INPUT-OUTPUT-DESIGN-2026-11-17 §2): same window, no
-    // resize/new window. The composer is local-only (no LLM/Advisers writes) and
-    // its own controller re-checks the consent gate at open/submit time.
-    add('交办 / 打字输入…', () => { openComposer?.() })
-    if (heroActive()) {
-      // Hero canvas is drawing: the folded-paper DOM buttons are hidden by
-      // pet.css, so route the same intents through hero.emit() data events.
-      const items = options.getHeroActions?.() ?? heroMenuActions(true)
-      for (const item of items) {
-        add(item.label, () => { onHeroAction?.(item.action) })
+    const addSubmenu = (label: string, view: Exclude<ShellMenuView, 'root'>): void => {
+      const button = docRef.createElement('button')
+      button.type = 'button'
+      button.setAttribute('role', 'menuitem')
+      button.setAttribute('aria-haspopup', 'menu')
+      button.tabIndex = -1
+      button.dataset.action = `nav:${view}`
+      button.dataset.submenu = view
+      button.textContent = `${label} ▸`
+      button.addEventListener('click', (event) => {
+        event.stopPropagation()
+        if (menuBlocked()) {
+          closeMenu(false)
+          return
+        }
+        setMenuView(view)
+      })
+      menu.append(button)
+    }
+    // Every sub-menu starts with 返回 (task-65: 二级必须有返回), which returns
+    // focus to the parent entry instead of dropping it on the page.
+    const addBack = (parentAction: string): void => {
+      const button = docRef.createElement('button')
+      button.type = 'button'
+      button.setAttribute('role', 'menuitem')
+      button.tabIndex = -1
+      button.dataset.action = 'nav:back'
+      button.textContent = '← 返回'
+      button.addEventListener('click', (event) => {
+        event.stopPropagation()
+        setMenuView('root', parentAction)
+      })
+      menu.append(button)
+    }
+
+    if (menuView === 'root') {
+      // Root stays at FIVE entries (task-65 / UX review §7.2): common actions
+      // first, complex or low-frequency surfaces in 互动…/更多… or 设置…. No
+      // dev/E2E entry, no legal/dangerous action and no inline scale rows here.
+      add('交办 / 打字输入…', () => { openComposer?.() }, '', 'menu/U-MENU-01a_32x32.png')
+      addSubmenu('互动', 'interact')
+      // ONE consolidated role/content entry: role one-click themes,
+      // per-component customisation, local pack import and the remote-market
+      // entry all live in the role & content center. The four old 「渲染器：…」
+      // rows are intentionally NOT rendered any more.
+      add('角色与内容中心…', () => { openContentHub?.() }, '', 'menu/U-MENU-08a_32x32.png')
+      add('设置…', () => { openSettings() }, '', 'menu/U-MENU-07a_32x32.png')
+      addSubmenu('更多', 'more')
+    } else if (menuView === 'interact') {
+      addBack('nav:interact')
+      addHeading(heroActive() ? '互动 · 当前角色' : '互动 · 折纸')
+      if (heroActive()) {
+        // Hero canvas is drawing: the folded-paper DOM buttons are hidden by
+        // pet.css, so route the same intents through hero.emit() data events.
+        const items = options.getHeroActions?.() ?? heroMenuActions(true)
+        for (const item of items) {
+          add(item.label, () => { onHeroAction?.(item.action) })
+        }
+      } else {
+        // Origami mode keeps the original folded-paper actions unchanged.
+        add('摸摸', () => click('pat'), '', 'menu/U-MENU-01a_32x32.png')
+        add('给纸片', () => click('give'), '', 'menu/U-MENU-02a_32x32.png')
+        add('折一下', () => click('fold'), '', 'menu/U-MENU-03a_32x32.png')
       }
     } else {
-      // Origami mode keeps the original folded-paper actions unchanged.
-      add('摸摸', () => click('pat'), '', 'menu/U-MENU-01a_32x32.png')
-      add('给纸片', () => click('give'), '', 'menu/U-MENU-02a_32x32.png')
-      add('折一下', () => click('fold'), '', 'menu/U-MENU-03a_32x32.png')
-    }
-    add('折页簿', () => click('memory-book'), '', 'menu/U-MENU-04a_32x32.png')
-    add('导入 DeepSeek 网页会话…', openImportWithConsent, '', 'menu/U-MENU-05a_32x32.png')
-    add('Advisers 开关', () => click('advisers-toggle'), '', 'menu/U-MENU-06a_32x32.png')
-    // Desktop shell hides aside.panel: surface the read-only status + retry in
-    // the menu so the hardened Advisers hook is reachable there too. Only the
-    // already-sanitized status text/retry affordance is read; no brief content.
-    const advisers = advisersBridge()
-    if (advisers?.status) {
-      const view = describeAdvisersFaceView(advisers.status)
-      addHeading(view.text)
-      // displayPolicy: explicit `public` must be visible as such everywhere the
-      // brief is surfaced; private/none get a short policy line. Only fixed
-      // policy copy is added — never brief content or counts.
-      if (advisers.status.displayPolicy !== undefined) {
-        addHeading(`简报策略：${resolveAdvisersPanelPolicy(advisers.status).badge}`)
+      addBack('nav:more')
+      addHeading('折页簿 / 导入')
+      add('折页簿', () => click('memory-book'), '', 'menu/U-MENU-04a_32x32.png')
+      add('导入 DeepSeek 网页会话…', openImportWithConsent, '', 'menu/U-MENU-05a_32x32.png')
+      addHeading('Advisers（只读，可选）')
+      add('Advisers 开关', () => click('advisers-toggle'), '', 'menu/U-MENU-06a_32x32.png')
+      // Desktop shell hides aside.panel: surface the read-only status + retry in
+      // the menu so the hardened Advisers hook is reachable there too. Only the
+      // already-sanitized status text/retry affordance is read; no brief content.
+      const advisers = advisersBridge()
+      if (advisers?.status) {
+        const view = describeAdvisersFaceView(advisers.status)
+        addHeading(view.text)
+        // displayPolicy: explicit `public` must be visible as such everywhere the
+        // brief is surfaced; private/none get a short policy line. Only fixed
+        // policy copy is added — never brief content or counts.
+        if (advisers.status.displayPolicy !== undefined) {
+          addHeading(`简报策略：${resolveAdvisersPanelPolicy(advisers.status).badge}`)
+        }
+        add('打开 Advisers 简报…', () => click('advisers-status'))
+        if (view.retryLabel !== null) {
+          add(`Advisers ${view.retryLabel}`, () => { void advisers.retry?.() })
+        }
       }
-      add('打开 Advisers 简报…', () => click('advisers-status'))
-      if (view.retryLabel !== null) {
-        add(`Advisers ${view.retryLabel}`, () => { void advisers.retry?.() })
+      addHeading('保存 / 读取')
+      // main.ts owns the encrypted save path + user feedback; fall back to the
+      // existing hidden buttons so no caller can bypass it.
+      add('保存', () => { if (options.saveArchive) options.saveArchive(); else click('save') })
+      add('读取', () => { if (options.loadArchive) options.loadArchive(); else click('load') })
+      addHeading('窗口 / 工具')
+      add('模型 / API Key 设置…', openSetup, '', 'menu/U-MENU-07a_32x32.png')
+      addHeading(`宠物缩放 · ${formatScaleLabel(scale)}`)
+      const scaleRow = docRef.createElement('div')
+      scaleRow.className = 'pet-menu-inline'
+      scaleRow.setAttribute('role', 'group')
+      scaleRow.setAttribute('aria-label', `宠物缩放，当前 ${formatScaleLabel(scale)}`)
+      for (const value of [1, 2, 3, 4]) {
+        addInline(scaleRow, {
+          label: formatScaleLabel(value),
+          actionId: `scale:${value}`,
+          role: 'menuitemradio',
+          checked: value === scale,
+          onActivate: () => {
+            setScale(value)
+            renderMenu(`scale:${clamp(value, PET_SCALE_MIN, PET_SCALE_MAX)}`)
+          },
+        })
       }
-    }
-    add('模型 / API Key 设置…', openSetup, '', 'menu/U-MENU-07a_32x32.png')
-    // ONE consolidated content entry (right-click menu stays short): roles,
-    // voices, dialogue, theme/background/font all live in the content center.
-    // The four old 「渲染器：…」 rows are intentionally NOT rendered any more;
-    // the character switch inside the panel still uses applyRendererChoice().
-    add('内容中心（角色/声音/主题/对话）…', () => { openContentHub?.() }, '', 'menu/U-MENU-08a_32x32.png')
-    addHeading(`宠物缩放 · ${formatScaleLabel(scale)}`)
-    const scaleRow = docRef.createElement('div')
-    scaleRow.className = 'pet-menu-inline'
-    scaleRow.setAttribute('role', 'group')
-    scaleRow.setAttribute('aria-label', `宠物缩放，当前 ${formatScaleLabel(scale)}`)
-    for (const value of [1, 2, 3, 4]) {
-      addInline(scaleRow, {
-        label: formatScaleLabel(value),
-        actionId: `scale:${value}`,
-        role: 'menuitemradio',
-        checked: value === scale,
+      menu.append(scaleRow)
+      addHeading(`文字大小 ${Math.round(textScale * 100)}%`)
+      const textRow = docRef.createElement('div')
+      textRow.className = 'pet-menu-inline'
+      textRow.setAttribute('role', 'group')
+      textRow.setAttribute('aria-label', '文字大小')
+      addInline(textRow, {
+        label: 'A−',
+        actionId: 'text:minus',
+        role: 'menuitem',
+        disabled: textScale <= TEXT_SCALE_MIN + 1e-9,
         onActivate: () => {
-          setScale(value)
-          renderMenu(`scale:${clamp(value, PET_SCALE_MIN, PET_SCALE_MAX)}`)
+          setTextScale(textScale - 0.1)
+          renderMenu('text:minus')
         },
       })
+      addInline(textRow, {
+        label: 'A+',
+        actionId: 'text:plus',
+        role: 'menuitem',
+        disabled: textScale >= TEXT_SCALE_MAX - 1e-9,
+        onActivate: () => {
+          setTextScale(textScale + 0.1)
+          renderMenu('text:plus')
+        },
+      })
+      menu.append(textRow)
+      addHeading('关于 / 声明 / 数据控制')
+      add('关于与声明（完整 TOS/免责声明/数据控制）…', openAboutPanel, '', 'menu/U-MENU-09a_32x32.png')
+      // 2026-11-17 user decision: roleplay is NOT a public gameplay/selling point
+      // or visible entry. The menu deliberately creates no roleplay entry; the
+      // internal gate/flow and the TOS/legal roleplay provisions are retained.
+      // Data controls (P0 R-P0-06) are also reachable from the desktop menu (the
+      // About panel is where the full explanation lives). Each opens the same
+      // explicit 2-step dialog; declining/cancelling changes nothing.
+      add('撤回同意（停止处理，二次确认）…', () => {
+        void requestWithdrawConsent().catch(() => {})
+      })
+      add('删除全部本地数据（二次确认，残留会列出）…', () => {
+        void requestDeleteAllLocalData().catch(() => {})
+      })
+      add('TTS 声明与语音确认…', () => click('tts-consent'))
+      // 完整面板 (dev/E2E) is NEVER in the release menu (task-65): it exists
+      // only for an explicit ?debug=1 / ?dev=1 URL or the Vite dev build.
+      if (debugMode) {
+        add('完整面板（开发/E2E）', () => { winRef.location.search = '?shell=window' })
+      }
+      add('退出', () => winRef.close(), '', 'menu/U-MENU-10a_32x32.png')
     }
-    menu.append(scaleRow)
-    addHeading(`文字大小 ${Math.round(textScale * 100)}%`)
-    const textRow = docRef.createElement('div')
-    textRow.className = 'pet-menu-inline'
-    textRow.setAttribute('role', 'group')
-    textRow.setAttribute('aria-label', '文字大小')
-    addInline(textRow, {
-      label: 'A−',
-      actionId: 'text:minus',
-      role: 'menuitem',
-      disabled: textScale <= TEXT_SCALE_MIN + 1e-9,
-      onActivate: () => {
-        setTextScale(textScale - 0.1)
-        renderMenu('text:minus')
-      },
-    })
-    addInline(textRow, {
-      label: 'A+',
-      actionId: 'text:plus',
-      role: 'menuitem',
-      disabled: textScale >= TEXT_SCALE_MAX - 1e-9,
-      onActivate: () => {
-        setTextScale(textScale + 0.1)
-        renderMenu('text:plus')
-      },
-    })
-    menu.append(textRow)
-    addHeading('窗口 / 声明')
-    add('关于与声明（完整 TOS/免责声明/数据控制）…', openAboutPanel, '', 'menu/U-MENU-09a_32x32.png')
-    // 2026-11-17 user decision: roleplay is NOT a public gameplay/selling point
-    // or visible entry. The menu deliberately creates no roleplay entry; the
-    // internal gate/flow and the TOS/legal roleplay provisions are retained.
-    // Data controls (P0 R-P0-06) are also reachable from the desktop menu (the
-    // About panel is where the full explanation lives). Each opens the same
-    // explicit 2-step dialog; declining/cancelling changes nothing.
-    add('撤回同意（停止处理，二次确认）…', () => {
-      void requestWithdrawConsent().catch(() => {})
-    })
-    add('删除全部本地数据（二次确认，残留会列出）…', () => {
-      void requestDeleteAllLocalData().catch(() => {})
-    })
-    add('TTS 声明与语音确认…', () => click('tts-consent'))
-    add('完整面板（开发/E2E）', () => { winRef.location.search = '?shell=window' })
-    add('退出', () => winRef.close(), '', 'menu/U-MENU-10a_32x32.png')
     if (focusAction !== undefined) focusActionItem(focusAction)
+  }
+
+  /** Menu level switch (root → 互动/更多 and back); focus follows the level. */
+  const setMenuView = (view: ShellMenuView, focusAction?: string): void => {
+    menuView = view
+    renderMenu(focusAction)
+  }
+
+  /** Last pointer anchor so a sub-menu re-render can re-clamp inside the window. */
+  let menuAnchor = { x: 4, y: 4 }
+  const positionMenu = (): void => {
+    menu.style.left = '0px'
+    menu.style.top = '0px'
+    const rect = menu.getBoundingClientRect()
+    const left = Math.max(4, Math.min(menuAnchor.x, winRef.innerWidth - rect.width - 4))
+    const top = Math.max(4, Math.min(menuAnchor.y, winRef.innerHeight - rect.height - 4))
+    menu.style.left = `${left}px`
+    menu.style.top = `${top}px`
   }
 
   /**
@@ -730,27 +993,27 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
     if (!menuOpen) {
       const active = docRef.activeElement
       returnFocus = active instanceof HTMLElement ? active : trigger
+      menuView = 'root'
       renderMenu()
     }
-    menu.style.left = '0px'
-    menu.style.top = '0px'
-    const rect = menu.getBoundingClientRect()
-    const left = Math.max(4, Math.min(x, winRef.innerWidth - rect.width - 4))
-    const top = Math.max(4, Math.min(y, winRef.innerHeight - rect.height - 4))
-    menu.style.left = `${left}px`
-    menu.style.top = `${top}px`
+    menuAnchor = { x, y }
     menu.inert = false
     menu.dataset.state = 'open'
     menu.setAttribute('aria-hidden', 'false')
     trigger?.setAttribute('aria-expanded', 'true')
     menuOpen = true
     setConsentState()
+    positionMenu()
     focusMenuItem(0)
     return true
   }
 
   const openFromTrigger = (): boolean => {
-    const anchor = (trigger ?? pet).getBoundingClientRect()
+    // A hidden ⋯ trigger has no measurable rect: anchor the keyboard menu to
+    // the pet instead of the viewport corner.
+    const visibleTrigger = trigger && !trigger.hidden ? trigger : null
+    const anchorEl = visibleTrigger ?? pet
+    const anchor = anchorEl.getBoundingClientRect()
     return openMenuAt(anchor.left, anchor.top - 4)
   }
 
@@ -774,6 +1037,19 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
     }
     const items = focusableMenuItems()
     const current = items.indexOf(docRef.activeElement as HTMLButtonElement)
+    // 互动…/更多… are real sub-levels: ArrowRight enters, ArrowLeft goes back.
+    const activeButton = docRef.activeElement as HTMLButtonElement | null
+    const activeSubmenu = activeButton?.dataset?.submenu
+    if (event.key === 'ArrowRight' && (activeSubmenu === 'interact' || activeSubmenu === 'more')) {
+      event.preventDefault()
+      setMenuView(activeSubmenu)
+      return
+    }
+    if (event.key === 'ArrowLeft' && menuView !== 'root') {
+      event.preventDefault()
+      setMenuView('root', `nav:${menuView}`)
+      return
+    }
     if (event.key === 'Tab') {
       event.preventDefault()
       const target = menuTabTarget(event.shiftKey, current, items.length)
@@ -803,10 +1079,14 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
     const detail = (event as CustomEvent<ConsentOverlayEventDetail>).detail
     if (!detail || detail.open) {
       closeMenu(false)
+      // The settings dialog is body-level chrome too: a TOS/TTS/blocked modal
+      // must never leave it focusable behind the consent layer.
+      closeSettings(false)
       setConsentState()
       return
     }
     if (menuBlocked()) closeMenu(false)
+    closeSettings(false)
     // The modal's unlock removes the inert attribute it set on body-level
     // siblings; a closed menu must remain inert/tab-invisible after that.
     if (menuOpen) closeMenu(false)
@@ -814,6 +1094,426 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
     setConsentState()
   }
   docRef.addEventListener(CONSENT_OVERLAY_EVENT, onConsentOverlay)
+
+  // -------------------------------------------------------------------------
+  // 总设置 dialog (#pet-settings)
+  //
+  // One body-level modal, opened from 设置… or 更多… (and later from a tray/
+  // settings window). Groups follow the UX/psychology reviews:
+  //  常用 (menu-button visibility, mute/volume, reduce motion, reset, save/load)
+  //  外观 (pet/text scale, role & content center)
+  //  隐私 / Advisers (read-only brief, local-only note)
+  //  关于 / 声明 / 数据控制 (TOS, TTS declaration, withdraw, delete-all)
+  //  高级/调试 (ONLY ?debug=1 or the Vite dev build; release never shows it).
+  // Escape/Tab are trapped, the closed dialog stays inert, and every consent
+  // overlay closes it through the listener above.
+  // -------------------------------------------------------------------------
+  let settingsDom: SettingsDom | null = null
+
+  const settingsAudio = (): { muted: boolean; volume: number } => {
+    try {
+      const current = options.getAudioState?.()
+      if (current && Number.isFinite(current.volume)) {
+        return { muted: current.muted === true, volume: clamp(Math.round(current.volume), 0, 100) }
+      }
+    } catch {}
+    return { muted: false, volume: 70 }
+  }
+
+  const settingsStatus = (text: string): void => {
+    if (settingsDom) settingsDom.status.textContent = text
+  }
+
+  function settingsFocusable(): HTMLElement[] {
+    if (!settingsDom) return []
+    return Array.from(settingsDom.root.querySelectorAll<HTMLElement>('button, input, select, a[href]')).filter((element) => {
+      const input = element as HTMLInputElement
+      return !(element as HTMLButtonElement).disabled && !element.hidden && input.type !== 'hidden'
+    })
+  }
+
+  function focusSettingsFirst(): void {
+    const items = settingsFocusable()
+    const first = items[0]
+    if (first) first.focus()
+    else settingsDom?.root.focus()
+  }
+
+  /** Open the settings dialog; false when consent/modal state refuses it. */
+  function openSettings(): boolean {
+    if (consentBlocked() || !settingsDom) return false
+    closeMenu(false)
+    const previous = docRef.activeElement
+    // A menu item is about to become inert, so prefer it only when it is not
+    // inside the menu; otherwise fall back to the (visible) ⋯ trigger.
+    const fromMenu = previous !== null && menu.contains(previous)
+    settingsReturnFocus = fromMenu ? null : previous instanceof HTMLElement ? previous : null
+    if (!settingsReturnFocus && trigger && !trigger.hidden) settingsReturnFocus = trigger
+    refreshSettings()
+    if (settingsDom.status) settingsDom.status.textContent = ''
+    settingsDom.root.inert = false
+    settingsDom.root.setAttribute('aria-hidden', 'false')
+    settingsDom.root.dataset.state = 'open'
+    settingsOpen = true
+    focusSettingsFirst()
+    return true
+  }
+
+  /** Close the settings dialog and restore focus to the opener when possible. */
+  function closeSettings(restoreFocus = true): void {
+    if (!settingsOpen || !settingsDom) return
+    settingsOpen = false
+    settingsDom.root.dataset.state = 'closed'
+    settingsDom.root.setAttribute('aria-hidden', 'true')
+    settingsDom.root.inert = true
+    if (restoreFocus) {
+      const fallback = trigger && !trigger.hidden ? trigger : null
+      const target = settingsReturnFocus && settingsReturnFocus.isConnected ? settingsReturnFocus : fallback
+      if (target) target.focus()
+      else {
+        // No visible opener (hidden ⋯ trigger): do not leave focus on the
+        // now-inert dialog.
+        const active = docRef.activeElement as HTMLElement | null
+        if (typeof active?.blur === 'function') active.blur()
+      }
+    }
+    settingsReturnFocus = null
+  }
+
+  /** Re-read every value from the live shell state into the dialog controls. */
+  function refreshSettings(): void {
+    if (!settingsDom) return
+    settingsDom.showMenuButton.checked = showMenuButton
+    const audio = settingsAudio()
+    settingsDom.mute.checked = audio.muted
+    settingsDom.volume.value = String(audio.volume)
+    settingsDom.volumeValue.textContent = `${audio.volume}%`
+    settingsDom.reduceMotion.checked = reduceMotion
+    for (const button of settingsDom.scaleButtons) {
+      const activeValue = Number(button.dataset.scale)
+      button.setAttribute('aria-pressed', activeValue === scale ? 'true' : 'false')
+      if (activeValue === scale) button.classList.add('active')
+      else button.classList.remove('active')
+    }
+    settingsDom.textValue.textContent = `${Math.round(textScale * 100)}%`
+    settingsDom.textMinus.disabled = textScale <= TEXT_SCALE_MIN + 1e-9
+    settingsDom.textPlus.disabled = textScale >= TEXT_SCALE_MAX - 1e-9
+  }
+
+  function buildSettingsModal(): SettingsDom {
+    const root = makeElement(docRef, 'div', 'pet-settings')
+    root.id = SETTINGS_ID
+    root.setAttribute('role', 'dialog')
+    root.setAttribute('aria-modal', 'true')
+    root.setAttribute('aria-labelledby', 'pet-settings-title')
+    root.setAttribute('aria-hidden', 'true')
+    root.dataset.state = 'closed'
+    root.tabIndex = -1
+    root.inert = true
+
+    const backdrop = makeElement(docRef, 'div', 'pet-settings-backdrop')
+    backdrop.setAttribute('aria-hidden', 'true')
+    const card = makeElement(docRef, 'div', 'pet-settings-card')
+    const head = makeElement(docRef, 'div', 'pet-settings-head')
+    const title = makeElement(docRef, 'h2', 'pet-settings-title', '桌面设置')
+    title.id = 'pet-settings-title'
+    const closeButton = makeElement(docRef, 'button', 'pet-settings-close', '关闭')
+    closeButton.id = 'pet-settings-close'
+    closeButton.type = 'button'
+    closeButton.setAttribute('aria-label', '关闭设置')
+    head.append(title, closeButton)
+
+    const status = makeElement(docRef, 'p', 'pet-settings-status')
+    status.id = 'pet-settings-status'
+    status.setAttribute('role', 'status')
+    status.setAttribute('aria-live', 'polite')
+
+    const group = (headingText: string): HTMLElement => {
+      const section = makeElement(docRef, 'section', 'pet-settings-group')
+      section.append(makeElement(docRef, 'h3', 'pet-settings-group-title', headingText))
+      return section
+    }
+    const field = (className = 'pet-settings-field'): HTMLElement => makeElement(docRef, 'div', className)
+    const note = (text: string): HTMLElement => makeElement(docRef, 'p', 'pet-settings-note', text)
+    const action = (
+      id: string,
+      label: string,
+      onClick: () => void,
+      className = 'pet-settings-action',
+    ): HTMLButtonElement => {
+      const button = makeElement(docRef, 'button', className, label)
+      button.id = id
+      button.type = 'button'
+      button.addEventListener('click', (event) => {
+        event.stopPropagation()
+        // Re-check at activation time: a consent overlay can open after render.
+        if (consentBlocked()) return
+        onClick()
+      })
+      return button
+    }
+    const checkbox = (
+      id: string,
+      labelText: string,
+      checked: boolean,
+      onChange: (checked: boolean) => void,
+      hint?: string,
+    ): { wrap: HTMLElement; input: HTMLInputElement } => {
+      const wrap = field()
+      const label = makeElement(docRef, 'label', 'pet-settings-check')
+      label.setAttribute('for', id)
+      const input = docRef.createElement('input')
+      input.type = 'checkbox'
+      input.id = id
+      input.checked = checked
+      input.addEventListener('change', () => onChange(input.checked))
+      label.append(input, makeElement(docRef, 'span', 'pet-settings-check-text', labelText))
+      wrap.append(label)
+      if (hint !== undefined) wrap.append(note(hint))
+      return { wrap, input }
+    }
+    const chipRow = (): HTMLElement => makeElement(docRef, 'div', 'pet-settings-chips')
+
+    // --- 常用 ---------------------------------------------------------
+    const common = group('常用')
+    const audioNow = settingsAudio()
+    const showMenu = checkbox(
+      'pet-settings-show-menu-button',
+      '显示菜单按钮（⋯）',
+      showMenuButton,
+      (checked) => {
+        showMenuButton = checked
+        applyTriggerVisibility(checked)
+        writeStoredFlag(SHOW_MENU_BUTTON_KEY, checked)
+        settingsStatus(checked ? '已显示 ⋯：可以点它打开菜单。' : '已隐藏 ⋯：右键或 Shift+F10 仍可打开菜单。')
+      },
+      '默认隐藏，角色周围不常驻任何按钮；隐藏后右键 / Shift+F10 / ContextMenu 仍可打开菜单。',
+    )
+    const muteField = checkbox(
+      'pet-settings-mute',
+      '静音（不播放语音）',
+      audioNow.muted,
+      (checked) => {
+        options.setMuted?.(checked)
+        refreshSettings()
+        settingsStatus(checked ? '已静音；字幕/气泡仍会显示。' : '已取消静音；语音播放仍受 TTS 声明约束。')
+      },
+      '只影响语音播放；字幕与气泡不属于语音。',
+    )
+    const volumeField = field('pet-settings-field pet-settings-volume-field')
+    const volumeLabel = makeElement(docRef, 'label', 'pet-settings-label', '音量')
+    volumeLabel.setAttribute('for', 'pet-settings-volume')
+    const volumeInput = docRef.createElement('input')
+    volumeInput.type = 'range'
+    volumeInput.id = 'pet-settings-volume'
+    volumeInput.min = '0'
+    volumeInput.max = '100'
+    volumeInput.step = '5'
+    volumeInput.value = String(audioNow.volume)
+    const volumeValue = makeElement(docRef, 'span', 'pet-settings-value', `${audioNow.volume}%`)
+    volumeInput.addEventListener('input', () => {
+      const next = Number(volumeInput.value)
+      options.setVolume?.(Number.isFinite(next) ? next : 0)
+      volumeValue.textContent = `${Math.round(Number(volumeInput.value))}%`
+    })
+    // Volume is part of the TTS config: re-confirm the declaration on release.
+    volumeInput.addEventListener('change', () => { options.onVolumeCommit?.() })
+    volumeField.append(volumeLabel, volumeInput, volumeValue)
+    const reduceField = checkbox(
+      'pet-settings-reduce-motion',
+      '减少动态（暂停界面动效）',
+      reduceMotion,
+      (checked) => {
+        applyReduceMotion(checked)
+        refreshSettings()
+        settingsStatus(checked ? '已减少动态：过渡/循环动画暂停，角色画布只保留静态帧。' : '已恢复动效。')
+      },
+      '系统开启「减少动态」时默认勾选；角色画布会停止逐帧动画，交互仍可用。',
+    )
+    const resetWindowField = field()
+    resetWindowField.append(
+      action('pet-settings-reset-window', '复位窗口到右下角', () => {
+        if (options.resetWindow) options.resetWindow()
+        else click('reset-window')
+        settingsStatus('已请求把窗口移回右下角。')
+      }),
+    )
+    const archiveField = field('pet-settings-field pet-settings-actions')
+    archiveField.append(
+      action('pet-settings-save', '保存', () => {
+        if (options.saveArchive) options.saveArchive()
+        else click('save')
+        settingsStatus('已请求保存本机存档。')
+      }),
+      action('pet-settings-load', '读取', () => {
+        if (options.loadArchive) options.loadArchive()
+        else click('load')
+        settingsStatus('已请求读取本机存档。')
+      }),
+    )
+    common.append(showMenu.wrap, muteField.wrap, volumeField, reduceField.wrap, resetWindowField, archiveField)
+
+    // --- 外观 ---------------------------------------------------------
+    const appearance = group('外观')
+    const scaleField = field()
+    scaleField.append(makeElement(docRef, 'span', 'pet-settings-label', `宠物缩放 · ${formatScaleLabel(scale)}`))
+    const scaleRow = chipRow()
+    const scaleButtons: HTMLButtonElement[] = []
+    for (const value of [1, 2, 3, 4]) {
+      const button = action(
+        `pet-settings-scale-${value}`,
+        formatScaleLabel(value),
+        () => {
+          setScale(value)
+          refreshSettings()
+          settingsStatus(`宠物缩放设为 ${formatScaleLabel(value)}。`)
+        },
+        'pet-settings-chip',
+      )
+      button.dataset.scale = String(value)
+      scaleButtons.push(button)
+      scaleRow.append(button)
+    }
+    scaleField.append(scaleRow)
+    const textField = field()
+    const textLabel = makeElement(docRef, 'span', 'pet-settings-label', '文字大小')
+    const textValue = makeElement(docRef, 'span', 'pet-settings-value', `${Math.round(textScale * 100)}%`)
+    const textRow = chipRow()
+    const textMinus = action('pet-settings-text-minus', 'A−', () => {
+      setTextScale(textScale - 0.1)
+      refreshSettings()
+    }, 'pet-settings-chip')
+    const textPlus = action('pet-settings-text-plus', 'A+', () => {
+      setTextScale(textScale + 0.1)
+      refreshSettings()
+    }, 'pet-settings-chip')
+    const textReset = action('pet-settings-text-reset', '重置', () => {
+      setTextScale(scale)
+      refreshSettings()
+    }, 'pet-settings-chip')
+    textRow.append(textMinus, textPlus, textReset)
+    textField.append(textLabel, textRow, textValue)
+    const contentField = field('pet-settings-field pet-settings-actions')
+    contentField.append(
+      action('pet-settings-content-hub', '角色与内容中心…', () => {
+        closeSettings(false)
+        openContentHub?.()
+      }),
+    )
+    appearance.append(scaleField, textField, contentField)
+
+    // --- 隐私 / Advisers ---------------------------------------------
+    const privacy = group('隐私 / Advisers')
+    privacy.append(
+      note('Advisers 只读本机 pet-brief.json：不读数据库、不上传、不写账本。简报内容本身不在设置里展示。'),
+    )
+    const advisersField = field('pet-settings-field pet-settings-actions')
+    advisersField.append(
+      action('pet-settings-advisers-panel', '打开 Advisers 只读简报…', () => {
+        closeSettings(false)
+        click('advisers-status')
+      }),
+      action('pet-settings-advisers-toggle', 'Advisers 开关', () => {
+        closeSettings(false)
+        click('advisers-toggle')
+      }),
+    )
+    privacy.append(advisersField)
+
+    // --- 关于 / 声明 / 数据控制 ---------------------------------------
+    const aboutGroup = group('关于 / 声明 / 数据控制')
+    const aboutField = field('pet-settings-field pet-settings-actions')
+    aboutField.append(
+      action('pet-settings-about', '关于与声明（完整 TOS/免责声明/数据控制）…', () => {
+        closeSettings(false)
+        openAboutPanel()
+      }),
+      action('pet-settings-tts', 'TTS 声明与语音确认…', () => {
+        closeSettings(false)
+        click('tts-consent')
+      }),
+    )
+    const dangerField = field('pet-settings-field pet-settings-actions')
+    dangerField.append(
+      action('pet-settings-withdraw', '撤回同意…', () => {
+        closeSettings(false)
+        void requestWithdrawConsent().catch(() => {})
+      }, 'pet-settings-action pet-settings-danger'),
+      action('pet-settings-delete-all', '删除全部本地数据…', () => {
+        closeSettings(false)
+        void requestDeleteAllLocalData().catch(() => {})
+      }, 'pet-settings-action pet-settings-danger'),
+    )
+    aboutGroup.append(aboutField, dangerField)
+
+    const cardChildren: HTMLElement[] = [head, status, common, appearance, privacy, aboutGroup]
+
+    // --- 高级 / 调试 (never rendered in the release menu) --------------
+    if (debugMode) {
+      const advanced = makeElement(docRef, 'details', 'pet-settings-advanced')
+      advanced.append(makeElement(docRef, 'summary', 'pet-settings-advanced-title', '高级 / 调试（仅 ?debug=1）'))
+      const advancedField = field('pet-settings-field pet-settings-actions')
+      advancedField.append(
+        action('pet-settings-full-panel', '完整面板（开发/E2E）', () => {
+          closeSettings(false)
+          winRef.location.search = '?shell=window'
+        }),
+        action('pet-settings-setup', '模型 / API Key 设置…', () => {
+          closeSettings(false)
+          openSetup()
+        }),
+      )
+      advanced.append(advancedField)
+      cardChildren.push(advanced)
+    }
+
+    card.append(...cardChildren)
+    root.append(backdrop, card)
+
+    backdrop.addEventListener('click', () => closeSettings())
+    closeButton.addEventListener('click', () => closeSettings())
+    root.addEventListener('keydown', (event) => {
+      if (!settingsOpen) return
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        event.stopPropagation()
+        closeSettings()
+        return
+      }
+      if (event.key === 'Tab') {
+        const items = settingsFocusable()
+        event.preventDefault()
+        const target = menuTabTarget(event.shiftKey, items.indexOf(docRef.activeElement as HTMLElement), items.length)
+        if (target !== null) items[target]!.focus()
+      }
+    })
+
+    docRef.body.append(root)
+    return {
+      root,
+      status,
+      showMenuButton: showMenu.input,
+      mute: muteField.input,
+      volume: volumeInput,
+      volumeValue,
+      reduceMotion: reduceField.input,
+      scaleButtons,
+      textMinus,
+      textPlus,
+      textValue,
+    }
+  }
+
+  settingsDom = buildSettingsModal()
+  refreshSettings()
+
+  // Closing the window/clicking the desktop away closes body-level chrome too
+  // (the menu's outside-click path cannot see a click that lands on another
+  // application, so window blur is the desktop-shell equivalent).
+  winRef.addEventListener('blur', () => {
+    if (menuOpen) closeMenu()
+    if (settingsOpen) closeSettings()
+  })
 
   // Left-drag the pet to move the window (Tauri), while a short left click
   // remains a pet interaction. The 6px threshold mirrors the hero canvas.
@@ -843,6 +1543,9 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
 
   docRef.addEventListener('contextmenu', (event) => {
     event.preventDefault()
+    // The settings dialog already covers the window with its own backdrop;
+    // never let a right-click open the menu behind/above it.
+    if (settingsOpen) return
     // Never open the body-level menu while the TOS/read-only screen is up.
     if (menuBlocked()) {
       closeMenu(false)
@@ -853,13 +1556,22 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
     openMenuAt(event.clientX, event.clientY)
   })
   docRef.addEventListener('pointerdown', (event) => {
-    if (!menuOpen) return
     const target = event.target as Node | null
+    if (settingsOpen) {
+      if (target && settingsDom?.root.contains(target)) return
+      closeSettings()
+      return
+    }
+    if (!menuOpen) return
     if (target && (menu.contains(target) || (trigger?.contains(target) ?? false))) return
     closeMenu()
   })
   docRef.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
+      if (settingsOpen) {
+        closeSettings()
+        return
+      }
       if (menuOpen) closeMenu()
       return
     }
@@ -878,6 +1590,11 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
     if (menuOpen && event.key === 'Tab' && !menu.contains(event.target as Node)) {
       event.preventDefault()
       focusMenuItem(0)
+      return
+    }
+    if (settingsOpen && event.key === 'Tab' && !settingsDom?.root.contains(event.target as Node)) {
+      event.preventDefault()
+      focusSettingsFirst()
     }
   })
 

@@ -104,14 +104,17 @@
       <button id="tts-consent" type="button" hidden>TTS 声明与语音确认</button>
       <!-- Desktop-shell menu trigger: aria-haspopup/expanded live here; the menu
            itself is created by desktop-shell.ts on right-click, ContextMenu/
-           Shift+F10 or this button (hidden by CSS in ?shell=window). -->
-      <button id="pet-menu-button" class="pet-menu-button" type="button" aria-haspopup="menu" aria-controls="pet-shell-menu" aria-expanded="false" aria-label="打开桌面菜单" title="桌面菜单（右键 / Shift+F10）">⋯</button>
+           Shift+F10 or this button (hidden by CSS in ?shell=window). The button
+           ships HIDDEN by default (task-65: no persistent chrome around the
+           character); 设置 → 显示菜单按钮 re-enables it and the preference is
+           read from desktop-games/pet/show-menu-button on every load. -->
+      <button id="pet-menu-button" class="pet-menu-button" type="button" aria-haspopup="menu" aria-controls="pet-shell-menu" aria-expanded="false" aria-label="打开桌面菜单" title="桌面菜单（右键 / Shift+F10）" hidden>⋯</button>
     </div>
-    <!-- Content center / theme market mount point (famling.content/0.1). The
-         single desktop-menu entry 「内容中心（角色/声音/主题/对话）…」 opens this
-         full-screen panel. content-hub.ts builds every child node with
-         createElement + textContent (no innerHTML) and manages the ARIA dialog,
-         focus trap and Escape close. It stays hidden until opened. -->
+    <!-- Role & content center mount point (famling.content/0.2). The single
+         desktop-menu entry 「角色与内容中心…」 opens this full-screen panel
+         (角色 / 自定义 / 内容包 / 市场). content-hub.ts builds every child node
+         with createElement + textContent (no innerHTML) and manages the ARIA
+         dialog, focus trap and Escape close. It stays hidden until opened. -->
     <div id="content-hub-root" class="content-hub-root" hidden></div>
     <div id="advisers-panel" class="advisers-panel" role="dialog" aria-modal="true" aria-label="Advisers 只读简报" hidden>
       <div class="advisers-card">

@@ -17,6 +17,7 @@ const HIT_SELECTORS = [
   '.fold-pet',
   '#pet-menu-button',
   '#pet-shell-menu',
+  '#pet-settings',
   '#pet-composer',
   '#result-card',
   '#pet-input-layer > *',

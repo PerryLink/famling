@@ -11,15 +11,15 @@
     "network": "none",
     "ai": "none",
     "costUSD": 0,
-    "generator": "art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+    "generator": "docs/art/ui-91-qa/gen_ui91.py",
     "generatorSha256": "385580ee79fb9957009b8be29211497d4cdfed2ee328f2024b84fb587812d5b9",
     "palette": "famling-ui-pixel@0.1",
     "report": "docs/art/UI-91-GENERATION-2026-11-17.md",
     "contactSheets": [
-      "art/_placeholder/ui-91-2026-11-17/contact-sheet.png",
-      "art/_placeholder/ui-91-2026-11-17/contact-sheet-dark.png",
-      "art/_placeholder/ui-91-2026-11-17/contact-sheet-light.png",
-      "art/_placeholder/ui-91-2026-11-17/clarity-16-32.png"
+      "docs/art/ui-91-qa/contact-sheet.png",
+      "docs/art/ui-91-qa/contact-sheet-dark.png",
+      "docs/art/ui-91-qa/contact-sheet-light.png",
+      "docs/art/ui-91-qa/clarity-16-32.png"
     ]
   },
   "style": {
@@ -172,7 +172,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "开掌 + 3 条 1px 动线"
     },
@@ -200,7 +200,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "开掌 + 3 条 1px 动线；32 母版整数 2x，不重采样、不加细节"
     },
@@ -228,7 +228,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "纸片 + 折角 + 金色加号"
     },
@@ -256,7 +256,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "纸片 + 折角 + 金色加号；32 母版整数 2x，不重采样、不加细节"
     },
@@ -284,7 +284,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "折纸狐 + 折痕，非写实动物"
     },
@@ -312,7 +312,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "折纸狐 + 折痕，非写实动物；32 母版整数 2x，不重采样、不加细节"
     },
@@ -340,7 +340,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "合起簿 + 1px 书签带"
     },
@@ -368,7 +368,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "合起簿 + 1px 书签带；32 母版整数 2x，不重采样、不加细节"
     },
@@ -396,7 +396,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "收件托盘 + 下箭头"
     },
@@ -424,7 +424,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "收件托盘 + 下箭头；32 母版整数 2x，不重采样、不加细节"
     },
@@ -452,7 +452,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "剪贴板 + 三条勾线 + 角标"
     },
@@ -480,7 +480,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "剪贴板 + 三条勾线 + 角标；32 母版整数 2x，不重采样、不加细节"
     },
@@ -508,7 +508,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "两组横滑杆 + 方形旋钮"
     },
@@ -536,7 +536,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "两组横滑杆 + 方形旋钮；32 母版整数 2x，不重采样、不加细节"
     },
@@ -564,7 +564,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "放大镜 + 四向外角箭头"
     },
@@ -592,7 +592,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "放大镜 + 四向外角箭头；32 母版整数 2x，不重采样、不加细节"
     },
@@ -620,7 +620,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "信息环 + 1px 竖条 + 点"
     },
@@ -648,7 +648,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "信息环 + 1px 竖条 + 点；32 母版整数 2x，不重采样、不加细节"
     },
@@ -676,7 +676,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "门框 + 向右外指箭头"
     },
@@ -704,7 +704,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "门框 + 向右外指箭头；32 母版整数 2x，不重采样、不加细节"
     },
@@ -732,7 +732,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "单张纸片 + 折痕，三阶明暗；16 单独重绘（不缩 32）"
     },
@@ -760,7 +760,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "单张纸片 + 折痕，三阶明暗"
     },
@@ -788,7 +788,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "单张纸片 + 折痕，三阶明暗；32 母版整数 2x"
     },
@@ -816,7 +816,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "折纸鹤 + 三个折面，非写实鸟；16 单独重绘（不缩 32）"
     },
@@ -844,7 +844,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "折纸鹤 + 三个折面，非写实鸟"
     },
@@ -872,7 +872,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "折纸鹤 + 三个折面，非写实鸟；32 母版整数 2x"
     },
@@ -900,7 +900,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "合起簿 + 书签带，与 04 开态成对；16 单独重绘（不缩 32）"
     },
@@ -928,7 +928,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "合起簿 + 书签带，与 04 开态成对"
     },
@@ -956,7 +956,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "合起簿 + 书签带，与 04 开态成对；32 母版整数 2x"
     },
@@ -984,7 +984,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "打开两页 + 1px 横线；16 单独重绘（不缩 32）"
     },
@@ -1012,7 +1012,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "打开两页 + 1px 横线"
     },
@@ -1040,7 +1040,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "打开两页 + 1px 横线；32 母版整数 2x"
     },
@@ -1068,7 +1068,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "单页 + 折角 + 1px 横线；16 单独重绘（不缩 32）"
     },
@@ -1096,7 +1096,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "单页 + 折角 + 1px 横线"
     },
@@ -1124,7 +1124,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "单页 + 折角 + 1px 横线；32 母版整数 2x"
     },
@@ -1152,7 +1152,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "墨水瓶 + 羽毛笔，三阶明暗；16 单独重绘（不缩 32）"
     },
@@ -1180,7 +1180,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "墨水瓶 + 羽毛笔，三阶明暗"
     },
@@ -1208,7 +1208,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "墨水瓶 + 羽毛笔，三阶明暗；32 母版整数 2x"
     },
@@ -1236,7 +1236,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "绿点 #3fa66b；≤6 色"
     },
@@ -1264,7 +1264,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "绿点 #3fa66b；≤6 色；16 母版整数 2x"
     },
@@ -1292,7 +1292,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "琥珀 #e0b35a；与 01 色差可辨"
     },
@@ -1320,7 +1320,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "琥珀 #e0b35a；与 01 色差可辨；16 母版整数 2x"
     },
@@ -1348,7 +1348,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "灰蓝 #8fa8c0；与 02 区分"
     },
@@ -1376,7 +1376,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "灰蓝 #8fa8c0；与 02 区分；16 母版整数 2x"
     },
@@ -1404,7 +1404,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "绿勾 1px 闭合"
     },
@@ -1432,7 +1432,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "绿勾 1px 闭合；16 母版整数 2x"
     },
@@ -1460,7 +1460,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "非货币符号、非文字"
     },
@@ -1488,7 +1488,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "非货币符号、非文字；16 母版整数 2x"
     },
@@ -1516,7 +1516,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "折角页 + 灰虚线轮廓"
     },
@@ -1544,7 +1544,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "折角页 + 灰虚线轮廓；16 母版整数 2x"
     },
@@ -1572,7 +1572,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "空白折页轮廓 + 1px 虚线"
     },
@@ -1600,7 +1600,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "空白折页轮廓 + 1px 虚线；48 母版整数 2x"
     },
@@ -1628,7 +1628,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "两张叠纸 + 三点，低对比"
     },
@@ -1656,7 +1656,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "两张叠纸 + 三点，低对比；48 母版整数 2x"
     },
@@ -1684,7 +1684,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "撕角纸页 + 断线头，灰蓝"
     },
@@ -1712,7 +1712,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "撕角纸页 + 断线头，灰蓝；48 母版整数 2x"
     },
@@ -1740,7 +1740,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "空白折纸剪影，仅物体、无脸"
     },
@@ -1768,7 +1768,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "空白折纸剪影，仅物体、无脸；48 母版整数 2x"
     },
@@ -1796,7 +1796,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "像素箭头 + 1px 环"
     },
@@ -1824,7 +1824,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "像素箭头 + 1px 环"
     },
@@ -1852,7 +1852,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "像素箭头 + 1px 环"
     },
@@ -1880,7 +1880,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "抓握手 + 一条运动线"
     },
@@ -1908,7 +1908,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "抓握手 + 一条运动线"
     },
@@ -1936,7 +1936,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "抓握手 + 一条运动线"
     },
@@ -1964,7 +1964,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "三团 1px 尘弧，无地面阴影块"
     },
@@ -1992,7 +1992,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "三团 1px 尘弧，无地面阴影块"
     },
@@ -2020,7 +2020,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "三团 1px 尘弧，无地面阴影块"
     },
@@ -2048,7 +2048,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "琥珀几何「!」竖条+点，非文字"
     },
@@ -2076,7 +2076,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "琥珀几何「!」竖条+点，非文字"
     },
@@ -2104,7 +2104,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "琥珀几何「!」竖条+点，非文字"
     },
@@ -2132,7 +2132,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "喇叭 + 1px 斜杠"
     },
@@ -2160,7 +2160,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "喇叭 + 1px 斜杠"
     },
@@ -2188,7 +2188,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "喇叭 + 1px 斜杠"
     },
@@ -2216,7 +2216,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "麦克风胶囊 + 红点 #d95f5f"
     },
@@ -2244,7 +2244,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "麦克风胶囊 + 红点 #d95f5f"
     },
@@ -2272,7 +2272,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "麦克风胶囊 + 红点 #d95f5f"
     },
@@ -2300,7 +2300,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "折页角标记；≤4 色 + 1px 轮廓；无文字"
     },
@@ -2328,7 +2328,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "同标记 32 母版；16 不直接缩 32"
     },
@@ -2356,7 +2356,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "圆角纸块 + 折角 + 书签；≤6 色；32 网格整数 x8"
     },
@@ -2384,7 +2384,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "由 16/32/256 打包，48=16x3 整数；来源可核",
       "icoSizes": [
@@ -2418,7 +2418,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "纸桌 + 折痕、低对比"
     },
@@ -2446,7 +2446,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "账本 + 金币母题边框"
     },
@@ -2474,7 +2474,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "折角纸框 + 平斜面，无接缝"
     },
@@ -2502,7 +2502,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "纸色 tail 三角，透明四角，2 阶色"
     },
@@ -2530,7 +2530,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "纸白 + 淡金几何闪片，硬 alpha"
     },
@@ -2559,7 +2559,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "剧场面具 + 对话框",
       "variants": [
@@ -2602,7 +2602,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "中性八边形 + 绿色对勾，不露骨不卖萌",
       "variants": [
@@ -2645,7 +2645,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "AI 闪光 + 对话框，不是人脸",
       "variants": [
@@ -2688,7 +2688,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "钟 + 暂停条，温和",
       "variants": [
@@ -2731,7 +2731,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "救生圈 + 求助卡，无医疗十字",
       "variants": [
@@ -2774,7 +2774,7 @@
       "alpha": "binary",
       "license": "placeholder-only",
       "ai": "none",
-      "source": "deterministic-local-pixel:art/_placeholder/ui-91-2026-11-17/gen_ui91.py",
+      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
       "notOfficialDeepseek": true,
       "notes": "开门 + 橡皮，简洁",
       "variants": [

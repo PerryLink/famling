@@ -1,0 +1,90 @@
+{
+  "schema": "famling.content-pack/0.2",
+  "id": "example.cat-theme",
+  "name": "示例猫角色主题",
+  "version": "1.0.0",
+  "description": "第三方猫角色主题示例：thought 气泡、voiceId=none、72 帧动画行为，占位资产引用不加载。",
+  "usageDeclaration": {
+    "researchOnly": true,
+    "statement": "本项目及其全部代码、美术、音频、文案、角色素材和衍生物仅用于技术研究与原型验证，不得用于情感陪伴、虚拟伴侣、心理治疗/医疗/法律/金融建议、未成年人亲密关系、冒充真人/官方，或任何违反法律法规/平台规则的用途。",
+    "statementRef": "docs/legal/USE-RESTRICTIONS-2026-11-19.md",
+    "prohibitedUses": [
+      "emotional-companionship",
+      "virtual-partner",
+      "professional-advice",
+      "minor-intimacy",
+      "impersonation",
+      "illegal-use"
+    ]
+  },
+  "license": {
+    "spdx": "CC-BY-4.0",
+    "attribution": "Example Author (CC-BY-4.0)"
+  },
+  "aiProvenance": {
+    "generated": true,
+    "disclosure": "示例包占位资产由确定性脚本生成并经人工校对；实际发布须替换为自有素材并更新本声明。",
+    "tools": [
+      "example-generator"
+    ]
+  },
+  "compatibility": {
+    "library": "famling.content/0.2",
+    "minAppVersion": "0.2.0"
+  },
+  "roleThemes": [
+    {
+      "id": "example-cat",
+      "name": "示例·猫角色主题",
+      "description": "第三方猫角色主题示例：thought 气泡、voiceId=none、72 帧动画行为，占位资产引用不加载。",
+      "characterId": "cat",
+      "voiceId": "none",
+      "dialoguePackId": "standard",
+      "appearance": {
+        "themeId": "night",
+        "backgroundId": "dark",
+        "fontId": "serif"
+      },
+      "behaviorPreset": "pet-cat",
+      "preview": "assets/preview/cat.example.preview.png",
+      "designRef": "docs/content-packs/CAT-DESIGN-REFERENCE.md",
+      "usageDeclaration": {
+        "researchOnly": true,
+        "statement": "本项目及其全部代码、美术、音频、文案、角色素材和衍生物仅用于技术研究与原型验证，不得用于情感陪伴、虚拟伴侣、心理治疗/医疗/法律/金融建议、未成年人亲密关系、冒充真人/官方，或任何违反法律法规/平台规则的用途。",
+        "statementRef": "docs/legal/USE-RESTRICTIONS-2026-11-19.md",
+        "prohibitedUses": [
+          "emotional-companionship",
+          "virtual-partner",
+          "professional-advice",
+          "minor-intimacy",
+          "impersonation",
+          "illegal-use"
+        ]
+      },
+      "version": "1.0.0",
+      "source": "local",
+      "author": "Example Author",
+      "license": {
+        "spdx": "CC-BY-4.0",
+        "attribution": "Example Author (CC-BY-4.0)"
+      },
+      "aiProvenance": {
+        "generated": true,
+        "disclosure": "示例包占位资产由确定性脚本生成并经人工校对；实际发布须替换为自有素材并更新本声明。",
+        "tools": [
+          "example-generator"
+        ]
+      }
+    }
+  ],
+  "files": [
+    {
+      "path": "assets/preview/cat.example.preview.png",
+      "bytes": 4096,
+      "sha256": "880d586f0ce33bdbabcf127ee7568514763239a21ff2a94409cc47c6ad709b36"
+    }
+  ],
+  "preview": "assets/preview/cat.example.preview.png",
+  "source": "local",
+  "createdAt": "2026-11-19"
+}

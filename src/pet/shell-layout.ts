@@ -12,7 +12,7 @@
  */
 
 const BUBBLE_GAP = 8
-const TRIGGER_SIZE = 22
+const TRIGGER_SIZE = 24
 const TRIGGER_GAP = 6
 
 function visiblePetRect(): DOMRect | null {
