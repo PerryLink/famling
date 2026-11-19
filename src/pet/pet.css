@@ -369,7 +369,11 @@ html[data-pet-shell="desktop"] #pet-app {
   padding: 0;
   background: transparent;
 }
-html[data-pet-shell="desktop"] header,
+/* Direct child only (E6/E11 task-122): a bare `header` selector also matched
+   the role/content center's own <header class="content-hub-head"> (dialog title
+   + 合上 button, built by content-hub.ts under the body-level #content-hub-root),
+   hiding both in the desktop shell and the content window. */
+html[data-pet-shell="desktop"] #pet-app > header,
 html[data-pet-shell="desktop"] aside.panel { display: none; }
 html[data-pet-shell="desktop"] main {
   display: flex;
@@ -417,10 +421,16 @@ html[data-pet-shell="desktop"] .bubble {
   bottom: 200px;
   transform: translateX(-50%);
   max-width: min(300px, calc(100% - 16px));
-  /* Bubble text follows UI+文本 (--ui-scale) and its own component override
-     (--bubble-zoom); shell-layout.ts composes the same zoom into the anchor
-     transform so the bubble never drifts off the pet. */
-  font-size: calc(10px * var(--ui-scale, 2) * var(--bubble-zoom, 1));
+  /* Like every other panel, the shipped design size is a fixed base and the
+     component zoom is applied ONCE by the container transform (shell-layout.ts
+     composes --bubble-zoom into translateX(-50%) scale()). Putting the zoom in
+     font-size as well would double-apply it: at 整体 200% (UI 3.5x, bubble
+     1.75x) the layout alone already asked for 61.25px, which made a normal
+     sentence ~1475 CSS px tall and pushed the visible box above the window top
+     (MB-050). The fixed base keeps the shipped 100% look and the anchor math
+     (visual size = layout size x zoom) exact. */
+  font-size: calc(10px * var(--panel-base, 2));
+  line-height: 1.5;
   transform-origin: bottom center;
   pointer-events: none;
 }
@@ -741,6 +751,116 @@ html:not([data-pet-shell="desktop"]) .pet-menu-button { display: none; }
 .pet-settings-quiet-field input[type="time"]:focus-visible {
   outline: 2px solid #e0b35a;
   outline-offset: 1px;
+}
+
+/* Corrupt-archive recovery panel (E1 / MB-011, task-106). Blocking body-level
+   dialog: above the menu (80), 2h banner (90), settings (96) and the role &
+   content center (150), below every consent layer (200) so a TOS/TTS/blocked
+   modal can still take over. The four choices are plain buttons; the delete
+   confirmation is an inline second step, never a background-click decision. */
+.save-recovery-root {
+  position: fixed;
+  inset: 0;
+  z-index: 180;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  padding: 8px;
+  font-family: var(--famling-content-font-family, "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif);
+}
+.save-recovery-root[hidden] { display: none; }
+.save-recovery-backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+  background: rgba(4, 7, 12, .78);
+}
+.save-recovery-dialog {
+  position: relative;
+  width: min(360px, 100%);
+  max-height: 94vh;
+  overflow-y: auto;
+  padding: 12px 14px;
+  border: 1px solid #6a4a2e;
+  border-radius: 12px;
+  background: #12100e;
+  color: #f0e4d4;
+  box-shadow: 0 20px 56px #000d;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.save-recovery-dialog:focus-visible {
+  outline: 2px solid #e0b35a;
+  outline-offset: 2px;
+}
+.save-recovery-kicker {
+  margin: 0;
+  color: #99c8ff;
+  font-size: 9px;
+  letter-spacing: .16em;
+}
+.save-recovery-title {
+  margin: 0;
+  color: #f0d6a8;
+  font-size: 16px;
+}
+.save-recovery-desc {
+  margin: 3px 0 0;
+  color: #d8c8b4;
+  font-size: 11px;
+}
+.save-recovery-status {
+  margin: 4px 0 0;
+  min-height: 15px;
+  color: #ffd98a;
+  font-size: 11px;
+  word-break: break-word;
+}
+.save-recovery-status[data-tone="error"] { color: #ffb3a7; }
+.save-recovery-status[data-tone="success"] { color: #9fe0a8; }
+.save-recovery-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  margin-top: 8px;
+}
+.save-recovery-actions[hidden] { display: none; }
+.save-recovery-action {
+  min-height: 28px;
+  padding: 3px 6px;
+  font-size: 11px;
+}
+.save-recovery-primary {
+  border-color: #e0b35a;
+  color: #ffd98a;
+}
+.save-recovery-danger {
+  border-color: #8a3a3a;
+  color: #ffb3a7;
+}
+.save-recovery-confirm {
+  margin-top: 8px;
+  padding: 7px 8px;
+  border: 1px solid #8a3a3a;
+  border-radius: 8px;
+  background: #1e1212;
+}
+.save-recovery-confirm[hidden] { display: none; }
+.save-recovery-confirm-text {
+  margin: 0 0 6px;
+  color: #ffcfc4;
+  font-size: 11px;
+}
+.save-recovery-confirm-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+.save-recovery-hint {
+  margin: 8px 0 0;
+  color: #8f7a5a;
+  font-size: 10px;
+  line-height: 1.4;
 }
 
 /* One-time first-run menu coach (E-01/MB-060): teaches 右键 / Shift+F10 /

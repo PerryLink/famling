@@ -1,10 +1,8 @@
 import {
   canRecallMemory,
   createPet,
-  correctPetMemory,
   deserializePet,
   foldPaper,
-  forgetPetMemory,
   markMemoryRecalled,
   givePaper,
   patPet,
@@ -12,7 +10,6 @@ import {
   serializePet,
   petMood,
   petSchedule,
-  setMuted,
   type PetState,
 } from '../kernel/pet.ts'
 import { VoiceService } from '../voice/service.ts'
@@ -48,14 +45,11 @@ import {
 } from './advisers/face.ts'
 import { describeAdvisersFaceView } from './ui-state.ts'
 import {
-  createSaveRecoveryPanel,
   initDesktopShell,
   requestMenuCoach,
   createComposerController,
   type ComposerController,
   type HeroMenuActionItem,
-  type SaveRecoveryCloseReason,
-  type SaveRecoveryPanel,
 } from './desktop-shell.ts'
 import { PET_RELOAD_EVENT, contentWindowMode } from './content-window.ts'
 import { heroActionPlan, isHeroMenuAction } from './hero-actions.ts'
@@ -70,16 +64,14 @@ import {
   reviewUserInput,
 } from './safety/gate.ts'
 import { MAX_TALK_MS, MAX_WAV_BYTES, TalkRecorder, type MediaStreamLike, type TalkState } from './recording.ts'
-import { readClampedInt, safeGetItem, safeSetItem } from './security/safe-storage.ts'
+import { safeGetItem, safeSetItem } from './security/safe-storage.ts'
 import { migrateFamlingLocalState } from './state-migrations.ts'
-import { SECURITY_LIMITS, sanitizePlainText, utf8ByteLength } from './security/limits.ts'
+import { SECURITY_LIMITS, sanitizePlainText } from './security/limits.ts'
 import { createErrorBoundary, toUserMessage, type ErrorBoundary } from './security/error-boundary.ts'
 import { createSecurityRateLimits, RateLimitError } from './security/rate-limit.ts'
 import { installCrashBuffer } from '../observability.ts'
 import {
   CONSENT_ACTIONS,
-  ConsentDeclinedError,
-  importPortableWithConsent,
   loadCharacterPackWithConsent,
 } from './consent/content.ts'
 import { CONSENT_OVERLAY_EVENT } from './consent/modal.ts'
@@ -115,18 +107,14 @@ import { grantHostVoiceConsent, revokeHostConsent, syncHostConsent } from './con
 import { asrConfigSignature } from './consent/asr.ts'
 import { ttsConfigSignature } from './consent/tts.ts'
 import { formatVoiceModeLabel, isTtsVoiceId, readVoicePref, VOICE_PREF_STORAGE_KEY } from './voice-prefs.ts'
-import {
-  filterProactiveLine,
-  isQuietHoursActive,
-  readQuietHours,
-  type QuietHoursSettings,
-} from './low-disturb.ts'
+import { filterProactiveLine } from './low-disturb.ts'
 import { AI_REPLY_LABEL, installBubbleAiLabel } from './ai-label.ts'
 import { roleplayTemplateReply } from './consent/roleplay.ts'
 import { decideDialogueLine, type DialogueLineKind } from './content-hub.ts'
 import { type CharacterPackKind, type DialogueBehavior } from './content-library.ts'
 import { createContentRuntime } from './content-runtime.ts'
 import { CHARACTER_PACK_APPLY_EVENT, createHeroPage } from './hero-page.ts'
+import { createSettingsPage } from './settings-page.ts'
 import './pet.css'
 
 /**
@@ -197,13 +185,13 @@ const aiLabel = installBubbleAiLabel(document)
 
 /**
  * Quiet hours / 夜间安静 (MB-070): default 22:00–08:00, enabled, adjustable and
- * closable from 总设置. main.ts mirrors the shell preference so ambient output
- * stops/starts immediately; the 2h health reminder is deferred by the consent
- * runtime while this returns true.
+ * closable from 总设置. The persisted window and the mirror now live in the
+ * extracted settings page (E10 task-121); this page keeps the line-filter
+ * delegate so ambient output stops/starts without a reload and the 2h health
+ * reminder keeps reading the same setting through the consent runtime.
  */
-let quietHoursSettings: QuietHoursSettings = readQuietHours()
 function quietHoursActive(at: Date = new Date()): boolean {
-  return isQuietHoursActive(at, quietHoursSettings)
+  return settingsPage.quietHoursActive(at)
 }
 const FORCE_BROWSER_FALLBACK = typeof location !== 'undefined' && new URLSearchParams(location.search).has('browser-fallback')
 const HAS_TAURI = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window && !FORCE_BROWSER_FALLBACK
@@ -569,16 +557,11 @@ function keepBubbleForTts(durationMs: number): void {
 let audioContext: AudioContext | null = null
 let audioGain: GainNode | null = null
 let currentSource: AudioBufferSourceNode | null = null
-/**
- * Volume read through safe-storage: missing/corrupt/blocked storage keeps the
- * 70 default (a bare `Number(null)` would be 0 and mute the pet).
- */
-let volume = readClampedInt('desktop-games/pet/volume', 70, 0, 100)
 function ensureAudio(): void {
   if (!audioContext) {
     audioContext = new AudioContext()
     audioGain = audioContext.createGain()
-    audioGain.gain.value = Math.max(0, Math.min(1, volume / 100))
+    audioGain.gain.value = Math.max(0, Math.min(1, settingsPage.volume / 100))
     audioGain.connect(audioContext.destination)
   }
 }
@@ -623,6 +606,9 @@ function renderVoiceMode(): void {
 }
 
 function currentTtsConfig(): string {
+  // Single persisted volume source (settings page, E10 task-121); the signature
+  // text is unchanged so a mute/volume change still re-triggers the declaration.
+  const volume = settingsPage.volume
   return ttsConfigSignature({ muted: state.muted, mode: voiceModeLabel(), volume })
 }
 
@@ -1180,21 +1166,6 @@ document.addEventListener('pointercancel', () => {
   talkPointerDown = false
 })
 
-/**
- * Single mute path shared by the panel button and the desktop settings dialog.
- * Enabling voice is an explicit TTS config change, so the declaration is
- * re-shown; muting stops any current playback immediately.
- */
-function setMutedFromShell(next: boolean): void {
-  if (!canInteract()) return
-  if (state.muted === next) return
-  state = setMuted(state, next)
-  if (state.muted) voice.stop()
-  else void requestTtsConfirmation(currentTtsConfig()).catch((error) => reportFailure(ttsBoundary, error))
-  render()
-}
-$('mute').addEventListener('click', () => setMutedFromShell(!state.muted))
-
 /** Bound a Tauri IPC round-trip so a hung WebView/Rust call cannot freeze boot/save. */
 async function invokeTimed<T>(command: string, args: Record<string, unknown> = {}, timeoutMs = 8000): Promise<T> {
   const { invoke } = await import('@tauri-apps/api/core')
@@ -1242,7 +1213,7 @@ function createPageSaveService(): PetSaveService {
     // four-way panel instead of leaving the user in a read-only bubble. The
     // runtime still owns the flag/autosave pause; this is presentation only.
     onRecoveryNeededChange: (needed) => {
-      if (needed) openSaveRecoveryPanel()
+      if (needed) settingsPage.openRecoveryPanel()
     },
   })
 }
@@ -1257,7 +1228,7 @@ let saveService = createPageSaveService()
 function resetSaveServiceAfterWipe(): void {
   // A full wipe resolves the recovery question out-of-band: close the panel
   // silently (no "稍后处理" bubble) before the fresh runtime starts autosave.
-  closeSaveRecoveryPanel('reset')
+  settingsPage.closeRecoveryPanel('reset')
   saveService.dispose()
   saveService = createPageSaveService()
   if (!CONTENT_SHELL) saveService.startAutosave()
@@ -1316,342 +1287,56 @@ function loadArchiveWithFeedback(): void {
 $('save').addEventListener('click', () => saveArchiveWithFeedback())
 $('load').addEventListener('click', () => loadArchiveWithFeedback())
 
-/**
- * Corrupt-archive recovery surface (E1 / MB-011, task-106).
- *
- * The save runtime pauses autosave and protects the last known-good `.bak` the
- * moment a readable archive fails to parse (or only the backup parsed). This
- * page-side wiring offers the four explicit choices the recovery path needs:
- * save the current state as a new primary, re-read the backup, delete and start
- * over (inline second confirmation), or leave without touching the archive.
- *
- * Every choice reuses the SAME audited paths as the menus (`saveNow` /
- * `loadNow` / `saveService.deleteSave` / the unified exit), so the on-disk save
- * envelope and the runtime's recovery invariants are unchanged. The panel is
- * presentation + focus/keyboard/confirmation/failure fallback only.
- */
-let saveRecoveryPanel: SaveRecoveryPanel | null = null
-
-function closeSaveRecoveryPanel(reason: SaveRecoveryCloseReason): void {
-  saveRecoveryPanel?.close(reason)
-}
-
-function openSaveRecoveryPanel(): void {
-  // The content window only holds a read-only snapshot; the pet window owns the
-  // archive and its recovery decision.
-  if (CONTENT_SHELL || !canInteract()) return
-  if (saveRecoveryPanel === null) {
-    saveRecoveryPanel = createSaveRecoveryPanel({
-      document,
-      saveAsNew: async () => {
-        try {
-          await saveNow()
-          return { ok: true }
-        } catch (error) {
-          if (!(error instanceof RateLimitError)) reportFailure(saveBoundary, error)
-          return { ok: false, message: toUserMessage(error) }
-        }
-      },
-      restoreFromBackup: async () => {
-        try {
-          const loaded = await loadNow()
-          if (!loaded) return { ok: false, message: '备份也读不出来：本机没有可用的备份档。' }
-          if (!saveService.recoveryNeeded) {
-            // The primary parsed this time (e.g. repaired externally): nothing
-            // left to recover, so close without a follow-up step.
-            closeSaveRecoveryPanel('restored')
-            return { ok: true }
-          }
-          return {
-            ok: true,
-            message: '已从备份读回存档；请再点「保存当前为新档」修复主档，之后自动保存会恢复。',
-          }
-        } catch (error) {
-          reportFailure(loadBoundary, error)
-          return { ok: false, message: toUserMessage(error) }
-        }
-      },
-      deleteAndRestart: async () => {
-        try {
-          await saveService.deleteSave()
-          state = createPet(now())
-          render()
-          renderMemoryBook()
-          return { ok: true }
-        } catch (error) {
-          reportFailure(importBoundary, error)
-          return { ok: false, message: '删除失败，请手动清理应用数据。' }
-        }
-      },
-      // Exiting from the recovery panel must NOT try to save: the runtime keeps
-      // autosave paused precisely so a corrupt archive is never overwritten.
-      exitApp: () => {
-        exitApplication()
-        return { ok: true }
-      },
-      onClose: (reason) => {
-        if (reason === 'saved') {
-          showBubble('已写入新档，自动保存已恢复。')
-        } else if (reason === 'deleted') {
-          showBubble('本机存档已删除，自动保存已恢复。')
-        } else if (reason === 'dismissed') {
-          showBubble('已稍后处理：自动保存仍暂停，可从「更多 → 读取」重新打开恢复面板。')
-        }
-      },
-    })
-  }
-  saveRecoveryPanel.show()
-}
-
-$('voice-cache').addEventListener('click', () => void (async () => {
-  if (!HAS_TAURI) {
-    showBubble('浏览器模式没有本地语音缓存。')
-    return
-  }
-  try {
-    const { invoke } = await import('@tauri-apps/api/core')
-    await invoke('voice_cache_clear')
-    showBubble('语音缓存已清理。')
-  } catch (error) {
-    reportFailure(voiceBoundary, error)
-    showBubble('清理失败，稍后再试。')
-  }
-})().catch((error) => reportFailure(voiceBoundary, error)))
-
-const vol = $('vol') as HTMLInputElement
-/**
- * Single volume-apply path (panel slider + desktop settings slider). Persists
- * the preference and updates the live audio gain; never runs before consent.
- */
-function applyVolume(next: number): number {
-  if (!canInteract()) return volume
-  if (Number.isFinite(next)) volume = Math.max(0, Math.min(100, Math.round(next)))
-  const stored = safeSetItem('desktop-games/pet/volume', String(volume))
-  if (stored !== 'ok') reportFailure(storageBoundary, new Error(`volume-storage-${stored}`))
-  if (audioGain) audioGain.gain.value = Math.max(0, Math.min(1, volume / 100))
-  vol.value = String(volume)
-  return volume
-}
-// Volume is part of the TTS config: re-confirm the TTS declaration on release
-// (not on every slider tick) when voice is currently enabled.
-function volumeCommitted(): void {
-  if (!canInteract() || state.muted) return
-  void requestTtsConfirmation(currentTtsConfig()).catch((error) => reportFailure(ttsBoundary, error))
-}
-vol.value = String(volume)
-vol.addEventListener('input', () => {
-  applyVolume(Number(vol.value))
+// ---------------------------------------------------------------------------
+// Pet settings page wiring (E10 MB-100, task-121)
+// ---------------------------------------------------------------------------
+// The shared volume/mute paths, the desktop settings-dialog callbacks, the
+// 复位窗口 entry, the 折页簿 memory screen, the portable-save controls and the
+// corrupt-archive recovery panel now live in `settings-page.ts` (importable
+// from Node). This page owns the save runtime, the trusted render/say loop and
+// the hero window position; those seams are injected below. Scaling (缩放) was
+// already extracted into desktop-shell.ts/scaling.ts (E5) and main.ts never
+// owned it, so the settings-page callback bundle is exactly the #pet-settings
+// dialog's page-side wiring.
+const settingsPage = createSettingsPage({
+  document,
+  window,
+  canInteract,
+  guardLocalAction,
+  reportFailure,
+  storageBoundary,
+  saveBoundary,
+  loadBoundary,
+  importBoundary,
+  voiceBoundary,
+  uiBoundary,
+  ttsBoundary,
+  showBubble,
+  render,
+  now,
+  getState: () => state,
+  setState: (next) => {
+    state = next
+  },
+  hasTauri: HAS_TAURI,
+  contentShell: CONTENT_SHELL,
+  getSaveService: () => saveService,
+  saveNow,
+  saveAndPurgeBackup,
+  loadNow,
+  exitApplication: () => exitApplication(),
+  // The settings dialog's TTS re-confirmation is the same audited config gate
+  // (the voice/volume are part of the signature, so a change always re-prompts).
+  requestTtsConfirmation: () => requestTtsConfirmation(currentTtsConfig()),
+  setAudioGain: (gain) => {
+    if (audioGain) audioGain.gain.value = gain
+  },
+  stopVoice: () => voice.stop(),
+  getConsentGate,
+  clearSavedWindowPosition: () => heroPage.clearSavedWindowPosition(),
 })
-vol.addEventListener('change', () => volumeCommitted())
+settingsPage.bind()
 
-const memoryScreen = $('memory-screen')
-function renderMemoryBook(): void {
-  const list = $('memory-list')
-  list.replaceChildren()
-  const memoryItems = Array.isArray(state.memory?.items) ? state.memory.items : []
-  const items = memoryItems.filter((item) => item.status === 'active')
-  for (const item of items) {
-    const row = document.createElement('div')
-    row.className = 'memory-item'
-    const label = document.createElement('span')
-    label.textContent = item.text
-    const kind = document.createElement('em')
-    kind.textContent = item.layer
-    const edit = document.createElement('button')
-    edit.textContent = '改'
-    edit.addEventListener('click', () => {
-      if (!guardLocalAction('memory-modify')) return
-      const next = window.prompt('改成什么？（最多 60 字）', item.text)
-      if (!next) return
-      state = correctPetMemory(state, item.id, next, now())
-      void saveAndPurgeBackup().catch((error) => reportFailure(saveBoundary, error))
-      renderMemoryBook()
-      render()
-    })
-    const forget = document.createElement('button')
-    forget.textContent = '忘'
-    forget.addEventListener('click', () => {
-      if (!guardLocalAction('memory-forget')) return
-      if (!window.confirm('让它忘掉这条？')) return
-      state = forgetPetMemory(state, item.id, now())
-      void saveAndPurgeBackup().catch((error) => reportFailure(saveBoundary, error))
-      renderMemoryBook()
-      render()
-    })
-    row.append(label, kind, edit, forget)
-    list.appendChild(row)
-  }
-  if (items.length === 0) {
-    const empty = document.createElement('div')
-    empty.className = 'memory-item'
-    empty.textContent = '还没有折页。'
-    list.appendChild(empty)
-  }
-}
-$('memory-book').addEventListener('click', () => {
-  if (!guardLocalAction('memory-open')) return
-  renderMemoryBook()
-  memoryScreen.classList.remove('hidden')
-})
-$('memory-forget-all').addEventListener('click', () => {
-  if (!guardLocalAction('memory-forget-all')) return
-  if (!window.confirm('让它忘掉所有折页？这不能撤销。')) return
-  const memoryItems = Array.isArray(state.memory?.items) ? state.memory.items : []
-  for (const item of memoryItems.filter((entry) => entry.status === 'active')) {
-    state = forgetPetMemory(state, item.id, now())
-  }
-  void saveAndPurgeBackup().then(() => {
-    renderMemoryBook()
-    render()
-    showBubble('折页都抚平了。')
-  }).catch((error) => {
-    reportFailure(saveBoundary, error)
-    showBubble(toUserMessage(error))
-  })
-})
-$('save-export').addEventListener('click', () => void (async () => {
-  if (!guardLocalAction('save-export')) return
-  const pass = window.prompt('设置备份口令（至少 8 位；丢失无法恢复）')
-  if (!pass) return
-  if (pass.length < 8) { showBubble('口令至少 8 位。'); return }
-  const again = window.prompt('再输一次口令')
-  if (again !== pass) { showBubble('两次口令不一致。'); return }
-  try {
-    const file = await exportPortable(serializePet(state), pass)
-    const blob = new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'pagefold-save.json'
-    link.click()
-    URL.revokeObjectURL(url)
-    showBubble('备份已导出。口令别丢。')
-  } catch (error) {
-    reportFailure(importBoundary, error)
-    showBubble(toUserMessage(error))
-  }
-})().catch((error) => reportFailure(importBoundary, error)))
-
-$('save-delete').addEventListener('click', () => void (async () => {
-  if (!guardLocalAction('save-delete')) return
-  if (!window.confirm('删除本机存档？记忆、状态、折页都会清掉。')) return
-  if (!window.confirm('再确认一次：删除后只能靠之前的加密备份恢复。')) return
-  try {
-    // The runtime deletes primary+backup on both hosts and only then clears the
-    // recovery flag (MB-011), so autosave resumes instead of staying paused.
-    await saveService.deleteSave()
-    state = createPet(now())
-    render()
-    renderMemoryBook()
-    showBubble('本机存档已删除，自动保存已恢复。')
-  } catch (error) {
-    reportFailure(importBoundary, error)
-    showBubble('删除失败，请手动清理应用数据。')
-  }
-})().catch((error) => reportFailure(importBoundary, error)))
-
-$('save-import').addEventListener('click', () => {
-  if (!canInteract()) return
-  ;($('save-import-file') as HTMLInputElement).click()
-})
-// Portable-save import is a content import: every import shows the FULL TOS via
-// importPortableWithConsent() before the file is read/decrypted or any save is
-// written. An earlier acceptance is not a waiver; declining aborts here.
-$('save-import-file').addEventListener('change', () => void (async () => {
-  const input = $('save-import-file') as HTMLInputElement
-  const file = input.files?.[0]
-  input.value = ''
-  if (!file || !canInteract()) return
-  const gate = getConsentGate()
-  if (!gate) return
-  // Portable-file size cap before reading/decrypting an attacker-sized JSON.
-  if (file.size > SECURITY_LIMITS.portableFileBytes) {
-    showBubble('备份文件太大，已拒绝导入。')
-    return
-  }
-  if (!window.confirm('导入会覆盖当前存档，继续？')) return
-  const pass = window.prompt('输入备份口令')
-  if (!pass) return
-  const imported = await importBoundary.guardAsync(async () => {
-    const plain = await importPortableWithConsent(gate, file, pass, async (selected, passphrase) => {
-      const text = await (selected as File).text()
-      if (utf8ByteLength(text) > SECURITY_LIMITS.portableFileBytes) throw new Error('portable-file-too-large')
-      return importPortable(JSON.parse(text), passphrase)
-    })
-    const nextState = deserializePet(plain)
-    state = nextState
-    await saveAndPurgeBackup()
-    return true
-  })
-  if (!imported.ok) {
-    if (imported.error instanceof ConsentDeclinedError) {
-      showBubble('已取消导入：未同意完整免责声明。')
-      return
-    }
-    showBubble('导入失败：口令不对或文件损坏。')
-    return
-  }
-  render()
-  renderMemoryBook()
-  showBubble('存档已导入。')
-})().catch((error) => reportFailure(importBoundary, error)))
-
-$('memory-export').addEventListener('click', () => {
-  if (!guardLocalAction('memory-export')) return
-  const blob = new Blob([JSON.stringify(state.memory, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = 'pagefold-memory.json'
-  link.click()
-  URL.revokeObjectURL(url)
-})
-$('memory-close').addEventListener('click', () => memoryScreen.classList.add('hidden'))
-
-/**
- * 复位窗口 entry shared by the panel button, the desktop menu and settings.
- *
- * W-01/W-02 (UX-P0-4): the Tauri host owns placement via the Rust
- * `reset_pet_window` command, which is taskbar-aware and identical to the tray
- * recall action. The direct window-API path stays as a fallback for older hosts
- * or a rejected IPC call.
- */
-function resetPetWindow(): void {
-  void (async () => {
-    if (!HAS_TAURI) return
-    let moved = false
-    try {
-      const { invoke } = await import('@tauri-apps/api/core')
-      await invoke('reset_pet_window')
-      moved = true
-    } catch {
-      // Fall through to the window-API fallback; its failure is reported below.
-    }
-    if (!moved) {
-      try {
-        const { getCurrentWindow, currentMonitor, PhysicalPosition } = await import('@tauri-apps/api/window')
-        const monitor = await currentMonitor()
-        if (!monitor) return
-        const win = getCurrentWindow()
-        const size = await win.outerSize()
-        const x = monitor.position.x + monitor.size.width - size.width - 12
-        const y = monitor.position.y + monitor.size.height - size.height - 12
-        await win.setPosition(new PhysicalPosition(x, y))
-        moved = true
-      } catch (error) {
-        reportFailure(storageBoundary, error)
-        return
-      }
-    }
-    if (moved) {
-      // The content window must not clear the pet's saved position; Rust already
-      // recalled the PET window in that case.
-      if (!CONTENT_SHELL) heroPage.clearSavedWindowPosition()
-      showBubble('回到右下角。')
-    }
-  })().catch((error) => reportFailure(uiBoundary, error))
-}
-$('reset-window').addEventListener('click', () => resetPetWindow())
 // The independent content/settings window (MB-062) never autosaves: it may run
 // next to the live pet window, and only the pet window owns the archive's
 // background writes. Manual 保存/读取 from its reused settings dialog still work.
@@ -1707,7 +1392,7 @@ async function bootPetOnce(): Promise<void> {
     // onRecoveryNeededChange). Keep a bubble only as the fallback when the panel
     // cannot be shown; both paths keep autosave paused so a corrupt archive is
     // never silently overwritten.
-    if (!saveRecoveryPanel?.visible) {
+    if (!settingsPage.isRecoveryPanelVisible()) {
       showBubble(
         !loaded.ok
           ? saveService.recoveryNeeded
@@ -1854,7 +1539,7 @@ if (!CONTENT_SHELL) startDesktopShellLayout()
       }
       state = restored.value
       render()
-      renderMemoryBook()
+      settingsPage.renderMemoryBook()
       return true
     },
     exportPortable,
@@ -2523,9 +2208,9 @@ function initializeApp(): void {
         state = createPet(now())
         // A full local-data wipe clears the quiet-hours preference too; fall
         // back to the safety default in this session as well.
-        quietHoursSettings = readQuietHours()
-        renderMemoryBook()
-        document.getElementById('memory-screen')?.classList.add('hidden')
+        settingsPage.reloadQuietHours()
+        settingsPage.renderMemoryBook()
+        settingsPage.hideMemoryScreen()
         render()
         showBubble('本机数据已清除；重新同意后可重新开始。')
       },
@@ -2552,22 +2237,15 @@ function initializeApp(): void {
       heroActive: () => heroPage.isActive(),
       getHeroActions: currentHeroMenuActions,
       onHeroAction: handleHeroAction,
-      // 总设置 dialog wiring (task-65): every control reuses an existing
-      // audited path above instead of duplicating mute/volume/save/reset logic.
-      getAudioState: () => ({ muted: state.muted, volume }),
-      setMuted: setMutedFromShell,
-      setVolume: applyVolume,
-      onVolumeCommit: volumeCommitted,
-      // MB-070: mirror the persisted quiet-hours window without a reload.
-      onQuietHoursChange: (next) => {
-        quietHoursSettings = next
-      },
+      // 总设置 dialog wiring (task-65 / E10 task-121): volume/mute/quiet-hours/
+      // 复位窗口 come from the extracted settings page (same audited paths as the
+      // legacy panel); save/read stay on this page's save-runtime entries.
+      ...settingsPage.shellOptions(),
       saveArchive: saveArchiveWithFeedback,
       loadArchive: loadArchiveWithFeedback,
-      resetWindow: resetPetWindow,
       // The role & content center and the corrupt-archive recovery panel are
       // above the body-level shell menu (the recovery panel is blocking).
-      isHigherModalOpen: () => contentRuntimeApi.isContentHubOpen() || saveRecoveryPanel?.visible === true,
+      isHigherModalOpen: () => contentRuntimeApi.isContentHubOpen() || settingsPage.isRecoveryPanelVisible(),
       // Root 退出: best-effort save, then close; a hung IPC still exits. The
       // content window has no menu, and its close button never quits the app.
       onExit: () => { void exitAfterSave() },

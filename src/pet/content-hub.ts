@@ -1161,10 +1161,12 @@ export function initContentHub(options: ContentHubOptions): ContentHubController
   // --- dialog behaviour ---------------------------------------------------
 
   // True when the node has a layout box in a real browser. The content center
-  // reuses the page stylesheet, and html[data-pet-shell="desktop"] header hides
-  // the dialog header (and its 合上 button) in the desktop/content window, so
-  // such a control has tabIndex 0 but .focus() is a no-op. The injectable fake
-  // DOM used by unit tests has no layout pass, so only real browsers filter.
+  // reuses the page stylesheet, so a shell/panel rule can leave a control with
+  // tabIndex 0 but display:none, and .focus() is then a no-op. task-122 narrowed
+  // the desktop-shell chrome rule to #pet-app > header, so this dialog's own
+  // header (title + 合上) now stays visible; the filter remains as defence for
+  // any other zero-layout node. The injectable fake DOM used by unit tests has
+  // no layout pass, so only real browsers filter.
   // (Deliberately a line comment: the production-source gate strips block
   // comments before line comments, so a block comment here would swallow code.)
   function isRendered(node: HTMLElement): boolean {
