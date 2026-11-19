@@ -29,7 +29,19 @@ import {
   type PetSaveService,
 } from './save-host.ts'
 import { exportPortable, importPortable } from './portable.ts'
-import { heroStatus, isHeroCharacterId, resolveHeroConfig, startHeroRuntime, type HeroRuntime, type HeroStatus } from './hero-runtime.ts'
+import {
+  heroStatus,
+  isHeroCharacterId,
+  loadHeroBundle,
+  resolveHeroConfig,
+  startHeroRuntime,
+  type HeroCharacterBundle,
+  type HeroConfig,
+  type HeroRuntime,
+  type HeroStatus,
+} from './hero-runtime.ts'
+import type { CharacterPackRenderHost, CharacterPackRendererEvent } from './character-pack-renderer.ts'
+import type { CharacterPackBuiltinRestoreResult, CharacterPackRendererWiring } from './content-hub/character-installer.ts'
 import { startTinglanPreview } from './tinglan-preview.ts'
 import { isBuiltinCharacterId } from './character/builtin.ts'
 import { resolveHeroRegionReaction, type HeroRegionAction, type HeroRegionReaction } from './anim/regions.ts'
@@ -130,7 +142,7 @@ import {
 import { AI_REPLY_LABEL, installBubbleAiLabel } from './ai-label.ts'
 import { roleplayTemplateReply } from './consent/roleplay.ts'
 import { decideDialogueLine, type DialogueLineKind } from './content-hub.ts'
-import { type DialogueBehavior } from './content-library.ts'
+import { type CharacterPackKind, type DialogueBehavior } from './content-library.ts'
 import { createContentRuntime } from './content-runtime.ts'
 import './pet.css'
 
@@ -449,9 +461,39 @@ const HERO_CONFIG = resolveHeroConfig({
   })(),
 })
 
+// ---------------------------------------------------------------------------
+// Character-pack hot switch (E4 / task-111)
+// ---------------------------------------------------------------------------
+// The shipped hero scene is the built-in renderer. Enabling an installed
+// `famling.pet-anim/0.2` pack loads its frames/assets (the installer hands the
+// adapter `data:` URLs derived from IndexedDB) and REPLACES the hero scene
+// without a page reload: a new HeroRuntime is built for the pack bundle and
+// only committed after its first frame gate succeeds. Any failure keeps the
+// previous scene; if there is no previous scene the shipped built-in stays.
+// The installer persists the applied pack id and asks `restoreBuiltin()` when it
+// must fall back.
+/** Tauri event: content window asks the pet window (hero owner) to re-apply the saved pack. */
+const CHARACTER_PACK_APPLY_EVENT = 'pet://character-pack-apply'
+/** Stage size + DPR captured when the built-in hero scene booted. */
+let heroStageSize: { width: number; height: number } | null = null
+let heroDpr = 1
+/** True while the live hero scene is the shipped built-in character. */
+let heroSceneBuiltin = true
+/** Identity of the installed pack the live hero scene was built from. */
+let activeCharacterPackId: { packId: string; version: string } | null = null
+/** Pack kind currently rendered (drives silent-thought / locomotion semantics). */
+let activeCharacterPackKind: CharacterPackKind | null = null
+
 /** Cat/dog personas are silent: their bubbles are thoughts and TTS is skipped. */
 function currentCharacterCanVoice(): boolean {
+  if (activeCharacterPackKind !== null) return activeCharacterPackKind === 'humanoid'
   return characterCanVoice(HERO_CONFIG.character, HERO_CONFIG.enabled)
+}
+
+/** Visible bubble semantics for a custom pack: cat/dog = thought, humanoid = speech. */
+function currentCharacterBubbleSemantic(): 'speech' | 'thought' {
+  if (activeCharacterPackKind !== null) return activeCharacterPackKind === 'humanoid' ? 'speech' : 'thought'
+  return characterBubbleSemantic(HERO_CONFIG.character, HERO_CONFIG.enabled)
 }
 let hero: HeroRuntime | null = null
 let heroCanvasEl: HTMLCanvasElement | null = null
@@ -535,7 +577,7 @@ function showBubble(text: string): void {
   const bubbleText = document.getElementById('bubble-text')
   if (bubbleText) bubbleText.textContent = safeBubbleText
   else bubble.textContent = safeBubbleText
-  bubble.classList.toggle('thought', characterBubbleSemantic(HERO_CONFIG.character, HERO_CONFIG.enabled) === 'thought')
+  bubble.classList.toggle('thought', currentCharacterBubbleSemantic() === 'thought')
   bubble.classList.add('show')
   aiLabel.clear()
   if (bubbleTimer) clearTimeout(bubbleTimer)
@@ -888,11 +930,81 @@ function render(): void {
 /** Active dialogue policy for sayLater/pickSays (null = catalog not loaded yet). */
 let dialogueBehavior: DialogueBehavior | null = null
 
+// ---------------------------------------------------------------------------
+// Character-pack renderer wiring (E4 / task-111)
+// ---------------------------------------------------------------------------
+// The install/enable UI lives in content-hub, but only this page owns the hero
+// canvas + scene. The injected host turns the adapter's converted pack into a
+// live, atomic hot swap; `restoreBuiltin` returns to the shipped hero character
+// (or the folded-paper DOM when even that cannot load). No pack bytes/URLs are
+// exposed to the installer events (observability only carries ids/versions).
+const characterPackRendererHost: CharacterPackRenderHost = {
+  load: async (_ref, handle) => {
+    const swapped = await hotSwapHeroCharacterPack(handle.bundle, {
+      packId: handle.packId,
+      version: handle.version,
+      name: handle.name,
+      kind: handle.kind,
+    })
+    if (!swapped.ok) throw new Error(swapped.reason)
+  },
+  release: (): void => {
+    // The hot swap in load() already disposed the previous scene. A release with
+    // no replacement happens on uninstall/fallback, and the installer calls
+    // restoreBuiltin() immediately after; the built-in scene is restored there.
+  },
+}
+
+/** Content window → pet window: ask the hero-owning window to apply the saved pack. */
+function requestPetWindowCharacterPackApply(): void {
+  if (!HAS_TAURI || !CONTENT_SHELL) return
+  void import('@tauri-apps/api/event')
+    .then(({ emit }) => emit(CHARACTER_PACK_APPLY_EVENT, {}))
+    .catch((error: unknown) => {
+      console.warn('[pet] character-pack cross-window bridge unavailable', error)
+    })
+}
+
+const characterPackRendererWiring: CharacterPackRendererWiring = {
+  host: characterPackRendererHost,
+  ...(typeof location !== 'undefined' ? { resolveBase: location.href } : {}),
+  isReady: () => isHeroRendererReady(),
+  restoreBuiltin: () => restoreBuiltinHero(),
+  // In the independent Tauri content window this window has no hero scene:
+  // enabling a pack persists the choice and asks the pet window to hot-swap it
+  // (task-111). The browser fallback content shell also has no pet window, so it
+  // stays a local (honestly not-ready) renderer instead of pretending to notify.
+  localRenderer: !CONTENT_SHELL || !HAS_TAURI,
+  ...(CONTENT_SHELL && HAS_TAURI ? { requestRemoteApply: () => requestPetWindowCharacterPackApply() } : {}),
+  storage: (() => {
+    try {
+      return typeof localStorage === 'undefined' ? null : localStorage
+    } catch {
+      return null
+    }
+  })(),
+  onRendererEvent: (event: CharacterPackRendererEvent): void => {
+    // QA/debug only: no frame bytes, URLs or host objects cross this sink.
+    try {
+      const root = document.documentElement
+      root.dataset.characterPackRenderer = event.type
+      if (event.type === 'render-applied' || event.type === 'render-restored') {
+        root.dataset.characterPack = event.packId + '@' + event.version
+      } else if (event.type === 'render-released') {
+        delete root.dataset.characterPack
+      }
+    } catch {
+      /* QA attributes are best effort */
+    }
+  },
+}
+
 const contentRuntimeApi = createContentRuntime({
   document,
   contentWindow: CONTENT_WINDOW,
   hasTauri: HAS_TAURI,
   heroConfig: HERO_CONFIG,
+  characterPackRenderer: characterPackRendererWiring,
   uiBoundary,
   loadBoundary,
   reportFailure,
@@ -1829,6 +1941,14 @@ if (!CONTENT_SHELL) startDesktopShellLayout()
   // Additive QA surface: existing keys above keep their behaviour; `hero` is
   // the only new top-level key (flag/start status), see docs/PET-HERO-INTEGRATION.md.
   hero: heroStatus(HERO_CONFIG, null),
+  // Character-pack hot-switch truth (E4 / task-111): renderer truth only.
+  characterPack: {
+    rendered: () => activeCharacterPackId,
+    kind: () => activeCharacterPackKind,
+    scene: () => (hero === null ? 'folded-paper' : heroSceneBuiltin ? 'builtin-hero' : 'character-pack'),
+    restore: () => contentRuntimeApi.restoreActiveCharacterPack(),
+    sync: () => contentRuntimeApi.syncCharacterPackAppearance(),
+  },
   qa: {
     serialize: () => serializePet(state),
     restore: (plain: string) => {
@@ -1960,6 +2080,11 @@ function fallbackHero(reason: string, error?: unknown): void {
   hero?.dispose()
   hero = null
   heroCtx = null
+  // The DOM fallback is the shipped built-in appearance: no character pack.
+  heroSceneBuiltin = true
+  activeCharacterPackId = null
+  activeCharacterPackKind = null
+  delete document.documentElement.dataset.characterPack
   document.documentElement.removeAttribute('data-pet-render')
   delete document.documentElement.dataset.heroCanvas
   delete document.documentElement.dataset.heroScale
@@ -2016,8 +2141,10 @@ function heroFrame(timestamp: number): void {
 function applyHeroLocomotion(dtMs: number): void {
   const canvas = heroCanvasEl
   if (!canvas || !hero) return
-  const character = HERO_CONFIG.character
-  const canMove = character === 'cat' || character === 'dog'
+  const canMove =
+    activeCharacterPackKind !== null
+      ? activeCharacterPackKind === 'cat' || activeCharacterPackKind === 'dog'
+      : HERO_CONFIG.character === 'cat' || HERO_CONFIG.character === 'dog'
   const actorId = hero.actors[0]?.id
   const tag = actorId ? hero.actorFrame(actorId, heroSceneNow)?.tag : undefined
   const moving = canMove && (tag === 'run' || tag === 'ball_chase')
@@ -2061,6 +2188,194 @@ function startHeroLoop(): void {
   if (!hero || heroRaf !== null || document.visibilityState === 'hidden') return
   heroLastFrameMs = performance.now()
   heroRaf = requestAnimationFrame(heroFrame)
+}
+
+/** True when the live hero scene can accept a character-pack hot swap. */
+function isHeroRendererReady(): boolean {
+  return hero !== null && heroCanvasEl !== null && heroCtx !== null && heroStageSize !== null
+}
+
+
+interface HeroCharacterPackIdentity {
+  readonly packId: string
+  readonly version: string
+  readonly name: string
+  readonly kind: CharacterPackKind
+}
+
+/**
+ * Hot-swap the live hero scene to one character-pack bundle (task-111), or to
+ * the shipped built-in character when `identity` is null.
+ *
+ * The new scene is fully built + rendered through `startHeroRuntime`'s
+ * first-frame gate BEFORE anything is committed: on failure the previous scene
+ * keeps rendering (canvas backing store restored) and the built-in appearance is
+ * untouched. On success the old runtime is disposed, the canvas/QA attributes
+ * are refreshed and the existing hero rAF loop keeps drawing the new scene. The
+ * pointer listeners stay attached to the same canvas and read the new `hero`.
+ */
+async function hotSwapHeroCharacterPack(
+  bundle: HeroCharacterBundle,
+  identity: HeroCharacterPackIdentity | null,
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const canvas = heroCanvasEl
+  const ctx = heroCtx
+  const stage = heroStageSize
+  if (canvas === null || ctx === null || stage === null) {
+    return { ok: false, reason: 'hero-renderer-not-running' }
+  }
+  // Re-measure the book stage: the window may have been resized since boot.
+  const book = document.querySelector('.book')
+  const rect = book?.getBoundingClientRect()
+  const liveStage =
+    rect !== undefined && rect !== null && rect.width > 0 && rect.height > 0
+      ? { width: rect.width, height: rect.height }
+      : stage
+  // Idempotent: the requested pack (or the built-in scene) is already live.
+  if (identity === null) {
+    if (heroSceneBuiltin) return { ok: true }
+  } else if (
+    !heroSceneBuiltin &&
+    activeCharacterPackId !== null &&
+    activeCharacterPackId.packId === identity.packId &&
+    activeCharacterPackId.version === identity.version
+  ) {
+    return { ok: true }
+  }
+  const previous = hero
+  const snapshot = {
+    width: canvas.width,
+    height: canvas.height,
+    styleWidth: canvas.style.width,
+    styleHeight: canvas.style.height,
+  }
+  const restoreCanvas = (): void => {
+    canvas.width = snapshot.width
+    canvas.height = snapshot.height
+    canvas.style.width = snapshot.styleWidth
+    canvas.style.height = snapshot.styleHeight
+    ctx.setTransform?.(heroDpr, 0, 0, heroDpr, 0, 0)
+    ctx.imageSmoothingEnabled = false
+    delete canvas.dataset.heroRenderKey
+    delete canvas.dataset.heroFrameKey
+    if (previous !== null) {
+      try {
+        previous.render(ctx, heroSceneNow)
+      } catch {
+        // The old scene stays the fallback of record; a failed repaint is logged below.
+      }
+    }
+  }
+  const config: HeroConfig = {
+    enabled: true,
+    reason: 'query-on',
+    character: HERO_CONFIG.character,
+    actors: [HERO_CONFIG.character],
+    ...(HERO_CONFIG.scale !== undefined ? { scale: HERO_CONFIG.scale } : {}),
+  }
+  let result: Awaited<ReturnType<typeof startHeroRuntime>>
+  try {
+    result = await startHeroRuntime({
+      config,
+      canvas,
+      ctx,
+      stage: liveStage,
+      dpr: heroDpr,
+      loadBundle: async () => bundle,
+      actorIds: [bundle.key],
+      sleeping: heroNight,
+      ...(typeof location !== 'undefined' ? { resolveBase: location.href } : {}),
+    })
+  } catch (error) {
+    restoreCanvas()
+    return { ok: false, reason: 'start-failed: ' + (error instanceof Error ? error.message : String(error)) }
+  }
+  if (!result.ok) {
+    restoreCanvas()
+    return { ok: false, reason: result.reason }
+  }
+  // Commit only after the first-frame gate succeeded.
+  hero = result.runtime
+  heroSceneBuiltin = identity === null
+  activeCharacterPackId = identity === null ? null : { packId: identity.packId, version: identity.version }
+  activeCharacterPackKind = identity === null ? null : identity.kind
+  heroSceneNow = 0
+  heroLastFrameMs = performance.now()
+  heroStageSize = liveStage
+  heroMove.offset = 0
+  heroMove.active = false
+  canvas.style.translate = ''
+  canvas.style.scale = ''
+  delete canvas.dataset.heroFlip
+  delete canvas.dataset.heroRenderKey
+  delete canvas.dataset.heroFrameKey
+  canvas.classList.remove('dragging')
+  if (previous !== null) {
+    try {
+      previous.dispose()
+    } catch {
+      // A leaked scene must not block the already-successful switch.
+    }
+  }
+  document.documentElement.dataset.petRender = 'hero'
+  delete document.documentElement.dataset.characterPackRestore
+  const stageElement = document.getElementById('hero-stage')
+  if (stageElement) (stageElement as HTMLElement).hidden = false
+  document.documentElement.dataset.heroCanvas = `${result.runtime.layout.width}x${result.runtime.layout.height}`
+  document.documentElement.dataset.heroScale = String(result.runtime.layout.scale)
+  document.documentElement.dataset.heroDpr = String(canvas.width / Math.max(1, result.runtime.layout.width))
+  if (identity === null) {
+    delete document.documentElement.dataset.characterPack
+  } else {
+    document.documentElement.dataset.characterPack = identity.packId + '@' + identity.version
+  }
+  setHeroStatus({
+    enabled: true,
+    ok: true,
+    reason: identity === null ? 'builtin' : 'character-pack:' + identity.packId + '@' + identity.version,
+  })
+  setHeroPlaceholder(heroPlaceholderView('ready'))
+  requestDesktopShellScaleRefit()
+  startHeroLoop()
+  return { ok: true }
+}
+
+/**
+ * Restore the shipped built-in renderer after a pack was applied (uninstall,
+ * rollback-to-builtin, disabled hero, apply failure). Always returns ok:true
+ * when a built-in appearance is on screen — the folded-paper DOM is the last
+ * built-in fallback, so a failed hero rebuild still leaves a working built-in.
+ */
+async function restoreBuiltinHero(): Promise<CharacterPackBuiltinRestoreResult> {
+  if (heroSceneBuiltin && hero !== null) {
+    return { ok: true, message: '内置 hero 渲染器保持运行。' }
+  }
+  if (!isHeroRendererReady()) {
+    heroSceneBuiltin = true
+    activeCharacterPackId = null
+    activeCharacterPackKind = null
+    return { ok: true, message: 'hero 渲染器未运行，折叠纸内置外观保持可见。' }
+  }
+  let bundle: HeroCharacterBundle
+  try {
+    bundle = await loadHeroBundle(HERO_CONFIG.character)
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error)
+    heroSceneBuiltin = true
+    activeCharacterPackId = null
+    activeCharacterPackKind = null
+    fallbackHero('character-pack-restore-failed: ' + reason)
+    return { ok: true, message: '已回退折叠纸内置外观（内置 hero 角色包加载失败）。' }
+  }
+  const swapped = await hotSwapHeroCharacterPack(bundle, null)
+  if (!swapped.ok) {
+    heroSceneBuiltin = true
+    activeCharacterPackId = null
+    activeCharacterPackKind = null
+    fallbackHero('character-pack-restore-failed: ' + swapped.reason)
+    return { ok: true, message: '已回退折叠纸内置外观（内置 hero 场景重建失败）。' }
+  }
+  return { ok: true, message: '已恢复内置 hero 角色「' + HERO_CONFIG.character + '」。' }
 }
 
 /** Pointer → hero events. A real drag (>6 px) in the Tauri window starts the
@@ -2298,15 +2613,18 @@ async function startHeroPage(): Promise<void> {
     const rect = book?.getBoundingClientRect()
     const hour = new Date().getHours()
     const night = hour >= 23 || hour < 6
+    const stageSize = { width: rect?.width ?? window.innerWidth, height: rect?.height ?? window.innerHeight }
+    // DPR is clamped: a fake/very high DPR would allocate a huge backing store.
+    const dpr =
+      typeof window !== 'undefined' && Number.isFinite(window.devicePixelRatio)
+        ? Math.min(3, Math.max(1, window.devicePixelRatio))
+        : 1
     const runtimeOptions = {
       config: HERO_CONFIG,
       canvas,
       ctx,
-      stage: { width: rect?.width ?? window.innerWidth, height: rect?.height ?? window.innerHeight },
-      // DPR is clamped: a fake/very high DPR would allocate a huge backing store.
-      dpr: typeof window !== 'undefined' && Number.isFinite(window.devicePixelRatio)
-        ? Math.min(3, Math.max(1, window.devicePixelRatio))
-        : 1,
+      stage: stageSize,
+      dpr,
       sleeping: night,
     }
     // P1-4: a non-built-in hero character (e.g. ?character=tinglan, which is a
@@ -2340,6 +2658,13 @@ async function startHeroPage(): Promise<void> {
     heroCanvasEl = canvas
     heroCtx = ctx
     heroNight = night
+    heroStageSize = stageSize
+    heroDpr = dpr
+    // The booted scene is the shipped built-in renderer until the installer
+    // restores a persisted pack appearance below (task-111).
+    heroSceneBuiltin = true
+    activeCharacterPackId = null
+    activeCharacterPackKind = null
     attachHeroPointer(canvas)
     // Atomic switch only after the first frame succeeded: unhide the stage,
     // then hide `#pet` via CSS (rect kept); the bubble/buttons keep working.
@@ -2365,6 +2690,19 @@ async function startHeroPage(): Promise<void> {
       else startHeroLoop()
     })
     startHeroLoop()
+    // task-111: re-apply the persisted character-pack appearance WITHOUT a page
+    // reload. The content runtime may still be loading; the call awaits it, then
+    // the installer either hot-swaps the pack or honestly leaves the built-in.
+    void contentRuntimeApi
+      .restoreActiveCharacterPack()
+      .then((result) => {
+        if (result === null || result.ok) return
+        console.warn('[pet] character-pack appearance restore left the built-in renderer:', result.message)
+        document.documentElement.dataset.characterPackRestore = 'builtin-fallback'
+      })
+      .catch((error: unknown) => {
+        console.warn('[pet] character-pack appearance restore failed', error)
+      })
   } catch (error) {
     fallbackHero(`start-failed: ${error instanceof Error ? error.message : String(error)}`, error)
   }
@@ -3133,6 +3471,21 @@ function initializeApp(): void {
               }
               window.location.reload()
             })()
+          })
+          // task-111: the independent content window applied/removed a character
+          // pack; refresh the registry and hot-swap (or restore built-in) here,
+          // in the only window that owns the hero scene. No page reload.
+          await listen(CHARACTER_PACK_APPLY_EVENT, () => {
+            void contentRuntimeApi
+              .syncCharacterPackAppearance()
+              .then((result) => {
+                if (result !== null && !result.ok) {
+                  console.warn('[pet] character-pack cross-window sync:', result.message)
+                }
+              })
+              .catch((error: unknown) => {
+                console.warn('[pet] character-pack cross-window sync failed', error)
+              })
           })
         })
         .catch((error: unknown) => {

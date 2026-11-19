@@ -206,6 +206,7 @@ export const FAMLING_STORAGE_KEYS: readonly FamlingStorageKeySpec[] = Object.fre
   Object.freeze({ key: 'desktop-games/pet/content/role-theme', owner: 'content', encoding: 'versioned', version: 1, note: 'Last applied character-theme id.' }),
   Object.freeze({ key: 'desktop-games/pet/content/installed-packs', owner: 'content', encoding: 'versioned', version: 1, note: 'Validated local v1 content packs envelope.' }),
   Object.freeze({ key: 'desktop-games/pet/content/theme-packs', owner: 'content', encoding: 'versioned', version: 1, note: 'Validated local v2 role-theme pack manifests.' }),
+  Object.freeze({ key: 'desktop-games/pet/character-packs/active', owner: 'content', encoding: 'versioned', version: 1, note: 'Persisted active character-pack appearance (pack id/version) envelope v1; restored by the hero hot-swap host after boot.' }),
   // -- content window deep link -------------------------------------------
   Object.freeze({ key: 'desktop-games/pet/content-window-focus', owner: 'window', encoding: 'identifier', version: 0, note: 'One-shot focus target for the content window; read-and-cleared by its owner.' }),
   // -- chat import (chat-import/store.ts + main.ts) -----------------------

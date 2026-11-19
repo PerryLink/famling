@@ -12,14 +12,19 @@
  * - exposes install / enable / uninstall / rollback actions for the 内容包 tab.
  *
  * What this module deliberately does NOT do (honest limits):
- * - it does NOT touch hero rendering: no canvas, no renderer module import, no
- *   page reload. Until a renderer adapter is injected via
- *   `applyCharacter`, `state().rendererConnected` stays false and every UI
- *   message says the registered character is registered-only / not applicable;
+ * - it does NOT touch the canvas/DOM or import the hero runtime: hero rendering
+ *   is injected as a `CharacterPackRenderHost` (main.ts owns the canvas and the
+ *   hot-swap scene). When no host is injected (Node tests/embeds), it stays a
+ *   registration-only installer: `state().rendererConnected` is false and every
+ *   UI message says the character is registered-only / not applicable.
  * - there is no network access: only local bytes selected by the user enter the
  *   installer, and remote/unverified packs are refused before any write;
- * - active-character persistence is intentionally not claimed: the runtime's
- *   active selection lives for this session only, which the UI states.
+ * - when a renderer host IS injected, the active pack id is persisted through
+ *   the injected Web Storage (a versioned envelope) and restored by the host
+ *   after the hero renderer is ready; a failed restore/apply clears the key and
+ *   falls back to the built-in renderer through the injected `restoreBuiltin`
+ *   callback. No provider is invented: a pack that cannot be rendered is never
+ *   reported as applied.
  */
 import {
   crc32,
@@ -34,6 +39,7 @@ import {
   CHARACTER_PACK_KINDS,
   CHARACTER_PACK_MANIFEST_FILE,
   CONTENT_PACK_V2_LIMITS,
+  characterPackFramePaths,
   describeUsageConfirmation,
   validateCharacterPackV2,
   validateCharacterPackZip,
@@ -41,6 +47,12 @@ import {
   type CharacterPackV2,
   type ContentIssue,
 } from '../content-library.ts'
+import {
+  CharacterPackRendererAdapter,
+  type CharacterPackRenderHost,
+  type CharacterPackRendererEvent,
+} from '../character-pack-renderer.ts'
+import { resolveStorage, safeGetItem, safeRemoveItem, safeSetItem, type StorageLike } from '../security/safe-storage.ts'
 import {
   CHARACTER_PACK_POINTER_SCHEMA,
   CharacterPackRuntime,
@@ -77,6 +89,85 @@ export const CHARACTER_PACK_RENDERER_NOTE =
 /** Appended to every successful action while no renderer adapter is injected. */
 export const CHARACTER_PACK_UNWIRED_SUFFIX = '；渲染器未接入：仅登记，桌宠外观未改变（不可应用）。'
 
+/** Honest note when a renderer host is injected but the hero scene is not running. */
+export const CHARACTER_PACK_RENDERER_NOT_READY_NOTE =
+  '角色包渲染器已接入，但 hero 渲染器当前没有运行（折叠纸模式或被关闭）：角色包可以登记，启用不会改变外观；开启 hero 渲染后再启用即可热切换。'
+
+/** Honest note when the independent content window delegates rendering to the pet page. */
+export const CHARACTER_PACK_RENDERER_REMOTE_NOTE =
+  '角色包渲染器已接入：本窗口只负责安装与登记，桌宠外观由桌宠窗口加载 hero 帧/资产并热切换（失败自动回退内置渲染器）。'
+
+/** Honest note when the injected renderer host is ready for a real hot switch. */
+export const CHARACTER_PACK_RENDERER_READY_NOTE =
+  '角色包渲染器已接入：启用已安装角色包会真正加载 hero 帧/资产并热切换桌宠外观（不刷新页面）；帧/资产加载或首帧失败会自动回退内置渲染器，且不会记为已应用。'
+
+/** Storage key for the persisted active character pack (versioned envelope). */
+export const CHARACTER_PACK_ACTIVE_STORAGE_KEY = 'desktop-games/pet/character-packs/active'
+/** Envelope version of `CHARACTER_PACK_ACTIVE_STORAGE_KEY`. */
+export const CHARACTER_PACK_ACTIVE_STORAGE_VERSION = 1
+/** Upper bound of one persisted active-pack value (bytes); larger values are ignored. */
+export const CHARACTER_PACK_ACTIVE_STORAGE_MAX_BYTES = 512
+
+/** Result of the injected built-in-restore callback (main.ts hot-restores hero). */
+export interface CharacterPackBuiltinRestoreResult {
+  readonly ok: boolean
+  readonly message: string
+}
+
+/**
+ * Production renderer wiring injected by `main.ts` (through `content-runtime.ts`).
+ * When present, `enable()` applies the active handles through
+ * `CharacterPackRendererAdapter` and the persisted active pack is restored after
+ * the hero renderer is ready. Absent = registration-only installer (honest UI).
+ */
+export interface CharacterPackRendererWiring {
+  /** Renderer boundary the adapter owns (main.ts owns the canvas/DOM side). */
+  readonly host: CharacterPackRenderHost
+  /** Absolute page base for root-relative hints (`location.href` in main.ts). */
+  readonly resolveBase?: string
+  /** True when the hero scene can accept a hot swap right now. */
+  readonly isReady?: () => boolean
+  /**
+   * False when this window does NOT own the hero scene (the independent content
+   * window, MB-062): enabling persists the choice and asks the pet window to
+   * apply it through `requestRemoteApply` instead of pretending to render it.
+   */
+  readonly localRenderer?: boolean
+  /** Ask the window that owns the hero scene to apply the persisted appearance. */
+  readonly requestRemoteApply?: () => void
+  /** Restore the shipped built-in renderer (called on failure/uninstall). */
+  readonly restoreBuiltin: () => Promise<CharacterPackBuiltinRestoreResult> | CharacterPackBuiltinRestoreResult
+  /** Web Storage override (tests); default = safe global localStorage. */
+  readonly storage?: StorageLike | null
+  /** Storage key override (tests); default = CHARACTER_PACK_ACTIVE_STORAGE_KEY. */
+  readonly storageKey?: string
+  /** Renderer-adapter observability sink (no bytes/URLs are exposed). */
+  readonly onRendererEvent?: (event: CharacterPackRendererEvent) => void
+}
+
+/** What is actually rendered right now (renderer truth, not registry truth). */
+export interface CharacterPackRendererState {
+  /** 'none' = no host; 'local' = this window draws hero; 'remote' = pet window draws. */
+  readonly mode: 'local' | 'remote' | 'none'
+  /** True when a renderer host is wired into this installer. */
+  readonly connected: boolean
+  /** True when the wired host reports the hero scene ready for a hot switch. */
+  readonly ready: boolean
+  /** The pack currently rendered by the hero scene (null = built-in / remote). */
+  readonly rendered: { readonly packId: string; readonly version: string; readonly name: string } | null
+  /** The persisted appearance the next boot/pet window should apply (may be stale). */
+  readonly saved: { readonly packId: string; readonly version: string; readonly name: string } | null
+  /** Why the last apply/restore fell back to the built-in renderer, if it did. */
+  readonly fallbackReason: string | null
+}
+
+interface PersistedActivePack {
+  readonly packId: string
+  readonly version: string
+  readonly characterId: string
+  readonly savedAt: number
+}
+
 /** One user-selected local import input (structural copy of packs.ts selection). */
 export interface CharacterPackImportSelection {
   readonly kind: 'json' | 'zip' | 'folder'
@@ -106,8 +197,12 @@ export interface CharacterPackUiState {
   readonly activePackId: string | null
   readonly rows: readonly CharacterPackUiRow[]
   readonly installedCount: number
-  /** False in this build: the renderer adapter is not injected. */
+  /** True when a renderer host is injected (production) and can hot-switch. */
   readonly rendererConnected: boolean
+  /** Renderer truth: what the hero scene is actually showing right now. */
+  readonly renderer: CharacterPackRendererState
+  /** True while a persisted active pack is waiting for the hero renderer. */
+  readonly restorePending: boolean
   /** Always-visible honest statement about what enable/apply really does. */
   readonly note: string
 }
@@ -173,6 +268,18 @@ export interface CharacterPackHubAdapter {
   enable(packId: string): Promise<CharacterPackActionOutcome>
   uninstall(packId: string): Promise<CharacterPackActionOutcome>
   rollback(packId: string): Promise<CharacterPackActionOutcome>
+  /**
+   * Restore the persisted active pack. Called by the host once the hero renderer
+   * is ready (a boot-time restore of the last applied pack). Idempotent: it is a
+   * neutral success when nothing was persisted or the pack is already rendered.
+   */
+  restoreActive(): Promise<CharacterPackActionOutcome>
+  /**
+   * Pet-window side of the cross-window bridge: refresh the installed registry,
+   * then apply the persisted appearance (or restore built-in when none is saved).
+   * Called when the independent content window installs/enables/uninstalls a pack.
+   */
+  syncActive(): Promise<CharacterPackActionOutcome>
 }
 
 /** Options for `createCharacterPackInstaller()`; all effects are injected. */
@@ -188,10 +295,14 @@ export interface CharacterPackInstallerOptions {
   /** Clock override for deterministic pointer timestamps (tests). */
   readonly now?: () => number
   /**
-   * FUTURE renderer adapter: when provided, `state().rendererConnected` becomes
-   * true and enable() applies the active handles through it. This build never
-   * passes it (see task-98: hero rendering must not change), so the UI always
-   * renders the honest 「不可应用」 state.
+   * Production renderer wiring (task-111): injected by main.ts through
+   * content-runtime.ts. When present, enable/restore apply the active handles
+   * through `CharacterPackRendererAdapter` and persist the active pack.
+   */
+  readonly renderer?: CharacterPackRendererWiring
+  /**
+   * Legacy one-shot applier (tests/embeds): used only when `renderer` is absent.
+   * When provided, `state().rendererConnected` becomes true for that adapter.
    */
   readonly applyCharacter?: (active: CharacterPackActiveCharacter) => Promise<CharacterPackActionOutcome> | CharacterPackActionOutcome
 }
@@ -530,6 +641,59 @@ async function listInstalledStates(store: CharacterPackFileStore): Promise<reado
   return Object.freeze(states)
 }
 
+/** MIME type for a stored pack asset path (only v2's allowed image types matter). */
+function assetMimeForPath(path: string): string {
+  const lower = path.toLowerCase()
+  if (lower.endsWith('.png')) return 'image/png'
+  if (lower.endsWith('.webp')) return 'image/webp'
+  if (lower.endsWith('.json')) return 'application/json'
+  if (lower.endsWith('.woff2')) return 'font/woff2'
+  return 'application/octet-stream'
+}
+
+/** Base64-encode bytes without an npm dependency (browser + Node both work). */
+function bytesToBase64(bytes: Uint8Array): string {
+  const chunkSize = 0x8000
+  let binary = ''
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    const chunk = bytes.subarray(offset, Math.min(bytes.length, offset + chunkSize))
+    binary += String.fromCharCode(...chunk)
+  }
+  if (typeof btoa === 'function') return btoa(binary)
+  // Minimal base64 fallback for hosts without btoa (e.g. exotic embedded JS).
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+  let out = ''
+  for (let index = 0; index < bytes.length; index += 3) {
+    const a = bytes[index] ?? 0
+    const hasB = index + 1 < bytes.length
+    const hasC = index + 2 < bytes.length
+    const b = bytes[index + 1] ?? 0
+    const c = bytes[index + 2] ?? 0
+    out += alphabet[a >> 2]
+    out += alphabet[((a & 3) << 4) | (b >> 4)]
+    out += hasB ? alphabet[((b & 15) << 2) | (c >> 6)] : '='
+    out += hasC ? alphabet[c & 63] : '='
+  }
+  return out
+}
+
+/**
+ * Total byte budget for the per-frame/preview data: URLs handed to the hero
+ * adapter on one load. The pack itself is bounded to 16 MiB compressed / 32 MiB
+ * uncompressed; base64 inflates ~4/3. A pack above this budget fails closed
+ * (fallback to the built-in renderer) instead of risking a WebView OOM.
+ */
+const CHARACTER_PACK_ASSET_URL_BUDGET_BYTES = 24 * 1024 * 1024
+
+/**
+ * Read + validate one installed pack and hand the runtime absolute asset URLs.
+ *
+ * Character packs are installed into IndexedDB as a file tree, so the hero
+ * renderer (which loads `Image.src`) cannot address those files directly. Every
+ * required frame (plus the preview) is encoded as a bounded `data:` URL keyed by
+ * its pack-relative path; the runtime passes `assetUrls` through to the art
+ * handle and `character-pack-renderer.ts` resolves each frame path from it.
+ */
 function createRuntimeHost(store: CharacterPackFileStore): CharacterPackRuntimeHost {
   return {
     readZip: (bytes: ArrayBuffer | Uint8Array): Promise<ContentBundleReadResult> => readContentZip(bytes),
@@ -541,14 +705,38 @@ function createRuntimeHost(store: CharacterPackFileStore): CharacterPackRuntimeH
       await store.remove(path)
     },
     loadCharacter: async (ref) => {
-      const path = ref.packId + '/' + ref.version + '/' + CHARACTER_PACK_MANIFEST_FILE
+      const base = ref.packId + '/' + ref.version + '/'
+      const path = base + CHARACTER_PACK_MANIFEST_FILE
       const bytes = await store.read(path)
       if (bytes === null) throw new Error('installed character pack.json is missing: ' + path)
       const text = decodeUtf8(bytes)
       if (text === null) throw new Error('installed character pack.json is not valid UTF-8')
-      // Deliberately no assetBase/assetUrls: the renderer adapter does not exist
-      // yet, and inventing URLs that nothing serves would be a false claim.
-      return { pack: JSON.parse(text) as unknown }
+      let raw: unknown
+      try {
+        raw = JSON.parse(text)
+      } catch {
+        throw new Error('installed character pack.json is not valid JSON')
+      }
+      // The runtime re-validates fail-closed too; this early validation is what
+      // lets the host derive the canonical frame paths without inventing them.
+      const validation = validateCharacterPackV2(raw)
+      if (!validation.ok) throw new Error('installed character pack.json failed validation')
+      const assetPaths = new Set<string>(characterPackFramePaths(validation.pack))
+      if (typeof validation.pack.preview === 'string' && validation.pack.preview.length > 0) {
+        assetPaths.add(validation.pack.preview)
+      }
+      const assetUrls: Record<string, string> = {}
+      let budget = 0
+      for (const assetPath of assetPaths) {
+        const data = await store.read(base + assetPath)
+        if (data === null) throw new Error('installed character pack asset is missing: ' + assetPath)
+        budget += data.byteLength
+        if (budget > CHARACTER_PACK_ASSET_URL_BUDGET_BYTES) {
+          throw new Error('installed character pack assets exceed the ' + CHARACTER_PACK_ASSET_URL_BUDGET_BYTES + ' byte render URL budget')
+        }
+        assetUrls[assetPath] = 'data:' + assetMimeForPath(assetPath) + ';base64,' + bytesToBase64(data)
+      }
+      return { pack: raw, assetUrls }
     },
     emit: (_event: CharacterPackRuntimeEvent): void => {
       // Events are observability-only; the panel re-reads state() after every
@@ -601,6 +789,58 @@ function failureOutcome(failure: CharacterPackRuntimeFailure, action: string): C
 }
 
 // ---------------------------------------------------------------------------
+// Active-pack persistence (versioned storage envelope)
+// ---------------------------------------------------------------------------
+
+function parsePersistedActivePack(raw: string | null): PersistedActivePack | null {
+  if (typeof raw !== 'string' || raw.length === 0 || raw.length > CHARACTER_PACK_ACTIVE_STORAGE_MAX_BYTES) return null
+  let value: unknown
+  try {
+    value = JSON.parse(raw)
+  } catch {
+    return null
+  }
+  if (!isRecord(value) || value.v !== CHARACTER_PACK_ACTIVE_STORAGE_VERSION) return null
+  const packId = value.packId
+  const version = value.version
+  const characterId = value.characterId
+  const savedAt = value.savedAt
+  if (typeof packId !== 'string' || !PACK_ID_PATTERN.test(packId)) return null
+  if (typeof version !== 'string' || !SEMVER_PATTERN.test(version)) return null
+  if (typeof characterId !== 'string' || !PACK_ID_PATTERN.test(characterId)) return null
+  if (typeof savedAt !== 'number' || !Number.isFinite(savedAt) || savedAt < 0) return null
+  return Object.freeze({ packId, version, characterId, savedAt })
+}
+
+function readPersistedActivePack(storage: StorageLike | null, key: string): PersistedActivePack | null {
+  return parsePersistedActivePack(safeGetItem(key, storage))
+}
+
+function writePersistedActiveIdentity(
+  storage: StorageLike | null,
+  key: string,
+  identity: { readonly packId: string; readonly version: string; readonly characterId: string },
+  now: number,
+): boolean {
+  const value = {
+    v: CHARACTER_PACK_ACTIVE_STORAGE_VERSION,
+    packId: identity.packId,
+    version: identity.version,
+    characterId: identity.characterId,
+    savedAt: now,
+  }
+  return safeSetItem(key, JSON.stringify(value), storage) === 'ok'
+}
+
+function writePersistedActivePack(storage: StorageLike | null, key: string, active: CharacterPackActiveCharacter, now: number): boolean {
+  return writePersistedActiveIdentity(storage, key, active, now)
+}
+
+function clearPersistedActivePack(storage: StorageLike | null, key: string): void {
+  safeRemoveItem(key, storage)
+}
+
+// ---------------------------------------------------------------------------
 // Unavailable adapter (honest, never throws)
 // ---------------------------------------------------------------------------
 
@@ -613,6 +853,8 @@ export function characterPackUnavailableState(reason: string): CharacterPackUiSt
     rows: Object.freeze([]),
     installedCount: 0,
     rendererConnected: false,
+    renderer: Object.freeze({ mode: 'none' as const, connected: false, ready: false, rendered: null, saved: null, fallbackReason: null }),
+    restorePending: false,
     note: CHARACTER_PACK_RENDERER_NOTE,
   })
 }
@@ -631,6 +873,8 @@ function unavailableAdapter(reason: string): CharacterPackHubAdapter {
     enable: async (): Promise<CharacterPackActionOutcome> => fail(),
     uninstall: async (): Promise<CharacterPackActionOutcome> => fail(),
     rollback: async (): Promise<CharacterPackActionOutcome> => fail(),
+    restoreActive: async (): Promise<CharacterPackActionOutcome> => fail(),
+    syncActive: async (): Promise<CharacterPackActionOutcome> => fail(),
   })
 }
 
@@ -678,9 +922,87 @@ export async function createCharacterPackInstaller(
     return unavailableAdapter('角色包运行时初始化失败：' + messageOf(error))
   }
 
-  const rendererConnected = options.applyCharacter !== undefined
+  const wiring = options.renderer
+  const rendererConnected = wiring !== undefined || options.applyCharacter !== undefined
+  /** This window owns the hero scene (true in the pet window, false in the content window). */
+  const localRenderer = wiring === undefined ? false : wiring.localRenderer !== false
+  const persistentStorage = wiring === undefined ? null : resolveStorage(wiring.storage)
+  const activeStorageKey = wiring?.storageKey ?? CHARACTER_PACK_ACTIVE_STORAGE_KEY
+  const rendererAdapter =
+    wiring === undefined
+      ? null
+      : new CharacterPackRendererAdapter({
+          host:
+            wiring.onRendererEvent === undefined
+              ? wiring.host
+              : {
+                  ...wiring.host,
+                  emit: (event: CharacterPackRendererEvent): void => {
+                    try {
+                      wiring.onRendererEvent?.(event)
+                    } catch {
+                      // Observability must never break a render transition.
+                    }
+                  },
+                },
+          ...(wiring.resolveBase !== undefined ? { resolveBase: wiring.resolveBase } : {}),
+        })
   const prepared = new Map<string, PreparedEntry>()
   let preparedSeq = 0
+  /** Why the last renderer apply/restore fell back to the built-in renderer. */
+  let fallbackReason: string | null = null
+
+  function now(): number {
+    return options.now !== undefined ? options.now() : Date.now()
+  }
+
+  function isRendererReady(): boolean {
+    if (!rendererConnected || !localRenderer) return false
+    if (wiring === undefined) return true
+    if (wiring.isReady === undefined) return false
+    try {
+      return wiring.isReady() === true
+    } catch {
+      return false
+    }
+  }
+
+  function rendererNote(): string {
+    if (!rendererConnected) return CHARACTER_PACK_RENDERER_NOTE
+    if (!localRenderer) return CHARACTER_PACK_RENDERER_REMOTE_NOTE
+    return isRendererReady() ? CHARACTER_PACK_RENDERER_READY_NOTE : CHARACTER_PACK_RENDERER_NOT_READY_NOTE
+  }
+
+  /** Ask the pet window (which owns the hero scene) to apply the saved appearance. */
+  function requestRemoteApply(): void {
+    if (wiring === undefined || wiring.requestRemoteApply === undefined) return
+    try {
+      wiring.requestRemoteApply()
+    } catch {
+      // Cross-window notification is best effort: the saved record still applies on boot.
+    }
+  }
+
+  /** The persisted appearance as a registry-resolved row (name may fall back to id). */
+  function savedAppearance(): { readonly packId: string; readonly version: string; readonly name: string } | null {
+    const persisted = readPersisted()
+    if (persisted === null) return null
+    const row = runtime.registry().find((entry) => entry.packId === persisted.packId && entry.version === persisted.version)
+    return Object.freeze({ packId: persisted.packId, version: persisted.version, name: row?.name ?? persisted.packId })
+  }
+
+  function renderedPack(): { readonly packId: string; readonly version: string; readonly name: string } | null {
+    if (rendererAdapter === null) return null
+    const current = rendererAdapter.snapshot().current
+    if (current === null) return null
+    const row = runtime.registry().find((entry) => entry.packId === current.packId && entry.version === current.version)
+    return Object.freeze({ packId: current.packId, version: current.version, name: row?.name ?? current.packId })
+  }
+
+  function readPersisted(): PersistedActivePack | null {
+    if (wiring === undefined) return null
+    return readPersistedActivePack(persistentStorage, activeStorageKey)
+  }
 
   function currentState(): CharacterPackUiState {
     const snapshot = runtime.snapshot()
@@ -696,6 +1018,15 @@ export async function createCharacterPackInstaller(
         ...(entry.previousVersion !== undefined ? { previousVersion: entry.previousVersion } : {}),
       }),
     )
+    const rendered = renderedPack()
+    const renderer: CharacterPackRendererState = Object.freeze({
+      mode: rendererConnected ? (localRenderer ? ('local' as const) : ('remote' as const)) : ('none' as const),
+      connected: rendererConnected,
+      ready: isRendererReady(),
+      rendered,
+      saved: savedAppearance(),
+      fallbackReason,
+    })
     return Object.freeze({
       available: true,
       unavailableReason: null,
@@ -704,13 +1035,175 @@ export async function createCharacterPackInstaller(
       rows: Object.freeze(rows),
       installedCount: rows.filter((row) => row.source === 'installed').length,
       rendererConnected,
-      note: CHARACTER_PACK_RENDERER_NOTE,
+      renderer,
+      restorePending: localRenderer && rendered === null && isRendererReady() && readPersisted() !== null,
+      note: rendererNote(),
     })
   }
 
   function rowName(packId: string): string {
     const row = currentState().rows.find((entry) => entry.packId === packId)
     return row?.name ?? packId
+  }
+
+  /** True once the hero scene actually renders this pack (renderer truth). */
+  function isRendered(packId: string, version?: string): boolean {
+    const rendered = renderedPack()
+    if (rendered === null || rendered.packId !== packId) return false
+    return version === undefined || rendered.version === version
+  }
+
+  async function callRestoreBuiltin(): Promise<{ ok: boolean; message: string }> {
+    if (wiring === undefined) return { ok: true, message: '渲染器未接入，外观未改变。' }
+    try {
+      const result = await wiring.restoreBuiltin()
+      if (result !== null && typeof result === 'object' && typeof result.ok === 'boolean') {
+        return { ok: result.ok, message: typeof result.message === 'string' ? result.message : '' }
+      }
+      return { ok: false, message: '内置渲染器恢复回调返回了无效结果。' }
+    } catch (error) {
+      return { ok: false, message: messageOf(error) }
+    }
+  }
+
+  /** Release the rendered pack, restore the built-in renderer and clear persistence. */
+  async function renderBuiltin(reason: string | null): Promise<CharacterPackActionOutcome> {
+    let releaseWarning = ''
+    if (rendererAdapter !== null) {
+      try {
+        const released = await rendererAdapter.release()
+        if (!released.ok) releaseWarning = '；旧角色包释放失败：' + released.message
+      } catch (error) {
+        releaseWarning = '；旧角色包释放失败：' + messageOf(error)
+      }
+    }
+    const restored = await callRestoreBuiltin()
+    clearPersistedActivePack(persistentStorage, activeStorageKey)
+    // Registry truth follows the renderer truth: the built-in fallback is active.
+    try {
+      await runtime.enable(CHARACTER_PACK_FALLBACK_ID)
+    } catch {
+      // Best effort: the renderer fallback above is what the user actually sees.
+    }
+    if (reason === null) fallbackReason = null
+    const restoredText = restored.ok
+      ? '已切回内置渲染器。' + (restored.message !== '' ? ' ' + restored.message : '')
+      : '内置渲染器恢复失败：' + restored.message
+    return { ok: restored.ok, message: restoredText + releaseWarning }
+  }
+
+  function persistApplied(active: CharacterPackActiveCharacter): string {
+    if (wiring === undefined) return ''
+    const written = writePersistedActivePack(persistentStorage, activeStorageKey, active, now())
+    return written ? '' : '；本地存储不可用，无法在下次启动恢复该外观。'
+  }
+
+  /** Convert + load the active handles into the live hero scene, or fall back. */
+  async function applyActive(
+    active: CharacterPackActiveCharacter,
+    action: '启用' | '恢复' | '回滚' | '更新',
+    forceReload: boolean,
+  ): Promise<CharacterPackActionOutcome> {
+    if (!rendererConnected) {
+      return { ok: true, message: '已登记' + action + '「' + active.name + '」v' + active.version + '；' + CHARACTER_PACK_RENDERER_NOTE }
+    }
+    if (!localRenderer) {
+      // Independent content window: persist the choice and ask the pet window
+      // (the only window with a hero scene) to load + hot-swap the pack.
+      const persistNote = persistApplied(active)
+      requestRemoteApply()
+      return {
+        ok: true,
+        message:
+          '已' +
+          action +
+          '「' +
+          active.name +
+          '」v' +
+          active.version +
+          '；已保存并在桌宠窗口加载 hero 帧/资产并热切换（失败会自动回退内置渲染器）' +
+          persistNote +
+          '。',
+      }
+    }
+    if (!isRendererReady()) {
+      // Never leave the registry claiming an appearance the renderer cannot show.
+      try {
+        await runtime.enable(CHARACTER_PACK_FALLBACK_ID)
+      } catch {
+        // Best effort registry truth; the renderer never changed.
+      }
+      fallbackReason = 'hero 渲染器当前未运行（折叠纸模式或被关闭）'
+      return {
+        ok: false,
+        message:
+          '「' +
+          active.name +
+          '」v' +
+          active.version +
+          ' 已登记，但未启用：' +
+          CHARACTER_PACK_RENDERER_NOT_READY_NOTE,
+      }
+    }
+    if (rendererAdapter === null) {
+      // Legacy one-shot applier (tests/embeds): no persistence, no fallback scene.
+      try {
+        const applied = await options.applyCharacter!(active)
+        return applied.ok
+          ? { ok: true, message: '已登记' + action + '「' + active.name + '」v' + active.version + '；' + applied.message }
+          : applied
+      } catch (error) {
+        return { ok: false, message: '已登记' + action + '，但应用到渲染器失败：' + messageOf(error) }
+      }
+    }
+    const result = await rendererAdapter.apply(active, forceReload ? { forceReload: true } : {})
+    if (result.ok) {
+      fallbackReason = null
+      const frames = active.art.framePaths?.length ?? 0
+      const persistNote = persistApplied(active)
+      const stateText =
+        result.state === 'unchanged'
+          ? '（渲染器已是最新状态）'
+          : '：hero 帧/资产已加载（' + frames + ' 帧）并热切换，无需刷新页面。'
+      return { ok: true, message: '已' + action + '「' + active.name + '」v' + active.version + '，' + stateText + persistNote }
+    }
+    // Failure: the adapter kept (or re-loaded) the previous renderer state when it
+    // could; make the runtime registry agree with what is actually displayed.
+    const reason = '应用失败（' + result.code + '）：' + result.message
+    fallbackReason = reason
+    if (result.restored !== null && result.restoreFailed !== true) {
+      try {
+        const reverted = await runtime.enable(result.restored.packId, { version: result.restored.version })
+        if (reverted.ok && !reverted.active.builtin) {
+          const persistNote = persistApplied(reverted.active)
+          return {
+            ok: false,
+            message:
+              '已登记「' +
+              active.name +
+              '」v' +
+              active.version +
+              '，但' +
+              reason +
+              '；已保持上一个角色包外观「' +
+              reverted.active.name +
+              '」v' +
+              reverted.active.version +
+              persistNote +
+              '。',
+          }
+        }
+      } catch {
+        // Fall through to the built-in fallback below.
+      }
+    }
+    const fallback = await renderBuiltin(reason)
+    fallbackReason = reason
+    const fallbackText = fallback.ok ? '已自动回退内置渲染器' : '内置渲染器恢复也失败（' + fallback.message + '）'
+    return {
+      ok: false,
+      message: '已登记「' + active.name + '」v' + active.version + '，但' + reason + '；' + fallbackText + '，本次外观未应用。',
+    }
   }
 
   async function preview(selection: CharacterPackImportSelection): Promise<CharacterPackPreviewResult> {
@@ -792,46 +1285,107 @@ export async function createCharacterPackInstaller(
     prepared.delete(preparedArg.token)
     if (!result.ok) return failureOutcome(result, '安装')
     const verb = result.action === 'update' ? '更新' : '安装'
-    return {
-      ok: true,
-      message:
-        '已' +
-        verb +
-        '角色包「' +
-        entry.preview.name +
-        '」v' +
-        entry.preview.version +
-        '：统一用途声明/许可/AI 标识均已确认，仅本地数据、未联网。' +
-        (rendererConnected ? '' : CHARACTER_PACK_UNWIRED_SUFFIX),
+    const baseMessage =
+      '已' +
+      verb +
+      '角色包「' +
+      entry.preview.name +
+      '」v' +
+      entry.preview.version +
+      '：统一用途声明/许可/AI 标识均已确认，仅本地数据、未联网。'
+    if (!rendererConnected) {
+      return { ok: true, message: baseMessage + CHARACTER_PACK_UNWIRED_SUFFIX }
     }
+    // An update of the pack a saved appearance points at must keep that saved
+    // record resolvable: the next boot would otherwise request the deleted version.
+    const persistedBefore = readPersisted()
+    const savedWasUpdated =
+      persistedBefore !== null &&
+      persistedBefore.packId === result.state.record.packId &&
+      persistedBefore.version !== result.state.record.version
+    if (savedWasUpdated) {
+      writePersistedActiveIdentity(
+        persistentStorage,
+        activeStorageKey,
+        { packId: result.state.record.packId, version: result.state.record.version, characterId: result.state.characterId },
+        now(),
+      )
+    }
+    if (!localRenderer) {
+      // The pet window owns the scene: it will refresh the registry and apply
+      // the saved appearance when notified.
+      if (savedWasUpdated) {
+        requestRemoteApply()
+        return { ok: true, message: baseMessage + ' 已通知桌宠窗口刷新角色包外观（更新会在该窗口热切换）。' }
+      }
+      return { ok: true, message: baseMessage + ' 安装后点「启用」会在桌宠窗口加载 hero 帧/资产并热切换外观。' }
+    }
+    // Updating the pack that is currently rendered should hot-swap to the new version.
+    const active = runtime.activeCharacter()
+    if (active !== null && active.packId === result.state.record.packId && active.version !== result.state.record.version) {
+      const switched = await runtime.enable(result.state.record.packId)
+      if (!switched.ok) {
+        return { ok: true, message: baseMessage + ' 新版本已安装，但热切换失败（' + switched.message + '），请重新启用。' }
+      }
+      const applied = await applyActive(switched.active, '更新', true)
+      return {
+        ok: true,
+        message:
+          baseMessage +
+          (applied.ok
+            ? ' 当前启用的角色包已热切换到 v' + switched.active.version + '：' + applied.message
+            : ' 新版本已安装，外观未切换：' + applied.message),
+      }
+    }
+    return { ok: true, message: baseMessage + ' 安装后点「启用」即可加载 hero 帧/资产并热切换外观（无需刷新）。' }
   }
 
   async function enable(packId: string): Promise<CharacterPackActionOutcome> {
     const result = await runtime.enable(packId)
     if (!result.ok) return failureOutcome(result, '启用')
     const active = result.active
-    const registered = '已登记启用「' + active.name + '」v' + active.version
-    if (options.applyCharacter === undefined) {
-      return { ok: true, message: registered + '；' + CHARACTER_PACK_RENDERER_NOTE }
+    if (active.builtin) {
+      if (!rendererConnected) {
+        return { ok: true, message: '已切回内置登记角色「' + active.name + '」；' + CHARACTER_PACK_RENDERER_NOTE }
+      }
+      if (!localRenderer) {
+        clearPersistedActivePack(persistentStorage, activeStorageKey)
+        requestRemoteApply()
+        return { ok: true, message: '已切回内置渲染器；已通知桌宠窗口释放角色包并恢复内置外观。' }
+      }
+      const switched = await renderBuiltin(null)
+      return switched.ok
+        ? { ok: true, message: '已切回内置渲染器（原角色包已释放）。' + switched.message }
+        : { ok: false, message: '已切回内置登记角色，但渲染器恢复失败：' + switched.message }
     }
-    let applied: CharacterPackActionOutcome
-    try {
-      applied = await options.applyCharacter(active)
-    } catch (error) {
-      return { ok: false, message: registered + '，但应用到渲染器失败：' + messageOf(error) }
-    }
-    return applied.ok ? { ok: true, message: registered + '；' + applied.message } : applied
+    return applyActive(active, '启用', false)
   }
 
   async function uninstall(packId: string): Promise<CharacterPackActionOutcome> {
     const name = rowName(packId)
+    const wasRendered = isRendered(packId)
     const result = await runtime.uninstall(packId)
     if (!result.ok) return failureOutcome(result, '卸载')
     let message = '已卸载角色包「' + name + '」v' + result.version + '，本地安装文件已清理。'
-    if (result.active !== null && result.active.builtin) {
-      message += ' 已回落到内置登记角色「' + result.active.name + '」' + (rendererConnected ? '。' : '（渲染器未接入，外观未改变）。')
-    } else {
-      message += rendererConnected ? '' : CHARACTER_PACK_UNWIRED_SUFFIX
+    const persisted = readPersisted()
+    if (persisted !== null && persisted.packId === packId) {
+      // Even when the hero scene is not currently running, a saved appearance for
+      // this pack must not survive the uninstall and point at local data later.
+      clearPersistedActivePack(persistentStorage, activeStorageKey)
+    }
+    if (wasRendered && rendererConnected) {
+      const restored = await renderBuiltin(null)
+      message += restored.ok
+        ? ' 当前外观已回退内置渲染器。' + restored.message
+        : ' 内置渲染器恢复失败：' + restored.message
+    } else if (result.active !== null && result.active.builtin) {
+      message += ' 已回落到内置登记角色「' + result.active.name + '」。' + (rendererConnected ? '' : CHARACTER_PACK_UNWIRED_SUFFIX)
+    } else if (!rendererConnected) {
+      message += CHARACTER_PACK_UNWIRED_SUFFIX
+    }
+    if (!localRenderer && rendererConnected) {
+      requestRemoteApply()
+      message += ' 已通知桌宠窗口刷新角色包外观。'
     }
     if (result.cleanupWarning !== undefined) {
       message += ' 目录清理警告：' + result.cleanupWarning + '（指针已删除，残留文件不会再被加载）。'
@@ -841,12 +1395,108 @@ export async function createCharacterPackInstaller(
 
   async function rollback(packId: string): Promise<CharacterPackActionOutcome> {
     const name = rowName(packId)
+    const wasRendered = isRendered(packId)
     const result = await runtime.rollback(packId)
     if (!result.ok) return failureOutcome(result, '回滚')
     let message = '已将角色包「' + name + '」回滚到 v' + result.toVersion + '（当前版本 v' + result.fromVersion + ' 已清理）。'
-    message += rendererConnected ? '' : CHARACTER_PACK_UNWIRED_SUFFIX
+    const persisted = readPersisted()
+    if (persisted !== null && persisted.packId === packId && persisted.version !== result.toVersion) {
+      // Keep a deferred/saved appearance consistent with the rolled-back version.
+      writePersistedActiveIdentity(
+        persistentStorage,
+        activeStorageKey,
+        { packId, version: result.toVersion, characterId: persisted.characterId },
+        now(),
+      )
+    }
+    if (wasRendered && rendererConnected && result.active !== null) {
+      const applied = await applyActive(result.active, '回滚', true)
+      message += applied.ok ? ' 外观已热切换到 v' + result.active.version + '：' + applied.message : ' 外观未切换：' + applied.message
+    } else {
+      message += rendererConnected ? '' : CHARACTER_PACK_UNWIRED_SUFFIX
+    }
+    if (!localRenderer && rendererConnected) {
+      requestRemoteApply()
+      message += ' 已通知桌宠窗口刷新角色包外观。'
+    }
     if (result.cleanupWarning !== undefined) message += ' 目录清理警告：' + result.cleanupWarning
     return { ok: true, message }
+  }
+
+  let restoreInFlight: Promise<CharacterPackActionOutcome> | null = null
+
+  /**
+   * Boot-time restore: apply the persisted active pack once the hero renderer is
+   * ready. Never throws; a missing/corrupt/removed pack falls back to the built-in
+   * renderer and clears the persistence key (the UI states the fallback reason).
+   */
+  async function restoreActive(): Promise<CharacterPackActionOutcome> {
+    if (wiring === undefined) return { ok: true, message: '角色包渲染器未接入：没有可恢复的外观。' }
+    if (!localRenderer) return { ok: true, message: '外观由桌宠窗口负责渲染：本窗口只保存选择。' }
+    if (restoreInFlight !== null) return restoreInFlight
+    const work = (async (): Promise<CharacterPackActionOutcome> => {
+      if (!isRendererReady()) {
+        return { ok: false, message: 'hero 渲染器尚未就绪：角色包外观保持内置，稍后可重试恢复。' }
+      }
+      // Never fight a user-initiated install/enable for the same runtime lock:
+      // defer without touching the saved appearance.
+      if (runtime.operation() !== 'idle') {
+        return { ok: false, message: '另一个角色包操作正在进行，稍后再恢复外观。' }
+      }
+      const rawPersisted = persistentStorage === null ? null : safeGetItem(activeStorageKey, persistentStorage)
+      const persisted = parsePersistedActivePack(rawPersisted)
+      if (persisted === null) {
+        if (rawPersisted !== null) clearPersistedActivePack(persistentStorage, activeStorageKey)
+        return { ok: true, message: rawPersisted === null ? '没有需要恢复的角色包外观。' : '保存的角色包外观记录无效，已清理；内置渲染器保持运行。' }
+      }
+      if (isRendered(persisted.packId, persisted.version)) {
+        return { ok: true, message: '上次启用的角色包外观已在渲染中。' }
+      }
+      const enabled = await runtime.enable(persisted.packId, { version: persisted.version })
+      if (!enabled.ok && enabled.code === 'busy') {
+        return { ok: false, message: '另一个角色包操作正在进行，稍后再恢复外观。' }
+      }
+      if (!enabled.ok || enabled.active.builtin) {
+        const detail = enabled.ok ? 'the persisted pack resolved to a built-in character' : enabled.code + ': ' + enabled.message
+        fallbackReason = '上次启用的角色包「' + persisted.packId + '」v' + persisted.version + ' 无法加载（' + detail + '）'
+        const restored = await renderBuiltin(fallbackReason)
+        return {
+          ok: false,
+          message: fallbackReason + '；' + (restored.ok ? '已回退内置渲染器。' : '内置渲染器恢复失败：' + restored.message),
+        }
+      }
+      return applyActive(enabled.active, '恢复', true)
+    })()
+    restoreInFlight = work
+    try {
+      return await work
+    } finally {
+      if (restoreInFlight === work) restoreInFlight = null
+    }
+  }
+
+  /**
+   * Pet-window cross-window sync: refresh the installed registry, then apply the
+   * persisted appearance (or restore the built-in renderer when nothing is saved).
+   * Called when the independent content window informs this window that the
+   * installed packs / saved appearance changed.
+   */
+  async function syncActive(): Promise<CharacterPackActionOutcome> {
+    if (wiring === undefined) return { ok: true, message: '角色包渲染器未接入：无需同步外观。' }
+    if (!localRenderer) return { ok: true, message: '外观由桌宠窗口负责渲染：本窗口无需同步。' }
+    if (runtime.operation() !== 'idle') return { ok: false, message: '另一个角色包操作正在进行，稍后同步外观。' }
+    const refreshed = await runtime.refresh()
+    if (!refreshed.ok) return failureOutcome(refreshed, '同步')
+    const persisted = readPersisted()
+    if (persisted === null) {
+      if (renderedPack() === null) return { ok: true, message: '内置渲染器保持运行。' }
+      const restored = await renderBuiltin(null)
+      return {
+        ok: restored.ok,
+        message: restored.ok ? '已按外部变更回退内置渲染器。' + restored.message : '回退内置渲染器失败：' + restored.message,
+      }
+    }
+    return restoreActive()
   }
 
   return Object.freeze({
@@ -859,5 +1509,7 @@ export async function createCharacterPackInstaller(
     enable,
     uninstall,
     rollback,
+    restoreActive,
+    syncActive,
   })
 }

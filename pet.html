@@ -67,7 +67,12 @@
                desktop shell hides aside.panel, so this is the reachable surface
                at the moment of hearing (not only the About panel). No extra
                always-on button: the label only exists while a bubble is shown. -->
-          <div id="bubble" class="bubble"><span id="bubble-text">……</span><span id="bubble-ai" class="bubble-ai" role="note" hidden></span></div>
+          <!-- The copy line is the ONE polite live region (E11/MB-116, task-115):
+               screen readers announce each new line once. The animated container
+               is NOT live and the AI attribution line stays a separate role=note,
+               so hiding the bubble / switching the AI label never re-reads (or
+               duplicates) the line. -->
+          <div id="bubble" class="bubble"><span id="bubble-text" role="status" aria-live="polite" aria-atomic="true">……</span><span id="bubble-ai" class="bubble-ai" role="note" hidden></span></div>
         </div>
         <aside class="panel">
           <div class="actions">

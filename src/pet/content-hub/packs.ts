@@ -639,8 +639,9 @@ export interface ContentHubInstalledPack {
 //
 // The renderer is DOM-only and side-effect-free: it reads the injected
 // CharacterPackTabContext, forwards intents to the host adapter (which owns the
-// IndexedDB file store + CharacterPackRuntime) and always renders the honest
-// 「渲染器未接入 / 不可应用」 wording while no renderer adapter is injected.
+// IndexedDB file store + CharacterPackRuntime) and renders the honest state the
+// adapter reports: 「渲染器未接入 / 不可应用」 when no renderer host is injected,
+// and 「已接入 / 热切换」 plus the renderer-truth row when it is (task-111).
 // ---------------------------------------------------------------------------
 
 const CHARACTER_PACK_CONSENT_ITEMS: readonly { readonly key: CharacterPackConsentKey; readonly label: string }[] =
@@ -741,12 +742,19 @@ function buildCharacterPackConfirm(
 
   const allConfirmed =
     consent.usageConfirmed === true && consent.licenseAcknowledged === true && consent.aiDisclosureAcknowledged === true
+  const state = cp.getState()
+  const wired = state.rendererConnected
+  const remote = state.renderer.mode === 'remote'
   const hint = ctx.create('p', 'content-hub-pack-note')
-  hint.textContent = '必须逐项确认后才能安装。安装/启用只会登记角色包：渲染器未接入时不会改变桌宠外观（不可应用）。'
+  hint.textContent = remote
+    ? '必须逐项确认后才能安装。安装只写入本地文件；安装后点「启用」会保存选择并通知桌宠窗口加载 hero 帧/资产并热切换外观（失败由该窗口回退内置渲染器）。'
+    : wired
+      ? '必须逐项确认后才能安装。安装只写入本地文件；安装后点「启用」才会加载 hero 帧/资产并热切换桌宠外观，失败会自动回退内置渲染器。'
+      : '必须逐项确认后才能安装。安装/启用只会登记角色包：渲染器未接入时不会改变桌宠外观（不可应用）。'
   const actions = ctx.create('div', 'content-hub-actions')
   const confirm = ctx.create('button', 'content-hub-confirm-ok content-hub-character-install')
   confirm.type = 'button'
-  confirm.textContent = '安装并登记（不可应用）'
+  confirm.textContent = wired ? '安装角色包（本地，可随后启用）' : '安装并登记（不可应用）'
   confirm.disabled = busy || !allConfirmed
   confirm.addEventListener('click', () => {
     if (!busy && allConfirmed) cp.onConfirmInstall()
@@ -781,9 +789,13 @@ function buildCharacterPackRow(
   const kind = ctx.create('span', 'content-hub-badge')
   kind.textContent = row.source === 'builtin' ? '内置登记占位' : '第三方角色包 0.2'
   head.append(name, version, kind)
+  const wired = state.rendererConnected
+  const remote = state.renderer.mode === 'remote'
+  const rendered = state.renderer.rendered
+  const renderedThisRow = rendered !== null && rendered.packId === row.packId
   if (row.active) {
     const active = ctx.create('span', 'content-hub-badge content-hub-character-active')
-    active.textContent = '已启用（未应用）'
+    active.textContent = renderedThisRow ? '已应用（渲染中）' : wired ? '已启用（等待应用）' : '已启用（未应用）'
     head.append(active)
   }
   article.append(head)
@@ -794,15 +806,29 @@ function buildCharacterPackRow(
     ' · 类型 ' +
     row.kind +
     (row.previousVersion !== undefined ? ' · 可回滚到 v' + row.previousVersion : '') +
-    (row.source === 'builtin' ? ' · 内置角色不由此安装器切换或应用' : '')
+    (row.source === 'builtin' ? ' · 内置回退目标' : '')
   article.append(meta)
   const note = ctx.create('p', 'content-hub-pack-note')
   if (row.source === 'builtin') {
-    note.textContent = '内置登记占位：只作为卸载第三方角色包后的回退目标；当前桌宠渲染器不由本安装器控制，也不会被应用。'
+    note.textContent = wired
+      ? '内置回退目标：卸载当前角色包或应用失败时，桌宠外观会切回当前内置渲染器（不依赖本安装器）。'
+      : '内置登记占位：只作为卸载第三方角色包后的回退目标；当前桌宠渲染器不由本安装器控制，也不会被应用。'
+  } else if (renderedThisRow) {
+    note.textContent = '已应用：hero 渲染器正在绘制该角色包的帧/资产；下次启动会自动恢复（失败则回退内置）。'
   } else if (row.active) {
-    note.textContent = '已启用（仅登记）：渲染器未接入，桌宠外观未改变，当前不可应用。'
+    note.textContent = remote
+      ? state.renderer.saved !== null && state.renderer.saved.packId === row.packId
+        ? '已启用：外观由桌宠窗口加载 hero 帧/资产并热切换（本窗口不绘制 hero）。'
+        : '已启用但桌宠窗口当前没有保存该外观（可能已回退内置）；可再次启用。'
+      : wired
+        ? '已启用但当前未渲染：hero 渲染器未运行或应用失败，桌宠外观仍是内置渲染器；可再次启用重试。'
+        : '已启用（仅登记）：渲染器未接入，桌宠外观未改变，当前不可应用。'
   } else {
-    note.textContent = '已安装（仅登记）：可启用登记，但渲染器未接入前不会应用到桌宠外观。'
+    note.textContent = remote
+      ? '已安装：点「启用」会保存选择并通知桌宠窗口热切换外观。'
+      : wired
+        ? '已安装：点「启用」会加载 hero 帧/资产并热切换桌宠外观（无需刷新页面）。'
+        : '已安装（仅登记）：可启用登记，但渲染器未接入前不会应用到桌宠外观。'
   }
   article.append(note)
 
@@ -810,15 +836,15 @@ function buildCharacterPackRow(
   if (row.source === 'builtin') {
     if (state.activePackId !== null && state.activePackId !== row.packId) {
       actions.append(
-        characterPackActionButton(ctx, '切回内置（仅登记）', 'enable-builtin', row.packId, busy, () => {
+        characterPackActionButton(ctx, remote ? '切回内置（通知桌宠窗口）' : wired ? '切回内置渲染器' : '切回内置（仅登记）', 'enable-builtin', row.packId, busy, () => {
           cp.onEnable(row.packId)
         }),
       )
     }
   } else {
-    if (!row.active) {
+    if (!renderedThisRow) {
       actions.append(
-        characterPackActionButton(ctx, '启用（仅登记）', 'enable', row.packId, busy, () => {
+        characterPackActionButton(ctx, remote ? '启用（桌宠窗口热切换）' : wired ? '启用（热切换外观）' : '启用（仅登记）', 'enable', row.packId, busy, () => {
           cp.onEnable(row.packId)
         }),
       )
@@ -883,6 +909,36 @@ function appendCharacterPackSection(ctx: PacksTabRenderContext): void {
   note.dataset.renderer = state.rendererConnected ? 'connected' : 'unwired'
   note.textContent = state.note
   ctx.panelBody.append(note)
+  if (state.rendererConnected) {
+    const remote = state.renderer.mode === 'remote'
+    const rendered = ctx.create('p', 'content-hub-pack-note content-hub-character-rendered')
+    rendered.dataset.rendererMode = state.renderer.mode
+    rendered.dataset.renderedPack = state.renderer.rendered?.packId ?? 'builtin'
+    rendered.textContent = remote
+      ? '渲染器事实：本窗口不绘制 hero；桌宠外观由桌宠窗口加载角色包帧/资产并热切换。'
+      : state.renderer.rendered !== null
+        ? '渲染器事实：当前正在绘制「' + state.renderer.rendered.name + '」v' + state.renderer.rendered.version + '。'
+        : '渲染器事实：当前正在绘制内置渲染器。'
+    ctx.panelBody.append(rendered)
+    if (remote) {
+      const saved = ctx.create('p', 'content-hub-pack-note content-hub-character-saved')
+      saved.textContent =
+        state.renderer.saved !== null
+          ? '已保存外观：「' + state.renderer.saved.name + '」v' + state.renderer.saved.version + '（由桌宠窗口应用；应用失败时该窗口回退内置）。'
+          : '当前没有保存的角色包外观：桌宠窗口显示内置渲染器。'
+      ctx.panelBody.append(saved)
+    }
+    if (state.renderer.fallbackReason !== null) {
+      const fallback = ctx.create('p', 'content-hub-pack-note content-hub-character-fallback')
+      fallback.textContent = '上次应用失败，已回退内置渲染器：' + state.renderer.fallbackReason
+      ctx.panelBody.append(fallback)
+    }
+    if (state.restorePending) {
+      const pending = ctx.create('p', 'content-hub-pack-note content-hub-character-restore-pending')
+      pending.textContent = '已保存上次启用的角色包外观，将在 hero 渲染器就绪后自动恢复。'
+      ctx.panelBody.append(pending)
+    }
+  }
   if (!state.available) {
     const unavailable = ctx.create('p', 'content-hub-empty content-hub-character-unavailable')
     unavailable.textContent = '角色包安装器不可用：' + (state.unavailableReason ?? '宿主初始化失败') + '。'

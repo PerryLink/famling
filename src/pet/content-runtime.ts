@@ -65,7 +65,9 @@ import {
 } from './content-hub.ts'
 import {
   createCharacterPackInstaller,
+  type CharacterPackActionOutcome,
   type CharacterPackHubAdapter,
+  type CharacterPackRendererWiring,
 } from './content-hub/character-installer.ts'
 import {
   CONTENT_CHARACTER_PRODUCT_IDS,
@@ -166,6 +168,12 @@ export interface ContentRuntimeDeps {
   createInstaller?: typeof createCharacterPackInstaller
   createHub?: typeof initContentHub
   applyAppearance?: typeof applyContentSelectionAppearance
+  /**
+   * Production character-pack renderer wiring (task-111). main.ts owns the hero
+   * scene and injects the render host + built-in restore callback; this module
+   * only forwards it to the installed adapter. Absent = registration-only.
+   */
+  readonly characterPackRenderer?: CharacterPackRendererWiring
 }
 
 export interface ContentRuntimeApi {
@@ -184,6 +192,16 @@ export interface ContentRuntimeApi {
   getContentRuntime(): ContentRuntimeState | null
   isContentHubOpen(): boolean
   closeContentHubPanel(): void
+  /**
+   * Restore the persisted active character pack after the hero renderer is
+   * ready. Null when the content runtime/adapter is unavailable.
+   */
+  restoreActiveCharacterPack(): Promise<CharacterPackActionOutcome | null>
+  /**
+   * Pet-window side of the cross-window bridge: refresh installed packs and apply
+   * the saved appearance (or restore built-in when none is saved).
+   */
+  syncCharacterPackAppearance(): Promise<CharacterPackActionOutcome | null>
 }
 interface ContentPreviewTarget {
   readonly packId: string
@@ -405,7 +423,20 @@ export function createContentRuntime(deps: ContentRuntimeDeps): ContentRuntimeAp
       deps.showBubble('内容目录没有加载出来，请稍后再试。')
       return false
     }
-    return runtime.hub.open()
+    const opened = runtime.hub.open()
+    // task-111: the boot-time character-pack restore can only run after this
+    // runtime and the hero scene both exist. If the hub is opened later, retry
+    // once here (idempotent) so a saved pack appearance still hot-swaps in.
+    const packs = runtime.characterPacks
+    if (packs !== null) {
+      void packs
+        .restoreActive()
+        .then((result) => {
+          if (result.ok && packs.state().renderer.rendered !== null) runtime.hub?.refresh()
+        })
+        .catch((error: unknown) => deps.reportFailure(deps.uiBoundary, error))
+    }
+    return opened
   }
 
   /**
@@ -470,12 +501,13 @@ export function createContentRuntime(deps: ContentRuntimeDeps): ContentRuntimeAp
           deps.reportFailure(deps.uiBoundary, error)
         }
         // E4 role-pack installer: the IndexedDB/memory file store + injected
-        // CharacterPackRuntime host. The renderer adapter is intentionally NOT
-        // injected (task-98: no hero rendering change), so the panel labels
-        // install/enable as registration-only / not applicable.
+        // CharacterPackRuntime host. task-111 injects the production renderer
+        // wiring from main.ts (host + built-in restore); without it the panel
+        // still honestly labels install/enable as registration-only.
         try {
           runtime.characterPacks = await createInstaller({
             kind: characterPackKindFor(heroConfig.character),
+            ...(deps.characterPackRenderer !== undefined ? { renderer: deps.characterPackRenderer } : {}),
           })
         } catch (error) {
           runtime.characterPacks = null
@@ -1000,6 +1032,41 @@ async function bootContentWindowOnce(): Promise<void> {
     if (!contentShell || contentWindowTransition) return
     contentWindowChrome?.showHome()
   }
+
+  /**
+   * Boot-time restore hook (task-111): main.ts calls this once the hero scene is
+   * ready, so the persisted active character pack is hot-swapped in without a
+   * page reload. The adapter owns the persisted-id validation and the built-in
+   * fallback; this wrapper only ensures the content runtime exists.
+   */
+  async function restoreActiveCharacterPack(): Promise<CharacterPackActionOutcome | null> {
+    const runtime = await ensureContentRuntime()
+    const adapter = runtime?.characterPacks ?? null
+    if (adapter === null) return null
+    try {
+      return await adapter.restoreActive()
+    } catch (error) {
+      deps.reportFailure(deps.uiBoundary, error)
+      return null
+    }
+  }
+
+  /**
+   * Cross-window sync hook (task-111): the independent content window tells this
+   * pet window that installed packs / the saved appearance changed. Refresh the
+   * registry and hot-swap (or restore built-in) without a page reload.
+   */
+  async function syncCharacterPackAppearance(): Promise<CharacterPackActionOutcome | null> {
+    const runtime = await ensureContentRuntime()
+    const adapter = runtime?.characterPacks ?? null
+    if (adapter === null) return null
+    try {
+      return await adapter.syncActive()
+    } catch (error) {
+      deps.reportFailure(deps.uiBoundary, error)
+      return null
+    }
+  }
   return {
     ensureContentRuntime,
     openContentHubInWindow,
@@ -1013,5 +1080,7 @@ async function bootContentWindowOnce(): Promise<void> {
     getContentRuntime: () => contentRuntime,
     isContentHubOpen: () => contentRuntime?.hub?.isOpen() === true,
     closeContentHubPanel: () => contentRuntime?.hub?.close(false),
+    restoreActiveCharacterPack,
+    syncCharacterPackAppearance,
   }
 }

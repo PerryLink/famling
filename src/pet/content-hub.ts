@@ -975,9 +975,26 @@ export function initContentHub(options: ContentHubOptions): ContentHubController
 
   // --- dialog behaviour ---------------------------------------------------
 
+  // True when the node has a layout box in a real browser. The content center
+  // reuses the page stylesheet, and html[data-pet-shell="desktop"] header hides
+  // the dialog header (and its 合上 button) in the desktop/content window, so
+  // such a control has tabIndex 0 but .focus() is a no-op. The injectable fake
+  // DOM used by unit tests has no layout pass, so only real browsers filter.
+  // (Deliberately a line comment: the production-source gate strips block
+  // comments before line comments, so a block comment here would swallow code.)
+  function isRendered(node: HTMLElement): boolean {
+    const probe = node as unknown as { getClientRects?: () => ArrayLike<unknown> }
+    if (typeof probe.getClientRects !== 'function') return true
+    try {
+      return probe.getClientRects().length > 0
+    } catch {
+      return true
+    }
+  }
+
   function focusableElements(): HTMLElement[] {
     const nodes = rootElement.querySelectorAll<HTMLElement>('button:not([disabled]), a[href]')
-    return Array.from(nodes).filter((node) => !node.hidden)
+    return Array.from(nodes).filter((node) => !node.hidden && isRendered(node))
   }
 
   function onDocumentKeydown(event: KeyboardEvent): void {
@@ -992,6 +1009,13 @@ export function initContentHub(options: ContentHubOptions): ContentHubController
     const focusables = focusableElements()
     if (focusables.length === 0) return
     const active = hubDoc.activeElement
+    // The tabpanel itself is focusable (tabindex=0) but is not part of the
+    // button/link list. Leave Tab to the browser's own sequential navigation
+    // there: forward Tab enters the panel's own controls and Shift+Tab returns
+    // to the selected tab. Intercepting it used to call focus() on the first
+    // listed control, which can have no layout box (see isRendered), so focus
+    // stayed on the panel and keyboard users could not reach its buttons.
+    if (active === panelBody) return
     const index = active instanceof HTMLElement ? focusables.indexOf(active) : -1
     if (event.shiftKey) {
       if (index <= 0) {

@@ -1317,6 +1317,12 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
   const setMenuView = (view: ShellMenuView, focusAction?: string): void => {
     menuView = view
     renderMenu(focusAction)
+    // renderMenu() replaces every menu item. Without an explicit focus target a
+    // level switch (click or ArrowRight/ArrowLeft) would drop focus to <body>
+    // and keyboard users could not continue with Tab/arrows. Keep roving focus
+    // inside the rendered level: sub-levels start on 返回, the root level on its
+    // first entry. Returning levels pass focusAction and keep the parent entry.
+    if (focusAction === undefined && menuOpen) focusMenuItem(0)
   }
 
   /** Last pointer anchor so a sub-menu re-render can re-clamp inside the window. */

@@ -31,8 +31,9 @@
  * Hard boundary (do not extend without updating these notes):
  * - NO DOM/canvas, NO `fetch`, NO Tauri/Node filesystem, NO renderer import:
  *   every effect goes through the injected `CharacterPackRenderHost`;
- * - NOT wired into `main.ts`/`desktop-shell.ts`/`content-hub.ts` (task
- *   boundary); nothing here changes the pet page, the hero flag or storage;
+ * - the production renderer HOST lives in `main.ts` (task-111 wires it
+ *   through `content-runtime.ts` → `character-installer.ts`); this module
+ *   itself still owns no pet page, hero flag or storage access;
  * - it never invents licence or AI provenance: both must come from the pack
  *   handle, otherwise the conversion fails closed (`missing-provenance`);
  * - it does not implement a second pack schema validator: the hero data is
@@ -684,8 +685,18 @@ export function describeCharacterPackRender(
 
 /** Injected renderer boundary; the adapter itself owns no canvas/backend. */
 export interface CharacterPackRenderHost {
-  /** Load one pack ref into the renderer (idempotent for identical refs). */
-  readonly load: (ref: RenderPackRef) => Promise<void>
+  /**
+   * Load one pack ref into the renderer (idempotent for identical refs).
+   *
+   * The second argument is the full converted description for that same ref.
+   * A host that owns the live hero scene needs more than the `RenderPackRef`
+   * (which only carries the pre-parsed pack data): it needs the synthesized
+   * `HeroCharacterBundle` (FCI document + behavior + regions) to start a new
+   * scene, plus the resolved regions/kind. The adapter always passes it, so a
+   * hot-swap host can use `handle.bundle`; a minimal host may ignore it (a
+   * one-parameter implementation stays assignable).
+   */
+  readonly load: (ref: RenderPackRef, handle: CharacterPackRenderHandle) => Promise<void>
   /**
    * Release a loaded pack by id. Must be idempotent (unknown id = no-op). The
    * hero backend exposes no per-pack unload, so a production host recreates or
@@ -873,7 +884,7 @@ export class CharacterPackRendererAdapter {
   ): Promise<CharacterPackRendererApplyResult> {
       if (previous === null) {
         try {
-          await this.host.load(next.ref)
+          await this.host.load(next.ref, next)
         } catch (error) {
           const message = 'failed to load pack "' + next.packId + '" into the renderer: ' + messageOf(error)
           this.emit({ type: 'render-load-failed', packId: next.packId, version: next.version, code: 'load-failed', message, restoredPackId: null })
@@ -895,7 +906,7 @@ export class CharacterPackRendererAdapter {
         // Two different pack ids can coexist in the backend: load first so a
         // failed load never unloads the current character.
         try {
-          await this.host.load(next.ref)
+          await this.host.load(next.ref, next)
         } catch (error) {
           const message = 'failed to load pack "' + next.packId + '" into the renderer: ' + messageOf(error)
           this.emit({ type: 'render-load-failed', packId: next.packId, version: next.version, code: 'load-failed', message, restoredPackId: previous.packId })
@@ -938,12 +949,12 @@ export class CharacterPackRendererAdapter {
       }
       this.current = null
       try {
-        await this.host.load(next.ref)
+        await this.host.load(next.ref, next)
       } catch (error) {
         const loadMessage = 'failed to load pack "' + next.packId + '@' + next.version + '" after releasing "' + previous.packId + '@' + previous.version + '": ' + messageOf(error)
         this.emit({ type: 'render-load-failed', packId: next.packId, version: next.version, code: 'load-failed', message: loadMessage, restoredPackId: previous.packId })
         try {
-          await this.host.load(previous.ref)
+          await this.host.load(previous.ref, previous)
         } catch (restoreError) {
           const restoreMessage =
             'failed to re-load the previous pack "' + previous.packId + '@' + previous.version + '": ' + messageOf(restoreError)
