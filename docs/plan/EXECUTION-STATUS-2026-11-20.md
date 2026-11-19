@@ -240,7 +240,7 @@
 | ID | 状态 | 证据 | 剩余 / 说明 |
 | --- | --- | --- | --- |
 | MB-110 | **TODO** | 无 jsdom/Playwright；**0 个测试 import `main.ts`**；**27 个测试文件用 `readFileSync` 读 `main.ts` 源码文本**（评审快照记为 14 个），63 个测试文件读 `src/` 源码；只有模块级 fake DOM/fake IPC | — |
-| MB-111 | **PARTIAL** | 模块级行为测试丰富（character-packs/content-window/scaling/low-disturb/health/reduce-motion/market 等）；`tests/fixtures/fake-dom.ts` | 无覆盖率工具/阈值；`main.ts` 数据链仍靠源码字符串断言（Q-P0-3 未闭环） |
+| MB-111 | **PARTIAL** | 模块级行为测试丰富（character-packs/content-window/scaling/low-disturb/health/reduce-motion/market 等）；`tests/fixtures/fake-dom.ts`；**覆盖率脚本/基线/关键模块分母已落地**（task-97：`scripts/coverage.ts` + `coverage-key-modules.json` + `coverage-baseline.json`，20 个关键模块，全集 lines 92.44 / branches 79.33 / funcs 88.38，1486/1486 tests；见 `docs/plan/COVERAGE-GATE-2026-11-20.md`）；补 20 例缺口行为测试（shell-layout / hit-regions / voice-system）；`tests/coverage-gate.test.ts` 自测 | **advisory 模式（未阻断、未进 `npm run ci`）**；`main.ts` / `setup-page.ts` 仍未被测试 import（行覆盖 0，AST 行为测试≠行覆盖）；`consent/runtime.ts` 16.93%、`consent/modal.ts` 47.83%；`main.ts` 数据链仍靠源码字符串断言（Q-P0-3 未闭环） |
 | MB-112 | **TODO** | 无 save-runtime；坏档/IPC 挂起/ENOSPC/只读/kill/TTL 的 10 条故障注入未系统化 | 依赖 MB-012 |
 | MB-113 | **PARTIAL** | `src/bench/run.ts`、`scripts/soak*.mjs`、`src/qa/soak.ts`（24h 阈值判定 + tests） | `artifacts/bench.json` 仍是 2026-11-11 旧数据；无当前 HEAD 性能基线；`artifacts/tauri-soak-24h.json` 不存在 |
 | MB-114 | **PARTIAL** | E2E：临时 `DG_QA_DATA_DIR`、真实 appdata 哈希前后断言、fail-closed、finally 清理；`tests/data-isolation-exit.test.ts` 6 项 E2E 静态断言 | CDP 端口固定 9333（非临时端口）；E2E 结果 JSON 未归档；artifacts/profile 清理未全部纳入自动门 |
@@ -283,7 +283,7 @@
 
 ### 3.3 E11 行为/性能
 
-- MB-110/111/112：main.ts 行为测试（fake IPC + jsdom 或最小 DOM harness）、覆盖率门槛、10 条故障注入（依赖 MB-012）；
+- MB-110/111/112：main.ts 行为测试（fake IPC + jsdom 或最小 DOM harness）、覆盖率门槛（记录/基线已落地，advisory）、10 条故障注入（依赖 MB-012）；
 - MB-113：当前 HEAD 的 rAF/draw/readback/启动/内存/DPI 基线 + Windows 原生 24h soak（`artifacts/tauri-soak-24h.json`）；
 - MB-114/115/116：E2E 产物归档、发布演练（tag/signed-unsigned 证据）、axe 无障碍自动化。
 
@@ -317,10 +317,10 @@
 3. **发布信任链未成立**：unsigned、无证书、DLC 生产根 keys=0、两个 pack 仍 legacy 签名、**updater 未实现（ADR 默认不做，见 `docs/plan/ADR-UPDATER-2026-11-20.md`）**、SHA256SUMS 无发布者外层签名；按 C2/C3 全部 fail-closed。
 4. **市场/付费未成立**：无服务器/审核/支付；市场 UI 默认 unconfigured；协议仍是 catalog 0.1；真实下载安装未接线。
 5. **角色运行时未接产品**：`character-packs.ts` 无生产 import；UI/渲染器/host 适配器缺失；角色切换仍 reload；“第三方角色可安装”属于未兑现。
-6. **E10/E11 结构性债未动且在增长**：main.ts 3607→4115 行、content-hub 2315→2340 行、`initContentHub` 1016 行；0 个测试 import main.ts，27 个测试仍用 `readFileSync` 读 main.ts 源码文本；无 save-runtime/覆盖率/jsdom/Playwright。
+6. **E10/E11 结构性债未动且在增长**：main.ts 3607→4115 行、content-hub 2315→2340 行、`initContentHub` 1016 行；0 个测试 import main.ts，27 个测试仍用 `readFileSync` 读 main.ts 源码文本；**save-runtime 已抽出（task-91，主入口接线在 task-94）；覆盖率脚本/基线已落地但仍是 advisory、main.ts 行覆盖 0（task-97）**；仍无 jsdom/Playwright。
 7. **插件侧无可发布证据**：插件 0.10.5 功能与 146/146 测试都在工作树，但目录无 `.git`、无 CI、无 prepack；不能作为提交/发布证据。
 8. **法务未闭环**：legal strict 34 blockers/34 warnings；APPROVALS 0；律师审查暂缓；不得称“已合规/已审核/已清权”。
-9. **真值门当前非全绿**：`docs:check` PASS（24 项），但 `status:check` 因工作树 dirty 计数漂移而红（预期 dirty(4)/实际 dirty(3)）；本文件写入后计数还会变化，必须在提交前重生成 STATUS。
+9. **真值门当前非全绿**：`docs:check` PASS（25 项），但 `status:check` 因工作树 dirty 计数漂移而红（预期 dirty(4)/实际 dirty(3)）；本文件写入后计数还会变化，必须在提交前重生成 STATUS。
 10. **测试数量的边界**：本机 1335/1335 pass 是工作树全量回归（A 级）；但它不等于“验收总门 §5”通过——缺干净 checkout 双平台记录、真实 %APPDATA% 哈希证据、24h soak、真实 GUI 复跑。
 
 ---

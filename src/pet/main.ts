@@ -16,14 +16,18 @@ import {
   type PetState,
 } from '../kernel/pet.ts'
 import { VoiceService } from '../voice/service.ts'
-import { crc32 } from '../game/checksum.ts'
 import { MockVoiceProvider } from '../voice/mock.ts'
 import { SystemVoiceProvider } from '../voice/system.ts'
 import { createTauriDeepSeekProvider } from '../voice/tauri.ts'
 import { transcribeWav } from '../voice/asr.ts'
 import type { TtsVoiceId } from '../voice/types.ts'
 import { SAFE_REFUSAL, verifyUtterance } from './claims.ts'
-import { decryptMemory, encryptMemory, type WebCryptoPayload } from './crypto.ts'
+import {
+  createPetSaveService,
+  saveFailureToError,
+  shouldReportSaveFailure,
+  type PetSaveService,
+} from './save-host.ts'
 import { exportPortable, importPortable } from './portable.ts'
 import { encodeWav } from '../voice/wav.ts'
 import {
@@ -1918,10 +1922,6 @@ function setMutedFromShell(next: boolean): void {
 }
 $('mute').addEventListener('click', () => setMutedFromShell(!state.muted))
 
-interface DpapiCipher { v: 1; p: 'dpapi'; data: string }
-type SaveCipher = DpapiCipher | WebCryptoPayload
-let saveWarningShown = false
-
 /** Bound a Tauri IPC round-trip so a hung WebView/Rust call cannot freeze boot/save. */
 async function invokeTimed<T>(command: string, args: Record<string, unknown> = {}, timeoutMs = 8000): Promise<T> {
   const { invoke } = await import('@tauri-apps/api/core')
@@ -1936,206 +1936,71 @@ async function invokeTimed<T>(command: string, args: Record<string, unknown> = {
   }
 }
 
-async function encryptSave(plain: string): Promise<SaveCipher> {
-  if (HAS_TAURI) {
-    return { v: 1, p: 'dpapi', data: await invokeTimed<string>('protect_text', { text: plain }) }
-  }
-  return encryptMemory(plain)
-}
-
-async function decryptSave(cipher: unknown): Promise<string | null> {
-  if (typeof cipher === 'string') {
-    // Legacy Tauri saves stored DPAPI base64 without a wrapper.
-    if (!HAS_TAURI) return null
-    return invokeTimed<string>('unprotect_text', { encoded: cipher })
-  }
-  if (!cipher || typeof cipher !== 'object') return null
-  const payload = cipher as SaveCipher
-  if (payload.p === 'dpapi') {
-    if (!HAS_TAURI) return null
-    return invokeTimed<string>('unprotect_text', { encoded: payload.data })
-  }
-  if (payload.p === 'webcrypto') {
-    if (HAS_TAURI) return null
-    return decryptMemory(payload)
-  }
-  return null
-}
-
-let saveInFlight: Promise<void> | null = null
 /**
- * True when the primary save existed but could not be parsed (or only the .bak
- * parsed). While set, autosave is paused and the next write must NOT replace the
- * known-good .bak with the corrupt primary (robustness audit P0-1).
+ * Pet archive persistence wiring (E10 MB-012 / E1 MB-011, task-94).
+ *
+ * The save state machine (envelope, primary/backup recovery, single-flight
+ * writes, token bucket, legacy migration, the recovery flag and the 30 s
+ * autosave timer) lives in the pure `save-runtime.ts`. `save-host.ts` supplies
+ * the platform adapters (Tauri DPAPI/IPC vs WebCrypto/localStorage) and maps
+ * failures back to the errors this page always threw; this page only injects
+ * the live state closures, the consent gate, the save token bucket and the
+ * bubble/report callbacks.
  */
-let saveRecoveryNeeded = false
+const PET_SAVE_GAME_VERSION = '0.1.0'
 
-async function saveNowInternal(): Promise<void> {
-  // Safe read-only mode: no save/migration writes before explicit TOS consent.
-  if (!canInteract()) throw new Error('consent-required')
-  const plain = serializePet(state)
-  // Defence in depth against a corrupted/inflated state filling the disk.
-  const plainBytes = utf8ByteLength(plain)
-  if (plainBytes > SECURITY_LIMITS.savePlainBytes) throw new Error(`save-too-large (${plainBytes}B)`)
-  let cipher: SaveCipher
-  try {
-    cipher = await encryptSave(plain)
-  } catch (error) {
-    if (!saveWarningShown) {
-      saveWarningShown = true
-      showBubble('存档加密不可用，这次没有保存。')
-    }
-    throw error
-  }
-  const text = JSON.stringify({
-    format: 'dsh-save',
-    version: 2,
-    gameId: 'pet',
-    gameVersion: '0.1.0',
-    savedAtMs: Date.now(),
-    cipher,
+function createPageSaveService(): PetSaveService {
+  return createPetSaveService({
+    slot: SAVE_SLOT,
+    gameVersion: PET_SAVE_GAME_VERSION,
+    hasTauri: HAS_TAURI,
+    invokeTimed,
+    readState: () => state,
+    writeState: (next) => {
+      state = next
+    },
+    canInteract,
+    rateLimit: limits.save,
+    // The runtime reports an unavailable cipher at most once per instance and
+    // never writes plaintext or a partial save (old saveWarningShown bubble).
+    onEncryptUnavailable: () => showBubble('存档加密不可用，这次没有保存。'),
+    onAsyncFailure: (_scope, failure) => reportFailure(saveBoundary, saveFailureToError(failure)),
   })
-  if (HAS_TAURI) {
-    await invokeTimed('write_save', { slot: SAVE_SLOT, text, backup: !saveRecoveryNeeded })
-  } else {
-    const key = `desktop-games/pet/${SAVE_SLOT}`
-    // Keep the previous ciphertext as .bak so a corrupt new save is recoverable.
-    // While recovering, never overwrite the known-good backup with the corrupt
-    // primary (no plaintext is stored either way).
-    if (!saveRecoveryNeeded) {
-      const previous = safeGetItem(key)
-      if (previous) safeSetItem(`${key}.bak`, previous)
-    }
-    const stored = safeSetItem(key, text)
-    if (stored !== 'ok') throw new Error(`save-storage-${stored}`)
-  }
-  saveRecoveryNeeded = false
 }
 
+let saveService = createPageSaveService()
+
 /**
- * Save entry: one in-flight write at a time (concurrent 30 s autosave + manual
- * clicks no longer race each other) and a save token bucket against click spam
- * (HARDENING P1-3). Failures still reject so callers log/show them.
+ * A full local-data wipe deletes the archive out-of-band (consent data
+ * controls). Recreate the runtime so the in-memory recovery flag is cleared and
+ * autosave resumes without touching the already-empty slots (MB-011).
  */
+function resetSaveServiceAfterWipe(): void {
+  saveService.dispose()
+  saveService = createPageSaveService()
+  if (!CONTENT_SHELL) saveService.startAutosave()
+}
+
+/** Save entry shared by the panel button, the desktop menu and settings. */
 function saveNow(): Promise<void> {
-  if (saveInFlight) return saveInFlight
-  const decision = limits.save.tryConsume()
-  if (!decision.allowed) return Promise.reject(new RateLimitError('save', decision.retryAfterMs))
-  const attempt = saveNowInternal()
-  saveInFlight = attempt
-  void attempt.finally(() => {
-    if (saveInFlight === attempt) saveInFlight = null
-  }).catch(() => {
-    // The rejection is surfaced to callers; this branch only detaches.
-  })
-  return attempt
+  return saveService.save()
 }
 
-async function saveAndPurgeBackup(): Promise<void> {
-  await saveNow()
-  if (HAS_TAURI) {
-    try {
-      const { invoke } = await import('@tauri-apps/api/core')
-      await invoke('clear_save_backup', { slot: SAVE_SLOT })
-    } catch (error) {
-      reportFailure(saveBoundary, error)
-    }
-  } else {
-    removeKey(`desktop-games/pet/${SAVE_SLOT}.bak`)
-  }
+/** Save then purge the `.bak` (memory edits and the portable-import commit). */
+function saveAndPurgeBackup(): Promise<void> {
+  return saveService.saveAndPurgeBackup()
 }
 
-interface ParsedSave { state: PetState; migrate: boolean }
-
-async function parsePetSave(text: string): Promise<ParsedSave | null> {
-  try {
-    const envelope = JSON.parse(text) as unknown
-    if (!envelope || typeof envelope !== 'object' || Array.isArray(envelope)) return null
-    const record = envelope as Record<string, unknown>
-    if (record.schema === 1 && typeof record.name === 'string') {
-      return { state: deserializePet(text), migrate: true }
-    }
-    if (record.gameId !== 'pet') return null
-    if (record.cipher !== undefined) {
-      const plain = await decryptSave(record.cipher)
-      if (!plain) return null
-      return { state: deserializePet(plain), migrate: false }
-    }
-    // Legacy envelope: world + optional memoryEnc.
-    const world = JSON.stringify(record.world)
-    if (typeof record.crc32 === 'string' && record.crc32 !== crc32(world)) return null
-    const state = deserializePet(world)
-    if (record.memoryEnc !== undefined) {
-      const plain = await decryptSave(record.memoryEnc)
-      if (!plain) return null
-      // Do not spread the decrypted memory JSON: rebuild it through the same
-      // validated deserializer so a tampered snapshot cannot reach the state.
-      let snapshot: unknown
-      try {
-        snapshot = JSON.parse(plain)
-      } catch {
-        return null
-      }
-      state.memory = deserializePet(JSON.stringify({ schema: 1, memory: snapshot, createdAtMs: state.createdAtMs })).memory
-    }
-    return { state, migrate: true }
-  } catch {
-    return null
-  }
-}
-
+/**
+ * Load entry shared by the UI, boot and the QA hook. A pre-consent launch
+ * rejects with `consent-required` (the historical contract) before any local
+ * read; a missing/corrupt archive resolves false and the runtime's recovery flag
+ * tells the UI whether the known-good backup is still protected.
+ */
 async function loadNow(): Promise<boolean> {
-  // P1-1/P1-4: reading the save (and the legacy migration write it may trigger)
-  // is a local-data load, so it is refused until explicit TOS consent. The UI
-  // load button, bootPetOnce and the QA hook all go through this guard.
-  if (!canInteract()) throw new Error('consent-required')
-  saveRecoveryNeeded = false
-  if (HAS_TAURI) {
-    let sawReadableSave = false
-    for (const backup of [false, true]) {
-      let text: string
-      try {
-        text = await invokeTimed<string>('read_save', { slot: SAVE_SLOT, backup })
-      } catch {
-        // Missing/read-blocked slot is expected here; try the backup next.
-        continue
-      }
-      sawReadableSave = true
-      const parsed = await parsePetSave(text)
-      if (!parsed) continue
-      state = parsed.state
-      // If the primary was unreadable but the backup parsed, keep the good .bak
-      // untouched on the next write until the recovered primary is committed.
-      saveRecoveryNeeded = backup
-      render()
-      if (parsed.migrate && !saveRecoveryNeeded) {
-        void saveAndPurgeBackup().catch((error) => reportFailure(saveBoundary, error))
-      }
-      return true
-    }
-    // A readable but unparseable primary+backup must not be silently replaced by
-    // the default state on the next 30 s autosave; require an explicit save.
-    saveRecoveryNeeded = sawReadableSave
-    return false
-  }
-  const key = `desktop-games/pet/${SAVE_SLOT}`
-  let sawReadableSave = false
-  for (const [index, candidate] of [key, `${key}.bak`].entries()) {
-    const candidateText = safeGetItem(candidate)
-    if (!candidateText) continue
-    sawReadableSave = true
-    const parsed = await parsePetSave(candidateText)
-    if (!parsed) continue
-    state = parsed.state
-    saveRecoveryNeeded = index > 0
-    render()
-    if (parsed.migrate && !saveRecoveryNeeded) {
-      void saveAndPurgeBackup().catch((error) => reportFailure(saveBoundary, error))
-    }
-    return true
-  }
-  saveRecoveryNeeded = sawReadableSave
-  return false
+  const loaded = await saveService.load()
+  if (loaded) render()
+  return loaded
 }
 
 /** Save entry shared by the panel button, the desktop menu and settings. */
@@ -2295,18 +2160,9 @@ $('save-delete').addEventListener('click', () => void (async () => {
   if (!window.confirm('删除本机存档？记忆、状态、折页都会清掉。')) return
   if (!window.confirm('再确认一次：删除后只能靠之前的加密备份恢复。')) return
   try {
-    if (HAS_TAURI) {
-      const { invoke } = await import('@tauri-apps/api/core')
-      await invoke('delete_save', { slot: SAVE_SLOT })
-    } else {
-      const key = `desktop-games/pet/${SAVE_SLOT}`
-      removeKey(key)
-      removeKey(`${key}.bak`)
-    }
-    // MB-011: once the corrupt primary+backup are gone, this session is no
-    // longer recovering from a bad archive: resume autosave so the fresh state
-    // is committed on the next 30 s tick instead of staying paused forever.
-    saveRecoveryNeeded = false
+    // The runtime deletes primary+backup on both hosts and only then clears the
+    // recovery flag (MB-011), so autosave resumes instead of staying paused.
+    await saveService.deleteSave()
     state = createPet(now())
     render()
     renderMemoryBook()
@@ -2422,21 +2278,18 @@ $('reset-window').addEventListener('click', () => resetPetWindow())
 // The independent content/settings window (MB-062) never autosaves: it may run
 // next to the live pet window, and only the pet window owns the archive's
 // background writes. Manual 保存/读取 from its reused settings dialog still work.
+// The runtime gates every tick on consent and the recovery flag (E1), so the
+// interval itself no longer re-implements that policy here.
 if (!CONTENT_SHELL) {
-  setInterval(() => {
-    if (!canInteract() || saveRecoveryNeeded) return
-    void saveNow().catch((error) => {
-      if (!(error instanceof RateLimitError)) reportFailure(saveBoundary, error)
-    })
-  }, 30_000)
+  saveService.startAutosave()
 }
 if (typeof document !== 'undefined' && !CONTENT_SHELL) {
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden' && canInteract() && !saveRecoveryNeeded) {
-      void saveNow().catch((error) => {
-        if (!(error instanceof RateLimitError)) reportFailure(saveBoundary, error)
-      })
-    }
+    if (document.visibilityState !== 'hidden') return
+    void saveService.autosaveTick('visibility-hidden').then((result) => {
+      if (result.ok || !shouldReportSaveFailure(result.reason)) return
+      reportFailure(saveBoundary, saveFailureToError(result))
+    })
   })
 }
 
@@ -2467,11 +2320,11 @@ async function bootPetOnce(): Promise<void> {
     // data wipe restarts from a clean archive. Autosave stays paused until one
     // of those happens, so a corrupt archive is never silently overwritten.
     showBubble(
-      saveRecoveryNeeded
+      saveService.recoveryNeeded
         ? '存档损坏，已保留备份：可在「更多 → 保存」写入新档，或「更多 → 删除全部本地数据」重新开始；期间不会自动覆盖旧档。'
         : '旧存档没读出来，先用默认状态。',
     )
-  } else if (saveRecoveryNeeded) {
+  } else if (saveService.recoveryNeeded) {
     showBubble('已从备份恢复：可在「更多 → 保存」写入新档，收回损坏的主档。')
   }
   if (!loaded.ok || !loaded.value) {
@@ -3844,8 +3697,9 @@ function initializeApp(): void {
         // blocked while read-only, so nothing is re-created before re-consent.
         // A full local-data wipe also clears the "recovering a corrupt archive"
         // state: after re-consent the next autosave writes a fresh archive
-        // instead of staying paused (MB-011).
-        saveRecoveryNeeded = false
+        // instead of staying paused (MB-011). The consent layer already deleted
+        // the slots, so recreate the runtime instead of re-deleting them.
+        resetSaveServiceAfterWipe()
         state = createPet(now())
         // A full local-data wipe clears the quiet-hours preference too; fall
         // back to the safety default in this session as well.
