@@ -29,6 +29,37 @@ import {
 import { readVersioned, writeVersioned, type StorageLike, type StorageWriteStatus } from '../security/safe-storage.ts'
 import { utf8ByteLength } from '../security/limits.ts'
 import type { HubRenderSurface } from './shared.ts'
+import type {
+  CharacterPackConfirmRequest,
+  CharacterPackConsentInput,
+  CharacterPackConsentKey,
+  CharacterPackPrepared,
+  CharacterPackUiRow,
+  CharacterPackUiState,
+} from './character-installer.ts'
+
+/**
+ * Callbacks for the experimental 角色包安装器 section (E4 / task-98). The
+ * context is optional so existing render tests and hosts without the
+ * IndexedDB/CharacterPackRuntime adapter keep working; when absent the tab
+ * shows an honest 「安装器未注入」 note instead of pretending to import.
+ */
+export interface CharacterPackTabContext {
+  getState(): CharacterPackUiState
+  getPrepared(): CharacterPackPrepared | null
+  getConsent(): CharacterPackConsentInput
+  getConfirm(): CharacterPackConfirmRequest | null
+  /** True while a preview/install/enable/uninstall/rollback call is in flight. */
+  isBusy(): boolean
+  onImport(mode: 'single' | 'folder'): void
+  onToggleConsent(key: CharacterPackConsentKey, value: boolean): void
+  onConfirmInstall(): void
+  onCancel(): void
+  onEnable(packId: string): void
+  onRequestAction(kind: 'uninstall' | 'rollback', packId: string): void
+  onConfirmAction(): void
+  onCancelAction(): void
+}
 
 /** Host callbacks + DOM surface consumed by the 内容包 renderer. */
 export interface PacksTabRenderContext extends HubRenderSurface {
@@ -38,6 +69,8 @@ export interface PacksTabRenderContext extends HubRenderSurface {
   readonly onImportFile: (mode: 'single' | 'folder') => void
   readonly onConfirmImport: () => void
   readonly onCancelImport: () => void
+  /** Experimental character-pack installer adapter (absent = not wired). */
+  readonly characterPacks?: CharacterPackTabContext
 }
 
 /** Human labels for the six canonical prohibited-use ids (declaration UI). */
@@ -601,10 +634,333 @@ export interface ContentHubInstalledPack {
   readonly fontFamilies?: readonly string[]
 }
 
+// ---------------------------------------------------------------------------
+// Experimental 角色包安装器 (famling.pet-anim/0.2)
+//
+// The renderer is DOM-only and side-effect-free: it reads the injected
+// CharacterPackTabContext, forwards intents to the host adapter (which owns the
+// IndexedDB file store + CharacterPackRuntime) and always renders the honest
+// 「渲染器未接入 / 不可应用」 wording while no renderer adapter is injected.
+// ---------------------------------------------------------------------------
+
+const CHARACTER_PACK_CONSENT_ITEMS: readonly { readonly key: CharacterPackConsentKey; readonly label: string }[] =
+  Object.freeze([
+    { key: 'usageConfirmed', label: '我已阅读并同意统一用途声明（仅限研究与原型验证，禁止六类用途）' },
+    { key: 'licenseAcknowledged', label: '我已阅读并认可该角色包的许可（SPDX / 署名）' },
+    { key: 'aiDisclosureAcknowledged', label: '我已阅读该角色包的 AI 生成标识与披露' },
+  ])
+
+function prohibitedUseLabel(id: string): string {
+  const label: string | undefined = PROHIBITED_USE_LABELS[id as (typeof PROHIBITED_USES)[number]]
+  return label ?? id
+}
+
+/** One small action button used by the character-pack rows. */
+function characterPackActionButton(
+  ctx: PacksTabRenderContext,
+  text: string,
+  action: string,
+  packId: string,
+  disabled: boolean,
+  onClick: () => void,
+): HTMLButtonElement {
+  const button = ctx.create('button', 'content-hub-chip content-hub-character-action')
+  button.type = 'button'
+  button.textContent = text
+  button.dataset.characterAction = action
+  button.dataset.packId = packId
+  button.disabled = disabled
+  button.addEventListener('click', () => {
+    if (!disabled) onClick()
+  })
+  return button
+}
+
+function buildCharacterPackConfirm(
+  ctx: PacksTabRenderContext,
+  cp: CharacterPackTabContext,
+  prepared: CharacterPackPrepared,
+  busy: boolean,
+): HTMLElement {
+  const preview = prepared.preview
+  const consent = cp.getConsent()
+  const section = ctx.create('section', 'content-hub-confirm content-hub-character-confirm')
+  section.dataset.packId = preview.id
+  const heading = ctx.create('h3', 'content-hub-confirm-title')
+  heading.textContent = '安装前确认：' + preview.name
+  const meta = ctx.create('p', 'content-hub-pack-meta')
+  meta.textContent =
+    '版本 ' +
+    preview.version +
+    ' · 类型 ' +
+    preview.kind +
+    ' · 许可 ' +
+    preview.licenseSpdx +
+    ' / ' +
+    preview.licenseAttribution +
+    ' · 文件 ' +
+    preview.fileCount +
+    ' 个'
+  const ai = ctx.create('p', 'content-hub-pack-meta')
+  ai.textContent = 'AI 标识：' + (preview.aiGenerated ? 'AI 生成' : '非 AI 生成') + ' · ' + preview.aiDisclosure
+  const assurance = ctx.create('p', 'content-hub-pack-meta')
+  assurance.textContent =
+    '预检：pack.json 已通过 0.2 校验，压缩包/文件夹清单已逐文件比对 sha256；安装时运行时会再次完整校验并原子提交。'
+  const label = ctx.create('p', 'content-hub-declaration-label')
+  label.textContent = '统一用途声明（逐字校验通过，必须阅读）：'
+  const statement = ctx.create('p', 'content-hub-declaration')
+  statement.textContent = preview.statement
+  const ref = ctx.create('p', 'content-hub-declaration-ref')
+  ref.textContent = '声明文件：' + preview.statementRef
+  const prohibited = ctx.create('ul', 'content-hub-prohibited')
+  for (const id of preview.prohibitedUses) {
+    const item = ctx.create('li', 'content-hub-prohibited-item')
+    item.textContent = '禁止：' + prohibitedUseLabel(id)
+    prohibited.append(item)
+  }
+  section.append(heading, meta, ai, assurance, label, statement, ref, prohibited)
+
+  const consentList = ctx.create('div', 'content-hub-character-consent-list')
+  for (const item of CHARACTER_PACK_CONSENT_ITEMS) {
+    const row = ctx.create('label', 'content-hub-character-consent')
+    const input = ctx.doc.createElement('input')
+    input.type = 'checkbox'
+    input.className = 'content-hub-character-consent-input'
+    input.checked = consent[item.key] === true
+    input.disabled = busy
+    input.setAttribute('data-consent-key', item.key)
+    input.addEventListener('change', () => {
+      cp.onToggleConsent(item.key, input.checked)
+    })
+    const text = ctx.create('span', 'content-hub-character-consent-label')
+    text.textContent = item.label
+    row.append(input, text)
+    consentList.append(row)
+  }
+  section.append(consentList)
+
+  const allConfirmed =
+    consent.usageConfirmed === true && consent.licenseAcknowledged === true && consent.aiDisclosureAcknowledged === true
+  const hint = ctx.create('p', 'content-hub-pack-note')
+  hint.textContent = '必须逐项确认后才能安装。安装/启用只会登记角色包：渲染器未接入时不会改变桌宠外观（不可应用）。'
+  const actions = ctx.create('div', 'content-hub-actions')
+  const confirm = ctx.create('button', 'content-hub-confirm-ok content-hub-character-install')
+  confirm.type = 'button'
+  confirm.textContent = '安装并登记（不可应用）'
+  confirm.disabled = busy || !allConfirmed
+  confirm.addEventListener('click', () => {
+    if (!busy && allConfirmed) cp.onConfirmInstall()
+  })
+  const cancel = ctx.create('button', 'content-hub-confirm-cancel content-hub-character-cancel')
+  cancel.type = 'button'
+  cancel.textContent = '取消'
+  cancel.disabled = busy
+  cancel.addEventListener('click', () => {
+    if (!busy) cp.onCancel()
+  })
+  actions.append(confirm, cancel)
+  section.append(hint, actions)
+  return section
+}
+
+function buildCharacterPackRow(
+  ctx: PacksTabRenderContext,
+  cp: CharacterPackTabContext,
+  row: CharacterPackUiRow,
+  state: CharacterPackUiState,
+  confirm: CharacterPackConfirmRequest | null,
+  busy: boolean,
+): HTMLElement {
+  const article = ctx.create('article', 'content-hub-pack content-hub-character-pack')
+  article.dataset.packId = row.packId
+  const head = ctx.create('div', 'content-hub-pack-head')
+  const name = ctx.create('strong', 'content-hub-pack-name')
+  name.textContent = row.name
+  const version = ctx.create('span', 'content-hub-pack-version')
+  version.textContent = 'v' + row.version
+  const kind = ctx.create('span', 'content-hub-badge')
+  kind.textContent = row.source === 'builtin' ? '内置登记占位' : '第三方角色包 0.2'
+  head.append(name, version, kind)
+  if (row.active) {
+    const active = ctx.create('span', 'content-hub-badge content-hub-character-active')
+    active.textContent = '已启用（未应用）'
+    head.append(active)
+  }
+  article.append(head)
+  const meta = ctx.create('p', 'content-hub-pack-meta')
+  meta.textContent =
+    '角色 ' +
+    row.characterId +
+    ' · 类型 ' +
+    row.kind +
+    (row.previousVersion !== undefined ? ' · 可回滚到 v' + row.previousVersion : '') +
+    (row.source === 'builtin' ? ' · 内置角色不由此安装器切换或应用' : '')
+  article.append(meta)
+  const note = ctx.create('p', 'content-hub-pack-note')
+  if (row.source === 'builtin') {
+    note.textContent = '内置登记占位：只作为卸载第三方角色包后的回退目标；当前桌宠渲染器不由本安装器控制，也不会被应用。'
+  } else if (row.active) {
+    note.textContent = '已启用（仅登记）：渲染器未接入，桌宠外观未改变，当前不可应用。'
+  } else {
+    note.textContent = '已安装（仅登记）：可启用登记，但渲染器未接入前不会应用到桌宠外观。'
+  }
+  article.append(note)
+
+  const actions = ctx.create('div', 'content-hub-actions')
+  if (row.source === 'builtin') {
+    if (state.activePackId !== null && state.activePackId !== row.packId) {
+      actions.append(
+        characterPackActionButton(ctx, '切回内置（仅登记）', 'enable-builtin', row.packId, busy, () => {
+          cp.onEnable(row.packId)
+        }),
+      )
+    }
+  } else {
+    if (!row.active) {
+      actions.append(
+        characterPackActionButton(ctx, '启用（仅登记）', 'enable', row.packId, busy, () => {
+          cp.onEnable(row.packId)
+        }),
+      )
+    }
+    if (row.previousVersion !== undefined) {
+      actions.append(
+        characterPackActionButton(ctx, '回滚到 v' + row.previousVersion, 'rollback', row.packId, busy, () => {
+          cp.onRequestAction('rollback', row.packId)
+        }),
+      )
+    }
+    actions.append(
+      characterPackActionButton(ctx, '卸载', 'uninstall', row.packId, busy, () => {
+        cp.onRequestAction('uninstall', row.packId)
+      }),
+    )
+  }
+  if (actions.children.length > 0) article.append(actions)
+
+  if (confirm !== null && confirm.packId === row.packId) {
+    const confirmation = ctx.create('div', 'content-hub-actions content-hub-character-confirm-action')
+    const question = ctx.create('span', 'content-hub-pack-note')
+    question.textContent =
+      confirm.kind === 'uninstall'
+        ? '确认卸载「' + row.name + '」？本地安装文件会被清理（可重新安装）。'
+        : '确认回滚「' + row.name + '」到 v' + (row.previousVersion ?? '?') + '？当前版本目录会被清理。'
+    const ok = ctx.create('button', 'content-hub-confirm-ok content-hub-character-confirm-ok')
+    ok.type = 'button'
+    ok.textContent = confirm.kind === 'uninstall' ? '确认卸载' : '确认回滚'
+    ok.disabled = busy
+    ok.addEventListener('click', () => {
+      if (!busy) cp.onConfirmAction()
+    })
+    const cancel = ctx.create('button', 'content-hub-confirm-cancel content-hub-character-confirm-cancel')
+    cancel.type = 'button'
+    cancel.textContent = '取消'
+    cancel.disabled = busy
+    cancel.addEventListener('click', () => {
+      if (!busy) cp.onCancelAction()
+    })
+    confirmation.append(question, ok, cancel)
+    article.append(confirmation)
+  }
+  return article
+}
+
+/** Render the experimental 角色包安装器 section into the 内容包 tab. */
+function appendCharacterPackSection(ctx: PacksTabRenderContext): void {
+  const cp = ctx.characterPacks
+  const heading = ctx.create('h3', 'content-hub-group-title')
+  heading.textContent = '角色包安装器（实验）'
+  ctx.panelBody.append(heading)
+  if (cp === undefined) {
+    const note = ctx.create('p', 'content-hub-pack-note content-hub-character-note')
+    note.dataset.renderer = 'unwired'
+    note.textContent = '角色包安装器未注入：宿主未提供 IndexedDB / CharacterPackRuntime 适配器，角色包导入不可用（不影响下面的内容主题包）。'
+    ctx.panelBody.append(note)
+    return
+  }
+  const state = cp.getState()
+  const note = ctx.create('p', 'content-hub-pack-note content-hub-character-note')
+  note.dataset.renderer = state.rendererConnected ? 'connected' : 'unwired'
+  note.textContent = state.note
+  ctx.panelBody.append(note)
+  if (!state.available) {
+    const unavailable = ctx.create('p', 'content-hub-empty content-hub-character-unavailable')
+    unavailable.textContent = '角色包安装器不可用：' + (state.unavailableReason ?? '宿主初始化失败') + '。'
+    ctx.panelBody.append(unavailable)
+    return
+  }
+  const busy = cp.isBusy() || state.operation !== 'idle'
+
+  const pickerRow = ctx.create('div', 'content-hub-actions')
+  const zipButton = ctx.create('button', 'content-hub-import content-hub-character-import')
+  zipButton.type = 'button'
+  zipButton.textContent = '导入角色包（.zip）…'
+  zipButton.disabled = busy
+  const zipInput = ctx.doc.createElement('input')
+  zipInput.type = 'file'
+  zipInput.accept = '.zip,application/zip'
+  zipInput.className = 'content-hub-file-input content-hub-character-file-input'
+  zipInput.hidden = true
+  zipInput.setAttribute('aria-hidden', 'true')
+  zipInput.tabIndex = -1
+  zipButton.addEventListener('click', () => {
+    if (!busy) zipInput.click()
+  })
+  zipInput.addEventListener('change', () => {
+    cp.onImport('single')
+  })
+  const folderButton = ctx.create('button', 'content-hub-import content-hub-character-import')
+  folderButton.type = 'button'
+  folderButton.textContent = '导入角色包文件夹…'
+  folderButton.disabled = busy
+  const folderInput = ctx.doc.createElement('input')
+  folderInput.type = 'file'
+  folderInput.className = 'content-hub-file-input content-hub-character-file-input'
+  folderInput.hidden = true
+  folderInput.setAttribute('webkitdirectory', '')
+  folderInput.setAttribute('directory', '')
+  folderInput.setAttribute('aria-hidden', 'true')
+  folderInput.tabIndex = -1
+  folderButton.addEventListener('click', () => {
+    if (!busy) folderInput.click()
+  })
+  folderInput.addEventListener('change', () => {
+    cp.onImport('folder')
+  })
+  pickerRow.append(zipButton, folderButton, zipInput, folderInput)
+  ctx.panelBody.append(pickerRow)
+  const rules = ctx.create('p', 'content-hub-blurb')
+  rules.textContent =
+    '只接受本地 famling.pet-anim/0.2 角色包：根目录 pack.json + assets/（ZIP 或文件夹）。ZIP/文件夹会逐文件校验 sha256 与清单；缺统一声明、缺许可/AI 标识或未验签的远程包一律拒绝。安装与启用只登记，渲染器未接入时不会改变桌宠外观。'
+  ctx.panelBody.append(rules)
+  if (busy) {
+    const working = ctx.create('p', 'content-hub-pack-note content-hub-character-busy')
+    working.textContent = '正在执行角色包操作（' + state.operation + '）…'
+    ctx.panelBody.append(working)
+  }
+  const prepared = cp.getPrepared()
+  if (prepared !== null) ctx.panelBody.append(buildCharacterPackConfirm(ctx, cp, prepared, busy))
+
+  const listHeading = ctx.create('h3', 'content-hub-group-title')
+  listHeading.textContent = '已登记角色包'
+  ctx.panelBody.append(listHeading)
+  if (state.rows.length === 0) {
+    ctx.appendEmpty('尚未登记任何角色包。')
+    return
+  }
+  const confirm = cp.getConfirm()
+  const list = ctx.create('div', 'content-hub-pack-list content-hub-character-list')
+  for (const row of state.rows) list.append(buildCharacterPackRow(ctx, cp, row, state, confirm, busy))
+  ctx.panelBody.append(list)
+}
+
 /** Render the 内容包 tab (import pickers, pending declaration, installed list). */
 export function renderPacksTab(ctx: PacksTabRenderContext): void {
   const { panelBody, create, appendEmpty, getInstalledPacks, getPendingImport, isImportBusy, onImportFile, onConfirmImport, onCancelImport } = ctx
   const doc = ctx.doc
+
+  // --- 角色包安装器（实验，角色包运行时接线） ------------------------------
+  appendCharacterPackSection(ctx)
 
   // --- 内容包 -------------------------------------------------------------
 

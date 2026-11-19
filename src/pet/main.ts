@@ -35,6 +35,7 @@ import {
   isHeroCharacterId,
   resolveHeroConfig,
   startHeroRuntime,
+  type HeroCharacterId,
   type HeroRuntime,
   type HeroStatus,
 } from './hero-runtime.ts'
@@ -172,6 +173,10 @@ import {
   type ThemePackPrepareResult,
 } from './content-hub.ts'
 import {
+  createCharacterPackInstaller,
+  type CharacterPackHubAdapter,
+} from './content-hub/character-installer.ts'
+import {
   CONTENT_CHARACTER_PRODUCT_IDS,
   CONTENT_SELECTION_CATEGORY,
   applyCharacterTheme,
@@ -192,6 +197,7 @@ import {
   type ContentCharacterTheme,
   type ContentLibrary,
   type ContentSelection,
+  type CharacterPackKind,
   type ContentVoiceEntry,
   type DialogueBehavior,
   type SelectionKey,
@@ -1000,6 +1006,12 @@ interface ContentRuntimeState {
   roleThemeId: string | null
   dialogue: DialogueBehavior
   hub: ContentHubController | null
+  /**
+   * Experimental character-pack installer (IndexedDB host +
+   * CharacterPackRuntime). Null when the host adapter could not be opened;
+   * the 内容包 tab then shows the honest 「安装器不可用」 note.
+   */
+  characterPacks: CharacterPackHubAdapter | null
   assetStore: ContentAssetStore | null
   readonly assetUrls: ContentAssetUrls
   /** Locally persisted pack asset records, keyed by contentAssetKey(). */
@@ -1048,6 +1060,18 @@ function contentCharacterIdFromRenderer(): string {
   if (!HERO_CONFIG.enabled) return 'origami'
   if (HERO_CONFIG.character === 'tinglan') return 'humanoid'
   return HERO_CONFIG.character
+}
+
+/**
+ * Character-pack fallback registration kind for the current hero character.
+ * The runtime only needs this for the uninstall fallback placeholder; the
+ * installer never renders that placeholder (renderer adapter not wired).
+ */
+function characterPackKindFor(character: HeroCharacterId): CharacterPackKind {
+  if (!HERO_CONFIG.enabled) return 'humanoid'
+  if (character === 'cat') return 'cat'
+  if (character === 'dog') return 'dog'
+  return 'humanoid'
 }
 
 function addFontFamily(runtime: ContentRuntimeState, packId: string, family: string): void {
@@ -1121,6 +1145,7 @@ function buildContentHubController(): ContentHubController {
     prepareImport: prepareContentImport,
     commitImport: commitContentImport,
     getInstalledPacks: installedPackSummaries,
+    characterPacks: contentRuntime?.characterPacks ?? null,
     getMarketState: contentMarketState,
     resolvePreviewUrl: resolveRolePreviewUrl,
     // The independent content window (MB-062): closing the SAME hub returns to
@@ -1195,6 +1220,7 @@ async function ensureContentRuntime(): Promise<ContentRuntimeState | null> {
         roleThemeId: plan.roleThemeId,
         dialogue: resolveDialogueBehavior(library, plan.selection),
         hub: null,
+        characterPacks: null,
         assetStore: null,
         assetUrls: createAssetUrlRegistry(),
         assetRecords: new Map<string, ContentAssetRecord>(),
@@ -1213,6 +1239,18 @@ async function ensureContentRuntime(): Promise<ContentRuntimeState | null> {
         await hydrateInstalledAssets(runtime)
       } catch (error) {
         // Asset storage is a preview enhancement; the catalog still works.
+        reportFailure(uiBoundary, error)
+      }
+      // E4 role-pack installer: the IndexedDB/memory file store + injected
+      // CharacterPackRuntime host. The renderer adapter is intentionally NOT
+      // injected (task-98: no hero rendering change), so the panel labels
+      // install/enable as registration-only / not applicable.
+      try {
+        runtime.characterPacks = await createCharacterPackInstaller({
+          kind: characterPackKindFor(HERO_CONFIG.character),
+        })
+      } catch (error) {
+        runtime.characterPacks = null
         reportFailure(uiBoundary, error)
       }
       runtime.hub = buildContentHubController()

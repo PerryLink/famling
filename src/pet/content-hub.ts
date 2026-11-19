@@ -54,12 +54,21 @@ import {
   readFolderSelection,
   readSingleSelection,
   renderPacksTab,
+  type CharacterPackTabContext,
   type ContentHubFileLike,
   type ContentHubInstalledPack,
   type ContentPackFileSelection,
   type PreparedThemePackImport,
   type ThemePackPrepareResult,
 } from './content-hub/packs.ts'
+import {
+  characterPackUnavailableState,
+  type CharacterPackConsentInput,
+  type CharacterPackConsentKey,
+  type CharacterPackHubAdapter,
+  type CharacterPackPrepared,
+  type CharacterPackUiState,
+} from './content-hub/character-installer.ts'
 import { renderCustomizeTab, renderRolesTab, type RolesTabRenderContext } from './content-hub/roles.ts'
 import { CONTENT_HUB_DOCS_HREF, CONTENT_HUB_NOTICE } from './content-hub/shared.ts'
 
@@ -239,6 +248,12 @@ export interface ContentHubOptions {
   /** Explicitly confirmed install (persist manifest + assets, refresh UI). */
   readonly commitImport: (pending: PreparedThemePackImport) => Promise<ContentHubImportResult>
   readonly getInstalledPacks?: () => readonly ContentHubInstalledPack[]
+  /**
+   * Optional character-pack installer (IndexedDB host + CharacterPackRuntime),
+   * created by main.ts. When absent/`null` the 内容包 tab shows an honest
+   * 「安装器未注入」 note; the theme-pack import flow is unaffected.
+   */
+  readonly characterPacks?: CharacterPackHubAdapter | null
   readonly getMarketState?: () => ContentMarketUiState
   /**
    * Called ONLY from the user's 「刷新市场目录…」 click, and only when the
@@ -388,6 +403,16 @@ export function initContentHub(options: ContentHubOptions): ContentHubController
   let pendingImport: PreparedThemePackImport | null = null
   let importBusy = false
   let marketState: ContentMarketUiState | null = null
+  // Character-pack installer (experimental, injected by main.ts): the preview
+  // holds only an opaque token; bytes live in the host adapter.
+  let characterPrepared: CharacterPackPrepared | null = null
+  let characterConsent: CharacterPackConsentInput = Object.freeze({
+    usageConfirmed: false,
+    licenseAcknowledged: false,
+    aiDisclosureAcknowledged: false,
+  })
+  let characterConfirm: { kind: 'uninstall' | 'rollback'; packId: string } | null = null
+  let characterBusy = false
 
   function setFeedback(message: string, state: 'ok' | 'error' | 'info'): void {
     feedback.textContent = message
@@ -417,9 +442,75 @@ export function initContentHub(options: ContentHubOptions): ContentHubController
     }
   }
 
+  // --- experimental character-pack installer (E4 / task-98) -------------
+
+  function characterPacksAdapter(): CharacterPackHubAdapter | null {
+    try {
+      return options.characterPacks ?? null
+    } catch {
+      return null
+    }
+  }
+
+  function characterPackState(): CharacterPackUiState {
+    const adapter = characterPacksAdapter()
+    if (adapter === null) {
+      return characterPackUnavailableState('宿主未注入角色包安装器（IndexedDB / CharacterPackRuntime 适配器缺失）。')
+    }
+    try {
+      return adapter.state()
+    } catch {
+      return characterPackUnavailableState('角色包安装器状态读取失败。')
+    }
+  }
+
+  function resetCharacterConsent(): void {
+    characterConsent = Object.freeze({
+      usageConfirmed: false,
+      licenseAcknowledged: false,
+      aiDisclosureAcknowledged: false,
+    })
+  }
+
+  function characterPackTabContext(): CharacterPackTabContext {
+    return {
+      getState: characterPackState,
+      getPrepared: (): CharacterPackPrepared | null => characterPrepared,
+      getConsent: (): CharacterPackConsentInput => characterConsent,
+      getConfirm: () => characterConfirm,
+      isBusy: (): boolean => characterBusy,
+      onImport: (mode): void => {
+        void handleImportCharacterPack(mode)
+      },
+      onToggleConsent: (key, value): void => {
+        handleToggleCharacterPackConsent(key, value)
+      },
+      onConfirmInstall: (): void => {
+        void handleConfirmCharacterPackInstall()
+      },
+      onCancel: (): void => {
+        cancelCharacterPackPrepared()
+      },
+      onEnable: (packId): void => {
+        void handleEnableCharacterPack(packId)
+      },
+      onRequestAction: (kind, packId): void => {
+        requestCharacterPackAction(kind, packId)
+      },
+      onConfirmAction: (): void => {
+        void handleConfirmCharacterPackAction()
+      },
+      onCancelAction: (): void => {
+        cancelCharacterPackAction()
+      },
+    }
+  }
+
   function updatePackSummary(): void {
     const count = installedPacks().length
-    packSummary.textContent = count > 0 ? '已安装内容包：' + count + ' 个' : '未安装内容包'
+    const characterCount = characterPackState().installedCount
+    const base = count > 0 ? '已安装内容包：' + count + ' 个' : '未安装内容包'
+    packSummary.textContent = characterCount > 0 ? base + ' · 已登记角色包：' + characterCount + ' 个' : base
   }
 
   function getLibrary(): ContentLibrary | null {
@@ -533,6 +624,7 @@ export function initContentHub(options: ContentHubOptions): ContentHubController
         void handleConfirmImport()
       },
       onCancelImport: cancelPendingImport,
+      characterPacks: characterPackTabContext(),
     })
   }
 
@@ -702,6 +794,158 @@ export function initContentHub(options: ContentHubOptions): ContentHubController
       setFeedback('安装失败：内容包处理出错，未安装。', 'error')
     } finally {
       importBusy = false
+    }
+  }
+
+  // --- character-pack installer handlers (E4 / task-98) -----------------
+
+  async function handleImportCharacterPack(mode: 'single' | 'folder'): Promise<void> {
+    if (characterBusy) return
+    const adapter = characterPacksAdapter()
+    if (adapter === null) {
+      setFeedback('角色包安装器不可用：宿主未注入 IndexedDB / CharacterPackRuntime 适配器。', 'error')
+      return
+    }
+    const inputs = rootElement.querySelectorAll<HTMLInputElement>('input.content-hub-character-file-input')
+    const target = mode === 'single' ? inputs[0] : inputs[1]
+    if (target === undefined) return
+    const selectionSource = fileListOf(target)
+    selectionSource.clear()
+    if (selectionSource.files.length === 0) return
+    setFeedback('正在读取并按 famling.pet-anim/0.2 规范预检角色包…', 'info')
+    setIssues([])
+    characterBusy = true
+    try {
+      let selection: ContentPackFileSelection | string
+      if (mode === 'folder') {
+        selection = await readFolderSelection(selectionSource.files)
+      } else {
+        const single = await readSingleSelection(selectionSource.files[0] as ContentHubFileLike)
+        if (typeof single !== 'string' && single.kind !== 'zip') {
+          selection = '角色包安装器只接受 .zip 或文件夹（根目录 pack.json + assets/）；不支持单独导入 JSON 清单。'
+        } else {
+          selection = single
+        }
+      }
+      if (typeof selection === 'string') {
+        characterBusy = false
+        setFeedback(selection, 'error')
+        return
+      }
+      const result = await adapter.preview(selection)
+      characterBusy = false
+      if (!result.ok) {
+        setFeedback(result.message, 'error')
+        setIssues(result.issues)
+        return
+      }
+      if (characterPrepared !== null) adapter.cancelPrepared(characterPrepared)
+      characterPrepared = result.prepared
+      resetCharacterConsent()
+      characterConfirm = null
+      setFeedback('角色包预检通过；请阅读统一用途声明、许可与 AI 标识并逐项确认后再安装。', 'info')
+      renderPanel()
+    } catch {
+      characterBusy = false
+      setFeedback('角色包读取或预检失败，未安装任何内容。', 'error')
+    }
+  }
+
+  function handleToggleCharacterPackConsent(key: CharacterPackConsentKey, value: boolean): void {
+    const next = {
+      usageConfirmed: characterConsent.usageConfirmed,
+      licenseAcknowledged: characterConsent.licenseAcknowledged,
+      aiDisclosureAcknowledged: characterConsent.aiDisclosureAcknowledged,
+    }
+    next[key] = value === true
+    characterConsent = Object.freeze(next)
+    renderPanel()
+  }
+
+  function cancelCharacterPackPrepared(): void {
+    const adapter = characterPacksAdapter()
+    if (characterPrepared !== null) adapter?.cancelPrepared(characterPrepared)
+    characterPrepared = null
+    resetCharacterConsent()
+    characterConfirm = null
+    setFeedback('已取消角色包导入，未安装任何内容。', 'info')
+    setIssues([])
+    renderPanel()
+  }
+
+  async function handleConfirmCharacterPackInstall(): Promise<void> {
+    const prepared = characterPrepared
+    const adapter = characterPacksAdapter()
+    if (prepared === null || adapter === null || characterBusy) return
+    const confirmed =
+      characterConsent.usageConfirmed && characterConsent.licenseAcknowledged && characterConsent.aiDisclosureAcknowledged
+    if (!confirmed) {
+      setFeedback('必须逐项确认统一用途声明、角色包许可与 AI 标识后才能安装。', 'error')
+      return
+    }
+    characterBusy = true
+    setFeedback('正在安装并登记角色包（仅本地数据、不联网）…', 'info')
+    try {
+      const result = await adapter.install(prepared, characterConsent)
+      characterBusy = false
+      characterPrepared = null
+      resetCharacterConsent()
+      characterConfirm = null
+      renderPanel()
+      setFeedback(result.message, result.ok ? 'ok' : 'error')
+      if (!result.ok) setIssues(result.issues)
+      updatePackSummary()
+    } catch {
+      characterBusy = false
+      setFeedback('安装失败：角色包处理出错，未安装。', 'error')
+    }
+  }
+
+  async function handleEnableCharacterPack(packId: string): Promise<void> {
+    const adapter = characterPacksAdapter()
+    if (adapter === null || characterBusy) return
+    characterBusy = true
+    characterConfirm = null
+    try {
+      const result = await adapter.enable(packId)
+      characterBusy = false
+      renderPanel()
+      setFeedback(result.message, result.ok ? 'ok' : 'error')
+      if (!result.ok) setIssues(result.issues)
+    } catch {
+      characterBusy = false
+      setFeedback('启用登记失败：角色包处理出错。', 'error')
+    }
+  }
+
+  function requestCharacterPackAction(kind: 'uninstall' | 'rollback', packId: string): void {
+    if (characterBusy) return
+    characterConfirm = { kind, packId }
+    renderPanel()
+  }
+
+  function cancelCharacterPackAction(): void {
+    characterConfirm = null
+    renderPanel()
+  }
+
+  async function handleConfirmCharacterPackAction(): Promise<void> {
+    const request = characterConfirm
+    const adapter = characterPacksAdapter()
+    if (request === null || adapter === null || characterBusy) return
+    characterBusy = true
+    try {
+      const result =
+        request.kind === 'uninstall' ? await adapter.uninstall(request.packId) : await adapter.rollback(request.packId)
+      characterBusy = false
+      characterConfirm = null
+      renderPanel()
+      setFeedback(result.message, result.ok ? 'ok' : 'error')
+      if (!result.ok) setIssues(result.issues)
+      updatePackSummary()
+    } catch {
+      characterBusy = false
+      setFeedback(request.kind === 'uninstall' ? '卸载失败：角色包处理出错。' : '回滚失败：角色包处理出错。', 'error')
     }
   }
 

@@ -1,0 +1,226 @@
+{
+  "contract": "famling.pet-anim-timing/1",
+  "order": [
+    "idle",
+    "idle_blink",
+    "walk",
+    "run",
+    "pat_head",
+    "ball_throw",
+    "ball_chase",
+    "paw_face",
+    "scratch",
+    "stand_wag",
+    "chase_tail",
+    "attack"
+  ],
+  "clips": {
+    "idle": {
+      "label": "待机呼吸（蹲坐看你）",
+      "frames": 6,
+      "fps": 6,
+      "loop": true,
+      "layer": "base",
+      "category": "idle",
+      "priority": 0,
+      "phase": "1a"
+    },
+    "idle_blink": {
+      "label": "眨眼（叠层/替换）",
+      "frames": 3,
+      "fps": 12,
+      "loop": false,
+      "layer": "overlay",
+      "category": "idle",
+      "priority": 10,
+      "phase": "1a"
+    },
+    "walk": {
+      "label": "走（小步前进）",
+      "frames": 8,
+      "fps": 10,
+      "loop": true,
+      "layer": "base",
+      "category": "locomotion",
+      "priority": 5,
+      "phase": "1a"
+    },
+    "run": {
+      "label": "跑（追球/兴奋）",
+      "frames": 6,
+      "fps": 14,
+      "loop": true,
+      "layer": "base",
+      "category": "locomotion",
+      "priority": 15,
+      "phase": "1a"
+    },
+    "pat_head": {
+      "label": "摸头（开心）",
+      "frames": 4,
+      "fps": 8,
+      "loop": false,
+      "layer": "oneshot",
+      "category": "social",
+      "priority": 50,
+      "phase": "1a"
+    },
+    "ball_throw": {
+      "label": "抛球（蓄力→出手）",
+      "frames": 5,
+      "fps": 10,
+      "loop": false,
+      "layer": "oneshot",
+      "category": "interaction",
+      "priority": 40,
+      "phase": "1b"
+    },
+    "ball_chase": {
+      "label": "追球（冲刺→扑）",
+      "frames": 6,
+      "fps": 12,
+      "loop": false,
+      "layer": "oneshot",
+      "category": "interaction",
+      "priority": 45,
+      "phase": "1b"
+    },
+    "paw_face": {
+      "label": "前腿摸脸",
+      "frames": 5,
+      "fps": 8,
+      "loop": false,
+      "layer": "oneshot",
+      "category": "action",
+      "priority": 20,
+      "phase": "1b"
+    },
+    "scratch": {
+      "label": "后腿挠痒",
+      "frames": 6,
+      "fps": 8,
+      "loop": false,
+      "layer": "oneshot",
+      "category": "action",
+      "priority": 20,
+      "phase": "1b"
+    },
+    "stand_wag": {
+      "label": "站起摇尾",
+      "frames": 6,
+      "fps": 8,
+      "loop": false,
+      "layer": "oneshot",
+      "category": "action",
+      "priority": 20,
+      "phase": "1b",
+      "overrides": {
+        "cat": {
+          "label": "伸懒腰（猫：慢起/保持/收回）",
+          "frames": 10,
+          "fps": 6,
+          "holdMs": [
+            300,
+            300,
+            300,
+            350,
+            400,
+            400,
+            400,
+            350,
+            250,
+            150
+          ]
+        }
+      }
+    },
+    "chase_tail": {
+      "label": "追自己尾巴",
+      "frames": 6,
+      "fps": 10,
+      "loop": false,
+      "layer": "oneshot",
+      "category": "action",
+      "priority": 20,
+      "phase": "1b"
+    },
+    "attack": {
+      "label": "攻击/扑咬（非均匀）",
+      "frames": 7,
+      "fps": 16,
+      "loop": false,
+      "layer": "oneshot",
+      "category": "combat",
+      "priority": 60,
+      "phase": "later",
+      "holdMs": [
+        83,
+        83,
+        63,
+        42,
+        42,
+        63,
+        63
+      ]
+    }
+  },
+  "fpsBands": {
+    "idle": {
+      "minFps": 4,
+      "maxFps": 8,
+      "minFrames": 2,
+      "maxFrames": 8
+    },
+    "walk": {
+      "minFps": 8,
+      "maxFps": 12,
+      "minFrames": 6,
+      "maxFrames": 8
+    },
+    "run": {
+      "minFps": 10,
+      "maxFps": 16,
+      "minFrames": 6,
+      "maxFrames": 8
+    },
+    "attack": {
+      "minFps": 12,
+      "maxFps": 24,
+      "minFrames": 4,
+      "maxFrames": 8,
+      "nonUniform": true
+    }
+  },
+  "tracks": [
+    {
+      "id": "base",
+      "clips": [
+        "idle",
+        "walk",
+        "run",
+        "pat_head",
+        "ball_throw",
+        "ball_chase",
+        "paw_face",
+        "scratch",
+        "stand_wag",
+        "chase_tail",
+        "attack"
+      ],
+      "description": "body/clip channel: looping idle·walk·run plus one-shot reactions"
+    },
+    {
+      "id": "overlay",
+      "clips": [
+        "idle_blink"
+      ],
+      "description": "short overlay/replacement effect (blink) played on top of the idle body"
+    }
+  ],
+  "randomMicroActions": [
+    "paw_face",
+    "scratch",
+    "stand_wag",
+    "chase_tail"
+  ]
+}
