@@ -37,7 +37,12 @@ import { isBuiltinCharacterId } from './character/builtin.ts'
 import { resolveHeroRegionReaction, type HeroRegionAction, type HeroRegionReaction } from './anim/regions.ts'
 import { shouldStartWindowDrag } from './hero-drag.ts'
 import { checkRelativePath } from './security/path-safety.ts'
-import { requestDesktopShellScaleRefit } from './desktop-shell.ts'
+import {
+  installRuntimeViewportWatch,
+  requestDesktopShellScaleRefit,
+  type RuntimeViewportChangeReason,
+  type RuntimeViewportWatchWindow,
+} from './desktop-shell.ts'
 import { removeKey, safeGetItem, safeSetItem, type StorageLike } from './security/safe-storage.ts'
 import { characterBubbleSemantic, characterCanVoice } from './character-voice.ts'
 import type { CharacterPackKind } from './content-library.ts'
@@ -63,11 +68,45 @@ export interface HeroCharacterPackIdentity {
 /** Minimal cross-window drag seam (production: Tauri `getCurrentWindow().startDragging()`). */
 export type HeroWindowDrag = () => Promise<unknown>
 
+/** Supported hero backing-store DPR range (same clamp used at boot). */
+export const HERO_DPR_MIN = 1
+export const HERO_DPR_MAX = 3
+
+/**
+ * Clamp a `window.devicePixelRatio`-like value to the hero backing-store budget
+ * (MB-046). A fake/very high DPR must never allocate an unbounded bitmap, and a
+ * missing/non-finite/zero value falls back to 1 CSS-raster pixel. This is the
+ * single capture rule used at boot, on every runtime DPR change and by the Tauri
+ * scale-factor hooks.
+ */
+export function clampHeroDevicePixelRatio(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? Math.min(HERO_DPR_MAX, Math.max(HERO_DPR_MIN, value))
+    : 1
+}
+
+/** Why the next hero frame must re-check the raster/layout (MB-046). */
+type HeroRuntimeViewportReason =
+  | RuntimeViewportChangeReason
+  | 'runtime-viewport'
+  | 'tauri-scale-factor'
+  | 'tauri-moved'
+  | 'dpr-poll'
+
 /** The subset of `@tauri-apps/api/window` used by the window-position helpers. */
 export interface TauriWindowModule {
   getCurrentWindow(): {
     outerPosition(): Promise<{ x: number; y: number }>
     setPosition(position: unknown): Promise<void>
+    /**
+     * Tauri v2 window events (MB-046): `onScaleChanged` (the JS name for the
+     * `ScaleFactorChanged` event) fires when the OS display scale changes as
+     * the pet window crosses a monitor with different Windows scaling, and
+     * `onMoved` fires while it is dragged across screens. Optional so older
+     * Tauri builds, browser fakes and the content-window path stay usable.
+     */
+    onScaleChanged?(handler: (event: { payload?: { scaleFactor?: number } }) => void): Promise<unknown> | unknown
+    onMoved?(handler: (event: { payload?: { x: number; y: number } }) => void): Promise<unknown> | unknown
   }
   PhysicalPosition: new (x: number, y: number) => unknown
   currentMonitor(): Promise<{
@@ -115,6 +154,8 @@ export interface HeroPageDeps {
   readonly scheduleTimeout?: (callback: () => void, timeoutMs?: number) => unknown
   readonly loadTauriWindow?: () => Promise<TauriWindowModule>
   readonly startWindowDrag?: HeroWindowDrag
+  /** Test seam for the desktop-shell late-layout refit; default global hook. */
+  readonly requestScaleRefit?: () => void
   readonly startRuntime?: typeof startHeroRuntime
   readonly loadBundle?: typeof loadHeroBundle
   readonly startPreview?: typeof startTinglanPreview
@@ -223,6 +264,19 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
   /** Stage size + DPR captured when the built-in hero scene booted. */
   let heroStageSize: { width: number; height: number } | null = null
   let heroDpr = 1
+  /**
+   * MB-046 runtime reconfiguration state. A monitor/DPI/media-query/Tauri
+   * signal only marks the next hero frame dirty; the frame itself re-captures
+   * the DPR, re-rasterises the canvas and asks the desktop shell to re-fit.
+   */
+  let runtimeViewportDirty = false
+  let runtimeViewportReason: HeroRuntimeViewportReason = 'runtime-viewport'
+  /** Disarm for the page-level media-query/resize/visualViewport watcher. */
+  let runtimeViewportDisarm: (() => void) | null = null
+  /** True once the Tauri native scale/move listeners were requested. */
+  let nativeViewportWatchInstalled = false
+  /** Coalesces the Tauri move-event burst into at most one deferred re-check. */
+  let nativeViewportRecheckPending = false
   /** True while the live hero scene is the shipped built-in character. */
   let heroSceneBuiltin = true
   /** Identity of the installed pack the live hero scene was built from. */
@@ -408,6 +462,193 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
     removeKey(WINDOW_KEY, deps.storage)
   }
 
+  // ---------------------------------------------------------------------------
+  // Runtime DPR / multi-monitor reconfiguration (MB-046)
+  // ---------------------------------------------------------------------------
+  // The pet window has a fixed 480x336 CSS layout. Crossing to a monitor with
+  // a different Windows display scale (or changing the system scale while it
+  // runs) changes devicePixelRatio only: the WebView layout viewport, and thus
+  // the hero stage, stay in CSS pixels. The hero canvas backing store was
+  // captured once at boot, so without this section the pet would stay at the
+  // old raster density until a reload. Everything below is idempotent and
+  // error-contained: a monitor hot-plug or a cross-screen drag must never crash
+  // the page (the previous bitmap/scene is kept when a re-raster fails).
+
+  /** The desktop shell's late-layout re-fit hook (test seam overridable). */
+  const requestScaleRefit = (): void => {
+    if (deps.requestScaleRefit !== undefined) {
+      deps.requestScaleRefit()
+      return
+    }
+    requestDesktopShellScaleRefit()
+  }
+
+  /** Mark the next hero frame as needing a DPR/stage re-check. */
+  function markRuntimeViewportDirty(reason: HeroRuntimeViewportReason): void {
+    runtimeViewportDirty = true
+    runtimeViewportReason = reason
+  }
+
+  /** Re-capture the live window DPR with the same 1-3 clamp used at boot. */
+  function currentRuntimeDpr(): number {
+    return clampHeroDevicePixelRatio((windowLike as unknown as { devicePixelRatio?: unknown }).devicePixelRatio)
+  }
+
+  /** Measure the hero stage in CSS pixels; the last boot measurement is the fallback. */
+  function measureHeroStage(): { width: number; height: number } {
+    try {
+      const rect = document.querySelector('.book')?.getBoundingClientRect()
+      if (rect !== undefined && rect.width > 0 && rect.height > 0) {
+        return { width: rect.width, height: rect.height }
+      }
+    } catch {
+      /* unmeasurable layout: keep the last known stage instead of throwing */
+    }
+    return heroStageSize ?? {
+      width: windowLike.innerWidth || 480,
+      height: windowLike.innerHeight || 336,
+    }
+  }
+
+  /**
+   * Resize one hero canvas to `layout CSS x DPR` and re-apply the DPR
+   * transform. Assigning width/height resets the whole 2D context state (the
+   * transform and imageSmoothing included), so both are restored right away and
+   * backends can keep drawing in CSS pixels.
+   */
+  function applyHeroCanvasBackingStore(
+    canvas: HTMLCanvasElement,
+    ctx: CanvasRenderingContext2D,
+    layout: HeroRuntime['layout'],
+    dpr: number,
+  ): void {
+    canvas.width = Math.max(1, Math.round(layout.width * dpr))
+    canvas.height = Math.max(1, Math.round(layout.height * dpr))
+    canvas.style.width = `${layout.width}px`
+    canvas.style.height = `${layout.height}px`
+    ctx.setTransform?.(dpr, 0, 0, dpr, 0, 0)
+    ctx.imageSmoothingEnabled = false
+  }
+
+  /**
+   * Re-capture DPR + stage after a viewport signal, rebuild the canvas backing
+   * store and re-run the window fit. Never throws: a failed re-raster restores
+   * the previous bitmap/transform and leaves the live scene running (the next
+   * frame retries), so switching monitors cannot take the pet page down.
+   * Returns true when the canvas/window layout actually changed.
+   */
+  function applyRuntimeViewportReconfigure(reason: HeroRuntimeViewportReason): boolean {
+    const runtime = hero
+    const canvas = heroCanvasEl
+    const ctx = heroCtx
+    if (runtime === null || canvas === null || ctx === null) {
+      runtimeViewportDirty = false
+      return false
+    }
+    const nextDpr = currentRuntimeDpr()
+    const stage = measureHeroStage()
+    const previousStage = heroStageSize
+    const stageChanged =
+      previousStage === null ||
+      Math.abs(previousStage.width - stage.width) > 0.5 ||
+      Math.abs(previousStage.height - stage.height) > 0.5
+    heroStageSize = stage
+    const dprChanged = nextDpr !== heroDpr
+    if (!dprChanged && !stageChanged) return false
+    const previous = {
+      width: canvas.width,
+      height: canvas.height,
+      styleWidth: canvas.style.width,
+      styleHeight: canvas.style.height,
+      renderKey: canvas.dataset.heroRenderKey,
+      frameKey: canvas.dataset.heroFrameKey,
+      dpr: heroDpr,
+    }
+    try {
+      applyHeroCanvasBackingStore(canvas, ctx, runtime.layout, nextDpr)
+      heroDpr = nextDpr
+      delete canvas.dataset.heroRenderKey
+      delete canvas.dataset.heroFrameKey
+      // Repaint immediately: resizing the backing store clears it and waiting
+      // for the next rAF would flash an empty canvas on screen.
+      runtime.render(ctx, heroSceneNow)
+    } catch (error) {
+      try {
+        canvas.width = previous.width
+        canvas.height = previous.height
+        canvas.style.width = previous.styleWidth
+        canvas.style.height = previous.styleHeight
+        ctx.setTransform?.(previous.dpr, 0, 0, previous.dpr, 0, 0)
+        ctx.imageSmoothingEnabled = false
+        if (previous.renderKey === undefined) delete canvas.dataset.heroRenderKey
+        else canvas.dataset.heroRenderKey = previous.renderKey
+        if (previous.frameKey === undefined) delete canvas.dataset.heroFrameKey
+        else canvas.dataset.heroFrameKey = previous.frameKey
+      } catch {
+        /* keeping the previous bitmap is best-effort; the loop still runs */
+      }
+      heroDpr = previous.dpr
+      console.warn('[pet] runtime DPR reconfiguration failed', reason, error)
+      return false
+    }
+    // QA/CDP truth: the live raster ratio (the boot path writes the same key).
+    document.documentElement.dataset.heroDpr = String(nextDpr)
+    // The window fit uses the same late layout as the hero boot (MB-050);
+    // re-run it so a cross-screen/DPI change can never leave the image at the
+    // unclamped zoom.
+    requestScaleRefit()
+    return true
+  }
+
+  /** Install the page-level DPI watcher once (media query + resize + visualViewport). */
+  function ensureRuntimeViewportWatch(): void {
+    if (runtimeViewportDisarm !== null) return
+    runtimeViewportDisarm = installRuntimeViewportWatch(
+      windowLike as unknown as RuntimeViewportWatchWindow,
+      (reason) => markRuntimeViewportDirty(reason),
+    )
+  }
+
+  /**
+   * Tauri v2 native signals (MB-046): `onScaleFactorChanged` fires when the OS
+   * display scale changes across monitors, `onMoved` while the pet window is
+   * dragged between them. They only mark the next frame dirty; WebView2 can
+   * publish the new devicePixelRatio a tick later, hence the two delayed
+   * re-checks. The `(resolution: Ndppx)` media query + per-frame DPR poll stay
+   * the primary/verifiable path (CDP can only emulate the web side).
+   */
+  async function installNativeRuntimeViewportWatch(): Promise<void> {
+    if (!HAS_TAURI || CONTENT_SHELL || nativeViewportWatchInstalled) return
+    nativeViewportWatchInstalled = true
+    try {
+      const { getCurrentWindow } = await loadTauriWindow()
+      const nativeWindow = getCurrentWindow()
+      const scheduleCheck = (reason: HeroRuntimeViewportReason): void => {
+        markRuntimeViewportDirty(reason)
+        // onMoved fires continuously while the window is dragged across screens;
+        // coalesce that burst into one deferred re-check window instead of a
+        // timer per OS move event.
+        if (nativeViewportRecheckPending) return
+        nativeViewportRecheckPending = true
+        setTimeoutFn(() => markRuntimeViewportDirty(reason), 50)
+        setTimeoutFn(() => {
+          nativeViewportRecheckPending = false
+          markRuntimeViewportDirty(reason)
+        }, 250)
+      }
+      if (typeof nativeWindow.onScaleChanged === 'function') {
+        await nativeWindow.onScaleChanged(() => scheduleCheck('tauri-scale-factor'))
+      }
+      if (typeof nativeWindow.onMoved === 'function') {
+        await nativeWindow.onMoved(() => scheduleCheck('tauri-moved'))
+      }
+    } catch (error) {
+      // Browser build / tests without the Tauri window API: the web watcher
+      // and the per-frame DPR poll still cover runtime changes.
+      console.warn('[pet] native DPR event hook unavailable', error)
+    }
+  }
+
   function installWindowLayout(): void {
     if (!HAS_TAURI || CONTENT_SHELL) return
     setTimeoutFn(() => void restoreWindowPosition(), 600)
@@ -415,6 +656,8 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
       setTimeoutFn(() => void saveWindowPosition(), 160)
     })
     windowLike.addEventListener('beforeunload', () => void saveWindowPosition())
+    // MB-046: native Tauri scale-factor/move events (best effort, async).
+    void installNativeRuntimeViewportWatch()
   }
 
   // ---------------------------------------------------------------------------
@@ -492,6 +735,22 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
     // not fast-forward through the hidden time (and the legacy DOM path is
     // untouched either way).
     if (document.visibilityState === 'hidden') return
+    // MB-046: re-capture the DPR/stage before drawing this frame when a
+    // monitor/DPI signal arrived or the window DPR changed without an event
+    // (some WebView2/Tauri cross-screen transitions only update the property).
+    // The poll is one property read per frame; the expensive re-raster only
+    // runs when something actually changed.
+    if (runtimeViewportDirty || currentRuntimeDpr() !== heroDpr) {
+      const reason: HeroRuntimeViewportReason = runtimeViewportDirty ? runtimeViewportReason : 'dpr-poll'
+      runtimeViewportDirty = false
+      try {
+        applyRuntimeViewportReconfigure(reason)
+      } catch (error) {
+        // The helper already restores the previous bitmap on failure; this is
+        // the last containment for an unexpected throw from the render backend.
+        console.warn('[pet] runtime viewport reconfiguration failed', error)
+      }
+    }
     const dt = Math.max(0, Math.min(250, timestamp - heroLastFrameMs))
     heroLastFrameMs = timestamp
     // 减少动态 (pet.css tokens + this loop): freeze the scene clock and skip
@@ -718,7 +977,7 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
       reason: identity === null ? 'builtin' : 'character-pack:' + identity.packId + '@' + identity.version,
     })
     setHeroPlaceholder(heroPlaceholderView('ready'))
-    requestDesktopShellScaleRefit()
+    requestScaleRefit()
     startHeroLoop()
     return { ok: true }
   }
@@ -995,10 +1254,9 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
       const hour = new Date().getHours()
       const night = hour >= 23 || hour < 6
       const stageSize = { width: rect?.width ?? windowLike.innerWidth, height: rect?.height ?? windowLike.innerHeight }
-      // DPR is clamped: a fake/very high DPR would allocate a huge backing store.
-      const dpr = Number.isFinite(windowLike.devicePixelRatio)
-        ? Math.min(3, Math.max(1, windowLike.devicePixelRatio))
-        : 1
+      // DPR is clamped (1-3): a fake/very high DPR must not allocate a huge
+      // backing store. The same helper re-captures it on runtime DPI changes.
+      const dpr = clampHeroDevicePixelRatio(windowLike.devicePixelRatio)
       const runtimeOptions = {
         config: HERO_CONFIG,
         canvas,
@@ -1040,6 +1298,9 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
       heroNight = night
       heroStageSize = stageSize
       heroDpr = dpr
+      runtimeViewportDirty = false
+      // MB-046: start watching monitor/DPI changes now that a canvas exists.
+      ensureRuntimeViewportWatch()
       // The booted scene is the shipped built-in renderer until the installer
       // restores a persisted pack appearance below (task-111).
       heroSceneBuiltin = true
@@ -1055,7 +1316,7 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
       // only exists after the first pack frame), which kept the unclamped hero
       // zoom and pushed the scaled canvas above the window top. Now that the
       // stage is visible and the canvas size is final, re-run the viewport fit.
-      requestDesktopShellScaleRefit()
+      requestScaleRefit()
       // QA hook: the fitted CSS canvas/display scale (e.g. 256x256@1 or
       // 128x128@0.125), plus the device-pixel backing store ratio.
       document.documentElement.dataset.heroCanvas = `${result.runtime.layout.width}x${result.runtime.layout.height}`

@@ -8,20 +8,19 @@ import {
   type VoiceRequest,
   type VoiceServiceOptions,
 } from './types.ts'
-import { RateLimitError, type TokenBucket } from '../pet/security/rate-limit.ts'
+import { RateLimitError, type TokenBucket } from '../security/rate-limit.ts'
 
 /** Cloud TTS audio cap: a single clip must never exceed this (defence in depth). */
 export const MAX_TTS_AUDIO_BYTES = 8 * 1024 * 1024
 
 /**
- * Offline-first voice facade. Providers are injected: system TTS, a host
- * DeepSeek TTS provider backed by a Rust proxy, or the silent mock. No API key
- * lives here. The public export ships no pre-generated audio.
+ * Offline-first voice facade. Providers are injected: baked/local/system or a
+ * future DeepSeek TTS provider backed by a Rust proxy. No API key lives here.
  *
- * Free-first / no repeat billing:
- * - the provider chain is walked in declaration order, so free providers
- *   (system TTS, mock) serve a line without any cloud call; the paid provider
- *   is only reached on a miss;
+ * Baked-first / no repeat billing (2026-11-17 baked pack):
+ * - the provider chain is walked in declaration order, so the free baked pack
+ *   (first in `src/pet/main.ts`) serves pre-generated lines without any cloud
+ *   call; the paid provider is only reached on a baked miss;
  * - a paid provider's daily budget is checked and reserved synchronously right
  *   before that provider is awaited. A free provider hit never spends budget,
  *   and when the budget is exhausted later free providers (system TTS, silent

@@ -666,6 +666,12 @@ let menuCoachRequest: (() => void) | null = null
  */
 let scaleRefitRequest: (() => void) | null = null
 /**
+ * Disarm hook for the runtime DPR/viewport watcher (MB-046). Kept at module
+ * scope so a re-initialized shell (tests/other page bootstraps) cannot leave
+ * the previous window's listeners re-fitting a stale DOM.
+ */
+let runtimeViewportDisarm: (() => void) | null = null
+/**
  * The initialized settings dialog, exposed to the independent content window
  * (MB-062) without duplicating its renderer/persistence. Null on pages where
  * initDesktopShell returned early (the ?shell=window dev layout) or before init.
@@ -703,6 +709,129 @@ export function requestDesktopShellScaleRefit(): void {
   scaleRefitRequest?.()
 }
 
+/**
+ * Runtime viewport signal that can change the raster resolution without a
+ * window resize (MB-046): crossing monitors with different Windows display
+ * scale, or changing the scale while the pet is already running, updates
+ * `devicePixelRatio` while the fixed 480x336 CSS pet window keeps its layout.
+ */
+export type RuntimeViewportChangeReason = 'dpr' | 'resize' | 'visual-viewport'
+
+/** The subset of `Window` (plus fake-DOM stand-ins) the watcher needs. */
+export interface RuntimeViewportWatchWindow {
+  readonly devicePixelRatio?: number
+  matchMedia?(query: string): RuntimeResolutionMediaQuery | null
+  addEventListener?(type: string, listener: () => void): void
+  removeEventListener?(type: string, listener: () => void): void
+  readonly visualViewport?: RuntimeVisualViewport | null
+}
+
+interface RuntimeResolutionMediaQuery {
+  addEventListener?(type: 'change', listener: () => void): void
+  removeEventListener?(type: 'change', listener: () => void): void
+  /** Legacy Safari/older WebView2 spelling of the same two methods. */
+  addListener?(listener: () => void): void
+  removeListener?(listener: () => void): void
+}
+
+interface RuntimeVisualViewport {
+  addEventListener?(type: string, listener: () => void): void
+  removeEventListener?(type: string, listener: () => void): void
+}
+
+/**
+ * Watch the runtime viewport signals a DPI/multi-monitor reconfiguration emits
+ * (MB-046) without owning the re-fit itself.
+ *
+ * A `(resolution: Ndppx)` media query only matches the DPR it was created for,
+ * so it is re-armed for the new value after every change; `visualViewport`
+ * resizes cover browser/WebView2 zoom paths that keep the layout viewport, and
+ * the plain `resize` event stays covered for engines that only report DPI that
+ * way. The hero page ALSO polls `devicePixelRatio` once per frame as the last
+ * safety net for platforms that drop every event.
+ *
+ * The callback is always error-contained (a monitor hot-plug / cross-screen
+ * move must never crash the pet page) and the returned disarm is idempotent.
+ */
+export function installRuntimeViewportWatch(
+  win: RuntimeViewportWatchWindow | null | undefined,
+  onChange: (reason: RuntimeViewportChangeReason) => void,
+): () => void {
+  if (!win) return () => {}
+  let disposed = false
+  let mediaQuery: RuntimeResolutionMediaQuery | null = null
+  let mediaListener: (() => void) | null = null
+  const report = (reason: RuntimeViewportChangeReason): void => {
+    if (disposed) return
+    try {
+      onChange(reason)
+    } catch {
+      /* reconfiguration listeners are best-effort */
+    }
+  }
+  const disarmMedia = (): void => {
+    if (mediaQuery === null || mediaListener === null) return
+    try {
+      if (typeof mediaQuery.removeEventListener === 'function') mediaQuery.removeEventListener('change', mediaListener)
+      else mediaQuery.removeListener?.(mediaListener)
+    } catch {
+      /* a detached media query cannot be disarmed; the next arm still works */
+    }
+    mediaQuery = null
+    mediaListener = null
+  }
+  const armMedia = (): void => {
+    if (disposed) return
+    disarmMedia()
+    try {
+      if (typeof win.matchMedia !== 'function') return
+      const raw = win.devicePixelRatio
+      const dpr = typeof raw === 'number' && Number.isFinite(raw) && raw > 0 ? raw : 1
+      const query = win.matchMedia(`(resolution: ${dpr}dppx)`)
+      if (!query) return
+      const listener = (): void => {
+        // The query is DPR-specific: arm the next one BEFORE reporting so two
+        // consecutive cross-monitor moves are both observed.
+        armMedia()
+        report('dpr')
+      }
+      if (typeof query.addEventListener === 'function') query.addEventListener('change', listener)
+      else if (typeof query.addListener === 'function') query.addListener(listener)
+      else return
+      mediaQuery = query
+      mediaListener = listener
+    } catch {
+      mediaQuery = null
+      mediaListener = null
+    }
+  }
+  const onResize = (): void => report('resize')
+  const onVisualViewportResize = (): void => report('visual-viewport')
+  armMedia()
+  try {
+    win.addEventListener?.('resize', onResize)
+  } catch {
+    /* resize is the fallback signal; the media query still covers DPI changes */
+  }
+  const visualViewport = win.visualViewport ?? null
+  try {
+    visualViewport?.addEventListener?.('resize', onVisualViewportResize)
+  } catch {
+    /* visualViewport is optional */
+  }
+  return (): void => {
+    if (disposed) return
+    disposed = true
+    disarmMedia()
+    try {
+      win.removeEventListener?.('resize', onResize)
+    } catch {}
+    try {
+      visualViewport?.removeEventListener?.('resize', onVisualViewportResize)
+    } catch {}
+  }
+}
+
 export function initDesktopShell(options: DesktopShellOptions = {}): void {
   const doc = options.document ?? (typeof document === 'undefined' ? null : document)
   const win = options.window ?? (typeof window === 'undefined' ? null : window)
@@ -714,6 +843,14 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
   menuCoachRequest = null
   // Same for the late-layout refit hook (MB-050).
   scaleRefitRequest = null
+  // ... and for the runtime DPI/viewport watcher (MB-046): a previous shell
+  // instance must not keep re-fitting through a stale window.
+  try {
+    runtimeViewportDisarm?.()
+  } catch {
+    /* a disarmed watcher is best-effort */
+  }
+  runtimeViewportDisarm = null
   // Same for the settings surface; it re-registers only after the desktop layout
   // built the dialog (the ?shell=window dev layout never builds it).
   settingsSurface = null
@@ -934,6 +1071,15 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
   }
   scaleRefitRequest = scheduleScaleRefit
   winRef.addEventListener('resize', scheduleScaleRefit)
+  // MB-046: a cross-monitor display-scale change updates devicePixelRatio
+  // WITHOUT resizing the fixed 480x336 CSS pet window, and the hero canvas
+  // backing store must be re-rasterised (hero-page.ts owns that). This watcher
+  // re-runs the same viewport fit so the window layout cannot stay stale; the
+  // resolution media query is re-armed for every new DPR.
+  runtimeViewportDisarm = installRuntimeViewportWatch(
+    winRef as unknown as RuntimeViewportWatchWindow,
+    () => scheduleScaleRefit(),
+  )
   // Late layout sources: the hero stage/canvas get their fitted size after the
   // first frame, the render mode flips when the hero takes over the folded
   // paper, and a pack switch can resize the canvas again. Observation is an

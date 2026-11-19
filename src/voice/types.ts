@@ -1,12 +1,12 @@
-import type { TokenBucket } from '../pet/security/rate-limit.ts'
+import type { TokenBucket } from '../security/rate-limit.ts'
 
 export type VoiceEmotion = 'calm' | 'happy' | 'sad' | 'angry' | 'sleepy'
 export type VoicePriority = 'bark' | 'story' | 'deep'
 
 /**
- * DeepSeek cloud TTS voice ids this project understands; `stella` is the
- * default and `tide` is an optional preset. Audio is only produced when a host
- * TTS transport is configured, so no pre-generated WAV ships in this repo.
+ * Baked/cloud TTS voices shipped by this project. `stella` is the default and
+ * the only one wired into the pet UI today; `tide` is an opt-in preset with a
+ * complete baked pack (21 lines) that callers may select explicitly.
  */
 export type TtsVoiceId = 'stella' | 'tide'
 
@@ -20,7 +20,8 @@ export interface VoiceRequest {
   priority?: VoicePriority
   /**
    * Optional voice override (default `stella`). Providers ignore it when they
-   * cannot honour it (system/mock providers do); a cloud provider forwards it.
+   * cannot honour it; `BakedVoiceProvider` serves the matching baked pack or
+   * misses, so two voices can never share one WAV.
    */
   voice?: TtsVoiceId
 }
@@ -58,7 +59,7 @@ export interface VoiceServiceOptions {
   maxCharsPerLine?: number
   /** Reject provider audio above this many bytes (cloud TTS size guard). */
   maxAudioBytes?: number
-  /** Optional token bucket (see `pet/security/rate-limit.ts`) checked before TTS. */
+  /** Optional token bucket (shared `security/rate-limit.ts`) checked before TTS. */
   rateLimit?: TokenBucket
   onSubtitle?: (text: string) => void
   /** Called when the TTS bucket denies a request; carries a bounded wait hint. */

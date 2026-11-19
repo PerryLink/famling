@@ -16,14 +16,14 @@
 
 | 状态 | 数量 | 占比 | 权重口径 |
 | --- | ---: | ---: | --- |
-| DONE | **48** | 56.5% | 1.0 |
+| DONE | **52** | 61.2% | 1.0 |
 | PARTIAL | **27** | 31.8% | 0.5（仅作趋势参考，不计入“完成”） |
-| BLOCKED-EXTERNAL | **5** | 5.9% | 0（外部未解除） |
-| TODO | **5** | 5.9% | 0 |
+| BLOCKED-EXTERNAL | **6** | 7.1% | 0（外部未解除） |
+| TODO | **0** | 0.0% | 0 |
 | 合计 | **85** | 100% | — |
 
-- **严格完成率：48/85 = 56.5%**（上一版 37.6%）。
-- **已触及率（DONE+PARTIAL）：75/85 = 88.2%**。
+- **严格完成率：52/85 = 61.2%**（上一版 37.6%）。
+- **已触及率（DONE+PARTIAL）：79/85 = 92.9%**。
 - **加权进度（DONE=1、PARTIAL=0.5）：61.5/85 = 72.4%**——只是趋势指标，**不是完成率**。
 - 本波把 14 项升为 DONE：MB-011/012（存档恢复/抽离）、MB-033/034（v3 合规/能力协商）、MB-047（动画收尾）、MB-073/074（同意可读性/D6）、MB-080（市场协议 v0.2）、MB-084（安装 UI）、MB-094（供应链）、MB-102/103（动画单源）、MB-112（故障注入）、MB-116（无障碍自动化）；MB-104 由 TODO 升 PARTIAL。**没有把任何 DONE 降级**；MB-032（共享 fixtures 未生成）与 MB-041（内置角色切换仍 reload）保持 PARTIAL（证据见 §2）。
 
@@ -181,8 +181,8 @@
 | MB-042 | **PARTIAL** | 安装事务 + browser host：`content-hub/character-store.ts`（IndexedDB/memory 文件 store、路径/大小门）+ `character-installer.ts`（1515 行：zip/文件夹预览、读 bounded zip、原子 pointer/回滚、安装/启用/卸载/更新、版本目录）；内容包 tab UI 三连同意 + 进度/错误码；`content-hub-character-packs.test.ts` 42 例 | 无 Tauri/Node 文件系统 host（AppData 根/原子文件写/断电恢复/磁盘配额未做；当前持久化在 WebView2 IndexedDB）；真实 Tauri 安装包未演练 |
 | MB-043 | **PARTIAL** | 三连同意/usageDeclaration/license/aiProvenance/远程验签门全部 fail-closed；安装 UI 强制展示统一用途声明；远程源缺 verifier 时拒绝下载；测试覆盖缺失门/哈希/信任根/篡改包 | 无第三方审核工作流/举报/下架入口；生产 trust root `keys: []`；无真实签名第三方包 |
 | MB-044 | **DONE** | `docs/content-packs/{HUMAN,CAT,DOG}-DESIGN-REFERENCE.md` + `docs/content-packs/README.md` 第三方最短路径 + 3 个 example pack；提交 `6473104` | 仍无第三方真实包样板（只有占位引用） |
-| MB-045 | **TODO** | `public/assets/voice/pet` 仍 42 个 WAV / 4.29 MB（`npm run build` 统计）；无 Opus/atlas/启动预载优化证据 | D8 再分发权未清（先清权再进公开包）；WAV→Opus A/B 未做 |
-| MB-046 | **TODO** | DPR 仅 hero 启动读一次（`hero-page.ts` ~999）；无 monitor/DPI 变化监听；`desktop_guard.rs` 只有 work-area clamp | 跨屏窗口/资产切换未做 |
+| MB-045 | **BLOCKED-EXTERNAL** | 42 WAV / 4.29 MB，无 Opus/atlas/启动预载优化证据 | D8 再分发权未清（先清权再进公开包）；WAV→Opus A/B 未做 |
+| MB-046 | **DONE** | hero-page clamp/DPR watcher/每帧轮询/backing 重建/refit/失败恢复；desktop-shell 运行期 viewport watch；Tauri onScaleChanged/onMoved 合并；54 测试；CDP DPR 1→1.5 修复前 false→true，scale-dpi 269 checks/0 fail | 真机混合 DPI 仍外部验证 |
 | MB-047 | **DONE** | walk/attack 冻结为 spec-only（timing + 每包声明 + behavior/regions 无入口 + 防漂移门）；human blink 尾帧回 `idle_00`；cat/dog blink 审计；`tests/pet-anim-clip-polish.test.ts` 6 例；提交 `67ade18` | — |
 
 ### E5 缩放系统
@@ -253,9 +253,9 @@
 | MB-102 | **DONE** | 删除 `src/pet/anim/idle.ts`（IdleAnimationScheduler）及 `prng.ts`/`bubbles.ts`/`interactions.ts` 死代码；behavior.json 为动画状态/优先级/ambient 调度唯一源（`tests/anim-timing-single-source.test.ts` 断言） | — |
 | MB-103 | **DONE** | `src/pet/anim/timing.json` 单源 → `clips.ts`/`timing.ts` + 3 个 Python 生成器（经 `scripts/anim_timing.py`）；`scripts/anim-timing-check.ts` 4 向漂移门（TS/manifest/Python/生成物 --check）；`tests/anim-timing-single-source.test.ts` 6 例 | 依赖 python 的检查在无 python 环境条件 skip |
 | MB-104 | **PARTIAL** | 插件动画数据已由 `embed-anims.mjs` 从 famling manifest/regions 生成并按 `--check` 冻结（插件 200 tests 含 stale 检查）；animation timing/behavior 绑定有测试（MB-103） | behavior.json（ambient 权重）与 regions.json 仍手写；插件 `EVENT_CLIPS` 仍手冻常量；无“角色/动作数据→插件常量”单源生成器 |
-| MB-105 | **TODO** | `src/voice/service.ts`、`src/voice/types.ts` 仍 import `../pet/security/rate-limit` | 依赖方向未修；无共享 security 模块 |
-| MB-106 | **TODO** | `app/electron/` + `electron` devDependency + `electron:*` 脚本仍在；`vite.config.ts` 9 个 HTML 入口 | 未删旧 demo 栈/未使用依赖；发布页入口未收敛 |
-| MB-107 | **TODO** | 无“内容目录/library→插件常量”生成器；插件无 `tsconfig.json`/checkJs/JSDoc/lint 配置；compliance/EVENT_CLIPS 常量仍手冻（有 tests 冻结） | 需生成 + JSDoc/checkJs/lint |
+| MB-105 | **DONE** | src/security/rate-limit.ts 共享叶模块；pet/security 仅 re-export；voice 改 import shared；tests/dependency-direction 7 例 | kernel→pet limits 相邻债务另列 |
+| MB-106 | **DONE** | 删除 app/electron 6 文件与 electron 依赖/脚本；release profile 3 页/demo 9 页+后置门；tests/release-build-profile；E10-MB106 报告 | README/NOTICE/legal 镜像仍列 Electron（文档清理 follow-up） |
+| MB-107 | **DONE** | 插件 gen-content-constants 从 famling 单源生成 client.js 两个 @generated 块；check-jsdoc/typecheck/checkJs；216/216、release:check 全绿、entry 94.7 KiB | 包根 tsconfig 未加；content-extension 全量 checkJs 归 MB-108 |
 | MB-108 | **PARTIAL** | STATUS 生成 + `docs-check.mjs` 26 项（含 clean-checkout/coverage/claims 门）；`gen-status` 已是单一真值门 | scripts/generators/文档/i18n 全面收敛未做；`SHARED-CONTENT-SEMANTICS` 文档已滞后于 v3 合规字段代码（属文档同步） |
 
 ### E11 QA/性能/可观测

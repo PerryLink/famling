@@ -10,10 +10,14 @@
  * | limits.ts         | input/text/url/archive caps + plain-text sanitizer          |
  * | safe-storage.ts   | never-throwing versioned localStorage reads/writes          |
  * | fetch-timeout.ts  | abortable, size-capped, retry-capped JSON fetch             |
- * | rate-limit.ts     | token buckets for TTS/import/retry/save                     |
+ * | rate-limit.ts     | re-export of shared `src/security/rate-limit.ts` buckets    |
  * | path-safety.ts    | Windows/POSIX/UNC/`..`/ADS DLC path validation              |
  * | html.ts           | strict escaping + safe HTML-to-plain-text                   |
  * | error-boundary.ts | error classification/redaction + logging guard              |
+ *
+ * E10 MB-105: the token-bucket implementation lives in the shared leaf
+ * `src/security/rate-limit.ts` so `src/voice` no longer depends on `src/pet`;
+ * `./rate-limit.ts` only re-exports it, keeping every pet import unchanged.
  *
  * All modules are pure functions or injectable classes: no DOM, no network, no
  * `node:` imports, and nothing reads the real storage/clock unless the caller

@@ -4,7 +4,7 @@
  * Today `chat-import/fetch.ts:20` calls the browser `fetch()` with no timeout,
  * no abort signal, no response-size cap and no retry bound; a hung socket keeps
  * the import button spinning forever, and a huge body is buffered into memory.
- * Cloud voice providers have the same shape. This
+ * Cloud voice providers (`voice/baked.ts:35,46`) have the same shape. This
  * module is the pure, injectable replacement: the network call and the clock are
  * both injected, so tests exercise timeout/abort/retry/size paths with zero
  * real network traffic.
