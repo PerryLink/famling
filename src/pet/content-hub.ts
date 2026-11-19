@@ -45,10 +45,20 @@ import {
 import {
   canRequestRemoteMarket,
   defaultContentMarketState,
+  describeContentMarketState,
   renderMarketTab,
   type ContentHubMarketRefreshResult,
   type ContentMarketUiState,
+  type MarketTabRenderContext,
+  type RemoteMarketSource,
 } from './content-hub/market.ts'
+import {
+  createMarketInstallController,
+  type MarketInstallActionResult,
+  type MarketInstallController,
+  type MarketInstallHostOptions,
+  type MarketInstallUiState,
+} from './content-hub/market-install.ts'
 import {
   fileListOf,
   readFolderSelection,
@@ -263,11 +273,28 @@ export interface ContentHubOptions {
    * the market button disabled and the build offline.
    */
   readonly refreshMarket?: () => Promise<ContentHubMarketRefreshResult>
+  /**
+   * Optional injected remote market source (E8 / MB-084). Absent = the original
+   * metadata-only placeholder (no installer UI, zero network). When present the
+   * 市场 tab gains the install progress / cancel / failure-recovery / offline /
+   * uninstall / version-lock UI; injection is inert (no source method is called
+   * until an explicit user click) and the default production wiring stays absent.
+   */
+  readonly marketSource?: RemoteMarketSource | null
+  /**
+   * Host seams for the injected market installer: pinned trust root + verifier,
+   * storage for installed versions/locks, and the uninstall callback. Without
+   * verify deps the UI fails closed (directory + install disabled).
+   */
+  readonly marketHost?: ContentHubMarketHost
   /** Local object URL for an installed pack preview (builtin themes use path). */
   readonly resolvePreviewUrl?: (theme: ContentCharacterTheme) => string | null
   readonly onClose?: () => void
   readonly docsHref?: string
 }
+
+/** Host seams accepted by the market installer (onChange is owned by the hub). */
+export type ContentHubMarketHost = Omit<MarketInstallHostOptions, 'onChange'>
 
 export interface ContentHubController {
   readonly root: HTMLElement | null
@@ -279,6 +306,8 @@ export interface ContentHubController {
   destroy(): void
   /** Test/diagnostic hook: pending confirmation state, never HTML. */
   hasPendingImport(): boolean
+  /** Test/diagnostic hook: true when a market install adapter was injected. */
+  hasMarketInstaller(): boolean
 }
 
 function inertHubController(): ContentHubController {
@@ -290,6 +319,7 @@ function inertHubController(): ContentHubController {
     refresh: (): void => {},
     destroy: (): void => {},
     hasPendingImport: (): boolean => false,
+    hasMarketInstaller: (): boolean => false,
   })
 }
 
@@ -413,6 +443,10 @@ export function initContentHub(options: ContentHubOptions): ContentHubController
   })
   let characterConfirm: { kind: 'uninstall' | 'rollback'; packId: string } | null = null
   let characterBusy = false
+  // Injected remote market installer (E8 / MB-084). Created lazily from
+  // options.marketSource; construction is inert (bounded storage read only).
+  let marketInstall: MarketInstallController | null = null
+  let marketUninstallConfirm: { readonly packId: string } | null = null
 
   function setFeedback(message: string, state: 'ok' | 'error' | 'info'): void {
     feedback.textContent = message
@@ -628,7 +662,58 @@ export function initContentHub(options: ContentHubOptions): ContentHubController
     })
   }
 
+  /** Lazily build the injected market install adapter (absent = old placeholder). */
+  function marketInstaller(): MarketInstallController | null {
+    if (options.marketSource === undefined) return null
+    if (marketInstall !== null) return marketInstall
+    marketInstall = createMarketInstallController(options.marketSource, {
+      ...(options.marketHost ?? {}),
+      onChange: (): void => {
+        if (openState && activeTab === 'market') renderPanel()
+      },
+    })
+    return marketInstall
+  }
+
+  function marketHasRefreshHandler(): boolean {
+    return options.refreshMarket !== undefined || marketInstaller() !== null
+  }
+
   function getMarketState(): ContentMarketUiState {
+    const installer = marketInstaller()
+    if (installer !== null) {
+      try {
+        const state = installer.state()
+        if (!state.configured) return defaultContentMarketState()
+        if (state.catalogVersion === null) {
+          return describeContentMarketState(options.marketSource ?? null)
+        }
+        const packs = state.rows
+          .filter((row) => row.offered && row.marketVersion !== null)
+          .map((row) =>
+            Object.freeze({
+              id: row.packId,
+              name: row.name,
+              version: row.marketVersion as string,
+              description: row.description,
+            }),
+          )
+        return Object.freeze({
+          status: 'configured' as const,
+          configured: true,
+          title: '市场目录已验签 · 需要显式操作才会联网',
+          detail:
+            '目录版本 ' +
+            state.catalogVersion +
+            '；安装仍需逐包确认统一用途声明，失败/取消不会留下半装内容。',
+          ...(state.sourceLabel !== null ? { sourceLabel: state.sourceLabel } : {}),
+          catalogVersion: state.catalogVersion,
+          packs: Object.freeze(packs),
+        })
+      } catch {
+        return defaultContentMarketState()
+      }
+    }
     if (marketState !== null) return marketState
     try {
       return options.getMarketState?.() ?? defaultContentMarketState()
@@ -637,17 +722,92 @@ export function initContentHub(options: ContentHubOptions): ContentHubController
     }
   }
 
+  function runMarketAction(action: () => MarketInstallActionResult): void {
+    let result: MarketInstallActionResult
+    try {
+      result = action()
+    } catch {
+      result = { ok: false, message: '市场操作失败，请稍后再试。' }
+    }
+    setFeedback(result.message, result.ok ? 'ok' : 'error')
+    renderPanel()
+  }
+
+  async function runMarketAsync(action: () => Promise<MarketInstallActionResult>): Promise<void> {
+    try {
+      const result = await action()
+      setFeedback(result.message, result.ok ? 'ok' : 'error')
+    } catch {
+      setFeedback('市场操作失败；没有安装任何未验签的远程内容。', 'error')
+    } finally {
+      renderPanel()
+      updatePackSummary()
+    }
+  }
+
+  function marketInstallTabContext(controller: MarketInstallController): NonNullable<MarketTabRenderContext['install']> {
+    return {
+      getState: (): MarketInstallUiState => controller.state(),
+      getUninstallConfirm: () => marketUninstallConfirm,
+      onRequestInstall: (packId): void => {
+        runMarketAction(() => controller.requestInstall(packId))
+      },
+      onConfirmInstall: (): void => {
+        void runMarketAsync(async () => await controller.confirmInstall())
+      },
+      onCancelConfirmation: (): void => {
+        controller.cancelPendingInstall()
+        setFeedback('已取消安装（未下载任何内容）。', 'info')
+        renderPanel()
+      },
+      onCancelOperation: (): void => {
+        runMarketAction(() => controller.cancel())
+      },
+      onRetry: (): void => {
+        void runMarketAsync(async () => await controller.retry())
+      },
+      onClearFailure: (): void => {
+        controller.clearFailure()
+        setFeedback('已清理失败状态；可重新选择安装。', 'info')
+        renderPanel()
+      },
+      onRequestUninstall: (packId): void => {
+        marketUninstallConfirm = { packId }
+        renderPanel()
+      },
+      onConfirmUninstall: (): void => {
+        const pendingUninstall = marketUninstallConfirm
+        marketUninstallConfirm = null
+        if (pendingUninstall === null) return
+        void runMarketAsync(async () => await controller.uninstall(pendingUninstall.packId))
+      },
+      onCancelUninstall: (): void => {
+        marketUninstallConfirm = null
+        setFeedback('已取消卸载，内容保持不变。', 'info')
+        renderPanel()
+      },
+      onLockVersion: (packId): void => {
+        runMarketAction(() => controller.lockVersion(packId))
+      },
+      onUnlockVersion: (packId): void => {
+        runMarketAction(() => controller.unlockVersion(packId))
+      },
+    }
+  }
+
   function renderMarket(): void {
+    const installer = marketInstaller()
     renderMarketTab({
       doc: hubDoc,
       create,
       panelBody,
       appendEmpty,
       getMarketState,
-      hasRefreshHandler: options.refreshMarket !== undefined,
+      hasRefreshHandler: marketHasRefreshHandler(),
       onRefreshMarket: (): void => {
         void handleRefreshMarket()
       },
+      ...(installer !== null ? { install: marketInstallTabContext(installer) } : {}),
     })
   }
 
@@ -688,6 +848,8 @@ export function initContentHub(options: ContentHubOptions): ContentHubController
 
   function activateTab(id: ContentHubTopTab, focusTab: boolean): void {
     activeTab = id
+    // A pending destructive confirmation must not survive a tab switch.
+    if (id !== 'market') marketUninstallConfirm = null
     renderTabs()
     renderPanel()
     setFeedback('', 'info')
@@ -950,6 +1112,29 @@ export function initContentHub(options: ContentHubOptions): ContentHubController
   }
 
   async function handleRefreshMarket(): Promise<void> {
+    const installer = marketInstaller()
+    if (installer !== null) {
+      // Defense in depth (task-75): even a programmatic click must not reach the
+      // network in the unconfigured state. The controller re-checks configured
+      // and the injected verify deps before calling the source.
+      if (!canRequestRemoteMarket(getMarketState(), true)) {
+        setFeedback('远程市场未配置：不会发起任何网络请求。', 'info')
+        return
+      }
+      if (importBusy) return
+      importBusy = true
+      setFeedback('正在读取市场目录（需要显式点击后才联网）…', 'info')
+      try {
+        const result = await installer.refresh()
+        setFeedback(result.message, result.ok ? 'ok' : 'error')
+        renderPanel()
+      } catch {
+        setFeedback('读取市场目录失败；未安装任何远程内容。', 'error')
+      } finally {
+        importBusy = false
+      }
+      return
+    }
     const refresh = options.refreshMarket
     if (refresh === undefined || importBusy) return
     // Defense in depth (task-75): a programmatic click, a queued event or a host
@@ -1096,6 +1281,9 @@ export function initContentHub(options: ContentHubOptions): ContentHubController
   function destroy(): void {
     hubDoc.removeEventListener('keydown', onDocumentKeydown, true)
     if (openState) close(false)
+    marketInstall?.destroy()
+    marketInstall = null
+    marketUninstallConfirm = null
     rootElement.replaceChildren()
     rootElement.hidden = true
     rootElement.inert = true
@@ -1122,6 +1310,7 @@ export function initContentHub(options: ContentHubOptions): ContentHubController
     },
     destroy,
     hasPendingImport: (): boolean => pendingImport !== null,
+    hasMarketInstaller: (): boolean => marketInstaller() !== null,
   })
 }
 

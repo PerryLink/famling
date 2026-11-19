@@ -222,6 +222,7 @@ export const FAMLING_STORAGE_KEYS: readonly FamlingStorageKeySpec[] = Object.fre
   // -- remote market cache (content-market.ts; fail-closed) ---------------
   Object.freeze({ key: 'desktop-games/pet/content/market/catalog-serial', owner: 'market', encoding: 'custom', version: 2, note: 'Anti-rollback serial envelope v2; an unknown/older shape is reported, never migrated.' }),
   Object.freeze({ key: 'desktop-games/pet/content/market/catalog-cache', owner: 'market', encoding: 'custom', version: 1, note: 'Bounded last-verified catalog cache envelope v1.' }),
+  Object.freeze({ key: 'desktop-games/pet/content/market/installed', owner: 'market', encoding: 'versioned', version: 1, note: 'Installed remote pack versions + user version locks envelope v1; unknown/corrupt shapes start empty with a visible warning, newer envelopes stay read-only.' }),
   // -- consent records (consent/*.ts) -------------------------------------
   Object.freeze({ key: 'desktop-games/consent/tos-acceptance-v1', owner: 'consent', encoding: 'custom', version: 1, note: 'TOS acceptance record (format + schema + TOS version/hash).' }),
   Object.freeze({ key: 'desktop-games/consent/audit-v1', owner: 'consent', encoding: 'custom', version: 1, note: 'Minimized consent audit entries.' }),

@@ -29,23 +29,8 @@ import {
   type PetSaveService,
 } from './save-host.ts'
 import { exportPortable, importPortable } from './portable.ts'
-import {
-  heroStatus,
-  isHeroCharacterId,
-  loadHeroBundle,
-  resolveHeroConfig,
-  startHeroRuntime,
-  type HeroCharacterBundle,
-  type HeroConfig,
-  type HeroRuntime,
-  type HeroStatus,
-} from './hero-runtime.ts'
-import type { CharacterPackRenderHost, CharacterPackRendererEvent } from './character-pack-renderer.ts'
-import type { CharacterPackBuiltinRestoreResult, CharacterPackRendererWiring } from './content-hub/character-installer.ts'
-import { startTinglanPreview } from './tinglan-preview.ts'
-import { isBuiltinCharacterId } from './character/builtin.ts'
-import { resolveHeroRegionReaction, type HeroRegionAction, type HeroRegionReaction } from './anim/regions.ts'
-import { shouldStartWindowDrag } from './hero-drag.ts'
+import { heroStatus, resolveHeroConfig } from './hero-runtime.ts'
+import type { HeroRegionReaction } from './anim/regions.ts'
 import { loadDigest } from './chat-import/store.ts'
 import {
   ADVISERS_AUTO_HIDDEN_NOTICE,
@@ -61,11 +46,10 @@ import {
   type AdvisersPanelHideReason,
   type AdvisersPanelPolicyView,
 } from './advisers/face.ts'
-import { describeAdvisersFaceView, heroPlaceholderView, type HeroPlaceholderView } from './ui-state.ts'
+import { describeAdvisersFaceView } from './ui-state.ts'
 import {
   createSaveRecoveryPanel,
   initDesktopShell,
-  requestDesktopShellScaleRefit,
   requestMenuCoach,
   createComposerController,
   type ComposerController,
@@ -77,7 +61,6 @@ import { PET_RELOAD_EVENT, contentWindowMode } from './content-window.ts'
 import { heroActionPlan, isHeroMenuAction } from './hero-actions.ts'
 import { startHitRegionSync } from './hit-regions.ts'
 import { startDesktopShellLayout } from './shell-layout.ts'
-import { characterBubbleSemantic, characterCanVoice } from './character-voice.ts'
 import { createTrustLayer } from './trust.ts'
 import {
   assertSafeForTts,
@@ -87,8 +70,7 @@ import {
   reviewUserInput,
 } from './safety/gate.ts'
 import { MAX_TALK_MS, MAX_WAV_BYTES, TalkRecorder, type MediaStreamLike, type TalkState } from './recording.ts'
-import { checkRelativePath } from './security/path-safety.ts'
-import { readClampedInt, removeKey, safeGetItem, safeSetItem } from './security/safe-storage.ts'
+import { readClampedInt, safeGetItem, safeSetItem } from './security/safe-storage.ts'
 import { migrateFamlingLocalState } from './state-migrations.ts'
 import { SECURITY_LIMITS, sanitizePlainText, utf8ByteLength } from './security/limits.ts'
 import { createErrorBoundary, toUserMessage, type ErrorBoundary } from './security/error-boundary.ts'
@@ -144,6 +126,7 @@ import { roleplayTemplateReply } from './consent/roleplay.ts'
 import { decideDialogueLine, type DialogueLineKind } from './content-hub.ts'
 import { type CharacterPackKind, type DialogueBehavior } from './content-library.ts'
 import { createContentRuntime } from './content-runtime.ts'
+import { CHARACTER_PACK_APPLY_EVENT, createHeroPage } from './hero-page.ts'
 import './pet.css'
 
 /**
@@ -462,48 +445,28 @@ const HERO_CONFIG = resolveHeroConfig({
 })
 
 // ---------------------------------------------------------------------------
-// Character-pack hot switch (E4 / task-111)
+// Hero page controller (E10 MB-100, task-116)
 // ---------------------------------------------------------------------------
-// The shipped hero scene is the built-in renderer. Enabling an installed
-// `famling.pet-anim/0.2` pack loads its frames/assets (the installer hands the
-// adapter `data:` URLs derived from IndexedDB) and REPLACES the hero scene
-// without a page reload: a new HeroRuntime is built for the pack bundle and
-// only committed after its first frame gate succeeds. Any failure keeps the
-// previous scene; if there is no previous scene the shipped built-in stays.
-// The installer persists the applied pack id and asks `restoreBuiltin()` when it
-// must fall back.
-/** Tauri event: content window asks the pet window (hero owner) to re-apply the saved pack. */
-const CHARACTER_PACK_APPLY_EVENT = 'pet://character-pack-apply'
-/** Stage size + DPR captured when the built-in hero scene booted. */
-let heroStageSize: { width: number; height: number } | null = null
-let heroDpr = 1
-/** True while the live hero scene is the shipped built-in character. */
-let heroSceneBuiltin = true
-/** Identity of the installed pack the live hero scene was built from. */
-let activeCharacterPackId: { packId: string; version: string } | null = null
-/** Pack kind currently rendered (drives silent-thought / locomotion semantics). */
-let activeCharacterPackKind: CharacterPackKind | null = null
-
-/** Cat/dog personas are silent: their bubbles are thoughts and TTS is skipped. */
-function currentCharacterCanVoice(): boolean {
-  if (activeCharacterPackKind !== null) return activeCharacterPackKind === 'humanoid'
-  return characterCanVoice(HERO_CONFIG.character, HERO_CONFIG.enabled)
-}
-
-/** Visible bubble semantics for a custom pack: cat/dog = thought, humanoid = speech. */
-function currentCharacterBubbleSemantic(): 'speech' | 'thought' {
-  if (activeCharacterPackKind !== null) return activeCharacterPackKind === 'humanoid' ? 'speech' : 'thought'
-  return characterBubbleSemantic(HERO_CONFIG.character, HERO_CONFIG.enabled)
-}
-let hero: HeroRuntime | null = null
-let heroCanvasEl: HTMLCanvasElement | null = null
-let heroCtx: CanvasRenderingContext2D | null = null
-let heroRaf: number | null = null
-let heroSceneNow = 0
-let heroLastFrameMs = 0
-let heroNight = false
-/** Cat/dog run locomotion: CSS translate/scale on the canvas, reset on idle. */
-const heroMove = { offset: 0, dir: 1 as 1 | -1, active: false }
+// The hero canvas scene, character-pack hot switch/restore and the pet-window
+// position now live in `hero-page.ts` (importable from Node). This page keeps
+// HERO_CONFIG and injects the pointer/kernel/audio seams that stay here; the
+// content runtime receives the renderer wiring below.
+const heroPage = createHeroPage({
+  document,
+  window,
+  config: HERO_CONFIG,
+  hasTauri: HAS_TAURI,
+  contentShell: CONTENT_SHELL,
+  reportFailure,
+  storageBoundary,
+  onPat: (actorId) => doPat(actorId),
+  onRegionTouch: (actorId, reaction) => doHeroRegionTouch(actorId, reaction),
+  onEnsureAudio: () => {
+    ensureAudio()
+    void audioContext?.resume()
+  },
+  restoreActiveCharacterPack: () => contentRuntimeApi.restoreActiveCharacterPack(),
+})
 const now = (): number => Date.now()
 
 let state: PetState = createPet(now())
@@ -577,7 +540,7 @@ function showBubble(text: string): void {
   const bubbleText = document.getElementById('bubble-text')
   if (bubbleText) bubbleText.textContent = safeBubbleText
   else bubble.textContent = safeBubbleText
-  bubble.classList.toggle('thought', currentCharacterBubbleSemantic() === 'thought')
+  bubble.classList.toggle('thought', heroPage.currentCharacterBubbleSemantic() === 'thought')
   bubble.classList.add('show')
   aiLabel.clear()
   if (bubbleTimer) clearTimeout(bubbleTimer)
@@ -781,11 +744,11 @@ async function say(text: string, emotion: 'calm' | 'happy' = 'calm'): Promise<bo
   // (the About panel alone is not visible at the moment of encounter).
   aiLabel.markReply(AI_REPLY_LABEL)
   // Cat/dog personas never receive DeepSeek TTS: thought bubble only.
-  if (!currentCharacterCanVoice()) return true
+  if (!heroPage.currentCharacterCanVoice()) return true
   // Hero hook: tag-based talk cue + expression/mouth QA envelope. The pixel
   // renderer's setExpression/setMouth are still no-ops (documented limitation);
   // voice/subtitles above stay on the unchanged path.
-  hero?.speak({ text: safeText, emotion, durationMs: Math.max(260, safeText.length * 120) })
+  heroPage.speak({ text: safeText, emotion, durationMs: Math.max(260, safeText.length * 120) })
   const pet = $('pet')
   const animateMouth = (ms: number): void => {
     pet.classList.add('talking')
@@ -897,15 +860,12 @@ function render(): void {
   $('pet').classList.toggle('happy', state.bond >= 8 || state.folded >= 2)
   $('pet').classList.toggle('sleepy', hour >= 23 || hour < 6)
   $('mute').textContent = state.muted ? '有声' : '静音'
-  if (hero) {
-    hero.syncMood({ happy: state.bond >= 8 || state.folded >= 2, sleepy: hour >= 23 || hour < 6 })
-    hero.setMuted(state.muted)
-    const night = hour >= 23 || hour < 6
-    if (night !== heroNight) {
-      heroNight = night
-      hero.setNight(night)
-    }
-  }
+  heroPage.syncRenderState({
+    happy: state.bond >= 8 || state.folded >= 2,
+    sleepy: hour >= 23 || hour < 6,
+    muted: state.muted,
+    night: hour >= 23 || hour < 6,
+  })
   const list = $('memories')
   list.replaceChildren()
   // Defensive read: a corrupt/legacy state must never crash render (P0-3).
@@ -933,78 +893,16 @@ let dialogueBehavior: DialogueBehavior | null = null
 // ---------------------------------------------------------------------------
 // Character-pack renderer wiring (E4 / task-111)
 // ---------------------------------------------------------------------------
-// The install/enable UI lives in content-hub, but only this page owns the hero
-// canvas + scene. The injected host turns the adapter's converted pack into a
-// live, atomic hot swap; `restoreBuiltin` returns to the shipped hero character
-// (or the folded-paper DOM when even that cannot load). No pack bytes/URLs are
-// exposed to the installer events (observability only carries ids/versions).
-const characterPackRendererHost: CharacterPackRenderHost = {
-  load: async (_ref, handle) => {
-    const swapped = await hotSwapHeroCharacterPack(handle.bundle, {
-      packId: handle.packId,
-      version: handle.version,
-      name: handle.name,
-      kind: handle.kind,
-    })
-    if (!swapped.ok) throw new Error(swapped.reason)
-  },
-  release: (): void => {
-    // The hot swap in load() already disposed the previous scene. A release with
-    // no replacement happens on uninstall/fallback, and the installer calls
-    // restoreBuiltin() immediately after; the built-in scene is restored there.
-  },
-}
-
-/** Content window → pet window: ask the hero-owning window to apply the saved pack. */
-function requestPetWindowCharacterPackApply(): void {
-  if (!HAS_TAURI || !CONTENT_SHELL) return
-  void import('@tauri-apps/api/event')
-    .then(({ emit }) => emit(CHARACTER_PACK_APPLY_EVENT, {}))
-    .catch((error: unknown) => {
-      console.warn('[pet] character-pack cross-window bridge unavailable', error)
-    })
-}
-
-const characterPackRendererWiring: CharacterPackRendererWiring = {
-  host: characterPackRendererHost,
-  ...(typeof location !== 'undefined' ? { resolveBase: location.href } : {}),
-  isReady: () => isHeroRendererReady(),
-  restoreBuiltin: () => restoreBuiltinHero(),
-  // In the independent Tauri content window this window has no hero scene:
-  // enabling a pack persists the choice and asks the pet window to hot-swap it
-  // (task-111). The browser fallback content shell also has no pet window, so it
-  // stays a local (honestly not-ready) renderer instead of pretending to notify.
-  localRenderer: !CONTENT_SHELL || !HAS_TAURI,
-  ...(CONTENT_SHELL && HAS_TAURI ? { requestRemoteApply: () => requestPetWindowCharacterPackApply() } : {}),
-  storage: (() => {
-    try {
-      return typeof localStorage === 'undefined' ? null : localStorage
-    } catch {
-      return null
-    }
-  })(),
-  onRendererEvent: (event: CharacterPackRendererEvent): void => {
-    // QA/debug only: no frame bytes, URLs or host objects cross this sink.
-    try {
-      const root = document.documentElement
-      root.dataset.characterPackRenderer = event.type
-      if (event.type === 'render-applied' || event.type === 'render-restored') {
-        root.dataset.characterPack = event.packId + '@' + event.version
-      } else if (event.type === 'render-released') {
-        delete root.dataset.characterPack
-      }
-    } catch {
-      /* QA attributes are best effort */
-    }
-  },
-}
+// The render host + atomic hot swap/restore live in `hero-page.ts`; this page
+// injects that wiring into the content runtime. No pack bytes/URLs are exposed
+// to installer events (observability carries ids/versions only).
 
 const contentRuntimeApi = createContentRuntime({
   document,
   contentWindow: CONTENT_WINDOW,
   hasTauri: HAS_TAURI,
   heroConfig: HERO_CONFIG,
-  characterPackRenderer: characterPackRendererWiring,
+  characterPackRenderer: heroPage.rendererWiring,
   uiBoundary,
   loadBoundary,
   reportFailure,
@@ -1030,7 +928,7 @@ const {
 
 function doPat(actorId?: string): void {
   state = patPet(state, now())
-  hero?.emit('pat', actorId ? { actorId } : {})
+  heroPage.emit('pat', actorId ? { actorId } : {})
   sayLater(pick(lines.pat), 'happy')
   render()
 }
@@ -1042,13 +940,9 @@ function doPat(actorId?: string): void {
  * animation event comes from the region rule so cat/dog/human can differ.
  */
 const lastSaysByKey = new Map<string, string>()
-/** Interaction cadence (research: don't turn every click into a vending machine). */
-const HERO_TOUCH_COOLDOWN_MS = 1200
-const HERO_REGION_COOLDOWN_MS = 2500
+/** Action cadence (research: don't turn every click into a vending machine). */
 const HERO_ACTION_COOLDOWN_MS = 800
-let lastHeroTouchAt = 0
 let lastHeroActionAt = 0
-const lastRegionTouchAt = new Map<string, number>()
 
 /**
  * Random bubble line from a data-driven list, avoiding an immediate repeat for
@@ -1073,14 +967,14 @@ function pickSays(says: readonly string[] | undefined, key: string): string | nu
 
 function doHeroRegionTouch(actorId: string, reaction: HeroRegionReaction): void {
   state = patPet(state, now())
-  hero?.emit(reaction.event, { actorId })
+  heroPage.emit(reaction.event, { actorId })
   sayLater(pickSays(reaction.says, `${actorId}:${reaction.region}`) ?? pick(lines.pat), 'happy')
   render()
 }
 
 function doGive(): void {
   state = givePaper(state, now())
-  hero?.emit('feed', { payload: { item: 'paper' } })
+  heroPage.emit('feed', { payload: { item: 'paper' } })
   sayLater(pick(lines.give), 'calm')
   render()
 }
@@ -1095,13 +989,8 @@ function doFold(): void {
   render()
 }
 
-/** Actions for the live hero character (regions.json), with a legacy fallback. */
-function liveHeroActions(): readonly HeroRegionAction[] {
-  return hero?.actors[0]?.bundle.regions?.actions ?? []
-}
-
 function currentHeroMenuActions(): readonly HeroMenuActionItem[] {
-  const actions = liveHeroActions()
+  const actions = heroPage.liveRegionActions()
   if (actions.length === 0) return [{ action: 'pat', label: '摸头' }]
   return actions.map((action) => ({ action: action.id, label: action.label }))
 }
@@ -1111,12 +1000,12 @@ function currentHeroMenuActions(): readonly HeroMenuActionItem[] {
  * Actions are data from regions.json: event + optional delayed follow-up.
  */
 function handleHeroAction(actionId: string): void {
-  const runtime = hero
+  const runtime = heroPage.getRuntime()
   if (!runtime) return
   const nowMs = performance.now()
   if (nowMs - lastHeroActionAt < HERO_ACTION_COOLDOWN_MS) return
   lastHeroActionAt = nowMs
-  const spec = liveHeroActions().find((action) => action.id === actionId)
+  const spec = heroPage.liveRegionActions().find((action) => action.id === actionId)
   const steps: readonly { event: string; delayMs: number }[] = spec
     ? [
         { event: spec.event, delayMs: 0 },
@@ -1134,9 +1023,9 @@ function handleHeroAction(actionId: string): void {
         continue
       }
       setTimeout(() => {
-        if (hero !== runtime) return
+        if (heroPage.getRuntime() !== runtime) return
         try {
-          hero.emit(step.event)
+          runtime.emit(step.event)
         } catch (error) {
           reportFailure(uiBoundary, error)
         }
@@ -1182,7 +1071,7 @@ const talkRecorder = new TalkRecorder({
   transcribe: (wav) => transcribeWav(wav),
   onState: (talkState: TalkState) => {
     $('talk').textContent = talkState === 'listening' ? '松开识别' : '按住说话'
-    if (talkState === 'listening') hero?.setExpression('listening')
+    if (talkState === 'listening') heroPage.setExpression('listening')
   },
   onBubble: showBubble,
   onError: (error) => reportFailure(voiceBoundary, error),
@@ -1757,7 +1646,7 @@ function resetPetWindow(): void {
     if (moved) {
       // The content window must not clear the pet's saved position; Rust already
       // recalled the PET window in that case.
-      if (!CONTENT_SHELL) removeKey(WINDOW_KEY)
+      if (!CONTENT_SHELL) heroPage.clearSavedWindowPosition()
       showBubble('回到右下角。')
     }
   })().catch((error) => reportFailure(uiBoundary, error))
@@ -1878,7 +1767,7 @@ async function bootPetOnce(): Promise<void> {
   // by the desktop shell's overlay-close listener). Gated internally: it only
   // shows after consent and marks itself as seen.
   requestMenuCoach()
-  await startHeroPage()
+  await heroPage.startPage()
 }
 
 renderVoiceMode()
@@ -1943,9 +1832,9 @@ if (!CONTENT_SHELL) startDesktopShellLayout()
   hero: heroStatus(HERO_CONFIG, null),
   // Character-pack hot-switch truth (E4 / task-111): renderer truth only.
   characterPack: {
-    rendered: () => activeCharacterPackId,
-    kind: () => activeCharacterPackKind,
-    scene: () => (hero === null ? 'folded-paper' : heroSceneBuiltin ? 'builtin-hero' : 'character-pack'),
+    rendered: () => heroPage.activePackIdentity(),
+    kind: () => heroPage.activePackKind(),
+    scene: () => heroPage.scene(),
     restore: () => contentRuntimeApi.restoreActiveCharacterPack(),
     sync: () => contentRuntimeApi.syncCharacterPackAppearance(),
   },
@@ -1971,742 +1860,18 @@ if (!CONTENT_SHELL) startDesktopShellLayout()
     exportPortable,
     importPortable,
     saveEngine: () => (HAS_TAURI ? 'dpapi' : 'webcrypto'),
-    heroSnapshot: () => (hero ? hero.snapshot() : null),
+    heroSnapshot: () => heroPage.snapshot(),
     /** Manual/QA event hook (also the future Pet Brief consumer entry: `remind`). */
-    heroEmit: (event: string, actorId?: string) => (hero ? hero.emit(event, actorId ? { actorId } : {}) : null),
+    heroEmit: (event: string, actorId?: string) => heroPage.emit(event, actorId ? { actorId } : {}),
   },
 }
 
-const WINDOW_KEY = 'desktop-games/pet/window'
-
-async function saveWindowPosition(): Promise<void> {
-  if (!HAS_TAURI) return
-  try {
-    const { getCurrentWindow } = await import('@tauri-apps/api/window')
-    const position = await getCurrentWindow().outerPosition()
-    const stored = safeSetItem(WINDOW_KEY, JSON.stringify({ x: position.x, y: position.y }))
-    if (stored !== 'ok') reportFailure(storageBoundary, new Error(`window-position-storage-${stored}`))
-  } catch (error) {
-    reportFailure(storageBoundary, error)
-  }
-}
-
-async function restoreWindowPosition(): Promise<void> {
-  if (!HAS_TAURI) return
-  const raw = safeGetItem(WINDOW_KEY)
-  if (!raw) return
-  try {
-    const saved = JSON.parse(raw) as { x: number; y: number }
-    if (!saved || !Number.isFinite(saved.x) || !Number.isFinite(saved.y)) return
-    const { getCurrentWindow, PhysicalPosition, currentMonitor } = await import('@tauri-apps/api/window')
-    const win = getCurrentWindow()
-    const monitor = await currentMonitor()
-    if (monitor && monitor.position && monitor.size) {
-      const left = monitor.position.x
-      const top = monitor.position.y
-      const right = left + monitor.size.width
-      const bottom = top + monitor.size.height
-      if (saved.x < left - 200 || saved.x > right - 40 || saved.y < top - 40 || saved.y > bottom - 40) {
-        return
-      }
-    }
-    await win.setPosition(new PhysicalPosition(saved.x, saved.y))
-  } catch (error) {
-    reportFailure(storageBoundary, error)
-  }
-}
-
-// Pet-window placement is pet-only: the content window is a normal decorated
-// window, and both windows share localStorage, so it must never overwrite the
-// stored pet position (nor save its own).
-if (HAS_TAURI && !CONTENT_SHELL) {
-  setTimeout(() => void restoreWindowPosition(), 600)
-  document.querySelector('header')?.addEventListener('pointerup', () => {
-    setTimeout(() => void saveWindowPosition(), 160)
-  })
-  window.addEventListener('beforeunload', () => void saveWindowPosition())
-}
-
 // ---------------------------------------------------------------------------
-// Hero renderer (Phase 2 integration; feature-flagged, default OFF)
+// Pet-window placement (E10 MB-100, task-116)
 // ---------------------------------------------------------------------------
-// `pet.html` keeps the folded-paper `#pet` DOM forever: hero mode only hides it
-// with CSS `visibility` (rect preserved for layout E2E) after the first hero
-// frame succeeded. Every failure path below falls back in one direction — the
-// DOM reappears, `__pet.hero = {enabled, ok:false, reason}` explains why, and
-// nothing is written to the save file or localStorage.
-
-function setHeroStatus(status: HeroStatus): void {
-  const pet = (window as any).__pet as { hero?: HeroStatus } | undefined
-  if (pet) pet.hero = status
-}
-
-function stopHeroLoop(): void {
-  if (heroRaf !== null) {
-    cancelAnimationFrame(heroRaf)
-    heroRaf = null
-  }
-}
-
-/**
- * Minimal non-art hero state in the DOM (first-frame loading / no character /
- * failure). `heroPlaceholderView()` decides the state and text without reading
- * raw errors, so no local paths or fake character assets reach the UI.
- */
-function setHeroPlaceholder(view: HeroPlaceholderView): void {
-  const element = document.getElementById('hero-placeholder')
-  if (!element) return
-  element.dataset.state = view.state
-  element.hidden = view.state === 'off'
-  const text = element.querySelector<HTMLElement>('.hero-placeholder-text')
-  if (text) text.textContent = view.text
-  const dot = element.querySelector<HTMLElement>('.hero-placeholder-dot')
-  if (dot) dot.hidden = view.state !== 'loading'
-}
-
-function fallbackHero(reason: string, error?: unknown): void {
-  stopHeroLoop()
-  const stage = document.getElementById('hero-stage')
-  if (stage) (stage as HTMLElement).hidden = true
-  if (heroCanvasEl) {
-    heroCanvasEl.style.transform = ''
-    heroCanvasEl.style.translate = ''
-    heroCanvasEl.style.scale = ''
-    delete heroCanvasEl.dataset.heroFlip
-    heroCanvasEl.classList.remove('dragging')
-  }
-  heroMove.offset = 0
-  heroMove.active = false
-  hero?.dispose()
-  hero = null
-  heroCtx = null
-  // The DOM fallback is the shipped built-in appearance: no character pack.
-  heroSceneBuiltin = true
-  activeCharacterPackId = null
-  activeCharacterPackKind = null
-  delete document.documentElement.dataset.characterPack
-  document.documentElement.removeAttribute('data-pet-render')
-  delete document.documentElement.dataset.heroCanvas
-  delete document.documentElement.dataset.heroScale
-  setHeroStatus({ enabled: HERO_CONFIG.enabled, ok: false, reason })
-  // Not console-only (audit U3/D5): show loading/empty/error instead of the
-  // silent folded-paper fallback. The warn stays for local debugging.
-  setHeroPlaceholder(heroPlaceholderView('failed', reason))
-  console.warn('[pet] hero renderer fell back to the folded-paper DOM:', reason, error ?? '')
-}
-
-function heroFrame(timestamp: number): void {
-  heroRaf = null
-  if (!hero || !heroCtx) return
-  // A hidden window pauses the loop; the scene clock is kept, so resuming does
-  // not fast-forward through the hidden time (and the legacy DOM path is
-  // untouched either way).
-  if (document.visibilityState === 'hidden') return
-  const dt = Math.max(0, Math.min(250, timestamp - heroLastFrameMs))
-  heroLastFrameMs = timestamp
-  // 减少动态 (pet.css tokens + this loop): freeze the scene clock and skip
-  // tick/locomotion, so the canvas stays a static pose. Emits/speech still
-  // change renderKey, which redraws exactly one still frame below.
-  const reducedMotion = document.documentElement.dataset.reduceMotion === '1'
-  if (!reducedMotion) heroSceneNow += dt
-  try {
-    if (!reducedMotion) hero.tick(heroSceneNow)
-    // 6-14 fps art on a 60 Hz host: redraw only when a frame actually changed.
-    const renderKey = hero.renderKey(heroSceneNow)
-    const renderedKey = heroCanvasEl?.dataset.heroRenderKey
-    if (!heroCanvasEl || renderedKey !== renderKey || heroCanvasEl.width === 0) {
-      hero.render(heroCtx, heroSceneNow)
-      if (heroCanvasEl) {
-        heroCanvasEl.dataset.heroRenderKey = renderKey
-        // Frame-stable key used by hit-regions to cache alpha masks.
-        heroCanvasEl.dataset.heroFrameKey = hero.actors.map((actor) => {
-          const frame = hero?.actorFrame(actor.id, heroSceneNow)
-          return frame ? `${actor.id}:${frame.tag}:${frame.frame}` : `${actor.id}:none`
-        }).join('|')
-      }
-    }
-    if (!reducedMotion) applyHeroLocomotion(dt)
-  } catch (error) {
-    fallbackHero(`render-failed: ${error instanceof Error ? error.message : String(error)}`, error)
-    return
-  }
-  heroRaf = requestAnimationFrame(heroFrame)
-}
-
-/**
- * Real left/right travel for cat/dog run clips. The hero canvas is translated
- * inside the transparent window (and mirrored when running left) instead of
- * animating legs in place; idle snaps back. Human and folded-paper are untouched.
- */
-function applyHeroLocomotion(dtMs: number): void {
-  const canvas = heroCanvasEl
-  if (!canvas || !hero) return
-  const canMove =
-    activeCharacterPackKind !== null
-      ? activeCharacterPackKind === 'cat' || activeCharacterPackKind === 'dog'
-      : HERO_CONFIG.character === 'cat' || HERO_CONFIG.character === 'dog'
-  const actorId = hero.actors[0]?.id
-  const tag = actorId ? hero.actorFrame(actorId, heroSceneNow)?.tag : undefined
-  const moving = canMove && (tag === 'run' || tag === 'ball_chase')
-  if (!moving) {
-    if (!heroMove.active && heroMove.offset === 0) return
-    // Ease back to the resting position; keep the current facing until settled.
-    heroMove.active = false
-    heroMove.offset *= 0.78
-    if (Math.abs(heroMove.offset) < 1) {
-      heroMove.offset = 0
-      canvas.style.translate = ''
-      canvas.style.scale = ''
-      delete canvas.dataset.heroFlip
-      return
-    }
-    canvas.style.translate = `${Math.round(heroMove.offset)}px 0px`
-    return
-  }
-  const width = canvas.clientWidth || 192
-  const max = Math.max(24, Math.min(150, (window.innerWidth - width) / 2 - 12))
-  const speed = tag === 'ball_chase' ? 135 : 105
-  heroMove.active = true
-  heroMove.offset += heroMove.dir * (speed * Math.max(0, Math.min(120, dtMs))) / 1000
-  if (heroMove.offset > max) {
-    heroMove.offset = max
-    heroMove.dir = -1
-  } else if (heroMove.offset < -max) {
-    heroMove.offset = -max
-    heroMove.dir = 1
-  }
-  // The side-view run art faces LEFT (head on the left). Mirror it when the
-  // actor travels RIGHT so the visible facing always matches the movement;
-  // `heroFlip` is consumed by the alpha-tile hit regions for coordinate mapping.
-  const mirrored = heroMove.dir > 0
-  canvas.style.translate = `${Math.round(heroMove.offset)}px 0px`
-  canvas.style.scale = `${mirrored ? -1 : 1} 1`
-  canvas.dataset.heroFlip = mirrored ? '1' : '0'
-}
-
-function startHeroLoop(): void {
-  if (!hero || heroRaf !== null || document.visibilityState === 'hidden') return
-  heroLastFrameMs = performance.now()
-  heroRaf = requestAnimationFrame(heroFrame)
-}
-
-/** True when the live hero scene can accept a character-pack hot swap. */
-function isHeroRendererReady(): boolean {
-  return hero !== null && heroCanvasEl !== null && heroCtx !== null && heroStageSize !== null
-}
-
-
-interface HeroCharacterPackIdentity {
-  readonly packId: string
-  readonly version: string
-  readonly name: string
-  readonly kind: CharacterPackKind
-}
-
-/**
- * Hot-swap the live hero scene to one character-pack bundle (task-111), or to
- * the shipped built-in character when `identity` is null.
- *
- * The new scene is fully built + rendered through `startHeroRuntime`'s
- * first-frame gate BEFORE anything is committed: on failure the previous scene
- * keeps rendering (canvas backing store restored) and the built-in appearance is
- * untouched. On success the old runtime is disposed, the canvas/QA attributes
- * are refreshed and the existing hero rAF loop keeps drawing the new scene. The
- * pointer listeners stay attached to the same canvas and read the new `hero`.
- */
-async function hotSwapHeroCharacterPack(
-  bundle: HeroCharacterBundle,
-  identity: HeroCharacterPackIdentity | null,
-): Promise<{ ok: true } | { ok: false; reason: string }> {
-  const canvas = heroCanvasEl
-  const ctx = heroCtx
-  const stage = heroStageSize
-  if (canvas === null || ctx === null || stage === null) {
-    return { ok: false, reason: 'hero-renderer-not-running' }
-  }
-  // Re-measure the book stage: the window may have been resized since boot.
-  const book = document.querySelector('.book')
-  const rect = book?.getBoundingClientRect()
-  const liveStage =
-    rect !== undefined && rect !== null && rect.width > 0 && rect.height > 0
-      ? { width: rect.width, height: rect.height }
-      : stage
-  // Idempotent: the requested pack (or the built-in scene) is already live.
-  if (identity === null) {
-    if (heroSceneBuiltin) return { ok: true }
-  } else if (
-    !heroSceneBuiltin &&
-    activeCharacterPackId !== null &&
-    activeCharacterPackId.packId === identity.packId &&
-    activeCharacterPackId.version === identity.version
-  ) {
-    return { ok: true }
-  }
-  const previous = hero
-  const snapshot = {
-    width: canvas.width,
-    height: canvas.height,
-    styleWidth: canvas.style.width,
-    styleHeight: canvas.style.height,
-  }
-  const restoreCanvas = (): void => {
-    canvas.width = snapshot.width
-    canvas.height = snapshot.height
-    canvas.style.width = snapshot.styleWidth
-    canvas.style.height = snapshot.styleHeight
-    ctx.setTransform?.(heroDpr, 0, 0, heroDpr, 0, 0)
-    ctx.imageSmoothingEnabled = false
-    delete canvas.dataset.heroRenderKey
-    delete canvas.dataset.heroFrameKey
-    if (previous !== null) {
-      try {
-        previous.render(ctx, heroSceneNow)
-      } catch {
-        // The old scene stays the fallback of record; a failed repaint is logged below.
-      }
-    }
-  }
-  const config: HeroConfig = {
-    enabled: true,
-    reason: 'query-on',
-    character: HERO_CONFIG.character,
-    actors: [HERO_CONFIG.character],
-    ...(HERO_CONFIG.scale !== undefined ? { scale: HERO_CONFIG.scale } : {}),
-  }
-  let result: Awaited<ReturnType<typeof startHeroRuntime>>
-  try {
-    result = await startHeroRuntime({
-      config,
-      canvas,
-      ctx,
-      stage: liveStage,
-      dpr: heroDpr,
-      loadBundle: async () => bundle,
-      actorIds: [bundle.key],
-      sleeping: heroNight,
-      ...(typeof location !== 'undefined' ? { resolveBase: location.href } : {}),
-    })
-  } catch (error) {
-    restoreCanvas()
-    return { ok: false, reason: 'start-failed: ' + (error instanceof Error ? error.message : String(error)) }
-  }
-  if (!result.ok) {
-    restoreCanvas()
-    return { ok: false, reason: result.reason }
-  }
-  // Commit only after the first-frame gate succeeded.
-  hero = result.runtime
-  heroSceneBuiltin = identity === null
-  activeCharacterPackId = identity === null ? null : { packId: identity.packId, version: identity.version }
-  activeCharacterPackKind = identity === null ? null : identity.kind
-  heroSceneNow = 0
-  heroLastFrameMs = performance.now()
-  heroStageSize = liveStage
-  heroMove.offset = 0
-  heroMove.active = false
-  canvas.style.translate = ''
-  canvas.style.scale = ''
-  delete canvas.dataset.heroFlip
-  delete canvas.dataset.heroRenderKey
-  delete canvas.dataset.heroFrameKey
-  canvas.classList.remove('dragging')
-  if (previous !== null) {
-    try {
-      previous.dispose()
-    } catch {
-      // A leaked scene must not block the already-successful switch.
-    }
-  }
-  document.documentElement.dataset.petRender = 'hero'
-  delete document.documentElement.dataset.characterPackRestore
-  const stageElement = document.getElementById('hero-stage')
-  if (stageElement) (stageElement as HTMLElement).hidden = false
-  document.documentElement.dataset.heroCanvas = `${result.runtime.layout.width}x${result.runtime.layout.height}`
-  document.documentElement.dataset.heroScale = String(result.runtime.layout.scale)
-  document.documentElement.dataset.heroDpr = String(canvas.width / Math.max(1, result.runtime.layout.width))
-  if (identity === null) {
-    delete document.documentElement.dataset.characterPack
-  } else {
-    document.documentElement.dataset.characterPack = identity.packId + '@' + identity.version
-  }
-  setHeroStatus({
-    enabled: true,
-    ok: true,
-    reason: identity === null ? 'builtin' : 'character-pack:' + identity.packId + '@' + identity.version,
-  })
-  setHeroPlaceholder(heroPlaceholderView('ready'))
-  requestDesktopShellScaleRefit()
-  startHeroLoop()
-  return { ok: true }
-}
-
-/**
- * Restore the shipped built-in renderer after a pack was applied (uninstall,
- * rollback-to-builtin, disabled hero, apply failure). Always returns ok:true
- * when a built-in appearance is on screen — the folded-paper DOM is the last
- * built-in fallback, so a failed hero rebuild still leaves a working built-in.
- */
-async function restoreBuiltinHero(): Promise<CharacterPackBuiltinRestoreResult> {
-  if (heroSceneBuiltin && hero !== null) {
-    return { ok: true, message: '内置 hero 渲染器保持运行。' }
-  }
-  if (!isHeroRendererReady()) {
-    heroSceneBuiltin = true
-    activeCharacterPackId = null
-    activeCharacterPackKind = null
-    return { ok: true, message: 'hero 渲染器未运行，折叠纸内置外观保持可见。' }
-  }
-  let bundle: HeroCharacterBundle
-  try {
-    bundle = await loadHeroBundle(HERO_CONFIG.character)
-  } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error)
-    heroSceneBuiltin = true
-    activeCharacterPackId = null
-    activeCharacterPackKind = null
-    fallbackHero('character-pack-restore-failed: ' + reason)
-    return { ok: true, message: '已回退折叠纸内置外观（内置 hero 角色包加载失败）。' }
-  }
-  const swapped = await hotSwapHeroCharacterPack(bundle, null)
-  if (!swapped.ok) {
-    heroSceneBuiltin = true
-    activeCharacterPackId = null
-    activeCharacterPackKind = null
-    fallbackHero('character-pack-restore-failed: ' + swapped.reason)
-    return { ok: true, message: '已回退折叠纸内置外观（内置 hero 场景重建失败）。' }
-  }
-  return { ok: true, message: '已恢复内置 hero 角色「' + HERO_CONFIG.character + '」。' }
-}
-
-/** Pointer → hero events. A real drag (>6 px) in the Tauri window starts the
- *  native window move via `startDragging()`; the canvas deliberately avoids
- *  `data-tauri-drag-region` so a short tap still reaches the hero hit test.
- *
- *  Coordinates: `hitActor`/the render backend work in canvas-local CSS pixels.
- *  The canvas backing store is `layout * devicePixelRatio` (see
- *  `startHeroRuntime({dpr})`) and the 2D context is DPR-transformed, but the CSS
- *  size and all pointer/hit-test maths stay CSS pixels. The hero canvas is no
- *  longer CSS-transformed by the desktop shell (only the legacy `.fold-pet` is
- *  `--pet-scale`d), so the client-width / rect-width ratio is normally 1; it is
- *  still applied as a safety net for browser zoom or any future CSS transform.
- */
-function attachHeroPointer(canvas: HTMLCanvasElement): void {
-  let activePointer: number | null = null
-  let startX = 0
-  let startY = 0
-  let startedAt = 0
-  let dragging = false
-  let dragActorId: string | undefined
-  let windowDrag = false
-
-  /** Layout pixels per visual (getBoundingClientRect) pixel; 1 when untransformed. */
-  const layoutRatio = (): { x: number; y: number } => {
-    const rect = canvas.getBoundingClientRect()
-    return {
-      x: rect.width > 0 && canvas.clientWidth > 0 ? canvas.clientWidth / rect.width : 1,
-      y: rect.height > 0 && canvas.clientHeight > 0 ? canvas.clientHeight / rect.height : 1,
-    }
-  }
-
-  const localPoint = (event: PointerEvent): { x: number; y: number } => {
-    const rect = canvas.getBoundingClientRect()
-    const ratio = layoutRatio()
-    return { x: (event.clientX - rect.left) * ratio.x, y: (event.clientY - rect.top) * ratio.y }
-  }
-
-  const endPointer = (event: PointerEvent): void => {
-    if (activePointer !== event.pointerId) return
-    const wasDragging = dragging
-    activePointer = null
-    dragging = false
-    canvas.classList.remove('dragging')
-    canvas.style.transform = ''
-    try {
-      if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId)
-    } catch {}
-    if (wasDragging) {
-      const dragOptions = dragActorId ? { actorId: dragActorId } : {}
-      hero?.emit('drag.end', dragOptions)
-      hero?.emit('land', dragOptions)
-    }
-    dragActorId = undefined
-  }
-
-  canvas.addEventListener('pointerdown', (event) => {
-    if (!hero || event.button !== 0) return
-    ensureAudio()
-    void audioContext?.resume()
-    activePointer = event.pointerId
-    startX = event.clientX
-    startY = event.clientY
-    startedAt = performance.now()
-    dragging = false
-    const point = localPoint(event)
-    dragActorId = hero.hitActor(point.x, point.y)?.id
-    try {
-      canvas.setPointerCapture(event.pointerId)
-    } catch {}
-    event.preventDefault()
-  })
-
-  canvas.addEventListener('pointermove', (event) => {
-    if (!hero || activePointer !== event.pointerId) return
-    const dx = event.clientX - startX
-    const dy = event.clientY - startY
-    // In the desktop window a drag must move the window itself, not leave a
-    // sprite translated in place (the latter made switching from folded paper
-    // to a hero character look like "dragging stopped working"). The local
-    // sprite-follow path stays for browser/QA builds.
-    if (!dragging && !windowDrag && shouldStartWindowDrag(HAS_TAURI, Math.hypot(dx, dy))) {
-      windowDrag = true
-      const point = localPoint(event)
-      const target = hero.hitActor(point.x, point.y)
-      dragActorId = target?.id ?? dragActorId
-      const dragOptions = dragActorId ? { actorId: dragActorId } : {}
-      hero.emit('drag.start', dragOptions)
-      activePointer = null
-      canvas.classList.remove('dragging')
-      canvas.style.transform = ''
-      try {
-        if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId)
-      } catch {}
-      const actorId = dragActorId
-      void import('@tauri-apps/api/window')
-        .then(({ getCurrentWindow }) => getCurrentWindow().startDragging())
-        .catch((error: unknown) => {
-          console.warn('[pet] native window drag unavailable', error)
-        })
-        .finally(() => {
-          // The OS move loop ends before the next pointer sequence. Finish the
-          // semantic drag so animations/state settle and a later press is clean.
-          try {
-            if (actorId) {
-              hero?.emit('drag.end', { actorId })
-              hero?.emit('land', { actorId })
-            } else {
-              hero?.emit('drag.end')
-              hero?.emit('land')
-            }
-          } catch {}
-          dragActorId = undefined
-          windowDrag = false
-        })
-      return
-    }
-    if (!dragging && Math.hypot(dx, dy) >= 4) {
-      dragging = true
-      canvas.classList.add('dragging')
-      const point = localPoint(event)
-      const target = hero.hitActor(point.x, point.y)
-      dragActorId = target?.id ?? dragActorId
-      hero.emit('drag.start', dragActorId ? { actorId: dragActorId } : {})
-    }
-    // Phase 2: the sprite follows the pointer locally and snaps back on
-    // pointerup (not persisted; no window dragging from the canvas). Translate
-    // in layout px so a CSS-scaled stage (desktop shell) keeps pointer tracking.
-    if (dragging) {
-      const ratio = layoutRatio()
-      canvas.style.transform = `translate(${dx * ratio.x}px, ${dy * ratio.y}px)`
-    }
-  })
-
-  canvas.addEventListener('pointerup', (event) => {
-    if (windowDrag) return
-    if (!hero || activePointer !== event.pointerId) return
-    const wasDragging = dragging
-    const elapsed = performance.now() - startedAt
-    if (!wasDragging && elapsed < 500) {
-      const point = localPoint(event)
-      // Region hit-test first (art-pixel rects, zoom-independent). Packs with a
-      // regions.json only react inside their declared zones/state whitelist; a
-      // tap on a transparent/undefined area is intentionally a no-op instead
-      // of a whole-body pat. Legacy packs without regions keep the old pat.
-      const hit = hero.hitRegion(point.x, point.y)
-      if (hit) {
-        const nowMs = performance.now()
-        const key = `${hit.actor.id}:${hit.region.id}`
-        const lastRegionAt = lastRegionTouchAt.get(key) ?? Number.NEGATIVE_INFINITY
-        if (nowMs - lastHeroTouchAt < HERO_TOUCH_COOLDOWN_MS || nowMs - lastRegionAt < HERO_REGION_COOLDOWN_MS) {
-          endPointer(event)
-          return
-        }
-        lastHeroTouchAt = nowMs
-        lastRegionTouchAt.set(key, nowMs)
-        const state = hero.actorState(hit.actor.id) ?? 'idle'
-        const config = hit.actor.bundle.regions
-        const reaction = config ? resolveHeroRegionReaction(config, hit.region.id, state, 'tap') : null
-        if (reaction) doHeroRegionTouch(hit.actor.id, reaction)
-      } else {
-        const target = hero.hitActor(point.x, point.y)
-        if (target && !target.bundle.regions) doPat(target.id)
-        else if (!target) hero.emit('click')
-      }
-    }
-    endPointer(event)
-  })
-
-  canvas.addEventListener('pointercancel', (event) => endPointer(event))
-  canvas.addEventListener('pointerenter', () => {
-    if (activePointer === null) hero?.emit('hover')
-  })
-  canvas.addEventListener('pointerleave', () => {
-    if (activePointer === null) hero?.emit('leave')
-  })
-}
-
-async function startHeroPage(): Promise<void> {
-  setHeroStatus(heroStatus(HERO_CONFIG, null))
-  // First-run/boot state: the DOM says "loading" while the opt-in renderer
-  // loads its first frame; the default (flag-off) path stays quiet.
-  setHeroPlaceholder(heroPlaceholderView(HERO_CONFIG.enabled ? 'loading' : 'disabled'))
-  if (!HERO_CONFIG.enabled) return
-  const stage = document.getElementById('hero-stage')
-  const requestedRaw = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('character')?.trim().toLowerCase() : null
-  // DLC/pack id is used to build `/characters/<id>/`: validate it as ONE safe
-  // relative path segment before any path concatenation (security path-safety).
-  const requestedPath = requestedRaw ? checkRelativePath(requestedRaw, { maxSegments: 1, maxChars: 64 }) : null
-  const requestedCharacter = requestedPath?.ok && /^[a-z0-9][a-z0-9._-]{0,63}$/.test(requestedPath.normalized)
-    ? requestedPath.normalized
-    : null
-  // Known 0.1/0.2 characters use the canvas path. Any other safe id is treated
-  // as an FCI 0.3 behavior-only pack preview (e.g. imported L2 packs); no art is
-  // faked and the existing canvas path is untouched.
-  if (requestedCharacter && !isHeroCharacterId(requestedCharacter)) {
-    if (!stage) {
-      fallbackHero('behavior-preview-failed: hero-stage missing')
-      return
-    }
-    // Non-built-in character ids are DLC/pack loads: show the FULL TOS for this
-    // specific load and abort to the built-in folded-paper pet when declined.
-    const gate = getConsentGate()
-    if (!gate) {
-      fallbackHero('consent-runtime-missing')
-      return
-    }
-    let preview: Awaited<ReturnType<typeof startTinglanPreview>>
-    try {
-      preview = await loadCharacterPackWithConsent(gate, requestedCharacter, () =>
-        startTinglanPreview(stage, `/characters/${requestedCharacter}/`),
-      )
-    } catch (error) {
-      if (error instanceof ConsentDeclinedError) {
-        fallbackHero('consent-declined: character-pack')
-        return
-      }
-      throw error
-    }
-    if (!preview.ok) {
-      fallbackHero(preview.reason ?? 'behavior-preview-failed')
-      return
-    }
-    document.documentElement.dataset.petRender = 'tinglan-preview'
-    setHeroStatus({ enabled: true, ok: true, reason: `behavior-preview:${requestedCharacter}` })
-    setHeroPlaceholder(heroPlaceholderView('ready'))
-    return
-  }
-  const canvas = document.getElementById('hero-canvas') as HTMLCanvasElement | null
-  try {
-    if (!stage || !canvas) throw new Error('hero-stage/hero-canvas missing from pet.html')
-    const ctx = canvas.getContext('2d')
-    if (!ctx) throw new Error('hero canvas has no 2d context')
-    const book = document.querySelector('.book')
-    const rect = book?.getBoundingClientRect()
-    const hour = new Date().getHours()
-    const night = hour >= 23 || hour < 6
-    const stageSize = { width: rect?.width ?? window.innerWidth, height: rect?.height ?? window.innerHeight }
-    // DPR is clamped: a fake/very high DPR would allocate a huge backing store.
-    const dpr =
-      typeof window !== 'undefined' && Number.isFinite(window.devicePixelRatio)
-        ? Math.min(3, Math.max(1, window.devicePixelRatio))
-        : 1
-    const runtimeOptions = {
-      config: HERO_CONFIG,
-      canvas,
-      ctx,
-      stage: stageSize,
-      dpr,
-      sleeping: night,
-    }
-    // P1-4: a non-built-in hero character (e.g. ?character=tinglan, which is a
-    // non-final DLC concept preview) must pass the same full-TOS per-load gate as
-    // other character packs. Built-in humanoid/cat/dog stay covered by the
-    // first-run TOS and are deliberately exempt from the per-load prompt.
-    let result: Awaited<ReturnType<typeof startHeroRuntime>>
-    if (!isBuiltinCharacterId(HERO_CONFIG.character)) {
-      const gate = getConsentGate()
-      if (!gate) {
-        fallbackHero('consent-runtime-missing')
-        return
-      }
-      try {
-        result = await loadCharacterPackWithConsent(gate, HERO_CONFIG.character, () => startHeroRuntime(runtimeOptions))
-      } catch (error) {
-        if (error instanceof ConsentDeclinedError) {
-          fallbackHero('consent-declined: character-pack')
-          return
-        }
-        throw error
-      }
-    } else {
-      result = await startHeroRuntime(runtimeOptions)
-    }
-    if (!result.ok) {
-      fallbackHero(result.reason, result.error)
-      return
-    }
-    hero = result.runtime
-    heroCanvasEl = canvas
-    heroCtx = ctx
-    heroNight = night
-    heroStageSize = stageSize
-    heroDpr = dpr
-    // The booted scene is the shipped built-in renderer until the installer
-    // restores a persisted pack appearance below (task-111).
-    heroSceneBuiltin = true
-    activeCharacterPackId = null
-    activeCharacterPackKind = null
-    attachHeroPointer(canvas)
-    // Atomic switch only after the first frame succeeded: unhide the stage,
-    // then hide `#pet` via CSS (rect kept); the bubble/buttons keep working.
-    stage.hidden = false
-    document.documentElement.dataset.petRender = 'hero'
-    // MB-050: the desktop shell may have applied the hero fit before this
-    // canvas had a layout size (the stage was hidden and the canvas CSS size
-    // only exists after the first pack frame), which kept the unclamped hero
-    // zoom and pushed the scaled canvas above the window top. Now that the
-    // stage is visible and the canvas size is final, re-run the viewport fit.
-    requestDesktopShellScaleRefit()
-    // QA hook: the fitted CSS canvas/display scale (e.g. 256x256@1 or
-    // 128x128@0.125), plus the device-pixel backing store ratio.
-    document.documentElement.dataset.heroCanvas = `${result.runtime.layout.width}x${result.runtime.layout.height}`
-    document.documentElement.dataset.heroScale = String(result.runtime.layout.scale)
-    document.documentElement.dataset.heroDpr = String(canvas.width / Math.max(1, result.runtime.layout.width))
-    setHeroStatus(heroStatus(HERO_CONFIG, result))
-    setHeroPlaceholder(heroPlaceholderView('ready'))
-    heroSceneNow = 0
-    document.addEventListener('visibilitychange', () => {
-      if (!hero) return
-      if (document.visibilityState === 'hidden') stopHeroLoop()
-      else startHeroLoop()
-    })
-    startHeroLoop()
-    // task-111: re-apply the persisted character-pack appearance WITHOUT a page
-    // reload. The content runtime may still be loading; the call awaits it, then
-    // the installer either hot-swaps the pack or honestly leaves the built-in.
-    void contentRuntimeApi
-      .restoreActiveCharacterPack()
-      .then((result) => {
-        if (result === null || result.ok) return
-        console.warn('[pet] character-pack appearance restore left the built-in renderer:', result.message)
-        document.documentElement.dataset.characterPackRestore = 'builtin-fallback'
-      })
-      .catch((error: unknown) => {
-        console.warn('[pet] character-pack appearance restore failed', error)
-      })
-  } catch (error) {
-    fallbackHero(`start-failed: ${error instanceof Error ? error.message : String(error)}`, error)
-  }
-}
+// Persisted position: restore once on boot, save after a header drag and on
+// unload. Moved to `hero-page.ts`; pet window only (never the content window).
+heroPage.installWindowLayout()
 
 const ADVISERS_MODE_KEY = 'desktop-games/pet/advisers-mode'
 let advisersFace: AdvisersFaceController | null = null
@@ -3014,9 +2179,9 @@ function initAdvisersFace(): void {
             return
           }
           showBubble(reviewed.displayText)
-          hero?.speak({ text: reviewed.displayText, emotion: 'calm', durationMs: directive.ttlMs || 4000 })
+          heroPage.speak({ text: reviewed.displayText, emotion: 'calm', durationMs: directive.ttlMs || 4000 })
         }
-        if (directive.sourceType === 'commitment.due') hero?.emit('remind')
+        if (directive.sourceType === 'commitment.due') heroPage.emit('remind')
       })().catch((error) => reportFailure(trust.boundary, error))
     },
     onStatus: render,
@@ -3384,7 +2549,7 @@ function initializeApp(): void {
       enableMenu: !CONTENT_SHELL,
       // Live getters: the shell initializes before hero boot, and the menu is
       // rendered on open, so it sees the actual renderer state each time.
-      heroActive: () => hero !== null,
+      heroActive: () => heroPage.isActive(),
       getHeroActions: currentHeroMenuActions,
       onHeroAction: handleHeroAction,
       // 总设置 dialog wiring (task-65): every control reuses an existing

@@ -378,20 +378,26 @@ export function createContentRuntime(deps: ContentRuntimeDeps): ContentRuntimeAp
     }
   }
 
-  function buildContentHubController(): ContentHubController {
+  /**
+   * Build the hub controller for a runtime that is still being initialised.
+   * Takes the runtime explicitly instead of reading the published
+   * `contentRuntime`: the published state must only ever be a FULLY
+   * initialised runtime (task-120), so it is assigned after this returns.
+   */
+  function buildContentHubController(runtime: ContentRuntimeState): ContentHubController {
     return createHub({
       document,
-      getLibrary: () => contentRuntime?.library ?? null,
-      getSelection: () => contentRuntime?.selection ?? null,
-      getRoleThemeId: () => contentRuntime?.roleThemeId ?? null,
-      getBaseLibrary: () => contentRuntime?.baseLibrary ?? null,
+      getLibrary: () => runtime.library,
+      getSelection: () => runtime.selection,
+      getRoleThemeId: () => runtime.roleThemeId,
+      getBaseLibrary: () => runtime.baseLibrary,
       applyRole: (roleThemeId) => applyRoleThemeFromHub(roleThemeId, 'apply'),
       customize: customizeRoleComponent,
       restoreRole: restoreCurrentRoleDefaults,
       prepareImport: prepareContentImport,
       commitImport: commitContentImport,
       getInstalledPacks: installedPackSummaries,
-      characterPacks: contentRuntime?.characterPacks ?? null,
+      characterPacks: runtime.characterPacks,
       getMarketState: contentMarketState,
       resolvePreviewUrl: resolveRolePreviewUrl,
       // The independent content window (MB-062): closing the SAME hub returns to
@@ -486,7 +492,6 @@ export function createContentRuntime(deps: ContentRuntimeDeps): ContentRuntimeAp
           fontFamiliesByPack: new Map<string, string[]>(),
           previewTargets: new Map<string, ContentPreviewTarget>(),
         }
-        contentRuntime = runtime
         deps.setDialogueBehavior(runtime.dialogue)
         try {
           applyAppearance(document, runtime.library, runtime.selection)
@@ -513,7 +518,17 @@ export function createContentRuntime(deps: ContentRuntimeDeps): ContentRuntimeAp
           runtime.characterPacks = null
           deps.reportFailure(deps.uiBoundary, error)
         }
-        runtime.hub = buildContentHubController()
+        runtime.hub = buildContentHubController(runtime)
+        // Publish ONLY the fully initialised runtime (task-120 / E11 soak):
+        // main.ts calls initializeApp()'s `void ensureContentRuntime()` eagerly
+        // and the content-window boot runs concurrently. Publishing the state
+        // object before the hub existed made `if (contentRuntime) return`
+        // hand a PARTIAL runtime to the boot route: openContentHubInWindow()
+        // saw hub === null and returned false, so the window fell back to its
+        // home surface with the hub permanently closed (no console error).
+        // Keeping the assignment here means every concurrent caller awaits
+        // `contentLoad` (the in-flight promise) and gets the full runtime.
+        contentRuntime = runtime
         return runtime
       } catch (error) {
         deps.reportFailure(deps.uiBoundary, error)
