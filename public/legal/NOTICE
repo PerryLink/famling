@@ -1,6 +1,4 @@
-Famling — NOTICE
-
-> **2026-11-18 公开导出边界（本仓当前状态）**：本公开导出已按清理方案 A 移除全部预生成 TTS 音频（42 WAV + manifest）、游戏内容包（`packs/`）、DLC 校验链（`native/dlc-verify`）与未使用 kernel 模块；本导出**不随包分发任何音频 / DLC / 游戏基座**。下文历史统计（18/42 WAV、baked pack、随包授权等）保留作私有 mono-repo 的历史记录，**不代表本公开导出当前内容**；音频再分发条款仍为 TBD。
+Desktop Games — NOTICE
 
 Copyright (c) 2026 PerryLink contributors
 
@@ -124,14 +122,13 @@ bundle WebView2 unless its terms are checked.
 The Steamworks SDK is proprietary to Valve and is not included in this
 repository. It must not be committed or distributed with public builds.
 
-This public export ships **no TTS audio**. The 42 pre-generated DeepSeek TTS
-WAVs (and their manifest) that existed in the private mono-repo were removed on
-2026-11-18 by the public-boundary cleanup (plan A). No audio file is tracked,
-built into `dist/`, or bundled with the installer; older archives or clips are
-not part of this repository. Any future audio (cloud/system TTS at runtime) is
-synthetic AI voice, is not a human recording, and must be labelled as
-AI-generated. Redistribution terms for DeepSeek TTS output remain TBD; see
-`docs/legal/TTS-TERMS.md`.
+TTS audio under public/assets/voice/pet/ is output of the DeepSeek TTS API
+(voice "stella"), generated 2026-11-14 (18 WAV files). Its redistribution and
+commercial-use terms are NOT confirmed: the build pipeline excludes these files
+by default, release gating must continue to exclude them, and any older
+dist/artifact containing them must not be shipped. See THIRD-PARTY.md §2 and
+docs/legal/TTS-TERMS.md. TTS output is synthetic AI voice, is not a human
+recording, and must be labelled as AI-generated where used at all.
 
 ---------------------------------------------------------------------------
 5. Assets: what is distributed vs excluded (accurate as of 2026-11-17)

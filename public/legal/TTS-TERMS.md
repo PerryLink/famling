@@ -1,7 +1,5 @@
 # TTS / 语音资产使用条款（草案，2026-11-16）
 
-> **2026-11-18 公开导出边界（本仓当前状态）**：本公开导出已按清理方案 A 移除全部预生成 TTS 音频（42 WAV + manifest）、游戏内容包（`packs/`）、DLC 校验链（`native/dlc-verify`）与未使用 kernel 模块；本导出**不随包分发任何音频 / DLC / 游戏基座**。下文历史统计（18/42 WAV、baked pack、随包授权等）保留作私有 mono-repo 的历史记录，**不代表本公开导出当前内容**；音频再分发条款仍为 TBD。
-
 Status: **DRAFT — 用户已要求拟制；律师审查暂缓（用户 2026-11-16 决定）。** 本文件不是法律意见，也不代表 DeepSeek 官方许可；正式发布前仍需核对服务商最新条款。**2026-11-17 追加用户授权**：允许把 DeepSeek 合成音色（默认 `stella` + 可选 `tide`）预生成音频作为 baked pack 随包缓存，避免每次调用付费；当前随包 42 个 WAV（21 `stella` + 21 `tide`，授权记录见 §3A）——该授权是用户决定与工程记录，**不是** DeepSeek 书面再分发许可，也**未**经过律师审核。法律基线见 [LEGAL-BASELINE](/legal/LEGAL-BASELINE.md)（L2/L4/L8/L9/L10）；应用内确认文本见 [APP-DISCLOSURE-TEXTS](/legal/APP-DISCLOSURE-TEXTS.md) `tts.*`。
 
 **应用内声明版本同步（canon：`src/pet/consent/terms.ts`，2026-11-17.6）**

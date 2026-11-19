@@ -1,7 +1,5 @@
 # Commercial licensing
 
-> **2026-11-18 公开导出边界（本仓当前状态）**：本公开导出已按清理方案 A 移除全部预生成 TTS 音频（42 WAV + manifest）、游戏内容包（`packs/`）、DLC 校验链（`native/dlc-verify`）与未使用 kernel 模块；本导出**不随包分发任何音频 / DLC / 游戏基座**。下文历史统计（18/42 WAV、baked pack、随包授权等）保留作私有 mono-repo 的历史记录，**不代表本公开导出当前内容**；音频再分发条款仍为 TBD。
-
 The source in this repository is released under the **PolyForm Noncommercial
 License 1.0.0** (see `LICENSE`). That license allows noncommercial use,
 modification and redistribution, and **does not allow commercial use**.
@@ -37,8 +35,7 @@ license unless a file says otherwise.
   by `LICENSE-ART` (CC BY-NC-SA 4.0, per the owner's 2026-11-16 decision).
   Noncommercial sharing/adaptation is allowed under that licence; **commercial
   use requires a separate written licence**. Legal review is deferred.
-- This public export tracks **no TTS audio**: the pre-generated WAV pack was
-  removed on 2026-11-18, so no audio is built into `dist/` or bundled. Runtime
-  cloud/system TTS output is not redistributed by this repository; DeepSeek TTS
-  output terms remain unconfirmed.
+- The 18 DeepSeek TTS WAVs under `public/assets/voice/pet/` have **unconfirmed
+  redistribution terms** and are excluded from release builds by default (see
+  `vite.config.ts`); do not redistribute them without confirmation.
 - Third-party assets remain under their own licences (see `THIRD-PARTY.md`).

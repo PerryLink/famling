@@ -11,6 +11,9 @@ Status: **DRAFT (engineering draft)** · 非法律意见，不构成法律建议
 - 同意方式：首次启动先完成年龄自报核验（由你选择出生年/月/日并显式确认，不预填、无默认；未完成不得进入正常交互），再展示完整 TOS；条款版本/哈希升级、每次修改/自创/改设定/接入 DLC/pack/修改 art·behavior·voice、每次 TTS 启用或配置变更、每次 ASR 启用或配置变更、**角色扮演每次开始或设定变更**，都会重新弹出完整文本或对应单独声明并要求显式勾选 + 按钮确认；角色扮演还必须每次重新填写设定表单；Escape/关闭/审计记录都不构成同意或永久豁免。年龄核验、TOS、TTS、ASR、角色扮演确认互不替代。
 - 相关文档：[TTS-TERMS.md](TTS-TERMS.md)、[PRIVACY.md](PRIVACY.md)、[AI-LABELING.md](AI-LABELING.md)、[AI-CONTENT-POLICY.md](AI-CONTENT-POLICY.md)、[DLC-AND-PLUGIN-TERMS.md](DLC-AND-PLUGIN-TERMS.md)、[TAKEDOWN-AND-REPORTING.md](TAKEDOWN-AND-REPORTING.md)。
 
+> ⚠️ **统一使用限制（必读，2026-11-19）**：本项目及其全部代码、美术、音频、文案、角色素材和衍生物仅用于技术研究与原型验证，不得用于情感陪伴、虚拟伴侣、心理治疗/医疗/法律/金融建议、未成年人亲密关系、冒充真人/官方，或任何违反法律法规/平台规则的用途。
+> 完整说明（单一 canonical 文本）：[USE-RESTRICTIONS-2026-11-19.md](./USE-RESTRICTIONS-2026-11-19.md)。本节是引用块，**不改变**本文件由 `src/pet/consent/terms.ts` 生成的条款正文、版本号与哈希；应用内同意弹窗暂未内联该限制（见 canonical 文件 §6/§9），不得宣称“TOS 已包含本限制”。
+
 ## 一、适用范围、版本与同意方式
 本文件适用于 Pagefold / 汀岚（下称“本应用”）的桌面端、网页端、角色包（DLC/pack）、语音（TTS）、语音识别（ASR）、导入/导出与本地工具。
 本应用是工作助手类的本地工具。角色扮演（roleplay）入口当前仅提供本地模板、声明与设定，不提供自由 LLM 对话、情感陪伴或虚拟亲密关系（不伪造聊天引擎）；未上线能力不会以“已提供”对外宣传。

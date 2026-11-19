@@ -6,6 +6,12 @@
 > 适用：本仓库、桌宠/汀岚/Famling 发行物、官方账号与宣发、TTS、roleplay/情感支持模式、DLC/角色包/替换包、二创、API 集成。**凡与本文冲突的旧文案，以本文为准并回改。**
 > 关联：[docs/legal/README](./README.md)（优先级）· [AI-CONTENT-POLICY](./AI-CONTENT-POLICY.md) · [TTS-TERMS](./TTS-TERMS.md) · [DLC-AND-PLUGIN-TERMS](./DLC-AND-PLUGIN-TERMS.md) · [ASSET-REPLACEMENT-AND-MODDING-POLICY](./ASSET-REPLACEMENT-AND-MODDING-POLICY.md) · [APP-DISCLOSURE-TEXTS](./APP-DISCLOSURE-TEXTS.md) · 根 [DECLARATIONS](../../DECLARATIONS.md) / [NOTICE](../../NOTICE)。
 
+## 0. 统一使用限制（2026-11-19，canonical）
+
+> 本项目及其全部代码、美术、音频、文案、角色素材和衍生物仅用于技术研究与原型验证，不得用于情感陪伴、虚拟伴侣、心理治疗/医疗/法律/金融建议、未成年人亲密关系、冒充真人/官方，或任何违反法律法规/平台规则的用途。
+
+完整说明：[USE-RESTRICTIONS-2026-11-19.md](./USE-RESTRICTIONS-2026-11-19.md)（famling + dsh-famling 共用的单一 canonical 文本与 SHA-256）。本节是全项目对外统一口径；与 §2 的 B1–B8 叠加适用、从严，不因“原型/占位/未上线/仅供测试”而豁免。
+
 ## 1. 适用法律清单（发布/运营前逐项对照）
 
 | # | 法律/规章 | 与本项目直接相关的义务 | 主要禁止 | 状态 |

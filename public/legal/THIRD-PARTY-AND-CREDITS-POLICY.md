@@ -1,7 +1,5 @@
 # 第三方素材与署名政策：台账、许可、发布 Gate — 草案
 
-> **2026-11-18 公开导出边界（本仓当前状态）**：本公开导出已按清理方案 A 移除全部预生成 TTS 音频（42 WAV + manifest）、游戏内容包（`packs/`）、DLC 校验链（`native/dlc-verify`）与未使用 kernel 模块；本导出**不随包分发任何音频 / DLC / 游戏基座**。下文历史统计（18/42 WAV、baked pack、随包授权等）保留作私有 mono-repo 的历史记录，**不代表本公开导出当前内容**；音频再分发条款仍为 TBD。
-
 > **状态：DRAFT · 2026-11-15 · 非法律意见。** 待用户 + 律师确认。本文规定“任何不是本项目原创的东西”如何登记、如何署名、何时不得发布；与根目录 [THIRD-PARTY.md](/legal/THIRD-PARTY.md)、[CREDITS.md](/legal/CREDITS.md)、[AI-PROVENANCE.md](/legal/AI-PROVENANCE.md)、`art/assets.csv` 联动。
 > 关联：[DLC-AND-PLUGIN-TERMS](/legal/DLC-TERMS.md) · [ASSET-REPLACEMENT-AND-MODDING-POLICY](/legal/ASSET-REPLACEMENT-AND-MODDING-POLICY.md) · [AI-CONTENT-POLICY](/legal/AI-CONTENT-POLICY.md) · [CONTRIBUTOR-TERMS](/legal/CONTRIBUTOR-TERMS.md)。
 

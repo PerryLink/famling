@@ -1,6 +1,6 @@
 # 声明矩阵：场景 × 适用声明 × 必须展示位置 × 是否需律师 — 草案
 
-> **状态：DRAFT · 2026-11-15（2026-11-17 增补场景 23–27、位置 P13–P16）· 非法律意见。** 待用户 + 律师确认。“需律师”列表示**该场景在对外发布前**应取得律师意见；不是“没有律师就不能内部开发”。法律基线见 [LEGAL-BASELINE](./LEGAL-BASELINE.md)；应用内短文本见 [APP-DISCLOSURE-TEXTS](./APP-DISCLOSURE-TEXTS.md)。
+> **状态：DRAFT · 2026-11-15（2026-11-17 增补场景 23–27、位置 P13–P16；2026-11-19 增补场景 28）· 非法律意见。** 待用户 + 律师确认。“需律师”列表示**该场景在对外发布前**应取得律师意见；不是“没有律师就不能内部开发”。法律基线见 [LEGAL-BASELINE](./LEGAL-BASELINE.md)；应用内短文本见 [APP-DISCLOSURE-TEXTS](./APP-DISCLOSURE-TEXTS.md)。
 > 用法：先在 §1 找到场景，按“适用声明”列去读对应文件；“展示位置”列是**最低要求**，少一处即视为未完成披露。
 > 上位：[README](./README.md) 优先级规则、[NOTICE](../../NOTICE)、[LICENSE-ART](../../LICENSE-ART)、[LEGAL-STATUS](../LEGAL-STATUS-2026-11-15.md)。
 
@@ -56,6 +56,9 @@
 | 25 | TTS 启用 / 变更 / 导出 | [TTS-TERMS](./TTS-TERMS.md) + [APP-DISCLOSURE-TEXTS](./APP-DISCLOSURE-TEXTS.md) `tts.*` | P8 P13 P14、导出文件标签 | **是** | 每次启用/切换 provider/音色确认；AI 标识；禁真人克隆；导出带标识 |
 | 26 | 第三方 Mod/DLC 加载或修改 | [DLC-AND-PLUGIN-TERMS](./DLC-AND-PLUGIN-TERMS.md) + [ASSET-REPLACEMENT-AND-MODDING-POLICY](./ASSET-REPLACEMENT-AND-MODDING-POLICY.md) + [APP-DISCLOSURE-TEXTS](./APP-DISCLOSURE-TEXTS.md) | P2 P11 P15 | **是** | 每次重新展示并确认；保留声明；不得移除安全/同意门禁；作者对内容/许可/来源负责 |
 | 27 | 危机 / 极端情绪 / 未成年人风险 | [CONTENT-POLICY](./CONTENT-POLICY.md) §3A + [TAKEDOWN-AND-REPORTING](./TAKEDOWN-AND-REPORTING.md) | P16 | **是** | 停止 roleplay；110/120/12356；不诊断不保密；涉未成年风险报告 |
+> **统一使用限制（2026-11-19）**：本项目及其全部代码、美术、音频、文案、角色素材和衍生物仅用于技术研究与原型验证，不得用于情感陪伴、虚拟伴侣、心理治疗/医疗/法律/金融建议、未成年人亲密关系、冒充真人/官方，或任何违反法律法规/平台规则的用途。
+
+| 28 | **统一使用限制（全场景，2026-11-19）** | [USE-RESTRICTIONS-2026-11-19](./USE-RESTRICTIONS-2026-11-19.md)（canonical 短句 + SHA-256）；叠加 TOS/CONTENT/AI 政策 | P1 P2 P3 P4 P13（全部入口） | **是** | 仅技术研究与原型验证；禁情感陪伴/虚拟伴侣/专业建议/未成年人亲密关系/冒充真人或官方/违法；任何入口不得漂移 |
 
 ## 3. 使用说明与失效条件
 
@@ -65,4 +68,4 @@
 4. 本表随政策增删同步修订；解释以 [README §2](./README.md) 优先级规则为准。
 5. 本表不构成法律意见，不保证覆盖所有法域；目标法域未定（中国为主，海外视渠道再评估）。
 
-> 草案 2026-11-15；2026-11-17 增补应用内声明/健康使用/TTS 确认/Mod 加载确认/危机场景；变更须记录日期与原因。
+> 草案 2026-11-15；2026-11-17 增补应用内声明/健康使用/TTS 确认/Mod 加载确认/危机场景；2026-11-19 增补场景 28（统一使用限制，canonical 见 USE-RESTRICTIONS-2026-11-19.md）；变更须记录日期与原因。

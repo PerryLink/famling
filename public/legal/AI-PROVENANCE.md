@@ -1,7 +1,5 @@
 # AI-PROVENANCE（AI 生成调用链与证据）· 草案
 
-> **2026-11-18 公开导出边界（本仓当前状态）**：本公开导出已按清理方案 A 移除全部预生成 TTS 音频（42 WAV + manifest）、游戏内容包（`packs/`）、DLC 校验链（`native/dlc-verify`）与未使用 kernel 模块；本导出**不随包分发任何音频 / DLC / 游戏基座**。下文历史统计（18/42 WAV、baked pack、随包授权等）保留作私有 mono-repo 的历史记录，**不代表本公开导出当前内容**；音频再分发条款仍为 TBD。
-
 > **状态：DRAFT（草案）— 待用户（PerryLink）+ 律师确认。** 快照：2026-11-15。
 > 本文件不是法律意见；它汇总**已有的生成元数据**，供 AI 披露、可版权性证据、相似度审查与许可证登记使用。
 > 不包含 API key / 凭据 / 账号 token。相关文件：`LICENSE-ART`、`CREDITS.md`、`THIRD-PARTY.md`、`docs/LEGAL-STATUS-2026-11-15.md`。
@@ -11,15 +9,15 @@
 
 | 来源 | 位置 | 内容 | 跟踪状态 |
 |---|---|---|---|
-| Orca 生成元数据 | `<private-path>\**\*.json`（19 个） | 每次调用的 `model / endpoint / called_at / params / prompt_sha256 / config_sha256 / body_sha256 / references[].sha256 / images[].sha256 / usage / cost_usd / elapsed_ms` | 仓外，未跟踪 |
-| Orca 输出图 | `<private-path>\**\*.png`（122 张，含 82 张像素帧） | 概念/立绘/设定/变体/像素化/预览 | 仓外，未跟踪 |
+| Orca 生成元数据 | `D:\Orca\**\*.json`（19 个） | 每次调用的 `model / endpoint / called_at / params / prompt_sha256 / config_sha256 / body_sha256 / references[].sha256 / images[].sha256 / usage / cost_usd / elapsed_ms` | 仓外，未跟踪 |
+| Orca 输出图 | `D:\Orca\**\*.png`（122 张，含 82 张像素帧） | 概念/立绘/设定/变体/像素化/预览 | 仓外，未跟踪 |
 | Pearl 生成元数据 | `art/_placeholder/refs/ai-drafts/*.json`（含 5 个 Pearl 阶段） | 同上；另 `gen-config.json` 保存部分 prompt 文本 | **gitignored**，未跟踪 |
 | 调用台账 | `art/_placeholder/refs/ai-drafts/calls-ledger.jsonl`（24 行） | 汇总成本与文件路径 | **gitignored**，未跟踪 |
 | 生成脚本 | `art/_placeholder/refs/ai-drafts/or-image-gen.mjs`（gitignored）、`scripts/voice-pilot.mjs`（TTS 首轮/补录生成 stella）、`scripts/bake-voice.mjs`（TTS manifest v2 维护/校验/增量生成；stella 补录与 21 句 tide 生成走其 `--generate`；默认 dry-run） | 参数/哈希记录逻辑 | 见上 |
 | TTS 记录 | `docs/VOICE-PILOT-RESULTS.md`、`public/assets/voice/pet/manifest.json`（v2，2026-11-17 起含 42 行逐文件 sha/bytes/duration/license/ai，stella+tide）、`scripts/bake-voice.mjs`、git 提交 | 音色/日期/句数/成本/逐文件校验 | tracked |
 
 **校验结果**：19 个 Orca 输出 PNG 与 5 个 Pearl 输出 PNG 的 sha256 **全部与元数据记录 MATCH**（2026-11-15 本机复核）。成本合计与 `calls-ledger.jsonl` 24 条记录一致（见 §2.3/§3.3）。
-**注意**：元数据中的 `file` 路径仍指向迁移前的 `art/_placeholder/refs/ai-drafts/`；图片已迁到 `<private-path>`，以 **sha256** 判定为同一文件（路径差异不代表内容差异）。
+**注意**：元数据中的 `file` 路径仍指向迁移前的 `art/_placeholder/refs/ai-drafts/`；图片已迁到 `D:\Orca`，以 **sha256** 判定为同一文件（路径差异不代表内容差异）。
 
 ## 1. 模型与调用方式（统一）
 
@@ -35,7 +33,7 @@
 
 ## 2. Orca OC 调用链（19 次记录，合计 **$1.198385**）
 
-> 时间均为 UTC（+08 = 本地）。输出 sha 为前缀（完整值见对应 `.json`）；`MATCH` = 与 `<private-path>` 磁盘文件 sha256 一致。
+> 时间均为 UTC（+08 = 本地）。输出 sha 为前缀（完整值见对应 `.json`）；`MATCH` = 与 `D:\Orca` 磁盘文件 sha256 一致。
 > 其中 2 组为同 prompt 重跑（`phase-orca-oc`、`orca-normal-front`，输出 sha 不同 ⇒ 是同提示词的再次生成，不是重复记录）。
 
 | # | phase | called_at (UTC) | aspect | 参考图数 | prompt sha256（前 12） | 输出 sha256（前 12） | 成本 USD | 校验 |
@@ -65,7 +63,7 @@
 ### 2.1 临时权威 v3 的完整记录（用户 2026-11-15 指定“暂时为准”）
 
 ```text
-文件            <private-path>\oc-revisions\orca-nostreak-v3-20261115-091849.png
+文件            D:\Orca\oc-revisions\orca-nostreak-v3-20261115-091849.png
 尺寸/透明度     1024×1536 PNG，has_alpha=true，1,113,951 B
 prompt_sha256   418cea769eed3d865e73d819c7243cf76f83e7b7cbb8c522f0f0720c508db2c1
 prompt_chars    2815
@@ -88,7 +86,7 @@ note（脚本通用）  "AI draft for internal evaluation only; not final art; r
 
 | 处理 | 工具/脚本 | 脚本 sha256（前 16） | 备注 |
 |---|---|---|---|
-| 像素化 128 pack | `art/_placeholder/refs/tools/ai_hero_pipeline.py`（gitignored） | `5a73493b8306489e` | 生成 `<private-path>\pixel\pack-orca-128*`；`pipeline-result.json` 记 PASS/36 帧/bbox/色数 |
+| 像素化 128 pack | `art/_placeholder/refs/tools/ai_hero_pipeline.py`（gitignored） | `5a73493b8306489e` | 生成 `D:\Orca\pixel\pack-orca-128*`；`pipeline-result.json` 记 PASS/36 帧/bbox/色数 |
 | 像素化 128（自定义调色板） | `art/_placeholder/refs/tools/ai_hero_pipeline_128.py` | `3c3ee15d68cd538f` | 同上 |
 | 蓝色调色 | `art/_placeholder/refs/tools/blue_orca_grade.py` | `374608f58a291c05` | 13 张原图本地确定性调色，无新 AI 调用 |
 | 通用像素化 | `scripts/pixelize.py`（tracked） | `efa5c217aac142ac` | |
@@ -101,7 +99,7 @@ note（脚本通用）  "AI draft for internal evaluation only; not final art; r
 ### 2.3 成本交叉核对
 
 - Orca 19 条：$1.198385；Pearl 5 条：$0.31249；合计 **$1.510875** = `calls-ledger.jsonl` 24 条成本求和（精确一致）。
-- `<private-path>\README.md` 的 “$0.282434（早期 5 次）” 是上述 #1–#5 的子集：0.055210+0.050832+0.062865+0.062935+0.050592 = 0.282434。
+- `D:\Orca\README.md` 的 “$0.282434（早期 5 次）” 是上述 #1–#5 的子集：0.055210+0.050832+0.062865+0.062935+0.050592 = 0.282434。
 - 价格快照为 2026-11-14/15 的 OpenRouter 记录；后续以账单为准。
 
 ## 3. Pearl 调用链（5 次记录，合计 **$0.31249**）— 仅内部，**不可发布**
@@ -118,7 +116,7 @@ note（脚本通用）  "AI draft for internal evaluation only; not final art; r
 - Pearl prompt 文本部分保存在 `gen-config.json`（如 `phase-a` / `phase-b` / `phase-a-128*` 的完整 prompt）；Orca prompt 文本**未见落盘**（只有 sha/字符数，见 §5 缺口）。
 - 输出 sha 与本地 `ai-drafts/*.png` 同样全部 MATCH；文件在 gitignored 目录。
 
-## 4. 语音（TTS）生成链 — 非图像，内部占位（**2026-11-18：公开导出已移除全部 WAV/manifest**）
+## 4. 语音（TTS）生成链 — 非图像，内部占位
 
 | 项 | 值 |
 |---|---|
@@ -155,7 +153,7 @@ note（脚本通用）  "AI draft for internal evaluation only; not final art; r
 
 ### 6.1 每条生成记录的 JSONL 模板
 
-建议文件：`provenance/orca.jsonl`（**未来新增，本草案未创建该文件**；仓外可先放 `<private-path>\provenance\`）。一条一行：
+建议文件：`provenance/orca.jsonl`（**未来新增，本草案未创建该文件**；仓外可先放 `D:\Orca\provenance\`）。一条一行：
 
 ```json
 {

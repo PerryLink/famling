@@ -1,36 +1,42 @@
 {
   "schema": 1,
-  "generatedBy": "public cleanup 2026-11-18 (destination hashes refreshed by hand; source legal-check.mjs is not part of this export)",
+  "generatedBy": "scripts/legal-check.mjs --sync",
   "documents": [
     {
       "source": "docs/legal/TOS.md",
       "dest": "TOS.md",
       "required": true,
-      "sha256": "63f360886c6fa42b4e72081ec68bafc829e1d35db0125ca3a8ab7d79c45e2707"
+      "sha256": "856158e75bb23df46c7a8190bc35238478a6d104d4f70646c3f2b9a5b8f80716"
     },
     {
       "source": "docs/legal/PRIVACY.md",
       "dest": "PRIVACY.md",
       "required": true,
-      "sha256": "a89eb8f92b0284bdd61fa86d71329b490292a8db16cf7953f53cee673873d5f4"
+      "sha256": "7f29da99b9b23409e688e105dc2a83eb3403616aba0585ae1aa5eed436cc1fc8"
     },
     {
       "source": "docs/legal/AI-LABELING.md",
       "dest": "AI-LABELING.md",
       "required": true,
-      "sha256": "d148b8e51a06507697f3caf20d19eb43394a83692069050e48880956091deac5"
+      "sha256": "5d64cd6947004fae9cefccd64072bcde2c0c4fd09c30e1a34a2cf6ae2b40f060"
+    },
+    {
+      "source": "docs/legal/USE-RESTRICTIONS-2026-11-19.md",
+      "dest": "USE-RESTRICTIONS-2026-11-19.md",
+      "required": true,
+      "sha256": "cbd95d7e13232709ed0b0c7ce64d206dfe2eaab9a1ddfed6a0c2c4d380f4c2b7"
     },
     {
       "source": "docs/legal/TTS-TERMS.md",
       "dest": "TTS-TERMS.md",
       "required": true,
-      "sha256": "f68b2d1fde5f0e00848bf2afae8564e3ded7c9b951da1625d8c7de5167fc6c81"
+      "sha256": "d63ea18b180728e430420aabfbb0746b6537fc60935da126330d8b8ec2fcc199"
     },
     {
       "source": "docs/legal/DLC-AND-PLUGIN-TERMS.md",
       "dest": "DLC-TERMS.md",
       "required": true,
-      "sha256": "44729bdeeaae84358045e261f71262d196e4373220103926f06ff858c6700e93"
+      "sha256": "50ed294b9402f7e80dfacf03e08284dba7c6c5fe8691d4566c01a06f602c2b08"
     },
     {
       "source": "docs/legal/TAKEDOWN-AND-REPORTING.md",
@@ -42,20 +48,19 @@
       "source": "SECURITY.md",
       "dest": "SECURITY.md",
       "required": true,
-      "sha256": "31da534972d5681201f840af8d34fc15c6981b7a5600a426dd7f3b386e31677e",
-      "sourceMissing": true
+      "sha256": "31da534972d5681201f840af8d34fc15c6981b7a5600a426dd7f3b386e31677e"
     },
     {
       "source": "DECLARATIONS.md",
       "dest": "DECLARATIONS.md",
       "required": true,
-      "sha256": "47a018a5604412995979269ba68485c13441b5d846b50279b8f7327e45fe1bf5"
+      "sha256": "ac473a6c214003b1585e6a5b139bbf41675cc6b143e35646aefe286b6a96fbd8"
     },
     {
       "source": "NOTICE",
       "dest": "NOTICE",
       "required": true,
-      "sha256": "67e807a3e6d68a625d07cf35dcb6664831ed975fa034de2e6313f9f83aa90703"
+      "sha256": "9e610be443bedef6f5071adc62ff7e5631bbc2374ce3e1edd8936925798467e6"
     },
     {
       "source": "LICENSE-ART",
@@ -73,38 +78,43 @@
       "source": "LICENSE-COMMERCIAL.md",
       "dest": "LICENSE-COMMERCIAL.md",
       "required": true,
-      "sha256": "d83fe269409e2f31917222d8a1a159ba277aba32ce70f5ca715ee5e8d80639bc"
+      "sha256": "32b5d9b51c8ea193c7f73adee5ab98a8296f56c1b2d9a655c30297524359561a"
     },
     {
       "source": "CREDITS.md",
       "dest": "CREDITS.md",
       "required": true,
-      "sha256": "de9ce7eeb7447eac5f82e1ee8c889b4615046e2d085d0d86bf1790768f7e5070"
+      "sha256": "c1824c1234220bcdf418710b5aab2f26f59816f8c98f2a6509c214f215de149a"
     },
     {
       "source": "THIRD-PARTY.md",
       "dest": "THIRD-PARTY.md",
       "required": true,
-      "sha256": "8d2aa680708443bc186707c396ed792dfbab1b1d695f3122cd33e5e64711201c"
+      "sha256": "5180267b1a3dfc46f9e27c021ca169e6202851cb75a4edfae0de8c9bfc4daf3a"
     },
     {
       "source": "AI-PROVENANCE.md",
       "dest": "AI-PROVENANCE.md",
       "required": true,
-      "sha256": "e3dadcd4ed4f8507fdd4bd3a7925f786b3559088cd8c698321d1298f177cacfa"
+      "sha256": "eb12e87a0d6def69c10b229a41cc6f33c65be8c6d5add2e0b31ec455b0a24db7"
     },
     {
       "source": "docs/legal/AI-CONTENT-POLICY.md",
       "dest": "AI-CONTENT-POLICY.md",
       "required": true,
-      "sha256": "351ae84348b7f37ce4a7b09ba3fa1f9a3b2410e09a30b9cd12893f68c6df8896"
+      "sha256": "762081da142fbc62958882dc498c7fc33f94fa85f912f85340579f62e17d12d7"
     },
     {
       "source": "docs/research/AI-COMPANION-REGULATION-2026-11-16.md",
       "dest": "AI-COMPANION-REGULATION-2026-11-16.md",
       "required": true,
-      "sha256": "376be7496f79bbe45a838538f945ff56d1d776c175d390fb44e3b00647b2c1ee",
-      "sourceMissing": true
+      "sha256": "376be7496f79bbe45a838538f945ff56d1d776c175d390fb44e3b00647b2c1ee"
+    },
+    {
+      "source": "docs/legal/ADVISERS-EXTERNAL-PERSONA-2026-11-18.md",
+      "dest": "ADVISERS-EXTERNAL-PERSONA-2026-11-18.md",
+      "required": false,
+      "sha256": "edd1f91dd001da5ab92fda0e7aa598822b838073e619045420fdf25d2c647a93"
     },
     {
       "source": "docs/legal/APP-DISCLOSURE-TEXTS.md",
@@ -116,7 +126,7 @@
       "source": "docs/legal/APPROVALS.md",
       "dest": "APPROVALS.md",
       "required": false,
-      "sha256": "1c0def8eb48a4b0ea95bd31ebf48b3cafefad019c6e02aa3c55067f1d8fdce9b"
+      "sha256": "1d66361a1b6d98f11c40f4f3b83446e340bfc04c38dbfa409725e5af835b211e"
     },
     {
       "source": "docs/legal/ASSET-REPLACEMENT-AND-MODDING-POLICY.md",
@@ -146,7 +156,7 @@
       "source": "docs/legal/DECLARATION-MATRIX.md",
       "dest": "DECLARATION-MATRIX.md",
       "required": false,
-      "sha256": "090b8e805ecb0ac3cb83a887feec209c64ae304d8601cf94a3bd31491769522a"
+      "sha256": "2e85977d87a70d70b13e77cdec9d8c93a356b7dceb3163c8163becf5e6d66073"
     },
     {
       "source": "docs/legal/FANWORK-POLICY.md",
@@ -158,19 +168,19 @@
       "source": "docs/legal/LEGAL-BASELINE.md",
       "dest": "LEGAL-BASELINE.md",
       "required": false,
-      "sha256": "f4f66c9b2609d9a5ba34c08ffe5766e3cea366ebef64d40fc645e479ca2f6ec1"
+      "sha256": "c227913fb6d9ef0cf8835780da28be2318d165aadad07e3a94c27339418d3e6c"
     },
     {
       "source": "docs/legal/README.md",
       "dest": "README.md",
       "required": false,
-      "sha256": "2716208c0060e4eb35bd0673e4b608ae51497eaef5fda3e3dcd69f7f350fb2a7"
+      "sha256": "182ce7014ae4d5f8d6389c02e1736af860695e46d86fda80171e57aebf3f0051"
     },
     {
       "source": "docs/legal/RELEASE-BLOCKERS.md",
       "dest": "RELEASE-BLOCKERS.md",
       "required": false,
-      "sha256": "55c8e235f95cf4b263a4f0eb221162e054b7f7295ccf7e28a1cb31a2738b90bc"
+      "sha256": "9cfdc33fbd1e66a4f719e979bf3b68aed6d88452eba3402a55321c09b29ee826"
     },
     {
       "source": "docs/legal/SAFETY.md",
@@ -188,13 +198,13 @@
       "source": "docs/legal/SIMULATED-REVIEW-2026-11-17.md",
       "dest": "SIMULATED-REVIEW-2026-11-17.md",
       "required": false,
-      "sha256": "687faacd118d574b3e9fc0cd2722c0e2b1a210824a5923df67ae5bac785d11bc"
+      "sha256": "545a1a1e5f3ee1ff23f603e5cf963a227ee4d4d3cdb863dbb730ea5c6106c29a"
     },
     {
       "source": "docs/legal/THIRD-PARTY-AND-CREDITS-POLICY.md",
       "dest": "THIRD-PARTY-AND-CREDITS-POLICY.md",
       "required": false,
-      "sha256": "30b70b7d10aa718d9ad73b7ad1c47d35c4267ce9cb553f67b52d0e18bfae314c"
+      "sha256": "008231199fe6c4df47b022735a2680b33e71d102616861f386bd8d48aacf1a41"
     },
     {
       "source": "docs/legal/TRADEMARK-AND-NAMING-POLICY.md",
@@ -202,6 +212,5 @@
       "required": false,
       "sha256": "a3abe842c4618ea6df8f6ec697cbdb1772ec75a47a65c2379dad2b3d146e08ee"
     }
-  ],
-  "note": "Historical review snapshots keep their original wording; current shipped statements carry a 2026-11-18 public-export boundary block."
+  ]
 }

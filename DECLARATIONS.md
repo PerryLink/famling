@@ -1,8 +1,9 @@
 # DECLARATIONS — 声明总入口
 
-> **2026-11-18 公开导出边界（本仓当前状态）**：本公开导出已按清理方案 A 移除全部预生成 TTS 音频（42 WAV + manifest）、游戏内容包（`packs/`）、DLC 校验链（`native/dlc-verify`）与未使用 kernel 模块；本导出**不随包分发任何音频 / DLC / 游戏基座**。下文历史统计（18/42 WAV、baked pack、随包授权等）保留作私有 mono-repo 的历史记录，**不代表本公开导出当前内容**；音频再分发条款仍为 TBD。
-
 Status: **DRAFT · 2026-11-17 · 非法律意见。** 许可方向由用户（PerryLink）2026-11-16 决定；**律师审查暂缓**；本文与各处声明在律师定稿前不得称“已审核/已合规/已发布”。**2026-11-17.5 用户拍板年龄口径为“一般功能全年龄 + 角色扮演/情感陪伴仅限 18+”，首次启动须自报出生日期完成年龄核验**（非官方身份证核验；未成年人可用一般功能但不能启动 roleplay；内容仍须全年龄适宜，健康/危机/未成年人保护保留；旧“全年龄、不设年龄门”口径作废）。**2026-11-17.4 用户口径：自由 LLM roleplay/情感陪伴是使用者参照工作助手（秘书）用法自行创造/延伸的用法，不是官方功能；官方不提供、不鼓励并明确反对，只尽合理提醒与安全设计义务，用户自行接入第三方模型/客户端或修改后版本须自担责任与法律后果，官方不承诺完全阻止、不背书、不得冒充官方。** 本文件把许可、法律基线、内容红线、AI、TTS、roleplay、健康使用、DLC/二创、商标、安全与举报集中索引；冲突时按 [docs/legal/README.md](docs/legal/README.md) 的优先级处理。
+
+> ⚠️ **统一使用限制（必读，2026-11-19）**：本项目及其全部代码、美术、音频、文案、角色素材和衍生物仅用于技术研究与原型验证，不得用于情感陪伴、虚拟伴侣、心理治疗/医疗/法律/金融建议、未成年人亲密关系、冒充真人/官方，或任何违反法律法规/平台规则的用途。
+> 完整说明（单一 canonical 文本）：[docs/legal/USE-RESTRICTIONS-2026-11-19.md](docs/legal/USE-RESTRICTIONS-2026-11-19.md)。该文件是 **famling 与 dsh-famling 共用**的唯一规范表述；本入口、README 首屏、TOS/LEGAL、`public/legal/` 与插件 README/LEGAL 的短句必须与其逐字一致，不得漂移。
 
 ## 0. 公开仓与身份
 
@@ -109,6 +110,6 @@ Status: **DRAFT · 2026-11-17 · 非法律意见。** 许可方向由用户（Pe
 - **仍 DRAFT**：本文件、docs/legal 全部政策、LICENSE-ART、NOTICE 均为草案；律师审查暂缓；不得称已审核。
 - **需用户拍板**：产品名（商标检索前不改公开名）；roleplay 面向地区/是否对外宣传；是否收费/上架；未成年人模式方案。**已拍板（2026-11-17.5）**：年龄口径 = **一般功能全年龄可用、roleplay/情感陪伴仅限 18+（首启自报出生日期核验，非官方身份证核验）**（覆盖旧“全年龄、不设年龄门”口径）。**已拍板（2026-11-17.4）**：自由 LLM 角色扮演/情感陪伴属用户自创用法、非官方功能；官方不提供/不鼓励、无法强制阻止、只尽提醒义务，用户自行接入自担责任与后果（TOS §六之二）。
 - **需律师**：L1–L11 适用与罚则；拟人化“提供者”定性/安全评估/算法备案；TTS 供应商再分发条款；DLC 收费合同与责任分配；跨境与强制报告；隐私政策/消费者条款/年龄识别；**用户自行接入/修改后行为的责任边界与“只尽提醒义务/不承担法律后果”措辞的可执行性（2026-11-17.4 新增）**。
-- **工程待闭环**：应用内首启/About/2h/TTS 确认/Mod 加载确认的运行时实现（文案已 canon，代码在独立任务）；ASR 告知/同意/开关/配额（或发布版关闭云 ASR）；撤回同意+删除全部本地数据；公开导出（2026-11-18 起）不含任何 TTS 音频（baked pack 已移除）；`dist/`/旧 artifacts 残留未清权音频在私有仓侧核验清理；安装包声明清单（LICENSE-ART/CREDITS/THIRD-PARTY/AI-PROVENANCE/隐私政策）待补；AI 隐式/导出/音频标识待实现。详见 [docs/legal/RELEASE-BLOCKERS.md](docs/legal/RELEASE-BLOCKERS.md) 与 [docs/legal/review-2026-11-17/00-PATCH-PLAN.md](docs/legal/review-2026-11-17/00-PATCH-PLAN.md)。
+- **工程待闭环**：应用内首启/About/2h/TTS 确认/Mod 加载确认的运行时实现（文案已 canon，代码在独立任务）；ASR 告知/同意/开关/配额（或发布版关闭云 ASR）；撤回同意+删除全部本地数据；18 WAV 未清权不得随包；`dist/`/旧 artifacts 残留未清权音频须核验清理；安装包声明清单（LICENSE-ART/CREDITS/THIRD-PARTY/AI-PROVENANCE/隐私政策）待补；AI 隐式/导出/音频标识待实现。详见 [docs/legal/RELEASE-BLOCKERS.md](docs/legal/RELEASE-BLOCKERS.md) 与 [docs/legal/review-2026-11-17/00-PATCH-PLAN.md](docs/legal/review-2026-11-17/00-PATCH-PLAN.md)。
 - **批准台账**：[docs/legal/APPROVALS.md](docs/legal/APPROVALS.md)（当前全部空白/待签；不入台账=未批准）；合并审查总表：[docs/legal/review-2026-11-17/00-CONSOLIDATED-LEGAL-REVIEW.md](docs/legal/review-2026-11-17/00-CONSOLIDATED-LEGAL-REVIEW.md)。
-- **已修正的旧矛盾（2026-11-17）**：NOTICE 旧“Famling 层 intended Apache-2.0”已删除并标注被 2026-11-16 PolyForm NC 决定取代；`LICENSE-ART` 生效状态表述统一；Pearl 37 个占位文件“随 dist 分发 vs 声明 not distributed”矛盾改为如实描述；TTS 18 WAV 状态统一为“再分发未确认、构建默认剔除、旧产物须核验”；`<private-path>` 绝对路径与 rustup 过时句已移除。详见 [docs/audit/LEGAL-DOCS-UPDATE-2026-11-17.md](docs/audit/LEGAL-DOCS-UPDATE-2026-11-17.md)。
+- **已修正的旧矛盾（2026-11-17）**：NOTICE 旧“Famling 层 intended Apache-2.0”已删除并标注被 2026-11-16 PolyForm NC 决定取代；`LICENSE-ART` 生效状态表述统一；Pearl 37 个占位文件“随 dist 分发 vs 声明 not distributed”矛盾改为如实描述；TTS 18 WAV 状态统一为“再分发未确认、构建默认剔除、旧产物须核验”；`D:\Orca` 绝对路径与 rustup 过时句已移除。详见 [docs/audit/LEGAL-DOCS-UPDATE-2026-11-17.md](docs/audit/LEGAL-DOCS-UPDATE-2026-11-17.md)。

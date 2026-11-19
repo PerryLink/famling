@@ -1,7 +1,5 @@
 # CREDITS（署名与致谢）· 草案
 
-> **2026-11-18 公开导出边界（本仓当前状态）**：本公开导出已按清理方案 A 移除全部预生成 TTS 音频（42 WAV + manifest）、游戏内容包（`packs/`）、DLC 校验链（`native/dlc-verify`）与未使用 kernel 模块；本导出**不随包分发任何音频 / DLC / 游戏基座**。下文历史统计（18/42 WAV、baked pack、随包授权等）保留作私有 mono-repo 的历史记录，**不代表本公开导出当前内容**；音频再分发条款仍为 TBD。
-
 > **状态：DRAFT（草案）— 待用户（PerryLink）+ 律师确认。** 快照：2026-11-15。
 > 本文件不是法律意见；许可条款以 `LICENSE`（代码，现状 PolyForm Noncommercial 1.0.0）、
 > `LICENSE-ART`（Orca OC/桌宠美术，CC BY-NC-SA 4.0；用户 2026-11-16 决定，律师暂缓）、`THIRD-PARTY.md`（第三方）为准。
@@ -52,7 +50,7 @@
 |---|---|
 | **T**itle | Orca OC v3（工作名） |
 | **A**uthor | PerryLink |
-| **S**ource | `<private-path>`（仓外；公开 URL 待定） |
+| **S**ource | `D:\Orca`（仓外；公开 URL 待定） |
 | **L**icense | CC BY-NC-SA 4.0 — https://creativecommons.org/licenses/by-nc-sa/4.0/（SPDX：`CC-BY-NC-SA-4.0`） |
 | Copyright | © 2026 PerryLink |
 | **Mod** | 是/否 + 具体改动 |
@@ -78,12 +76,12 @@
 
 | 资产 | 位置（当前） | 来源/生成方式 | 许可 | 可发布？ |
 |---|---|---|---|---|
-| Orca OC 概念/正常头身/设定图/变体/蓝虎鲸重设计/修订版 | `<private-path>\concept\|normal\|sheets\|variants\|blue-orca-redesign\|oc-revisions\`（仓外） | AI 生成（`openai/gpt-image-2.6-sunburst` via OpenRouter Images API，2026-11-14/15）+ 作者筛选/提示词迭代；参考图仅 Orca 自产图 | `LICENSE-ART` CC BY-NC-SA 4.0 | 用户 2026-11-16 决定；律师暂缓；CC0 部分见 ASSET-LICENSES |
-| Orca 像素化 CharacterPack | `<private-path>\pixel\pack-orca-128\`、`pack-orca-128-custom\`（仓外） | 本地确定性像素化管线（`pixelize` / `ai_hero_pipeline*`，无新 AI 调用） | 同上（改编产物） | 同上 |
-| Orca 蓝虎鲸调色版 | `<private-path>\blue-orca\`（仓外） | 本地确定性调色（`blue_orca_grade.py`，无新 AI 调用） | 同上（改编产物） | 同上 |
+| Orca OC 概念/正常头身/设定图/变体/蓝虎鲸重设计/修订版 | `D:\Orca\concept\|normal\|sheets\|variants\|blue-orca-redesign\|oc-revisions\`（仓外） | AI 生成（`openai/gpt-image-2.6-sunburst` via OpenRouter Images API，2026-11-14/15）+ 作者筛选/提示词迭代；参考图仅 Orca 自产图 | `LICENSE-ART` CC BY-NC-SA 4.0 | 用户 2026-11-16 决定；律师暂缓；CC0 部分见 ASSET-LICENSES |
+| Orca 像素化 CharacterPack | `D:\Orca\pixel\pack-orca-128\`、`pack-orca-128-custom\`（仓外） | 本地确定性像素化管线（`pixelize` / `ai_hero_pipeline*`，无新 AI 调用） | 同上（改编产物） | 同上 |
+| Orca 蓝虎鲸调色版 | `D:\Orca\blue-orca\`（仓外） | 本地确定性调色（`blue_orca_grade.py`，无新 AI 调用） | 同上（改编产物） | 同上 |
 | 桌宠占位 CharacterPack（cat/dog/pearl） | `public/assets/pet/*-placeholder/`（tracked，108 PNG） | `scripts/placehold.py` 确定性渲染（无图像模型） | 本项目占位素材（placeholder-only，非最终美术） | 可随开发版；发布前替换/标注 |
 | 星露谷式头像/场景占位 | `art/_placeholder/`（gitignored） | `scripts/placehold.py` | 内部占位 | 不发布 |
-| TTS 语音 pilot（历史 18→42 WAV；**公开导出已移除，不随包**） | （私有仓历史路径 `public/assets/voice/pet/*.wav`，本公开仓不含音频） | **DeepSeek TTS API，voice `stella`**，2026-11-14 | 第三方服务输出；条款待上游确认（`THIRD-PARTY.md` §2） | **开发占位，非最终语音**；商用/再分发前需确认条款 |
+| TTS 语音 pilot（18 个 WAV） | `public/assets/voice/pet/*.wav`（tracked；1,588,632 B） | **DeepSeek TTS API，voice `stella`**，2026-11-14 | 第三方服务输出；条款待上游确认（`THIRD-PARTY.md` §2） | **开发占位，非最终语音**；商用/再分发前需确认条款 |
 | 应用截图 | `docs/assets/*.png`（20 张）、`docs/look-test/*.png` | 本项目自建应用截图（Chrome/Electron/Tauri headless） | 项目自有（随代码/文档许可；代码层为 PolyForm NC） | 可（不含敏感信息/第三方图） |
 | 风格板/contact sheet | `art/_style/refs/*.png` | 本项目占位脚本生成 | 项目自有 | 可（占位标注） |
 | 贴图调色板 | `art/_style/palettes/*.hex` | 本项目自有 | 颜色本身不受版权保护 | 可（对外勿称 “DSH 蓝”，改称 orca blue/ocean blue） |
@@ -94,7 +92,7 @@
 | Steamworks SDK | 不在仓内 | Valve 专有 | 专有 | 不提交、不随公开构建分发 |
 | 社区参考图（Pearl 占位） | `docs/look-test/ref-preview.html` 引用本地图 | 同上 | 内部 | 不发布 |
 
-> 说明：`<private-path>` 与 `art/_placeholder/refs/` 都在本仓库之外或 gitignore 内；本仓库当前**没有跟踪任何 Orca 图片**（实测 `git ls-files art` 仅规范/模板/调色板）。发布前需再做一次“跟踪资产扫描”。
+> 说明：`D:\Orca` 与 `art/_placeholder/refs/` 都在本仓库之外或 gitignore 内；本仓库当前**没有跟踪任何 Orca 图片**（实测 `git ls-files art` 仅规范/模板/调色板）。发布前需再做一次“跟踪资产扫描”。
 
 ## 5. 贡献者与 AI 工具披露
 

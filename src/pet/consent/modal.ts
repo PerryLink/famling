@@ -282,6 +282,15 @@ const TOS_FOOTNOTE =
   '同意记录（时间/动作/版本/哈希）只用于审计，不构成对后续修改、DLC、TTS 的豁免。按 Escape、点击遮罩或关闭窗口都不视为同意。'
 
 /**
+ * Unified use-restriction notice shown as an independent red block in every
+ * full-TOS prompt, ABOVE the scrollable terms and the consent checkbox. This is
+ * UI copy only: it does not change the TOS text/version/hash (no re-consent
+ * churn) and never substitutes for the checkbox + explicit accept activation.
+ */
+const USE_RESTRICTIONS_SHORT =
+  '本项目及其全部代码、美术、音频、文案、角色素材和衍生物仅用于技术研究与原型验证，不得用于情感陪伴、虚拟伴侣、心理治疗/医疗/法律/金融建议、未成年人亲密关系、冒充真人/官方，或任何违反法律法规/平台规则的用途。'
+
+/**
  * Full TOS + disclaimer prompt. Resolves `'accept'` ONLY after the checkbox is
  * checked and the accept button is activated; every other exit is `'decline'`.
  */
@@ -326,6 +335,22 @@ export function showTosDialog(doc: Document, prompt: TosPrompt): Promise<'accept
       dialog.append(detail)
     }
     if (prompt.storageWarning) dialog.append(node(doc, 'p', 'consent-storage-warning', prompt.storageWarning))
+
+    // Independent red use-restriction block: visible before the terms scroll and
+    // before the consent checkbox, in every full-TOS prompt (first-run, upgrade,
+    // per-action DLC/import/TTS-adjacent prompts). Text only, no innerHTML.
+    const useRestrictions = node(doc, 'div', 'consent-use-restrictions')
+    useRestrictions.setAttribute('role', 'note')
+    useRestrictions.setAttribute('aria-label', '使用限制（必读）')
+    useRestrictions.style.border = '2px solid #a63d35'
+    useRestrictions.style.background = '#fff6f5'
+    useRestrictions.style.color = '#7a1f1a'
+    useRestrictions.style.padding = '8px 10px'
+    useRestrictions.style.margin = '10px 0'
+    useRestrictions.style.borderRadius = '6px'
+    useRestrictions.append(node(doc, 'strong', undefined, '使用限制（必读）：'))
+    useRestrictions.append(node(doc, 'span', undefined, USE_RESTRICTIONS_SHORT))
+    dialog.append(useRestrictions)
 
     const tos = node(doc, 'div', 'consent-tos')
     tos.id = ids.tos

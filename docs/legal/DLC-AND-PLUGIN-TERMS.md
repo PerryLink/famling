@@ -8,7 +8,7 @@
 
 | 类型 | 形态 | 现状 |
 |---|---|---|
-| 内容包 Content Pack | `manifest.json`（id/name/version/contentApi/minBase/files+sha256/Ed25519）+ `content.json` + `signature.txt` | **本公开导出不含内容包**（`packs/farm-seasons`、`packs/reef-pack` 已于 2026-11-18 移除）；loader/校验链仅保留为私有仓历史说明，不随包、不加载 |
+| 内容包 Content Pack | `manifest.json`（id/name/version/contentApi/minBase/files+sha256/Ed25519）+ `content.json` + `signature.txt` | 已有 `packs/reef-pack`、`packs/farm-seasons`；loader 只读校验，不执行 |
 | 角色包 Character Pack | 外壳 `manifest.json` + `character.json`（FCI 0.1/0.2：license、ai、render、minRuntime）+ 图集/音频 | 纯数据；**任何** `script/eval/code/execute/permissions` 键在任意嵌套层被拒绝 |
 | DLC | 经签名/哈希校验的内容包（可收费，需另行协议） | 分发走本地目录（dlc/packs/steamapps），无商店/自动更新 |
 | 插件/渲染器 | 可执行扩展 | **仅第一方、构建期 allowlist**；不提供第三方执行入口 |
