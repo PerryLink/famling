@@ -105,4 +105,14 @@
 5. 用 `validateContentPackV2` + `validatePackZip` 自检（见 `docs/content-packs/README.md` §5）。
 6. zip：`pack.json` 在根、素材在 `assets/`，对外分发前确认素材权利。
 
+
+## 9. 新 rig 动画资产包 0.2（可选进阶）
+
+上面 §1–§5 的 96×96 / 12 clip / 72 帧 帧预算同时是 `famling.pet-anim/0.2`（**新动画/新 rig** 资产包）的帧预算依据：
+
+- 规范全文：`docs/content-packs/ANIM-PACK-0.2.md`（zip 布局、12 clip canonical 表、voice/audio/behavior/regions、安装器 PLAN、负向红线）；
+- 本角色的 anim 示例：`docs/content-packs/examples/cat.anim.example.pack.json`（72 帧占位清单，可直接 `validateCharacterPackV2`；sha256 是占位值，真实素材须重算）；
+- 只换皮肤/声音/对话/配色 → 用 `famling.content-pack/0.2` 主题包（§8）；只有要交付**新动画帧/新 rig**才用 pet-anim；
+- **边界（诚实文案）**：pet-anim 的 loader/数据驱动注册表/热切换（MB-041）与真实安装器（MB-042）**未实现**，实现前不要对外宣称可安装新角色。
+
 > 本文件是工程参考，不构成法律意见。

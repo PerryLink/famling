@@ -5,6 +5,7 @@
 > 唯一校验实现：'src/pet/content-library.ts'；回归测试：'tests/content-library.test.ts' + 'tests/content-pack-v2.test.ts'。
 > 本目录只放**声明式数据**（JSON + 本地图片/文本）。0.2 不联网、不执行脚本、不加载 HTML。
 > 第三方设计参考 / 内容包规范 / 示例：'docs/content-packs/'（HUMAN / CAT / DOG 三份参考 + examples）。
+> 新 rig 动画资产包：'famling.pet-anim/0.2' —— **spec/校验/安装器 PLAN 契约已落地，loader/注册表/热切换/真实安装器未实现**，见 'docs/content-packs/ANIM-PACK-0.2.md'。
 
 famling（独立桌宠应用）与 dsh-famling（DSH 插件）共用这一份目录与选择语义：**角色主题**（一键切换角色/声音/对话/行为/外观）+ 六个可选组件（角色、语音、对话包、主题、背景、字体）。两个产品各自保留 UI，只消费同一套数据。
 
@@ -322,12 +323,37 @@ my-character-theme.zip
 
 三个可直接校验的示例（占位资产引用，不加载）：'docs/content-packs/examples/{human,cat,dog}.example.pack.json'，配套设计参考 'HUMAN/CAT/DOG-DESIGN-REFERENCE.md'（96×96、12 clip、68/72 帧、地线 y=89、调色/剪影/动作/语气/禁止事项）。
 
+### 3.7 角色动画资产包 0.2（'famling.pet-anim/0.2'；spec 层，新 rig）
+
+内容包 0.2（角色主题）只能复用内置 rig；**新 rig/新动画**走独立的 'famling.pet-anim/0.2' payload（两套 schema 并存，只共享 envelope）。规范全文见 [docs/content-packs/ANIM-PACK-0.2.md](../../docs/content-packs/ANIM-PACK-0.2.md)，人/猫/狗示例见 'docs/content-packs/examples/{human,cat,dog}.anim.example.pack.json'。
+
+~~~text
+my-character-anim.zip
+  pack.json                        # famling.pet-anim/0.2：spec + animations(12 clip) + voice + behavior + regions + 声明 + files(sha256)
+  LICENSE.md / DESIGN.md           # 可选根目录文档白名单
+  assets/anim/<clip>/<clip>_NN.png # 12 clip 帧，命名固定；PNG only
+  assets/preview/<name>.png|webp   # 必需预览
+  assets/audio/sfx/*.ogg           # 可选；audio.redistribution.confirmed=true 才允许
+  assets/audio/voice/*.ogg         # 可选；仅 humanoid；cat/dog 永不 baked voice
+~~~
+
+硬约束摘要：
+
+- 12 个 canonical clip 全量（idle/idle_blink/walk/run/pat_head/ball_throw/ball_chase/paw_face/scratch/stand_wag/chase_tail/attack）；loop/layer/category/priority 固定，作者只改 frames/fps/holdMs；
+- 'voice' 按 kind 固定：humanoid = tts/speech，cat/dog = none/thought；
+- 'behavior' 复用 'famling.behavior/0.1'，'regions' 复用 regions v1；事件必须能在 behavior.slots 声明，避免死交互；
+- 音频仅 OGG（Opus）；任何音频文件都需要 'audio.redistribution.confirmed: true'（D8 再分发权硬门）；
+- zip 上限/路径/sha256 校验与内容包 0.2 共用（'validateCharacterPackZip'）；安装计划只产出宿主相对路径（'planCharacterPackInstall'），**不接真实文件系统安装**。
+
+校验入口：'validateCharacterPackV2(packJson)' / 'validateCharacterPackZip(pack, inventory)' / 'verifyRemoteCharacterPack(...)' / 'planCharacterPackInstall(request)' / 'planCharacterPackUninstall(request)'。
+
+**未实现（不得对外宣称）**：数据驱动注册表 + 热切换（MB-041）、本地安装器（MB-042，含原子安装/卸载/回滚）、第三方签名/审核门（MB-043）、真实市场下载。UI/市场文案在实现前不得暗示“可安装新角色”。
 ---
 
 ## 4. 安全边界（0.2 硬约束）
 
 1. **无网络**：'src/pet/content-library.ts' 不 fetch、不 import node:http、不读 URL；包内 'url' / 远程市场 'download.url' 仅为展示/审计元数据。远程市场只定义 data/validate/verify 契约，不联网。
-2. **无脚本**：不接受 JS/TS/WASM/exe；包只含 JSON，不执行任何代码；不 eval/new Function。zip 素材白名单只有 'png' / 'webp' / 'json' / 'woff2'。
+2. **无脚本**：不接受 JS/TS/WASM/exe；包只含 JSON，不执行任何代码；不 eval/new Function。zip 素材白名单：内容包 'png' / 'webp' / 'json' / 'woff2'；动画资产包另允许帧 PNG、预览 PNG/WebP、音频 OGG（见 §3.7）。
 3. **无 HTML**：所有名称/描述/台词拒绝 '<' 与 '>'；UI 必须用 textContent / React children 渲染，禁止 innerHTML 拼接。
 4. **文本长度**：name ≤48、description ≤280、AI disclosure ≤280、license attribution ≤200、author ≤80、单行台词 ≤240、整包文本合计 ≤6000、saysOverrides 键 ≤32。
 5. **路径限制**：只允许规范化相对路径；拒绝 '../'、绝对/UNC/盘符/根路径、反斜杠、':'（ADS）、'#'、'?'、控制字符、URL scheme、Windows 保留名、尾点/尾空格；zip 还拒绝大小写碰撞条目。
@@ -355,6 +381,16 @@ my-character-theme.zip
 - [ ] 本地跑 'validateContentPackV2' → 'validatePackZip' 返回 ok；
 - [ ] 远程分发包已签名（目录 + zip sha256 + pack remote.signature），未签名不得上架；
 - [ ] 不包含网络请求、脚本、HTML、真人照片/声线、未成年人或性内容、医疗/法律/金融建议、情感陪伴/虚拟伴侣用途。
+
+**新 rig（'famling.pet-anim/0.2'）额外检查**（详见 'docs/content-packs/ANIM-PACK-0.2.md'）：
+
+- [ ] schema='famling.pet-anim/0.2'、kind ∈ cat/dog/humanoid、12 clip 全量且 loop/layer/category/priority 为 canonical 值；
+- [ ] 帧文件恰好 'assets/anim/<clip>/<clip>_NN.png'，帧数与 animations 一致；预览在 'assets/preview/' 且列在 files；
+- [ ] voice 按 kind 固定（humanoid=tts/speech；cat/dog=none/thought）；cat/dog 无 baked voice line；
+- [ ] behavior 的 state tag 落在 12 clip 内、slot 指向已声明 state；regions 事件能在 slots 找到；
+- [ ] 音频仅 .ogg 且 'audio.redistribution.confirmed=true'（未清权不得携带）；
+- [ ] 'validateCharacterPackV2' + 'validateCharacterPackZip' 返回 ok；远程包 'verifyRemoteCharacterPack' 通过；
+- [ ] 不宣称“已可安装/已可玩新角色”——MB-041/042 未实现。
 
 ---
 
@@ -467,3 +503,4 @@ canonical 短句（来源 'docs/legal/USE-RESTRICTIONS-2026-11-19.md' §1，所�
 |---|---|
 | 2026-11-19 | 初版：'famling.content/0.1'、'famling.content-pack/0.1'、六分类内置目录、选择持久化/外观/对话解析、本地包校验与合并规则、远程市场预留字段与签名接口。核心实现 'src/pet/content-library.ts'，34 项测试见 'tests/content-library.test.ts'。 |
 | 2026-11-19 | **v2（task-52 产品澄清）**：角色即主题——新增 'rolePresets'（human/cat/dog/origami 一键应用）与 'characterThemes'（导入/派生）；库 schema 升 'famling.content/0.2'（0.1 deprecated 适配）；新增 'famling.content-pack/0.2'（zip 素材包 + JSON 清单、强制统一用途声明、license、aiProvenance、files+sha256）；新增远程市场 catalog + Ed25519 验签契约（不联网）；新增 'docs/content-packs/' 三份设计参考 + 三个 example pack；新增 v2 测试 'tests/content-pack-v2.test.ts'。v1 导出保留（deprecated），未删。 |
+| 2026-11-19 | **新 rig spec 层（task-76 / MB-040/044）**：新增 'famling.pet-anim/0.2' schema + 'validateCharacterPackV2' / 'validateCharacterPackZip' / 'characterPackSignaturePayload' / 'verifyRemoteCharacterPack' / 'planCharacterPackInstall' / 'planCharacterPackUninstall'；新增 zip 布局、12 clip canonical 契约、audio 权利门、安装器 PLAN 接口、human/cat/dog 三个 68/72 帧 anim 示例与 'docs/content-packs/ANIM-PACK-0.2.md'。**loader/注册表/热切换/真实安装器/签名审核门未实现**；不改 UI，不提“可安装”。 |

@@ -2,9 +2,9 @@
 
 | 项 | 内容 |
 |---|---|
-| 状态 | **核心模型 + 扩展规范已落地；UI / 安装器 / 真实市场服务器未实现**。本文件是设计决策记录，不含 UI 改动。2026-11-19 追加 v2（task-52）——角色即主题、内容包 0.2、远程市场契约，见 §10；v3（task-66）——远程市场客户端 v1（默认不联网）已实现并通过离线测试，见 §11。 |
+| 状态 | **核心模型 + 扩展规范已落地；UI / 安装器 / 真实市场服务器未实现**。本文件是设计决策记录，不含 UI 改动。2026-11-19 追加 v2（task-52）——角色即主题、内容包 0.2、远程市场契约，见 §10；v3（task-66）——远程市场客户端 v1（默认不联网）已实现并通过离线测试，见 §11；v4（task-75/MB-086）——市场联网保险丝：传输层改为宿主注入（默认 null）、无全局 fetch 静态门、市场 UI 默认零请求，见 §11.15。 |
 | 日期 | 2026-11-19（Asia/Shanghai） |
-| 任务 | task-48：为 famling + dsh-famling 建集中式内容中心/主题市场的共享数据模型与扩展规范。task-52：按产品澄清做 v2（角色主题主入口 / 内容包 0.2 / 远程市场契约 / 三份设计参考）。task-66：远程市场客户端 v1（可注入 fetch/clock/storage/verifier，签名目录/防回滚/下载校验/适配器，默认不联网）。 |
+| 任务 | task-48：为 famling + dsh-famling 建集中式内容中心/主题市场的共享数据模型与扩展规范。task-52：按产品澄清做 v2（角色主题主入口 / 内容包 0.2 / 远程市场契约 / 三份设计参考）。task-66：远程市场客户端 v1（可注入 transport/clock/storage/verifier，签名目录/防回滚/下载校验/适配器，默认不联网）。task-75/MB-086：市场联网保险丝（transport 宿主注入、默认 null、无全局 fetch 静态门、content-hub 市场 UI 默认零请求）。 |
 | 写范围 | 'public/content/library.json'、'public/content/README.md'、'src/pet/content-library.ts'、'tests/content-library.test.ts'、'tests/content-pack-v2.test.ts'、'docs/content-packs/**'、'public/content/library.json'、本文件。 |
 | 不写范围 | 'src/pet/main.ts'、'src/pet/desktop-shell.ts'、'pet.html'、'plugins/dsh-famling/**'、任何 UI/main/plugin 文件；未 commit/push；未联网；未安装依赖。 |
 | 读者 | 后续接手的 UI agent（famling 菜单/内容面板）、dsh-famling 维护者、发布/法务。 |
@@ -28,7 +28,7 @@
 | D10 | **内容包 schema 升 'famling.content-pack/0.2'**：角色主题包（1..8 roleThemes）+ 可选六组件 components；强制 usageDeclaration / license / aiProvenance / compatibility / files(sha256)；支持 zip 素材包与 JSON 清单；资产仅 png/webp/json/woff2，路径/大小/哈希/压缩比全校验。 | 导入不只是 JSON，还要素材包；先 fail-closed 再谈市场。 |
 | D11 | **统一用途声明是硬门**：每条角色主题/内容包必须逐字引用 USE-RESTRICTIONS canonical 短句 + researchOnly=true + 六条 prohibitedUses；UI 导入前必须显式确认。 | 与 2026-11-19 法务短句单一事实源对齐；防止内容包被用于情感陪伴/虚拟伴侣/专业建议/未成年人亲密/冒充/违法。 |
 | D12 | **远程在线市场一定会做，但只先定义契约**：catalog（version/updatedAt/packs[]/signature/keyId）+ zip sha256 + Ed25519 验签接口；核心模块不联网；未签名/未知 key/吊销 key/未验签 remote pack 一律拒绝。 | 先有可审计的数据/验签契约与信任根语义，UI/安装器/支付后才能安全接。 |
-| D13 | **远程市场客户端 v1 已实现，但默认不联网**：新模块 content-market.ts 提供可注入 fetch/clock/storage/verifier 的 MarketplaceClient；refreshCatalog 做 HTTPS/私网/redirect/超时/大小/串行限制 + 目录验签 + serial 防回滚；downloadPack 只允许已验签目录条目的精确 URL 并先大小/SHA-256/Ed25519；installPack 只调用宿主注入的 unpack/install，remote pack 二次验签；content-hub 通过 createRemoteMarketSource/createRemoteMarketRefresh 适配。 | 让远程市场在真实服务器/审核/支付前就有可测试、fail-closed 的客户端核心；UI 默认零请求，后续只做注入。 |
+| D13 | **远程市场客户端 v1 已实现，但默认不联网**：新模块 content-market.ts 提供可注入 transport/clock/storage/verifier 的 MarketplaceClient（v4 起 transport 必须由宿主注入、默认 null、无全局 fetch 回退）；refreshCatalog 做 HTTPS/私网/redirect/超时/大小/串行限制 + 目录验签 + serial 防回滚；downloadPack 只允许已验签目录条目的精确 URL 并先大小/SHA-256/Ed25519；installPack 只调用宿主注入的 unpack/install，remote pack 二次验签；content-hub 通过 createRemoteMarketSource/createRemoteMarketRefresh 适配，市场 UI 由 canRequestRemoteMarket() 单一联网门控制。 | 让远程市场在真实服务器/审核/支付前就有可测试、fail-closed 的客户端核心；UI 默认零请求，后续只做注入。 |
 
 验证证据（2026-11-19）：
 
@@ -52,6 +52,16 @@ v3 追加证据（2026-11-19，task-66，WSL2 Node 24.22.1）：
 - 全仓 'npm test' → **1176 tests / 1176 pass / 0 fail**（18.6 s）；
 - 覆盖：目录验签/篡改/未知/过期/吊销/retired key、serial 回滚、http/私网/redirect/超限/超时/abort、pack SHA/签名/大小/私网/fragment、install 回调顺序与 remote pack 二次验签、content-hub 适配、脱敏日志、零配置零请求；
 - 未改 content-library 签名/校验函数；未改 main.ts/插件；未联网；未 commit/push。
+
+v4 追加证据（2026-11-19，task-75/MB-086；tsc 在 WSL2、测试/build 用 Windows Node 24.22.1 + 仓内 win32 node_modules）：
+
+- `npx tsc --noEmit` → exit 0；
+- `node --import tsx --test tests/content-market.test.ts` → **34 tests / 34 pass / 0 fail**（29 原有 + 5 新增：缺失 transport、非法 transport、content-hub 保险丝、2 个静态门）；
+- `node --import tsx --test tests/content-hub.test.ts` → **54 tests / 54 pass / 0 fail**（含「市场 tab 打开零请求、只有显式点击才刷新」回归）；
+- `npm run build` → vite build ok；`dist/` 中 grep 不到 `transport-unavailable`/`MarketplaceClient`/`content-market`（content-market 未进入产品 bundle，bundle 保险丝成立）；
+- 全仓 `npm test` → tests 1211 / pass 1204 / fail 4 / skipped 3；4 项失败均来自并发中的其它任务与本机环境（`pet-anim 0.2` 文档交叉链接仍在写的 task-76、SAFETY.md 行数仍在写的法务任务、Windows 无 `python3` 的 cat 动画生成器检查），无一项涉及 content-market/content-hub/本文件；
+- 静态门在同一测试文件内读仓库源码：content-market.ts 无 globalThis.fetch/window.fetch/self.fetch/裸 fetch() 调用、transport 默认 null、content-hub/main.ts 不 import content-market.ts、main.ts 不接 refreshMarket；
+- 未改 Rust/插件；未联网；未 commit/push。
 
 ---
 
@@ -635,7 +645,7 @@ verifyMarketPackDownload / verifyRemoteContentPack 与 content-hub.ts 的 Remote
 | # | 不变量 |
 |---|---|
 | I1 | 构造 client / 创建 RemoteMarketSource / 创建 UI refresh 回调都**不发请求**；只有显式调用 refreshCatalog / downloadPack / installPack 才可能联网。 |
-| I2 | 默认 UI 注入 null ⇒ configured:false，市场按钮禁用，页面只显示"服务器未配置 · 默认不联网"。 |
+| I2 | 默认 UI 注入 null ⇒ configured:false，市场按钮禁用，页面只显示"服务器未配置 · 默认不联网"。没有注入 transport 的 client 等价于未配置。 |
 | I3 | 目录与 zip 只接受 HTTPS；HTTP 需显式 allowHttp:true（测试/开发），生产构建不得开启。 |
 | I4 | 目录必须 validateMarketCatalog 通过 + Ed25519 验签通过，才可被使用/持久化 serial。 |
 | I5 | serial 回退（更旧 updatedAt / 同 serial 不同内容）一律 catalog-rollback，不采用、不覆盖已保存的最高 serial。 |
@@ -644,28 +654,32 @@ verifyMarketPackDownload / verifyRemoteContentPack 与 content-hub.ts 的 Remote
 | I8 | 用户显式确认统一用途声明是 UI 责任；installPack 被调用即视为"用户已确认"的边界。 |
 | I9 | 日志只含 hostname/状态/字节数/keyId 等脱敏字段，从不含完整 URL、query/fragment、签名值或响应体。 |
 | I10 | 模块无遥测、无自动重试、无后台轮询、无定时器（除单次请求的 timeout 定时器）。 |
+| I11 | **本模块不直接出网（v4/task-75）**：唯一网络出口是宿主注入的 `MarketTransport`（未来 Rust 受限下载器 / IPC 桥 / 测试 fake）；transport 默认 null，缺失 ⇒ 稳定失败码 `transport-unavailable` + **零请求**；模块内不存在 `globalThis.fetch`/`window.fetch`/`self.fetch`/裸 `fetch()` 调用（CI 静态门）。 |
+| I12 | **产品入口保险丝（v4/task-75）**：content-market.ts 不被任何 pet 生产模块 import（不进入产品 bundle）；content-hub 市场 UI 默认零请求，只有 configured:true + 注入 refresh 回调 + 用户显式点击三者同时满足才可能走到联网（单一门 `canRequestRemoteMarket()`）。 |
 
 ### 11.2 导出接口
 
 | 类别 | 导出 |
 |---|---|
 | 客户端 | MarketplaceClient、createMarketplaceClient(config) |
-| UI 适配 | createRemoteMarketSource(client)、createRemoteMarketRefresh(client)、createRemoteMarketWiring(client)、MarketplaceError、describeMarketFailure(failure) |
+| UI 适配 | createRemoteMarketSource(client)、createRemoteMarketRefresh(client)、createRemoteMarketWiring(client)、MarketplaceError、describeMarketFailure(failure)；content-hub 侧：canRequestRemoteMarket(state, hasRefreshHandler)（市场 UI 单一联网门） |
 | 纯函数 | validateMarketRequestUrl、isPrivateOrLoopbackHost、marketCatalogSerial、compareMarketCatalogSerial、marketCatalogFingerprint、parseMarketCatalogTimestamp、readMarketCatalogSerial |
 | 常量 | MARKET_CLIENT_DEFAULTS、MARKET_CLIENT_HARD_LIMITS、MARKET_FAILURE_CODES、MARKET_SERIAL_STORAGE_KEY |
-| 类型 | MarketplaceClientConfig、MarketplaceFetch / MarketResponseLike / MarketplaceRequestInit、MarketCatalogSerial、MarketCatalogRefreshResult、MarketPackDownloadResult、MarketPackInstallResult、MarketUnpackResult / MarketplaceUnpackHook、MarketInstallOutcome / MarketplaceInstallHook、MarketLogEvent / MarketplaceLogger、MarketFailure |
+| 类型 | MarketplaceClientConfig、MarketTransport / MarketResponseLike / MarketplaceRequestInit、MarketCatalogSerial、MarketCatalogRefreshResult、MarketPackDownloadResult、MarketPackInstallResult、MarketUnpackResult / MarketplaceUnpackHook、MarketInstallOutcome / MarketplaceInstallHook、MarketLogEvent / MarketplaceLogger、MarketFailure |
 
-关键用法（宿主只需注入 client，UI 点击才触发）：
+关键用法（宿主必须注入 transport + client；UI 点击才触发，默认零请求）：
 
 ~~~ts
 import { createMarketplaceClient, createRemoteMarketWiring } from './content-market.ts'
 
 // 生产默认：不创建 client（或显式传 null），市场保持未配置、零请求。
-const client = reviewedServerReady
+// 即使创建 client，也必须显式注入 transport；transport 缺失 ⇒ transport-unavailable。
+const client = reviewedServerReady && hostTransportReady
   ? createMarketplaceClient({
       catalogUrl: TRUSTED_CATALOG_URL,        // 显式注入，无内置默认 URL
       trustRoot,                              // keyId/公钥/status/有效期
       verifier,                               // Ed25519 verify 注入（WebCrypto/node:crypto 均可）
+      transport: hostMarketTransport,         // 必须：Rust/IPC 受限下载桥或测试 fake；无全局 fetch 回退
       now: () => Date.now(),
       storage: localStorage,                  // serial 防回滚持久化；缺省则 fail-closed
       unpack: (input) => hostUnzipAndParse(input),    // 只解包/解析，不落盘
@@ -688,7 +702,7 @@ initContentHub({
 | catalogUrl | 无（必填） | ≤512 字符；无 userinfo/fragment | 显式注入；没有内置市场服务器 |
 | trustRoot | 必填 | 1..16 个 ed25519 key；active/retired/revoked + notBefore/notAfter | 复用 P1-1 信任根语义 |
 | verifier | 必填 | verify(message, signatureBase64, publicKeyPem) | 浏览器 WebCrypto / Node crypto 皆可 |
-| fetch | 全局 fetch | 注入式 MarketplaceFetch | 构造时绝不调用 |
+| transport | **无（默认 null）** | 注入式 MarketTransport（Rust/IPC 桥或测试 fake） | **必填才有网络能力**：不注入 ⇒ transport-unavailable + 零请求；无 globalThis.fetch 回退；注入本身绝不发请求 |
 | now | Date.now | 返回 ms | 用于密钥有效期 + serial 比较 + 结果时间戳 |
 | timeoutMs | **8 000** | 1..30 000 | 覆盖 redirect + body read |
 | maxCatalogBytes | **1 MiB** | ≤4 MiB | 等于 maxMarketJsonBytes |
@@ -708,10 +722,10 @@ initContentHub({
 
 **A. refreshCatalog（目录）**
 
-1. 配置检查（configured；失败返回 not-configured / invalid-config，不联网）；
+1. 配置检查（configured；失败返回 not-configured / invalid-config / transport-unavailable，不联网）；
 2. URL 策略：HTTPS（或显式 allowHttp）/ 无 userinfo / 无 fragment / 非私网（或显式例外）/ 可选 host 白名单；
 3. 读本地最高 serial；storage 缺失（requireSerialStorage=true）、不可读、损坏 ⇒ 直接失败，**不联网**；
-4. 注入 fetch 发 GET：redirect:'manual'、credentials:'omit'、cache:'no-store'、referrerPolicy:'no-referrer'，8 s 超时 + 大小上限 + 手动逐跳 redirect；
+4. 通过宿主注入的 transport 发 GET：redirect:'manual'、credentials:'omit'、cache:'no-store'、referrerPolicy:'no-referrer'，8 s 超时 + 大小上限 + 手动逐跳 redirect；
 5. body 必须 ≤ maxCatalogBytes（先看 content-length，再量实际 bytes）；空 body/非 UTF-8/非 JSON ⇒ catalog-invalid / empty-response；
 6. validateMarketCatalog（严格 schema/上限/URL/声明）；
 7. verifyMarketCatalogSignature（trust root key 状态 + 有效期 + Ed25519）；
@@ -774,7 +788,7 @@ initContentHub({
 
 | 分组 | 失败码 |
 |---|---|
-| 配置/URL | not-configured、invalid-config、invalid-argument、invalid-url、insecure-transport、url-credentials、url-fragment、private-host、host-not-allowed |
+| 配置/URL/传输可用性 | not-configured、transport-unavailable、invalid-config、invalid-argument、invalid-url、insecure-transport、url-credentials、url-fragment、private-host、host-not-allowed |
 | 传输 | network-error、timeout、aborted、http-error、redirect-invalid、redirect-limit、redirect-cross-host、redirect-insecure、empty-response、too-large |
 | 目录 | catalog-invalid、catalog-rollback、storage-unavailable、storage-corrupt、serial-write-failed |
 | 下载/安装 | pack-not-in-catalog、size-mismatch、install-unconfigured、unpack-failed、pack-invalid、install-failed |
@@ -787,6 +801,7 @@ UI 映射见 describeMarketFailure()（中文短句 + 稳定 code）。
 
 ### 11.9 隐私 / 日志 / 遥测
 
+- 本模块不直接出网：TLS、代理、DNS、连接池、证书策略都由宿主注入的 transport 负责；production transport 必须是受限下载器（HTTPS/allowlist/大小/超时/重定向），不得把 WebView 的全局 fetch 当作实现（见 §11.15）。
 - 请求头只有 accept；credentials:'omit'、cache:'no-store'、referrerPolicy:'no-referrer'；不发送 cookie、Authorization、客户端 ID。
 - 持久化只有 serial 信封（版本/时间/hash），不存 URL、token、目录内容或 zip。
 - 不采集使用遥测/崩溃上报；logger 是宿主注入的可选内存回调。
@@ -796,20 +811,23 @@ UI 映射见 describeMarketFailure()（中文短句 + 稳定 code）。
 
 ### 11.10 UI 接入方式（content-hub）
 
-content-hub 的市场 UI **本来就不联网**，现有注入点已足够，本任务只做适配器：
+content-hub 的市场 UI **本身不联网**；v4（task-75）把「唯一何时可能联网」收成一个显式门：
 
+- 默认状态 `defaultContentMarketState()`：status=unconfigured、configured:false；市场按钮 disabled，文案「远程市场未配置（不联网）」；打开 tab / 打开内容中心 / controller.refresh() 均**零请求**。
 - ContentHubOptions.getMarketState ← wiring.getMarketState
-- ContentHubOptions.refreshMarket ← wiring.refreshMarket（按钮点击才调用；未配置时 configured:false，按钮 disabled）
+- ContentHubOptions.refreshMarket ← wiring.refreshMarket（只有用户点击才调用）
+- **单一联网门 `canRequestRemoteMarket(state, hasRefreshHandler)`**：仅当 `state.configured === true` 且宿主注入了 refresh 回调时为 true；`renderMarket` 用它禁用按钮，`handleRefreshMarket` 在调用前再检查一次（即便程序化触发也不会出网）。
+- 未配置 / transport 缺失 ⇒ configured:false ⇒ 门恒 false ⇒ 零请求；wiring.refreshMarket 被 host 直接调用时也只返回诚实的 unconfigured 结果。
 - 可选：ContentHubOptions.getMarketState 在成功刷新后返回 summarizeMarketCatalog（适配器已缓存 client.lastCatalog）。
 - createRemoteMarketSource(client) 实现 RemoteMarketSource 的 fetchCatalog / fetchPackBytes / verifyCatalog / verifyPack / installPack，供后续安装器/其他 UI 复用。
 - 安装按钮/用途声明确认/进度提示仍由 UI 任务实现；本模块只提供 installPack 的"已验签 + 已解包 + 已复核"入口，绝不自动安装。
-- **未改 main.ts**：宿主接线（activeMarketSource / refreshMarket）留给 UI/宿主任务；本任务保证默认 null 行为与当前构建完全一致（零联网）。
+- **未改 main.ts**：生产 `activeMarketSource = null`、不 import content-market.ts（静态门断言），所以产品 bundle 不含市场客户端；宿主接线留给后续 E6-T4（Rust 受限 transport）任务。
 
 ### 11.11 运维手册
 
 | 场景 | 动作 |
 |---|---|
-| 生产构建 | allowHttp=false、allowPrivateHosts=false；CI 增加静态断言（本任务测试已覆盖 URL 拒绝） |
+| 生产构建 | allowHttp=false、allowPrivateHosts=false；**transport 必须由宿主（Rust 受限下载器/IPC）注入**，WebView 不提供全局 fetch 回退；未注入 ⇒ transport-unavailable + 零请求；CI 静态门断言 content-market.ts 无 global fetch 且不被产品入口 import |
 | 新市场服务器上线 | 先以 allowedCatalogHosts + 测试 URL 灰度；确认目录可验签、pack sha/签名正确后再打开用户入口 |
 | 密钥轮换 | 信任根先加入新 key（active，notBefore=生效日）；旧 key 转 retired 继续验旧包；确认旧目录过期后再 revoked；客户端升级 trust root 需走发布流程 |
 | serial 回滚告警 | 视为供应链事件：不采用旧目录、不自动重置；核对发布记录/服务器时间；确认后走 resetRollbackProtection() 运维流程并记录 |
@@ -818,9 +836,9 @@ content-hub 的市场 UI **本来就不联网**，现有注入点已足够，本
 | 监控 | 只聚合 event+code+host+durationMs；对 unknown-signing-key / revoked-signing-key / catalog-rollback / hash-mismatch 配置告警 |
 | DNS rebinding | 生产代理/宿主必须固定解析策略（或走固定 IP/CDN allow-list）；纯客户端只能拒绝字面私网地址 |
 
-### 11.12 测试与验证证据（task-66 实测）
+### 11.12 测试与验证证据（task-66 + task-75 实测）
 
-新增 [tests/content-market.test.ts](../../tests/content-market.test.ts)，**29 tests / 29 pass / 0 fail**，全部用注入 fetch/clock/storage/verifier，**无真实网络**。
+新增 [tests/content-market.test.ts](../../tests/content-market.test.ts)，v4 后 **34 tests / 34 pass / 0 fail**（task-66 的 29 项 + task-75 的 5 项），全部用注入 transport/clock/storage/verifier，**无真实网络**。
 
 覆盖：
 - 默认值/失败码稳定性；构造、createRemoteMarketSource(null)、createRemoteMarketRefresh(null) 均零请求；
@@ -833,19 +851,23 @@ content-hub 的市场 UI **本来就不联网**，现有注入点已足够，本
 - storage 缺失/损坏/不可读/写失败/reset；下载前置/大小/SHA/pack 签名/超限/私网/fragment/非目录条目/并发上限；
 - install：成功顺序 unpack→install、bytes 篡改、长度不符、remote pack.json 有效/无效签名、缺 hook、解包失败、pack.json 非法、安装回调拒绝；
 - content-hub 适配器/接线、脱敏 logger（无完整 URL/签名）、抛异常 logger 不破坏操作、非法配置 fail-closed。
+- **v4 新增 5 项**：① 未注入 transport（含显式 null）⇒ configured:false + transport-unavailable + 零请求（用替换后的 globalThis.fetch spy 断言 0 次调用）；② 非法 transport 值 ⇒ invalid-config 且不联网；③ content-hub 单一联网门 canRequestRemoteMarket 的默认/配置矩阵；④ 静态门：content-market.ts 无 globalThis.fetch/window.fetch/self.fetch/裸 fetch()、transport 默认 null、失败码稳定；⑤ 静态门：content-market.ts 不被任何 pet 生产模块 import、content-hub 无 fetch 且两处都走 canRequestRemoteMarket、main.ts 不接 refreshMarket、activeMarketSource 保持 null。
+- 回归：content-hub 现有「市场 tab 打开零请求、只有显式点击才刷新」继续通过（54 tests）。
 
-命令与结果（WSL2 Node 24.22.1）：
+命令与结果（tsc 在 WSL2 Node 24.22.1；测试/build 用 Windows Node 24.22.1 + 仓内 win32 node_modules —— WSL 下 tsx/esbuild 平台不匹配）：
 
 ~~~text
 npx tsc --noEmit                                  -> exit 0
 node --import tsx --test tests/content-market.test.ts
-                                                  -> tests 29, pass 29, fail 0
-node --import tsx --test tests/content-market.test.ts tests/content-hub.test.ts tests/content-library.test.ts tests/content-pack-v2.test.ts
-                                                  -> tests 146, pass 146, fail 0
-npm test                                          -> tests 1176, pass 1176, fail 0
+                                                  -> tests 34, pass 34, fail 0
+node --import tsx --test tests/content-hub.test.ts
+                                                  -> tests 54, pass 54, fail 0
+npm run build                                     -> vite build ok（1.10s）；dist/ 无 content-market 标记
+npm test                                          -> tests 1211, pass 1204, fail 4, skipped 3
+                                                     （失败项均为并发中的其它任务/本机无 python3，与本任务无关）
 ~~~
 
-未改 content-library 签名/校验函数；未改插件；未 commit/push；未联网。
+未改 content-library 签名/校验函数；未改 Rust/插件；未 commit/push；未联网。
 
 ### 11.13 明确未实现（后续任务）
 
@@ -855,13 +877,62 @@ npm test                                          -> tests 1176, pass 1176, fail
 4. **离线缓存/断点续传/自动重试/进度条**：本 v1 刻意只做显式、一次性、fail-closed 拉取；
 5. **安装器 UI**（用途声明展示 + 显式确认按钮 + 解压进度）+ 宿主 main.ts 接线；
 6. **多市场/多 trust root/镜像选择**；preview 图片的远程加载（当前仍不联网取图）；
-7. 法务复核与独立律师意见、平台商店政策/税务/退款/地区限制；远程市场联网前必须完成。
+7. **宿主 transport（Rust 受限下载器 / IPC 桥）未实现（本任务明确不改 Rust）**：v4 只把传输层改成注入式并加保险丝；真正的出网适配器属于 E6-T4，完成前市场保持 disabled（transport-unavailable），这是当前唯一的技术阻塞项（非本任务范围）。
+8. 法务复核与独立律师意见、平台商店政策/税务/退款/地区限制；远程市场联网前必须完成。
 
-### 11.14 变更记录（v3 追加）
+### 11.14 变更记录（v3/v4 追加）
 
 | 日期 | 变更 |
 |---|---|
-| 2026-11-19 | v3（task-66）：新增 src/pet/content-market.ts 远程市场客户端 v1（可注入 fetch/clock/storage/verifier；HTTPS/私网/redirect/超时/大小/并发限制；目录 Ed25519 验签 + serial 防回滚；pack 大小/SHA-256/签名校验；注入式 unpack/install；remote pack 二次验签；content-hub createRemoteMarketSource / createRemoteMarketRefresh 适配；脱敏日志）+ tests/content-market.test.ts 29 项离线测试。未改 content-library 签名函数、未改插件、未 commit/push、未联网。 |
+| 2026-11-19 | v3（task-66）：新增 src/pet/content-market.ts 远程市场客户端 v1（可注入 transport/clock/storage/verifier；HTTPS/私网/redirect/超时/大小/并发限制；目录 Ed25519 验签 + serial 防回滚；pack 大小/SHA-256/签名校验；注入式 unpack/install；remote pack 二次验签；content-hub createRemoteMarketSource / createRemoteMarketRefresh 适配；脱敏日志）+ tests/content-market.test.ts 29 项离线测试。未改 content-library 签名函数、未改插件、未 commit/push、未联网。 |
+| 2026-11-19 | v4（task-75/MB-086）：市场联网保险丝。删除 content-market.ts 的 defaultMarketFetch/全局 fetch 回退；transport 改为宿主注入且默认 null（缺失 ⇒ transport-unavailable，配置仍 fail-closed）；新增失败码 transport-unavailable；content-hub 新增 canRequestRemoteMarket() 单一联网门并在 renderMarket/handleRefreshMarket 双重使用；新增 5 项测试（含 2 个读源码的静态门：无全局 fetch、market 客户端不在 pet 入口图）。未改 Rust/插件；未 commit/push；未联网。 |
 
+### 11.15 v4（task-75/MB-086）：市场联网保险丝 / 离线默认
 
+#### 11.15.1 要解决的问题
 
+评审 C-01 / SEC-403（见 [REVIEW-TRIAGE-SECURITY-2026-11-19](../plan/REVIEW-TRIAGE-SECURITY-2026-11-19.md)、[REVIEW-TRIAGE-P0](../plan/REVIEW-TRIAGE-P0-2026-11-19.md)、[REVIEW-TRIAGE-ARCH](../plan/REVIEW-TRIAGE-ARCH-2026-11-19.md) 的 E0-T7/N-06）指出：v3 生产默认 `defaultMarketFetch` 直接读 webview `globalThis.fetch`。release CSP 是 `connect-src 'self' ipc:`（不放宽），一旦把客户端接到 UI：
+- 远程目录/下载会被 CSP 拦截（功能失效）；或
+- 被迫把 `connect-src` 放宽到外域（安全回退，扩大 XSS 外传面）。
+
+v4 的决定：**TS 只做状态机/校验，出网由宿主注入的受限 transport 承担；默认 null；静态门禁止全局 fetch。**
+
+#### 11.15.2 实现（文件级）
+
+| 文件 | 改动 |
+|---|---|
+| `src/pet/content-market.ts` | 删除 `defaultMarketFetch` 与 globalThis.fetch 读取；`MarketplaceFetch` → `MarketTransport`；配置字段 `fetch?` → `transport?: MarketTransport \| null`；解析时未注入 ⇒ `transport-unavailable`（config 失败、configured:false）；新增失败码 + 中文标签；请求层只调用注入的 transport。 |
+| `src/pet/content-hub.ts` | 新增 `canRequestRemoteMarket(state, hasRefreshHandler)`；`renderMarket` 用它禁用按钮；`handleRefreshMarket` 调用前再检查（防御程序化触发）；契约步骤明确「出网必须经宿主 transport，WebView 不直接 fetch」。 |
+| `tests/content-market.test.ts` | 29 → 34 项：缺失/非法 transport、content-hub 保险丝、2 个静态门（读源码）。 |
+| 本文件 | §11 更新 + 本 §11.15。 |
+
+不改 Rust / capabilities / CSP / 插件；`src/pet/main.ts` 仍 `activeMarketSource = null` 且不 import content-market.ts。
+
+#### 11.15.3 分层防线（从里到外）
+
+1. **模块层**：无全局 fetch 回退；无 transport ⇒ `transport-unavailable`；任何 refresh/download 前都先验证配置与 URL 策略。
+2. **客户端层**：没有 transport 的 client `configured === false`；`createRemoteMarketSource(未配置 client)` 的 fetchCatalog/fetchPackBytes 抛 `MarketplaceError`（transport-unavailable）且不触碰网络。
+3. **接线层**：`createRemoteMarketRefresh` 对未配置 client 直接返回 unconfigured 状态，零请求。
+4. **UI 层**：`canRequestRemoteMarket` 三重条件（configured + 注入 refresh 回调 + 用户显式点击）；默认状态按钮 disabled。
+5. **构建层**：静态门断言 content-market.ts 不被任何 pet 生产模块 import（不进入产品 bundle），main.ts 不接 refreshMarket。
+6. **CSP 层**：`connect-src` 保持 `'self' ipc:` 不扩域；未来 transport 必须走 Rust 受限下载器/IPC（E6-T4）。
+
+#### 11.15.4 失败码
+
+新增稳定失败码 `transport-unavailable`（`MARKET_FAILURE_CODES`；中文标签「未注入市场传输层（不会联网）」）：
+
+- 配置对象其他字段合法但 `transport` 缺失/null ⇒ configured:false、`configurationFailure.code = transport-unavailable`；所有网络方法返回该码，**零请求**；
+- `transport` 类型非法（非函数）⇒ `invalid-config`（配置错误优先）；
+- 与 `not-configured` 区分：`not-configured` = 完全没接市场（catalogUrl 等缺失或 UI 未注入 client）；`transport-unavailable` = 市场配置存在但本构建没有出网通道。
+
+#### 11.15.5 验收证据
+
+- `tests/content-market.test.ts` → 34/34 绿（含 5 项 v4 新增）；`tests/content-hub.test.ts` → 54/54 绿（含市场 tab 零请求回归）；
+- 静态门断言：无 `globalThis.fetch`/`window.fetch`/`self.fetch`/裸 `fetch()`、transport 默认 null、无 pet 生产模块 import content-market.ts、main.ts 无 `refreshMarket`、`activeMarketSource = null`；
+- 失败码列表测试包含 `transport-unavailable`；
+- 全仓 `npx tsc --noEmit` → exit 0；`npm run build` 成功且 dist 无 content-market 标记（bundle 保险丝）；
+- 全仓 `npm test` → 1204/1211 pass；4 项失败均来自并发中的其它任务/本机 Windows 无 `python3`，与本任务 4 个文件无关（本任务两个测试文件 34/34、54/54 全绿）。
+
+#### 11.15.6 剩余阻塞（不在本任务范围）
+
+宿主 transport（Rust `market_fetch`/IPC 桥）尚未实现——本任务按指示不改 Rust。在 E6-T4 完成前，市场保持 `transport-unavailable`/disabled；这是唯一技术 blocker。真实服务器/catalog 审核/密钥 ceremony/法务仍见 §11.13。

@@ -383,11 +383,14 @@ export function petSchedule(nowMs: number): { phase: PetPhase; label: string; li
     case 'midday':
       return { phase: 'midday', label: '趴在页脚打盹', line: '午后的纸有点暖。' }
     case 'afternoon':
-      return { phase: 'afternoon', label: '在折一件小东西', line: '你忙你的，我在这里。' }
+      // Low-disturbance copy (PSY-P1-7): no "I'll wait here" obligation.
+      return { phase: 'afternoon', label: '在折一件小东西', line: '书页翻到下午了。' }
     case 'evening':
       return { phase: 'evening', label: '把灯拨亮一点', line: '天暗了。' }
     default:
-      return { phase: 'night', label: '守着最后一行字', line: '……这么晚。我给你留了灯。' }
+      // Night copy is low-arousal and does not claim to leave a light on for
+      // the user; quiet hours are handled separately in the pet shell.
+      return { phase: 'night', label: '把灯收好', line: '……这么晚。早点休息。' }
   }
 }
 

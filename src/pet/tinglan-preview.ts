@@ -9,7 +9,6 @@
  */
 import { loadCharacterV03, type LoadedCharacterV03 } from './character/index.ts'
 import { CharacterRuntime03, type RuntimeContext, type RuntimeLevel } from './character/runtime03.ts'
-import { escapeHtml } from './security/html.ts'
 import { trust } from './trust.ts'
 
 export interface TinglanPreviewResult {
@@ -18,6 +17,105 @@ export interface TinglanPreviewResult {
 }
 
 const levelFor = (event: string): RuntimeLevel => (event === 'reminder.due' ? 'L2' : 'L1')
+
+function textParagraph(doc: Document, text: string, className = ''): HTMLParagraphElement {
+  const paragraph = doc.createElement('p')
+  if (className) paragraph.className = className
+  paragraph.textContent = text
+  return paragraph
+}
+
+function previewButton(doc: Document, label: string, options: { event?: string; id?: string }): HTMLButtonElement {
+  const button = doc.createElement('button')
+  button.type = 'button'
+  if (options.id) button.id = options.id
+  if (options.event) button.dataset.event = options.event
+  button.textContent = label
+  return button
+}
+
+function previewCheckbox(doc: Document, id: string, labelText: string, checked: boolean): HTMLLabelElement {
+  const label = doc.createElement('label')
+  const input = doc.createElement('input')
+  input.type = 'checkbox'
+  input.id = id
+  input.checked = checked
+  label.append(input, labelText)
+  return label
+}
+
+/** Build the behavior-only preview panel with text nodes (never innerHTML). */
+export function createTinglanPreviewDom(doc: Document, displayName: string): HTMLElement {
+  const root = doc.createElement('div')
+  root.className = 'tinglan-preview'
+
+  const head = doc.createElement('div')
+  head.className = 'tp-head'
+  const heading = doc.createElement('div')
+  heading.appendChild(textParagraph(doc, 'FCI 0.3 · behavior preview', 'tp-kicker'))
+  const title = doc.createElement('h2')
+  const titleSuffix = doc.createElement('span')
+  titleSuffix.textContent = '· 无美术模式'
+  title.append(displayName, ' ', titleSuffix)
+  heading.appendChild(title)
+  const warning = doc.createElement('span')
+  warning.className = 'tp-warn'
+  warning.textContent = '128 Q 美术/baked voice 未制作；此页只验证行为/语音接口'
+  head.append(heading, warning)
+
+  const body = doc.createElement('div')
+  body.className = 'tp-body'
+  const actions = doc.createElement('div')
+  actions.className = 'tp-actions'
+  const events: Array<[event: string, label: string]> = [
+    ['pat.head', '摸头'],
+    ['pat.glasses', '眼镜'],
+    ['pat.hand', '手'],
+    ['pat.tablet', '平板'],
+    ['pat.tail', '尾巴'],
+    ['x-famling.pat.spam', '连点'],
+    ['drag.start', '拖起'],
+    ['drag.end', '放下'],
+    ['hover.dwell', '悬停'],
+    ['talk', '说话'],
+  ]
+  for (const [event, label] of events) actions.appendChild(previewButton(doc, label, { event }))
+  actions.append(
+    previewButton(doc, '工作模式', { id: 'tp-focus' }),
+    previewButton(doc, '睡眠', { id: 'tp-sleep' }),
+  )
+
+  const hud = doc.createElement('div')
+  hud.className = 'tp-hud'
+  const state = doc.createElement('div')
+  state.className = 'tp-state'
+  const stateValue = doc.createElement('strong')
+  stateValue.id = 'tp-state'
+  stateValue.textContent = 'idle'
+  const tagValue = doc.createElement('span')
+  tagValue.id = 'tp-tag'
+  tagValue.textContent = 'idle'
+  state.append(stateValue, tagValue)
+
+  const voice = textParagraph(doc, '（等待交互）')
+  voice.id = 'tp-voice'
+  const gate = textParagraph(doc, '', 'tp-muted')
+  gate.id = 'tp-gate'
+  const log = textParagraph(doc, '', 'tp-muted')
+  log.id = 'tp-log'
+
+  hud.append(
+    state,
+    voice,
+    gate,
+    log,
+    previewCheckbox(doc, 'tp-brief', ' Brief 可用', true),
+    previewCheckbox(doc, 'tp-muted', ' 静音（字幕仍显示）', false),
+  )
+  body.append(actions, hud)
+  root.append(head, body)
+  return root
+}
 
 /**
  * CONSENT / TOS GATE (do not bypass): this is a DLC/character-pack preview entry
@@ -49,37 +147,9 @@ export async function startTinglanPreview(stage: HTMLElement, characterDir = '/c
     stage.classList.add('hero-stage--preview')
     stage.hidden = false
     stage.replaceChildren()
-    const root = document.createElement('div')
-    root.className = 'tinglan-preview'
-    root.innerHTML = `
-      <div class="tp-head">
-        <div><p class="tp-kicker">FCI 0.3 · behavior preview</p><h2>${escapeHtml(displayName)} <span>· 无美术模式</span></h2></div>
-        <span class="tp-warn">128 Q 美术未制作；此页只验证行为/接口</span>
-      </div>
-      <div class="tp-body">
-        <div class="tp-actions">
-          <button type="button" data-event="pat.head">摸头</button>
-          <button type="button" data-event="pat.glasses">眼镜</button>
-          <button type="button" data-event="pat.hand">手</button>
-          <button type="button" data-event="pat.tablet">平板</button>
-          <button type="button" data-event="pat.tail">尾巴</button>
-          <button type="button" data-event="x-famling.pat.spam">连点</button>
-          <button type="button" data-event="drag.start">拖起</button>
-          <button type="button" data-event="drag.end">放下</button>
-          <button type="button" data-event="hover.dwell">悬停</button>
-          <button type="button" data-event="talk">说话</button>
-          <button type="button" id="tp-focus">工作模式</button>
-          <button type="button" id="tp-sleep">睡眠</button>
-        </div>
-        <div class="tp-hud">
-          <div class="tp-state"><strong id="tp-state">idle</strong><span id="tp-tag">idle</span></div>
-          <p id="tp-voice">（等待交互）</p>
-          <p id="tp-gate" class="tp-muted"></p>
-          <p id="tp-log" class="tp-muted"></p>
-          <label><input type="checkbox" id="tp-brief" checked /> Brief 可用</label>
-          <label><input type="checkbox" id="tp-muted" /> 静音（字幕仍显示）</label>
-        </div>
-      </div>`
+    // Pack metadata is external content: construct text nodes only (no
+    // innerHTML), so a hostile DLC name can never become markup.
+    const root = createTinglanPreviewDom(document, displayName)
     stage.append(root)
 
     const stateEl = root.querySelector<HTMLElement>('#tp-state')

@@ -1,7 +1,8 @@
 # 声明矩阵：场景 × 适用声明 × 必须展示位置 × 是否需律师 — 草案
 
-> **状态：DRAFT · 2026-11-15（2026-11-17 增补场景 23–27、位置 P13–P16；2026-11-19 增补场景 28）· 非法律意见。** 待用户 + 律师确认。“需律师”列表示**该场景在对外发布前**应取得律师意见；不是“没有律师就不能内部开发”。法律基线见 [LEGAL-BASELINE](/legal/LEGAL-BASELINE.md)；应用内短文本见 [APP-DISCLOSURE-TEXTS](/legal/APP-DISCLOSURE-TEXTS.md)。
+> **状态：DRAFT · 2026-11-15（2026-11-17 增补场景 23–27、位置 P13–P16；2026-11-19 增补场景 28，并同步事实/未决问题索引）· 非法律意见。** 待用户 + 律师确认。“需律师”列表示**该场景在对外发布前**应取得律师意见；不是“没有律师就不能内部开发”。法律基线见 [LEGAL-BASELINE](/legal/LEGAL-BASELINE.md)；应用内短文本见 [APP-DISCLOSURE-TEXTS](/legal/APP-DISCLOSURE-TEXTS.md)。
 > 用法：先在 §1 找到场景，按“适用声明”列去读对应文件；“展示位置”列是**最低要求**，少一处即视为未完成披露。
+> **2026-11-19 事实注记**：首启顺序现状 = 年龄自报核验 → 完整 TOS（D6 目标“TOS/关键事实先读、年龄只在 age-gated 入口”已排期、未实现，不得写成已实现）；TTS/ASR 独立声明+单独同意、撤回同意、删除全部本地数据已实现；插件（dsh-famling）有真实 LLM 聊天、famling 无自由 LLM。未决问题索引见 [LAWYER-REVIEW-CHECKLIST-2026-11-19](/legal/LAWYER-REVIEW-CHECKLIST-2026-11-19.md)。
 > 上位：[README](/legal/README.md) 优先级规则、[NOTICE](/legal/NOTICE)、[LICENSE-ART](/legal/LICENSE-ART)、LEGAL-STATUS。
 
 ## 1. 展示位置代码
@@ -68,4 +69,4 @@
 4. 本表随政策增删同步修订；解释以 [README §2](/legal/README.md) 优先级规则为准。
 5. 本表不构成法律意见，不保证覆盖所有法域；目标法域未定（中国为主，海外视渠道再评估）。
 
-> 草案 2026-11-15；2026-11-17 增补应用内声明/健康使用/TTS 确认/Mod 加载确认/危机场景；2026-11-19 增补场景 28（统一使用限制，canonical 见 USE-RESTRICTIONS-2026-11-19.md）；变更须记录日期与原因。
+> 草案 2026-11-15；2026-11-17 增补应用内声明/健康使用/TTS 确认/Mod 加载确认/危机场景；2026-11-19 增补场景 28（统一使用限制，canonical 见 USE-RESTRICTIONS-2026-11-19.md）并同步事实/未决问题索引；变更须记录日期与原因。

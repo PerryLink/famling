@@ -1,7 +1,7 @@
 # 替换与改模政策：动作 / 声音 / 形象 / 行为 / UI — 草案
 
-> **状态：DRAFT · 2026-11-15（2026-11-17 增补 §7A）· 非法律意见。** 待用户 + 律师确认。本文规定“对本项目角色/桌宠做替换与改模”时哪些可以做、哪些必须保留、哪些绝对禁止；**不改变**各素材自身的许可。法律基线见 [LEGAL-BASELINE](/legal/LEGAL-BASELINE.md)；应用内加载确认文本见 [APP-DISCLOSURE-TEXTS](/legal/APP-DISCLOSURE-TEXTS.md) `mod.loadConfirm`。
-> **2026-11-17 状态注记：年龄口径已拍板为全年龄、不设年龄门；旧“18+ 入口”保留项已改为“全年龄内容边界与 roleplay 声明”。**
+> **状态：DRAFT · 2026-11-15（2026-11-17 增补 §7A；2026-11-19 事实同步）· 非法律意见。** 待用户 + 律师确认。本文规定“对本项目角色/桌宠做替换与改模”时哪些可以做、哪些必须保留、哪些绝对禁止；**不改变**各素材自身的许可。法律基线见 [LEGAL-BASELINE](/legal/LEGAL-BASELINE.md)；应用内加载确认文本见 [APP-DISCLOSURE-TEXTS](/legal/APP-DISCLOSURE-TEXTS.md) `mod.loadConfirm`。
+> **2026-11-17.5 年龄口径（现行）：一般功能全年龄可用；roleplay/情感陪伴仅限年满 18 周岁用户（首启自报出生日期核验，非官方身份证核验）。旧“全年龄、不设年龄门”（2026-11-17）已作废；全年龄内容边界与 roleplay 声明保留。**
 > 适用载体（2026-11-15 实测）：FCI 角色包 `character.json`（tags/behaviors/render/atlas/audio/expressions）、内容包 `content.json`、资源目录 `public/assets/`；渲染格式 `pixel-hero | pixel-micro | hd-chibi`（第一方）。**包内永不执行脚本。**
 > 关联：[DLC-AND-PLUGIN-TERMS](/legal/DLC-TERMS.md) · [FANWORK-POLICY](/legal/FANWORK-POLICY.md) · [AI-CONTENT-POLICY](/legal/AI-CONTENT-POLICY.md) · [CONTENT-POLICY](/legal/CONTENT-POLICY.md) · 模板 TEMPLATES。
 
@@ -36,7 +36,7 @@
    - 用语音冒充官方客服/真人角色/真实人物；
    - 儿童声音的性化或诱导性使用（零容忍）。
 3. **合成语音必须披露**：可感知提示（播放器标注“AI 语音”/首启声明/音轨起始提示），不得声称真人配音；语音包内附 `LICENSE` 与来源、模型、日期、音色。
-4. **TTS 条款未确认前**：不得把该 TTS 输出随包分发（本项目 18 个 DeepSeek TTS WAV 正处此状态，见 `THIRD-PARTY.md` §2）。
+4. **TTS 条款未确认前**：不得把该 TTS 输出**扩大再分发/商用**（本项目 42 个 DeepSeek TTS WAV 经用户 2026-11-17 授权 baked 随包，但 DeepSeek 书面再分发/商用许可仍 TBD，见 `THIRD-PARTY.md` §2、[TTS-TERMS](/legal/TTS-TERMS.md) §3A；不得单独售卖/再授权，也不得据此声称已获服务商许可）。
 
 ## 4. 形象替换
 

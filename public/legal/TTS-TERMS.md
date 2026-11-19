@@ -8,8 +8,8 @@ Status: **DRAFT — 用户已要求拟制；律师审查暂缓（用户 2026-11-
 - ASR 声明：`ASR_VERSION = 2026-11-17.3` · 文本 SHA-256 `035a4f4cff4b2fe0376f62dd1135c328f26d55cb9276314bf8fd4baab63b11ad`（独立声明：TOS/TTS 同意都不能替代；拒绝则不获取麦克风、不上传音频；2026-11-17.5 修正“无年龄门”旧口径，故 bump）。
 - 角色扮演声明：`ROLEPLAY_VERSION = 2026-11-17.4` · 文本 SHA-256 `0e0731eceb0a4a006fffb3e87483d07466ad5e64d1f4c8ead3b9fd66eafb1023`（独立声明 + 每次开始/变更必须重新填写设定的表单；TOS/TTS/ASR 均不能替代；2026-11-17.5 新增 18+ 年龄门槛节，故 bump）。
 - 完整 TOS：`TOS_VERSION = 2026-11-17.6` · 文本 SHA-256 `b3b8e93a27c5b17b539280b270ea02468bf1389570a998284bc8cccf0801befb`（见 [TOS.md](/legal/TOS.md) 与 `src/pet/consent/terms.ts`；2026-11-17.5 新增年龄自报核验/角色扮演 18+ 条款并同步修正 TTS/ASR/ROLEPLAY 口径）。
-- 完整 TOS：`TOS_VERSION = 2026-11-17.4` · 文本 SHA-256 `5e8c9e32e6b2a5ef376740dcd56fe0dbdf063091e3e3ce9223f6517cc539e368`（见 [TOS.md](/legal/TOS.md) 与 `src/pet/consent/terms.ts`；本轮仅新增 TOS §六之二 `user-agency` 文本并 bump TOS，TTS/ASR/ROLEPLAY 声明版本/hash 均未变）。
 - 版本/文案变更必须 bump 版本 → 重算哈希 → 强制重新同意；本文件不得与 `terms.ts` 的版本/hash 漂移。
+- 上方只登记**当前** canon 版本与 hash；历史版本只写进文末版本记录，不并列在当前 pin 区（旧 `TOS 2026-11-17.4` pin 已移除，避免误读为现行版本）。
 
 ## 1. 适用范围
 
@@ -132,5 +132,7 @@ TTS 不是“设置一次就永久跳过”的功能。以下每一次动作，�
 | 2026-11-17.4 | 资产口径更新：baked pack 由 18 stella 扩为 42 WAV（21 stella + 21 tide，`tide/` 子目录），双音色均 available；用户 2026-11-17 授权、非克隆、版权仍以 DeepSeek 条款为准；应用内 TTS 声明版本/文本未改 | draft；上游条款/再分发仍 TBD，未律师审核 |
 | 2026-11-17.4 | TOS pin 同步：TOS 升版 `2026-11-17.4` + 新 hash（新增 §六之二 `user-agency` 用户自行接入/自创用法条款）；TTS/ASR/ROLEPLAY 声明版本/文本/hash 均未改 | draft；TOS 文本未经律师审核 |
 | 2026-11-17.5 | 年龄核验落地：一般功能全年龄、roleplay 仅 18+（自报出生日期核验，非官方身份证）；TOS 升 `2026-11-17.5`，TTS `2026-11-17.4`、ASR `2026-11-17.3`、ROLEPLAY `2026-11-17.4` 同步修正旧“全年龄/无年龄门”口径；声明仍 DRAFT、未经律师审核 | draft；自报核验 ≠ 实名/官方身份证 |
+| 2026-11-17.6 | TOS 再升版 `2026-11-17.6`（新增 AI 标识节等）；TTS/ASR/ROLEPLAY 版本/文本未变 | draft；TOS 应用内强制重新同意 |
+| 2026-11-19 | 文档真值同步：确认 42 WAV（21 stella + 21 tide）与 manifest v2/legal-check 一致；移除重复的旧 TOS `2026-11-17.4` pin（当前只登记 `2026-11-17.6`）；补 D6 首启顺序现状（年龄→TOS，D6 目标 TOS/关键事实先读未实现）只在问题清单，不写入 TOS 条款 | draft；未经律师 |
 
 > 草案，不是法律意见，也不代表 DeepSeek 官方许可。实现与文案 canon 见 [APP-DISCLOSURE-TEXTS](/legal/APP-DISCLOSURE-TEXTS.md) `tts.*`。

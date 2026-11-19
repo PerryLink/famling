@@ -56,12 +56,27 @@ import {
 import { describeAdvisersFaceView, heroPlaceholderView, type HeroPlaceholderView } from './ui-state.ts'
 import {
   applyRendererChoice,
+  closeDesktopSettingsDialog,
   initDesktopShell,
+  openDesktopSettingsDialog,
+  requestMenuCoach,
   createComposerController,
   type ComposerController,
   type HeroMenuActionItem,
   type PetRendererChoice,
 } from './desktop-shell.ts'
+import {
+  CONTENT_WINDOW_NAVIGATE_EVENT,
+  PET_RELOAD_EVENT,
+  contentWindowMode,
+  installContentWindowChrome,
+  normalizeContentWindowRoute,
+  openContentWindow,
+  stashContentWindowFocus,
+  takeContentWindowFocus,
+  type ContentWindowChrome,
+  type ContentWindowRoute,
+} from './content-window.ts'
 import { heroActionPlan, isHeroMenuAction, type HeroMenuAction } from './hero-actions.ts'
 import { startHitRegionSync } from './hit-regions.ts'
 import { startDesktopShellLayout } from './shell-layout.ts'
@@ -121,6 +136,13 @@ import { grantHostVoiceConsent, revokeHostConsent, syncHostConsent } from './con
 import { asrConfigSignature } from './consent/asr.ts'
 import { ttsConfigSignature } from './consent/tts.ts'
 import { formatVoiceModeLabel, isTtsVoiceId, readVoicePref, writeVoicePref, VOICE_PREF_STORAGE_KEY } from './voice-prefs.ts'
+import {
+  filterProactiveLine,
+  isQuietHoursActive,
+  readQuietHours,
+  type QuietHoursSettings,
+} from './low-disturb.ts'
+import { AI_REPLY_LABEL, installBubbleAiLabel } from './ai-label.ts'
 import { roleplayTemplateReply } from './consent/roleplay.ts'
 import {
   applyContentSelectionAppearance,
@@ -240,9 +262,61 @@ function createAuditedTrustLayer(): ReturnType<typeof createTrustLayer> {
 const trust = createAuditedTrustLayer()
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T
+
+/**
+ * Visible AI attribution (MB-076): the bubble label shows "AI 生成 · 不是真人"
+ * for every AI reply and "AI 语音 · 合成（不是真人）" while TTS actually plays.
+ * Lives next to #bubble because the desktop shell hides aside.panel; this is
+ * not a new always-on control (it only exists while a bubble is shown).
+ */
+const aiLabel = installBubbleAiLabel(document)
+
+/**
+ * Quiet hours / 夜间安静 (MB-070): default 22:00–08:00, enabled, adjustable and
+ * closable from 总设置. main.ts mirrors the shell preference so ambient output
+ * stops/starts immediately; the 2h health reminder is deferred by the consent
+ * runtime while this returns true.
+ */
+let quietHoursSettings: QuietHoursSettings = readQuietHours()
+function quietHoursActive(at: Date = new Date()): boolean {
+  return isQuietHoursActive(at, quietHoursSettings)
+}
 const FORCE_BROWSER_FALLBACK = typeof location !== 'undefined' && new URLSearchParams(location.search).has('browser-fallback')
 const HAS_TAURI = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window && !FORCE_BROWSER_FALLBACK
 const SAVE_SLOT = 'pet'
+
+// ---------------------------------------------------------------------------
+// Independent content/settings window mode (MB-062 / E6, task-85)
+//
+// The same pet.html entry serves two roles. The installed 480x336 window boots
+// the pet; the Tauri host's second window is marked before page scripts
+// (`window.__CONTENT_WINDOW_ROUTE__`, injected by app/tauri/src-tauri/src/main.rs)
+// or via the browser fallback `?shell=content#content|settings`. In content mode
+// this module boots ONLY the existing content runtime + desktop-shell settings
+// dialog: no pet state loop, no autosave, no hit-region sync. Rendering and
+// persistence are the SAME modules as the pet window (no business logic here).
+// ---------------------------------------------------------------------------
+const CONTENT_WINDOW = contentWindowMode({
+  search: typeof location === 'undefined' ? '' : location.search,
+  hash: typeof location === 'undefined' ? '' : location.hash,
+  hostRoute:
+    typeof window === 'undefined'
+      ? undefined
+      : (window as unknown as Record<string, unknown>)['__CONTENT_WINDOW_ROUTE__'],
+})
+const CONTENT_SHELL = CONTENT_WINDOW.isContentWindow
+if (CONTENT_SHELL && typeof document !== 'undefined') {
+  // Paint the content-window layout before the first frame (pet.css overrides
+  // the transparent desktop-shell background for this attribute).
+  document.documentElement.dataset.contentWindow = '1'
+}
+/** Only the independent content window may rebroadcast a pet reload. */
+let contentWindowNeedsPetReload = false
+/** The content window's in-window home surface (content hub / settings / close). */
+let contentWindowChrome: ContentWindowChrome | null = null
+let contentWindowBooted = false
+/** Suppresses onClose→showHome while main.ts itself is switching panels. */
+let contentWindowTransition = false
 
 // Host-side trust wiring (HARDENING-2026-11-17 P1): one token bucket each for
 // cloud TTS / manual saves, and one error boundary per concern so failures are
@@ -474,7 +548,7 @@ let mouthTimer: ReturnType<typeof setTimeout> | null = null
 
 // Pet TTS voice preference (default `stella`; setup page writes
 // `desktop-games/pet/voice`). Read through safe-storage, so missing/blocked/
-// corrupt storage keeps the default instead of an invalid voice.
+// corrupt storage keeps the baked default instead of an invalid voice.
 let currentVoice: TtsVoiceId = readVoicePref()
 /** Provider/mode half of the TTS config signature; the voice is appended below. */
 let ttsProviderMode = '系统 TTS · AI 合成'
@@ -519,7 +593,10 @@ const lines = {
   pat: ['嗯。', '再摸一下也可以。', '你的手有点凉。', '我记得你。'],
   give: ['这张纸，我要了。', '折角又多了一点。', '可以把它夹进书里吗？'],
   fold: ['看，一只小东西。', '折痕会记住今天。', '还差一张纸。'],
-  idle: ['书页在响。', '你忙你的，我在这里。', '嗯。'],
+  // Low-disturbance copy (PSY-P1-7/Q-04): idle lines never claim the pet is
+  // waiting / keeping a light on. Runtime ambient lines also pass through
+  // filterProactiveLine below.
+  idle: ['书页在响。', '风翻到下一页。', '嗯。'],
   rename: ['新名字？我会记住的。', '嗯，这样叫我。'],
 }
 
@@ -530,11 +607,36 @@ function pick(list: string[]): string {
 function showBubble(text: string): void {
   const bubble = $('bubble')
   // Final display guard: bubbles are short, plain text, always via textContent.
-  bubble.textContent = sanitizePlainText(text, { maxChars: SECURITY_LIMITS.bubbleChars, allowNewlines: false })
+  // #bubble-text is the copy line; #bubble-ai (MB-076) is a separate visible
+  // attribution line managed by aiLabel, so the bubble stays the one anchor.
+  const safeBubbleText = sanitizePlainText(text, { maxChars: SECURITY_LIMITS.bubbleChars, allowNewlines: false })
+  const bubbleText = document.getElementById('bubble-text')
+  if (bubbleText) bubbleText.textContent = safeBubbleText
+  else bubble.textContent = safeBubbleText
   bubble.classList.toggle('thought', characterBubbleSemantic(HERO_CONFIG.character, HERO_CONFIG.enabled) === 'thought')
   bubble.classList.add('show')
+  aiLabel.clear()
   if (bubbleTimer) clearTimeout(bubbleTimer)
-  bubbleTimer = setTimeout(() => bubble.classList.remove('show'), 3200)
+  bubbleTimer = setTimeout(() => {
+    bubble.classList.remove('show')
+    aiLabel.clear()
+  }, 3200)
+}
+
+/**
+ * Keep the subtitle/attribution bubble up for the real TTS duration (MB-076):
+ * the old fixed 3.2s window hid the visible "AI 语音 · 合成" label while longer
+ * clips were still speaking. Interaction-only bubbles keep the 3.2s default.
+ */
+function keepBubbleForTts(durationMs: number): void {
+  const bubble = $('bubble')
+  bubble.classList.add('show')
+  if (bubbleTimer) clearTimeout(bubbleTimer)
+  const holdMs = Math.max(3200, Number.isFinite(durationMs) ? Math.min(60_000, durationMs) : 3200)
+  bubbleTimer = setTimeout(() => {
+    bubble.classList.remove('show')
+    aiLabel.clear()
+  }, holdMs)
 }
 
 let audioContext: AudioContext | null = null
@@ -675,7 +777,18 @@ function sayLater(
   // (shorter bubbles), `quiet` additionally suppresses automatic/ambient lines.
   // Explicit errors/notices use showBubble directly, so this policy can never
   // hide a failure or a safety/consent prompt.
-  const decision = decideDialogueLine(dialogueBehavior, kind, text)
+  let line = text
+  if (kind === 'ambient') {
+    // MB-070: while quiet hours are active, no proactive/ambient line is emitted
+    // at all (user-triggered replies still go through normally).
+    if (quietHoursActive()) return
+    // MB-075: waiting/guilt/soft-dependency hints never reach ambient output;
+    // a legacy line is replaced with a neutral one instead of being shown.
+    const filtered = filterProactiveLine(line)
+    if (!filtered.allowed) return
+    line = filtered.text
+  }
+  const decision = decideDialogueLine(dialogueBehavior, kind, line)
   if (!decision.show || decision.text === null) return
   void say(decision.text, emotion).catch((error) => reportFailure(ttsBoundary, error))
 }
@@ -700,6 +813,9 @@ async function say(text: string, emotion: 'calm' | 'happy' = 'calm'): Promise<bo
   }
   const safeText = prepared.text
   showBubble(safeText)
+  // MB-076: every AI reply carries a visible attribution next to the bubble
+  // (the About panel alone is not visible at the moment of encounter).
+  aiLabel.markReply(AI_REPLY_LABEL)
   // Cat/dog personas never receive DeepSeek TTS: thought bubble only.
   if (!currentCharacterCanVoice()) return true
   // Hero hook: tag-based talk cue + expression/mouth QA envelope. The pixel
@@ -743,6 +859,12 @@ async function say(text: string, emotion: 'calm' | 'happy' = 'calm'): Promise<bo
   await grantHostVoiceConsent('tts')
   try {
     const clip = await voice.speak({ text: safeText, persona: 'pagefold', emotion, priority: 'bark', voice: currentVoice })
+    // MB-076: switch the same label to the AI-voice copy while audio plays; it
+    // falls back to the reply attribution when the clip ends.
+    aiLabel.markVoice(clip.durationMs)
+    // Keep the bubble (and therefore the visible AI-voice attribution) up for
+    // the whole clip, not just the 3.2s subtitle window.
+    keepBubbleForTts(clip.durationMs)
     if (clip.audio) await playClipAudio(clip.audio)
     animateMouth(clip.durationMs)
   } catch (error) {
@@ -997,7 +1119,36 @@ function buildContentHubController(): ContentHubController {
     getInstalledPacks: installedPackSummaries,
     getMarketState: contentMarketState,
     resolvePreviewUrl: resolveRolePreviewUrl,
+    // The independent content window (MB-062): closing the SAME hub returns to
+    // its home surface, and appearance/role edits made there are flushed to the
+    // live pet window (save + reload) so it does not keep a stale renderer.
+    onClose: () => {
+      if (!CONTENT_SHELL) return
+      if (!contentWindowTransition) contentWindowChrome?.showHome()
+      if (contentWindowNeedsPetReload) {
+        contentWindowNeedsPetReload = false
+        requestPetWindowReload(true)
+      }
+    },
   })
+}
+
+/**
+ * Open the SAME consolidated role & content center inside this window.
+ * Used by the pet window's browser/dev fallback and by the content window
+ * itself (menu / settings → 角色与内容中心).
+ */
+async function openContentHubInWindow(): Promise<boolean> {
+  if (contentHubBlocked()) {
+    showBubble('请先同意完整声明后再打开角色与内容中心。')
+    return false
+  }
+  const runtime = await ensureContentRuntime()
+  if (!runtime || !runtime.hub) {
+    showBubble('内容目录没有加载出来，请稍后再试。')
+    return false
+  }
+  return runtime.hub.open()
 }
 
 /**
@@ -1075,20 +1226,84 @@ async function ensureContentRuntime(): Promise<ContentRuntimeState | null> {
   }
 }
 
-/** Desktop-menu entry: open the single consolidated role & content center. */
+/**
+ * Desktop-menu entry (pet window): open the independent content/settings window
+ * (MB-062), focusing it when already open. Browser/dev (no Tauri) and a failed
+ * window creation keep today's in-window panel — one renderer, two hosts.
+ */
 function openContentHubFromMenu(): void {
-  void (async () => {
-    if (contentHubBlocked()) {
-      showBubble('请先同意完整声明后再打开角色与内容中心。')
+  if (CONTENT_SHELL) {
+    // Content window: switch the SAME window to the content panel (this is also
+    // what the settings dialog's 角色与内容中心… button reaches).
+    if (contentWindowChrome) contentWindowChrome.showRoute('content')
+    else void openContentHubInWindow().catch((error) => reportFailure(uiBoundary, error))
+    return
+  }
+  if (!HAS_TAURI) {
+    // Browser/dev fallback: keep the in-window panel (no popups, no new window).
+    void openContentHubInWindow().catch((error) => reportFailure(uiBoundary, error))
+    return
+  }
+  void openContentWindow('content')
+    .then((opened) => {
+      if (!opened) void openContentHubInWindow().catch((error) => reportFailure(uiBoundary, error))
+    })
+    .catch((error) => {
+      reportFailure(uiBoundary, error)
+      void openContentHubInWindow().catch((inner) => reportFailure(uiBoundary, inner))
+    })
+}
+
+/**
+ * Pet-window menu 设置… entry: open the same audited settings dialog in the
+ * independent content window (deep-linked focus target stashed for it). Returns
+ * false in the browser fallback so desktop-shell opens its in-window modal.
+ */
+function openSettingsInContentWindow(focusTarget?: string): boolean {
+  if (CONTENT_SHELL || !HAS_TAURI) return false
+  stashContentWindowFocus(contentStorage(), focusTarget)
+  void openContentWindow('settings')
+    .then((opened) => {
+      if (!opened && !openDesktopSettingsDialog(focusTarget)) {
+        showBubble('内容窗口没有打开，设置暂时不可用。')
+      }
+    })
+    .catch((error) => {
+      reportFailure(uiBoundary, error)
+      openDesktopSettingsDialog(focusTarget)
+    })
+  return true
+}
+
+/**
+ * Ask the live pet window to save (optional) and reload after a content/role
+ * change made in the independent window. Fired through the Tauri event bus
+ * (both windows share one process); the pet window owns its own save path.
+ */
+function requestPetWindowReload(save: boolean): void {
+  if (!HAS_TAURI || !CONTENT_SHELL) return
+  void import('@tauri-apps/api/event')
+    .then(({ emit }) => emit(PET_RELOAD_EVENT, { save }))
+    .catch((error: unknown) => {
+      console.warn('[pet] reload bridge unavailable', error)
+    })
+}
+
+/** Close only the content window (never the app, never the pet). */
+function closeContentWindow(): void {
+  try {
+    if (HAS_TAURI) {
+      void import('@tauri-apps/api/window')
+        .then(({ getCurrentWindow }) => getCurrentWindow().close())
+        .catch(() => {
+          try {
+            window.close()
+          } catch {}
+        })
       return
     }
-    const runtime = await ensureContentRuntime()
-    if (!runtime || !runtime.hub) {
-      showBubble('内容目录没有加载出来，请稍后再试。')
-      return
-    }
-    if (!runtime.hub.open()) showBubble('角色与内容中心暂时无法打开。')
-  })().catch((error) => reportFailure(uiBoundary, error))
+    window.close()
+  } catch {}
 }
 
 /** Local object URL for an installed pack preview; built-in previews use paths. */
@@ -1162,6 +1377,9 @@ function applyRoleThemeFromHub(
     const applied = applyRendererChoice(targetRenderer, {
       storage: contentStorage(),
       reload: () => {
+        // The pet window is a different process window: tell it to save+reload
+        // so the new renderer actually appears there (it owns the pet loop).
+        requestPetWindowReload(true)
         window.location.reload()
       },
     })
@@ -1179,6 +1397,9 @@ function applyRoleThemeFromHub(
   }
   runtime.dialogue = resolveDialogueBehavior(runtime.library, runtime.selection)
   dialogueBehavior = runtime.dialogue
+  // Appearance/dialogue changed without a reload: flush the live pet window when
+  // the content window's hub closes (it re-reads the same persisted selection).
+  if (CONTENT_SHELL) contentWindowNeedsPetReload = true
   if (voiceChanged) applyVoicePreference(themeVoiceId as TtsVoiceId)
   else renderVoiceMode()
   const prefix = verb === 'restore' ? '已恢复角色「' : '已应用角色「'
@@ -1253,6 +1474,8 @@ function customizeRoleComponent(key: SelectionKey, id: string): ContentHubSelect
     runtime.dialogue = resolveDialogueBehavior(runtime.library, resolved.selection)
     dialogueBehavior = runtime.dialogue
   }
+  // Same persisted selection read by the pet window: flush it on hub close.
+  if (CONTENT_SHELL) contentWindowNeedsPetReload = true
   if (key === 'voice' && character !== undefined && character.voiceMode === 'tts') {
     const voice = entry as ContentVoiceEntry
     if (isTtsVoiceId(voice.voiceId)) {
@@ -1330,6 +1553,9 @@ async function commitContentImport(pending: PreparedThemePackImport): Promise<Co
   runtime.dialogue = resolveDialogueBehavior(pending.library, runtime.selection)
   dialogueBehavior = runtime.dialogue
   rebuildPreviewTargets(runtime)
+  // The pet window must re-read the merged catalog so the imported pack appears
+  // there too (flush on hub close; no duplicate window logic).
+  if (CONTENT_SHELL) contentWindowNeedsPetReload = true
   try {
     applyContentSelectionAppearance(document, runtime.library, runtime.selection)
   } catch (error) {
@@ -1592,9 +1818,12 @@ async function handleTalkTranscript(rawText: string): Promise<void> {
   if (/名字|叫什么|你是谁/.test(text)) {
     await say(`我叫${state.name}。住在书页折角里。`, 'happy')
   } else if (/晚安|睡吧|休息/.test(text)) {
-    await say('晚安。灯我留着，明天见。', 'calm')
+    // Low-disturbance copy (PSY-P1-7/Q-04): no "light left on / waiting" hint.
+    await say('晚安，明天见。', 'calm')
   } else if (/你好|早上好|在吗/.test(text)) {
-    await say('我在。你忙你的，我在这里。', 'happy')
+    // Interactive reply: responsive ("I'm here, go ahead") without promising
+    // to keep waiting while the user is away.
+    await say('我在。你说。', 'happy')
   } else if (/可爱|喜欢你|乖/.test(text)) {
     state = patPet(state, now())
     await say('……嗯。', 'happy')
@@ -2074,10 +2303,14 @@ $('save-delete').addEventListener('click', () => void (async () => {
       removeKey(key)
       removeKey(`${key}.bak`)
     }
+    // MB-011: once the corrupt primary+backup are gone, this session is no
+    // longer recovering from a bad archive: resume autosave so the fresh state
+    // is committed on the next 30 s tick instead of staying paused forever.
+    saveRecoveryNeeded = false
     state = createPet(now())
     render()
     renderMemoryBook()
-    showBubble('本机存档已删除。')
+    showBubble('本机存档已删除，自动保存已恢复。')
   } catch (error) {
     reportFailure(importBoundary, error)
     showBubble('删除失败，请手动清理应用数据。')
@@ -2142,34 +2375,62 @@ $('memory-export').addEventListener('click', () => {
 })
 $('memory-close').addEventListener('click', () => memoryScreen.classList.add('hidden'))
 
-/** 复位窗口 entry shared by the panel button, the desktop menu and settings. */
+/**
+ * 复位窗口 entry shared by the panel button, the desktop menu and settings.
+ *
+ * W-01/W-02 (UX-P0-4): the Tauri host owns placement via the Rust
+ * `reset_pet_window` command, which is taskbar-aware and identical to the tray
+ * recall action. The direct window-API path stays as a fallback for older hosts
+ * or a rejected IPC call.
+ */
 function resetPetWindow(): void {
   void (async () => {
     if (!HAS_TAURI) return
+    let moved = false
     try {
-      const { getCurrentWindow, currentMonitor, PhysicalPosition } = await import('@tauri-apps/api/window')
-      const monitor = await currentMonitor()
-      if (!monitor) return
-      const win = getCurrentWindow()
-      const size = await win.outerSize()
-      const x = monitor.position.x + monitor.size.width - size.width - 12
-      const y = monitor.position.y + monitor.size.height - size.height - 12
-      await win.setPosition(new PhysicalPosition(x, y))
-      removeKey(WINDOW_KEY)
+      const { invoke } = await import('@tauri-apps/api/core')
+      await invoke('reset_pet_window')
+      moved = true
+    } catch {
+      // Fall through to the window-API fallback; its failure is reported below.
+    }
+    if (!moved) {
+      try {
+        const { getCurrentWindow, currentMonitor, PhysicalPosition } = await import('@tauri-apps/api/window')
+        const monitor = await currentMonitor()
+        if (!monitor) return
+        const win = getCurrentWindow()
+        const size = await win.outerSize()
+        const x = monitor.position.x + monitor.size.width - size.width - 12
+        const y = monitor.position.y + monitor.size.height - size.height - 12
+        await win.setPosition(new PhysicalPosition(x, y))
+        moved = true
+      } catch (error) {
+        reportFailure(storageBoundary, error)
+        return
+      }
+    }
+    if (moved) {
+      // The content window must not clear the pet's saved position; Rust already
+      // recalled the PET window in that case.
+      if (!CONTENT_SHELL) removeKey(WINDOW_KEY)
       showBubble('回到右下角。')
-    } catch (error) {
-      reportFailure(storageBoundary, error)
     }
   })().catch((error) => reportFailure(uiBoundary, error))
 }
 $('reset-window').addEventListener('click', () => resetPetWindow())
-setInterval(() => {
-  if (!canInteract() || saveRecoveryNeeded) return
-  void saveNow().catch((error) => {
-    if (!(error instanceof RateLimitError)) reportFailure(saveBoundary, error)
-  })
-}, 30_000)
-if (typeof document !== 'undefined') {
+// The independent content/settings window (MB-062) never autosaves: it may run
+// next to the live pet window, and only the pet window owns the archive's
+// background writes. Manual 保存/读取 from its reused settings dialog still work.
+if (!CONTENT_SHELL) {
+  setInterval(() => {
+    if (!canInteract() || saveRecoveryNeeded) return
+    void saveNow().catch((error) => {
+      if (!(error instanceof RateLimitError)) reportFailure(saveBoundary, error)
+    })
+  }, 30_000)
+}
+if (typeof document !== 'undefined' && !CONTENT_SHELL) {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden' && canInteract() && !saveRecoveryNeeded) {
       void saveNow().catch((error) => {
@@ -2201,9 +2462,17 @@ async function bootPetOnce(): Promise<void> {
   // unhandled or boot a half-rendered pet (P0-2).
   const loaded = await loadBoundary.guardAsync(() => loadNow())
   if (!loaded.ok) {
-    showBubble(saveRecoveryNeeded ? '存档损坏，已保留备份；先点保存写入新档。' : '旧存档没读出来，先用默认状态。')
+    // Plain, reachable next steps (no dead-end instruction): the menu offers 保存
+    // (writes a new archive without touching the good .bak), and a full local
+    // data wipe restarts from a clean archive. Autosave stays paused until one
+    // of those happens, so a corrupt archive is never silently overwritten.
+    showBubble(
+      saveRecoveryNeeded
+        ? '存档损坏，已保留备份：可在「更多 → 保存」写入新档，或「更多 → 删除全部本地数据」重新开始；期间不会自动覆盖旧档。'
+        : '旧存档没读出来，先用默认状态。',
+    )
   } else if (saveRecoveryNeeded) {
-    showBubble('已从备份恢复；点保存写入新档。')
+    showBubble('已从备份恢复：可在「更多 → 保存」写入新档，收回损坏的主档。')
   }
   if (!loaded.ok || !loaded.value) {
     state = createPet(now())
@@ -2214,7 +2483,7 @@ async function bootPetOnce(): Promise<void> {
     state = { ...state, lastSeenMs: now() }
     render()
     if (away > 60 * 60 * 1000) {
-      sayLater('你回来了。书页一直停在这里。', 'happy', 'ambient')
+      sayLater('你回来了。书页翻到你上次那页。', 'happy', 'ambient')
     } else {
       const memoryItems = Array.isArray(state.memory?.items) ? state.memory.items : []
       const activeMemories = memoryItems.filter((item) => item.status === 'active')
@@ -2228,7 +2497,17 @@ async function bootPetOnce(): Promise<void> {
         })
       } else {
         const hour = new Date().getHours()
-        sayLater(hour >= 23 || hour < 6 ? '……这么晚。我给你留了灯。' : hour < 12 ? '早。今天书页很轻。' : '你忙你的，我在这里。', 'calm', 'ambient')
+        // Night copy is low-arousal and does not claim to leave a light on for
+        // the user; quiet hours suppress this ambient line entirely.
+        sayLater(
+          hour >= 23 || hour < 6
+            ? '……这么晚还在呀。早点休息，明天见。'
+            : hour < 12
+              ? '早。今天书页很轻。'
+              : '你忙你的。',
+          'calm',
+          'ambient',
+        )
       }
     }
   }
@@ -2240,13 +2519,18 @@ async function bootPetOnce(): Promise<void> {
     initChatImport()
   }
   render()
+  // One-time menu coach (E-01): request it here because a stored-acceptance
+  // launch never shows a consent overlay (first-run launches are also handled
+  // by the desktop shell's overlay-close listener). Gated internally: it only
+  // shows after consent and marks itself as seen.
+  requestMenuCoach()
   await startHeroPage()
 }
 
 renderVoiceMode()
 render()
-if (HAS_TAURI) startHitRegionSync()
-startDesktopShellLayout()
+if (HAS_TAURI && !CONTENT_SHELL) startHitRegionSync()
+if (!CONTENT_SHELL) startDesktopShellLayout()
 ;(window as any).__pet = {
   get state() { return state },
   render,
@@ -2265,7 +2549,12 @@ startDesktopShellLayout()
     selection: (): ContentSelection | null => contentRuntime?.selection ?? null,
     dialoguePack: (): string | null => dialogueBehavior?.packId ?? null,
     installedPacks: (): number => contentRuntime?.installedPacks.length ?? 0,
-    open: openContentHubFromMenu,
+    // The QA/console surface keeps the historical in-window panel so existing
+    // E2E probes stay inside the pet page; the user-facing menu opens the
+    // independent window (MB-062).
+    open: (): void => {
+      void openContentHubInWindow().catch((error) => reportFailure(uiBoundary, error))
+    },
   },
   // P1-2: the QA/console hook is NOT an exemption. State-mutating entries are
   // funnelled through the same consent gate as the UI handlers (and there is no
@@ -2366,7 +2655,10 @@ async function restoreWindowPosition(): Promise<void> {
   }
 }
 
-if (HAS_TAURI) {
+// Pet-window placement is pet-only: the content window is a normal decorated
+// window, and both windows share localStorage, so it must never overwrite the
+// stored pet position (nor save its own).
+if (HAS_TAURI && !CONTENT_SHELL) {
   setTimeout(() => void restoreWindowPosition(), 600)
   document.querySelector('header')?.addEventListener('pointerup', () => {
     setTimeout(() => void saveWindowPosition(), 160)
@@ -3268,7 +3560,9 @@ function initAboutPanel(): void {
     void beginRoleplayFlow().catch((error) => reportFailure(uiBoundary, error))
   })
   document.getElementById('about-roleplay-exit')?.addEventListener('click', () => endRoleplayFlow())
-  document.getElementById('about-exit')?.addEventListener('click', () => exitApplication())
+  // About 退出 is the same save-then-close path as the menus (MB-010): a bare
+  // exitApplication() here silently dropped unsaved progress.
+  document.getElementById('about-exit')?.addEventListener('click', () => { void exitAfterSave() })
   // Desktop shell menu routes here: explicit TTS statement re-confirmation.
   document.getElementById('tts-consent')?.addEventListener('click', () => void requestTtsConfirmation(currentTtsConfig()).catch((error) => reportFailure(ttsBoundary, error)))
 }
@@ -3335,30 +3629,151 @@ async function stopVoiceProcessing(): Promise<void> {
   } catch {}
 }
 
+/**
+ * Unified quit path for root menu / 更多 menu / About / settings (MB-010, UX V-01):
+ * save first, then close. A failed or timed-out save must not throw the session
+ * away silently: ask, and keep the window open when the user cancels. Read-only
+ * (pre-consent) launches have nothing to save and close directly.
+ */
 async function exitAfterSave(): Promise<void> {
+  if (CONTENT_SHELL) {
+    // The content window holds a read-only snapshot of the pet archive; saving
+    // it could clobber newer pet state. The live pet window owns save-then-exit,
+    // so just ask it to run the one unified quit path.
+    exitApplication()
+    return
+  }
+  let saved = false
   try {
-    if (canInteract()) await saveNow()
+    if (canInteract()) {
+      await saveNow()
+      saved = true
+    }
   } catch (error) {
     if (!(error instanceof RateLimitError)) reportFailure(saveBoundary, error)
-  } finally {
-    exitApplication()
   }
+  if (!canInteract() || saved) {
+    exitApplication()
+    return
+  }
+  if (window.confirm('这次保存没有成功，退出可能丢失本会话进度。仍要退出？')) exitApplication()
 }
 
 function exitApplication(): void {
   try {
     if (HAS_TAURI) {
-      void import('@tauri-apps/api/window')
-        .then(({ getCurrentWindow }) => getCurrentWindow().close())
+      if (CONTENT_SHELL) {
+        // About → 退出应用 from the content window: delegate to the pet window's
+        // save-then-quit path (it owns the archive; Rust exits the process).
+        void import('@tauri-apps/api/event')
+          .then(({ emit }) => emit('pet://exit-requested', {}))
+          .catch(() => closeContentWindow())
+        return
+      }
+      // Save is already done; `quit_app` closes EVERY window (the content window
+      // would otherwise keep the process alive after 退出).
+      void import('@tauri-apps/api/core')
+        .then(({ invoke }) => invoke('quit_app'))
         .catch(() => {
-          try {
-            window.close()
-          } catch {}
+          void import('@tauri-apps/api/window')
+            .then(({ getCurrentWindow }) => getCurrentWindow().close())
+            .catch(() => {
+              try {
+                window.close()
+              } catch {}
+            })
         })
       return
     }
     window.close()
   } catch {}
+}
+
+// ---------------------------------------------------------------------------
+// Independent content/settings window boot (MB-062 / E6, task-85)
+//
+// Same modules as the pet window: ensureContentRuntime() builds the role content
+// center, desktop-shell.ts builds the #pet-settings dialog, and the shared
+// consent gate gates both. This section only routes between the home surface and
+// the two panels and bridges role/appearance edits back to the live pet window.
+// ---------------------------------------------------------------------------
+function presentContentWindowRoute(route: ContentWindowRoute): void {
+  const target = normalizeContentWindowRoute(route)
+  contentWindowTransition = true
+  try {
+    if (target === 'settings') {
+      contentRuntime?.hub?.close(false)
+      contentWindowChrome?.hideHome()
+      const focus = takeContentWindowFocus(contentStorage())
+      if (!openDesktopSettingsDialog(focus ?? undefined)) contentWindowChrome?.showHome()
+      return
+    }
+    closeDesktopSettingsDialog(false)
+    contentWindowChrome?.hideHome()
+    void openContentHubInWindow()
+      .then((opened) => {
+        if (!opened) contentWindowChrome?.showHome()
+      })
+      .catch((error) => {
+        reportFailure(uiBoundary, error)
+        contentWindowChrome?.showHome()
+      })
+  } finally {
+    contentWindowTransition = false
+  }
+}
+
+/**
+ * Boot the content window: load the pet archive once (read-only; the settings
+ * dialog reuses mute/volume/save/load from it), build the shared content runtime
+ * and settings dialog, then show the requested panel. Never boots the pet loop,
+ * hero, Advisers, hit regions or autosave.
+ */
+async function bootContentWindowOnce(): Promise<void> {
+  if (contentWindowBooted) return
+  contentWindowBooted = true
+  try {
+    // Read-only load; a corrupt archive keeps the defaults and the dialog still
+    // works. There is no autosave in this window (see the guarded interval).
+    await loadNow()
+  } catch (error) {
+    reportFailure(loadBoundary, error)
+  }
+  renderVoiceMode()
+  render()
+  await ensureContentRuntime()
+  contentWindowChrome = installContentWindowChrome({
+    document,
+    openRoute: presentContentWindowRoute,
+    closeWindow: closeContentWindow,
+  })
+  if (HAS_TAURI) {
+    void import('@tauri-apps/api/event')
+      .then(({ listen }) =>
+        listen<string>(CONTENT_WINDOW_NAVIGATE_EVENT, (event) => {
+          contentWindowChrome?.showRoute(normalizeContentWindowRoute(event.payload))
+        }),
+      )
+      .catch((error: unknown) => {
+        console.warn('[pet] content window navigation unavailable', error)
+      })
+  }
+  contentWindowChrome.showRoute(CONTENT_WINDOW.route)
+}
+
+/** Content-window equivalent of startConsentApp: initialize -> consent -> panel. */
+async function startContentWindowApp(): Promise<void> {
+  try {
+    startupStage = 'init'
+    initializeApp()
+    startupStage = 'consent'
+    const mode = await bootstrapConsent()
+    startupStage = mode === 'accepted' ? 'boot' : 'idle'
+    if (mode === 'accepted') await bootContentWindowOnce()
+    startupStage = 'idle'
+  } catch (error) {
+    showStartupFailure(error)
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -3380,6 +3795,7 @@ const wired = {
   health: false,
   content: false,
   contentOverlay: false,
+  trayExit: false,
 }
 
 function initializeApp(): void {
@@ -3393,6 +3809,21 @@ function initializeApp(): void {
     initConsentRuntime({
       onConsentAccepted: () => {
         void (async () => {
+          if (CONTENT_SHELL) {
+            // Re-consent inside the content window (after 撤回/删除): mirror the
+            // acceptance to the host, resume the content surface and let the pet
+            // window reload into its own consent state (never save: read-only).
+            await syncHostConsent(consentSnapshot())
+            await bootContentWindowOnce()
+            contentWindowTransition = true
+            try {
+              contentWindowChrome?.showRoute(CONTENT_WINDOW.route)
+            } finally {
+              contentWindowTransition = false
+            }
+            requestPetWindowReload(false)
+            return
+          }
           const hostConsent = await syncHostConsent(consentSnapshot())
           if (hostConsent?.launched) return
           await runPetBoot()
@@ -3408,7 +3839,14 @@ function initializeApp(): void {
         // Keep `booted` true: re-consent should resume the existing (reset)
         // shell instead of re-running boot wiring a second time. Autosave is
         // blocked while read-only, so nothing is re-created before re-consent.
+        // A full local-data wipe also clears the "recovering a corrupt archive"
+        // state: after re-consent the next autosave writes a fresh archive
+        // instead of staying paused (MB-011).
+        saveRecoveryNeeded = false
         state = createPet(now())
+        // A full local-data wipe clears the quiet-hours preference too; fall
+        // back to the safety default in this session as well.
+        quietHoursSettings = readQuietHours()
         renderMemoryBook()
         document.getElementById('memory-screen')?.classList.add('hidden')
         render()
@@ -3423,6 +3861,16 @@ function initializeApp(): void {
       // Single consolidated content-center entry (replaces the four renderer
       // rows); main.ts opens the panel and re-checks the consent gate there.
       openContentHub: openContentHubFromMenu,
+      // MB-062: the pet window's 设置… opens the independent settings window;
+      // the content window reuses the SAME dialog and does not open a third.
+      openSettingsWindow: CONTENT_SHELL ? undefined : openSettingsInContentWindow,
+      onSettingsClosed: () => {
+        if (!CONTENT_SHELL || contentWindowTransition) return
+        contentWindowChrome?.showHome()
+      },
+      // The content window gets the same dialog renderer/persistence but no pet
+      // right-click menu, coach or pet drag behavior.
+      enableMenu: !CONTENT_SHELL,
       // Live getters: the shell initializes before hero boot, and the menu is
       // rendered on open, so it sees the actual renderer state each time.
       heroActive: () => hero !== null,
@@ -3434,12 +3882,17 @@ function initializeApp(): void {
       setMuted: setMutedFromShell,
       setVolume: applyVolume,
       onVolumeCommit: volumeCommitted,
+      // MB-070: mirror the persisted quiet-hours window without a reload.
+      onQuietHoursChange: (next) => {
+        quietHoursSettings = next
+      },
       saveArchive: saveArchiveWithFeedback,
       loadArchive: loadArchiveWithFeedback,
       resetWindow: resetPetWindow,
       // The role & content center is above the body-level shell menu.
       isHigherModalOpen: () => contentRuntime?.hub?.isOpen() === true,
-      // Root 退出: best-effort save, then close; a hung IPC still exits.
+      // Root 退出: best-effort save, then close; a hung IPC still exits. The
+      // content window has no menu, and its close button never quits the app.
       onExit: () => { void exitAfterSave() },
     })
     wired.shell = true
@@ -3458,8 +3911,14 @@ function initializeApp(): void {
     // consent layer also inerts body-level siblings, but closing avoids a stale
     // panel (and its feedback) remaining behind the modal.
     document.addEventListener(CONSENT_OVERLAY_EVENT, (event) => {
-      const detail = (event as CustomEvent<{ open?: boolean }>).detail
+      const detail = (event as CustomEvent<{ open?: boolean; kind?: string }>).detail
       if (detail && detail.open === true) contentRuntime?.hub?.close(false)
+      // 撤回同意 / 删除全部本地数据 executed in the content window end in the safe
+      // read-only screen. The live pet window keeps an in-memory acceptance, so
+      // ask it to reload WITHOUT saving (save would re-create wiped data).
+      if (CONTENT_SHELL && detail?.open === true && detail.kind === 'consent-blocked') {
+        requestPetWindowReload(false)
+      }
     })
   }
   if (!wired.setup) {
@@ -3471,8 +3930,41 @@ function initializeApp(): void {
     wired.about = true
   }
   if (!wired.health) {
-    startHealthReminder()
+    // One 2h health reminder per app: only the live pet window owns it. Running
+    // it in the content/settings window would double-fire and misreport usage.
+    if (!CONTENT_SHELL) startHealthReminder()
     wired.health = true
+  }
+  if (!wired.trayExit) {
+    // UX-P0-4: the tray 退出 item asks the page to save-then-close through the
+    // exact same path as the root menu (V-01). Rust force-exits after 4s as a
+    // fallback, so a broken/hidden page cannot strand the process.
+    wired.trayExit = true
+    if (HAS_TAURI && !CONTENT_SHELL) {
+      void import('@tauri-apps/api/event')
+        .then(async ({ listen }) => {
+          await listen('pet://exit-requested', () => { void exitAfterSave() })
+          // MB-062 reload bridge: the content window asks the pet window to pick
+          // up a new renderer/appearance/installed pack. `save:false` is used for
+          // data-control flows where writing would re-create wiped data.
+          await listen<{ save?: boolean }>(PET_RELOAD_EVENT, (event) => {
+            const shouldSave = event.payload?.save !== false
+            void (async () => {
+              if (shouldSave) {
+                try {
+                  if (canInteract()) await saveNow()
+                } catch {
+                  /* a failed save must not block the reload requested by the user */
+                }
+              }
+              window.location.reload()
+            })()
+          })
+        })
+        .catch((error: unknown) => {
+          console.warn('[pet] tray exit listener unavailable', error)
+        })
+    }
   }
 }
 
@@ -3570,8 +4062,11 @@ async function retryStartup(): Promise<void> {
       // A failed boot may leave the "already booted" latch set; reset it so the
       // retry can actually run, then boot again (idempotent wiring guards keep
       // listeners from duplicating).
-      booted = false
-      await runPetBoot()
+      if (CONTENT_SHELL) await startContentWindowApp()
+      else {
+        booted = false
+        await runPetBoot()
+      }
       return
     }
     if (startupStage === 'consent') {
@@ -3580,15 +4075,20 @@ async function retryStartup(): Promise<void> {
         // A failed bootstrap cached a rejected bootPromise; the gate's retry
         // path clears it and re-shows the full TOS.
         const mode = await gate.retryInitialConsent()
-        if (mode === 'accepted') await runPetBoot()
-        else startupStage = 'idle'
+        if (mode === 'accepted') {
+          if (CONTENT_SHELL) await bootContentWindowOnce()
+          else await runPetBoot()
+        } else startupStage = 'idle'
         return
       }
     }
     // Init failure (or an unexpected stage): re-run the start path; completed
     // one-time wiring steps are skipped.
-    booted = false
-    await startConsentApp()
+    if (CONTENT_SHELL) await startContentWindowApp()
+    else {
+      booted = false
+      await startConsentApp()
+    }
   } catch (error) {
     showStartupFailure(error)
   } finally {
@@ -3596,10 +4096,18 @@ async function retryStartup(): Promise<void> {
   }
 }
 
-void startConsentApp().catch((error) => {
-  // Last-resort net: startConsentApp handles its own failures, but a throw
-  // before its try block must still block visibly. showStartupFailure logs the
-  // original error once (reportFailure) and renders only the sanitized copy.
-  showStartupFailure(error)
-})
+if (CONTENT_SHELL) {
+  // Independent content/settings window: boot only the content center/settings
+  // surfaces, never the pet (no duplicate save loop, hero, Advisers or autosave).
+  void startContentWindowApp().catch((error) => {
+    showStartupFailure(error)
+  })
+} else {
+  void startConsentApp().catch((error) => {
+    // Last-resort net: startConsentApp handles its own failures, but a throw
+    // before its try block must still block visibly. showStartupFailure logs the
+    // original error once (reportFailure) and renders only the sanitized copy.
+    showStartupFailure(error)
+  })
+}
 

@@ -1,0 +1,850 @@
+{
+  "schema": "famling.pet-anim/0.2",
+  "id": "example.cat-anim",
+  "name": "示例·塞尔凯克猫动画资产包",
+  "version": "0.1.0",
+  "description": "cat 第三方动画资产包形状示例：12 clip 全帧清单 + 96×96 规格 + behavior/regions/voice/audio 声明。示例帧与 sha256 为占位值，不加载、不渲染；真实交付须按 DESIGN-REFERENCE 产出素材并重算哈希。",
+  "author": "Example Author",
+  "kind": "cat",
+  "usageDeclaration": {
+    "researchOnly": true,
+    "statement": "本项目及其全部代码、美术、音频、文案、角色素材和衍生物仅用于技术研究与原型验证，不得用于情感陪伴、虚拟伴侣、心理治疗/医疗/法律/金融建议、未成年人亲密关系、冒充真人/官方，或任何违反法律法规/平台规则的用途。",
+    "statementRef": "docs/legal/USE-RESTRICTIONS-2026-11-19.md",
+    "prohibitedUses": [
+      "emotional-companionship",
+      "virtual-partner",
+      "professional-advice",
+      "minor-intimacy",
+      "impersonation",
+      "illegal-use"
+    ]
+  },
+  "license": {
+    "spdx": "CC-BY-4.0",
+    "attribution": "Example Author (CC-BY-4.0)"
+  },
+  "aiProvenance": {
+    "generated": true,
+    "disclosure": "示例清单与占位 sha256 由确定性脚本生成并经人工校对；实际发布须替换为自有素材并更新本声明。",
+    "tools": [
+      "example-generator"
+    ]
+  },
+  "compatibility": {
+    "library": "famling.content/0.2",
+    "minAppVersion": "0.2.0"
+  },
+  "character": {
+    "id": "example.cat-anim",
+    "name": "示例猫角色",
+    "kind": "cat",
+    "species": "cat",
+    "traits": [
+      "quadruped",
+      "feline",
+      "tail"
+    ],
+    "capabilities": {
+      "sockets": [
+        "head",
+        "back",
+        "paw",
+        "floor"
+      ],
+      "roles": [
+        "pet"
+      ],
+      "behaviors": [
+        "social",
+        "holdable",
+        "aware"
+      ]
+    },
+    "fallback": {
+      "talk": [
+        "idle"
+      ],
+      "pat": [
+        "pat_head",
+        "idle"
+      ],
+      "play": [
+        "stand_wag",
+        "idle"
+      ]
+    }
+  },
+  "spec": {
+    "canvas": [
+      96,
+      96
+    ],
+    "anchor": {
+      "x": 48,
+      "y": 96,
+      "mode": "foot-center"
+    },
+    "footBox": {
+      "x": -36,
+      "y": -18,
+      "w": 72,
+      "h": 18
+    },
+    "bbox": [
+      12,
+      8,
+      72,
+      84
+    ],
+    "display": {
+      "scale": 2,
+      "pixelated": true
+    },
+    "palette": "cat-selkirk-anim@0.1"
+  },
+  "animations": {
+    "clips": {
+      "idle": {
+        "frames": 6,
+        "fps": 6,
+        "loop": true,
+        "layer": "base",
+        "category": "idle",
+        "priority": 0
+      },
+      "idle_blink": {
+        "frames": 3,
+        "fps": 12,
+        "loop": false,
+        "layer": "overlay",
+        "category": "idle",
+        "priority": 10
+      },
+      "walk": {
+        "frames": 8,
+        "fps": 10,
+        "loop": true,
+        "layer": "base",
+        "category": "locomotion",
+        "priority": 5
+      },
+      "run": {
+        "frames": 6,
+        "fps": 14,
+        "loop": true,
+        "layer": "base",
+        "category": "locomotion",
+        "priority": 15
+      },
+      "pat_head": {
+        "frames": 4,
+        "fps": 8,
+        "loop": false,
+        "layer": "oneshot",
+        "category": "social",
+        "priority": 50
+      },
+      "ball_throw": {
+        "frames": 5,
+        "fps": 10,
+        "loop": false,
+        "layer": "oneshot",
+        "category": "interaction",
+        "priority": 40
+      },
+      "ball_chase": {
+        "frames": 6,
+        "fps": 12,
+        "loop": false,
+        "layer": "oneshot",
+        "category": "interaction",
+        "priority": 45
+      },
+      "paw_face": {
+        "frames": 5,
+        "fps": 8,
+        "loop": false,
+        "layer": "oneshot",
+        "category": "action",
+        "priority": 20
+      },
+      "scratch": {
+        "frames": 6,
+        "fps": 8,
+        "loop": false,
+        "layer": "oneshot",
+        "category": "action",
+        "priority": 20
+      },
+      "stand_wag": {
+        "frames": 10,
+        "fps": 6,
+        "loop": false,
+        "layer": "oneshot",
+        "category": "action",
+        "priority": 20,
+        "holdMs": [
+          300,
+          300,
+          300,
+          350,
+          400,
+          400,
+          400,
+          350,
+          250,
+          150
+        ]
+      },
+      "chase_tail": {
+        "frames": 6,
+        "fps": 10,
+        "loop": false,
+        "layer": "oneshot",
+        "category": "action",
+        "priority": 20
+      },
+      "attack": {
+        "frames": 7,
+        "fps": 16,
+        "loop": false,
+        "layer": "oneshot",
+        "category": "combat",
+        "priority": 60,
+        "holdMs": [
+          83,
+          83,
+          63,
+          42,
+          42,
+          63,
+          63
+        ]
+      }
+    }
+  },
+  "voice": {
+    "mode": "none",
+    "canTts": false,
+    "bubble": "thought"
+  },
+  "behavior": {
+    "profile": "famling.behavior/0.1",
+    "version": "0.1.0",
+    "extends": "core:pet.cat",
+    "defaults": {
+      "priority": 10,
+      "interrupt": "at-end",
+      "cooldownMs": 0
+    },
+    "abilities": {
+      "speech": "sfx",
+      "reminder": true,
+      "care": {
+        "feed": true,
+        "play": true,
+        "sleep": true
+      },
+      "needs": true,
+      "death": false,
+      "multiObject": true
+    },
+    "slots": {
+      "idle": "idle",
+      "idle_blink": "idle_blink",
+      "pat": "pat_head",
+      "pat_head": "pat_head",
+      "play": "stand_wag",
+      "stand_wag": "stand_wag",
+      "talk": "idle",
+      "remind": "idle",
+      "drag": "idle",
+      "land": "idle",
+      "sleep": "idle",
+      "feed": "stand_wag",
+      "ball_throw": "ball_throw",
+      "ball_chase": "ball_chase",
+      "paw_face": "paw_face",
+      "scratch": "scratch",
+      "chase_tail": "chase_tail",
+      "run": "run",
+      "attack": "attack"
+    },
+    "states": {
+      "idle": {
+        "tag": "idle",
+        "loop": true,
+        "priority": 0
+      },
+      "idle_blink": {
+        "tag": "idle_blink",
+        "priority": 20,
+        "after": "idle"
+      },
+      "pat_head": {
+        "tag": "pat_head",
+        "priority": 50,
+        "after": "idle"
+      },
+      "stand_wag": {
+        "tag": "stand_wag",
+        "priority": 30,
+        "after": "idle"
+      },
+      "ball_throw": {
+        "tag": "ball_throw",
+        "priority": 40,
+        "after": "idle"
+      },
+      "ball_chase": {
+        "tag": "ball_chase",
+        "priority": 45,
+        "after": "idle"
+      },
+      "paw_face": {
+        "tag": "paw_face",
+        "priority": 20,
+        "after": "idle"
+      },
+      "scratch": {
+        "tag": "scratch",
+        "priority": 20,
+        "after": "idle"
+      },
+      "chase_tail": {
+        "tag": "chase_tail",
+        "priority": 20,
+        "after": "idle"
+      },
+      "run": {
+        "tag": "run",
+        "loop": true,
+        "priority": 15,
+        "after": "idle"
+      },
+      "attack": {
+        "tag": "attack",
+        "priority": 60,
+        "after": "idle"
+      }
+    },
+    "rules": [
+      {
+        "on": "pat_head",
+        "to": "pat_head"
+      },
+      {
+        "on": "stand_wag",
+        "to": "stand_wag"
+      },
+      {
+        "on": "ball_throw",
+        "to": "ball_throw"
+      },
+      {
+        "on": "ball_chase",
+        "to": "ball_chase"
+      },
+      {
+        "on": "paw_face",
+        "to": "paw_face"
+      },
+      {
+        "on": "scratch",
+        "to": "scratch"
+      },
+      {
+        "on": "chase_tail",
+        "to": "chase_tail"
+      },
+      {
+        "on": "run",
+        "to": "run"
+      },
+      {
+        "on": "attack",
+        "to": "attack"
+      }
+    ],
+    "ambient": {
+      "intervalMs": [
+        5000,
+        12000
+      ],
+      "choices": [
+        {
+          "state": "idle_blink",
+          "weight": 3
+        },
+        {
+          "state": "paw_face",
+          "weight": 1
+        }
+      ]
+    }
+  },
+  "regions": {
+    "version": 1,
+    "canvas": [
+      96,
+      96
+    ],
+    "regions": [
+      {
+        "id": "head",
+        "label": "头",
+        "rect": [
+          34,
+          18,
+          32,
+          34
+        ],
+        "priority": 30
+      },
+      {
+        "id": "body",
+        "label": "身体",
+        "rect": [
+          22,
+          50,
+          56,
+          38
+        ],
+        "priority": 10
+      },
+      {
+        "id": "tail",
+        "label": "尾巴",
+        "rect": [
+          68,
+          52,
+          26,
+          34
+        ],
+        "priority": 20
+      }
+    ],
+    "gestures": [
+      {
+        "region": "head",
+        "states": [
+          "idle",
+          "idle_blink"
+        ],
+        "gesture": "tap",
+        "event": "pat",
+        "says": [
+          "可以。",
+          "嗯……再一下。"
+        ]
+      },
+      {
+        "region": "tail",
+        "states": [
+          "idle",
+          "idle_blink"
+        ],
+        "gesture": "tap",
+        "event": "chase_tail",
+        "says": [
+          "别碰尾巴。",
+          "尾巴自己动的。"
+        ]
+      }
+    ],
+    "actions": [
+      {
+        "id": "pat",
+        "label": "摸头",
+        "event": "pat",
+        "says": [
+          "一下就好。"
+        ]
+      },
+      {
+        "id": "stretch",
+        "label": "伸懒腰",
+        "event": "stand_wag",
+        "says": [
+          "伸个懒腰。"
+        ]
+      }
+    ]
+  },
+  "audio": {
+    "redistribution": {
+      "confirmed": false,
+      "note": "占位示例：未确认音频再分发权，因此不附带任何音频文件；真实交付如含音频必须在清权后置 confirmed:true 并列入 files。"
+    }
+  },
+  "preview": "assets/preview/cat.preview.png",
+  "files": [
+    {
+      "path": "assets/anim/idle/idle_00.png",
+      "bytes": 512,
+      "sha256": "99d799790ca627cbef47c17c72e10cd9ff356f87d69324aa65c8c1e2160bd803"
+    },
+    {
+      "path": "assets/anim/idle/idle_01.png",
+      "bytes": 512,
+      "sha256": "1d38149009f4e26aa893cea917069aeb7e92a0215d82d854062aa12f89edd74e"
+    },
+    {
+      "path": "assets/anim/idle/idle_02.png",
+      "bytes": 512,
+      "sha256": "c837fc0cf7222486299e858e66dd7c62725e9ba0c4b1df28b4f351d51dc1363a"
+    },
+    {
+      "path": "assets/anim/idle/idle_03.png",
+      "bytes": 512,
+      "sha256": "349e35153d0f52f48eb4b24e7a2313bb830d69b62ee024397d2e5897ae0ed7ff"
+    },
+    {
+      "path": "assets/anim/idle/idle_04.png",
+      "bytes": 512,
+      "sha256": "edf8a60eef5a468da21531f5ae339956282f1adaafb70ccb70c89e46d77f84ae"
+    },
+    {
+      "path": "assets/anim/idle/idle_05.png",
+      "bytes": 512,
+      "sha256": "bcc261a481fce293b120e3161cd61589157fae2cfab3642f8145c9830bc38bc7"
+    },
+    {
+      "path": "assets/anim/idle_blink/idle_blink_00.png",
+      "bytes": 512,
+      "sha256": "6aa6ba5865b359d0b821c4a35d2ba2ce4addfe4e757779e90de0b8e62917313b"
+    },
+    {
+      "path": "assets/anim/idle_blink/idle_blink_01.png",
+      "bytes": 512,
+      "sha256": "3493554a9b8e1e952e08860c0b1fd83fc0640fc4ffed2ac5c5739c56506b7606"
+    },
+    {
+      "path": "assets/anim/idle_blink/idle_blink_02.png",
+      "bytes": 512,
+      "sha256": "3fc71ae74855bffe65c2c5b10c9590cc16e3a0c78653a7efee94af1425b21b88"
+    },
+    {
+      "path": "assets/anim/walk/walk_00.png",
+      "bytes": 512,
+      "sha256": "dec83dbbec7ab18075eb7a6fad6222a39cf377a457c7c210e2b3373a8f989123"
+    },
+    {
+      "path": "assets/anim/walk/walk_01.png",
+      "bytes": 512,
+      "sha256": "7595120043320dc8c368e956f4dfa3025b5eb2840f0298f5baba5e4dfb2c8985"
+    },
+    {
+      "path": "assets/anim/walk/walk_02.png",
+      "bytes": 512,
+      "sha256": "d8855b73cda3ce67ac27b83ec7c60a733531e4aad9f27019db4f62b4ace83b58"
+    },
+    {
+      "path": "assets/anim/walk/walk_03.png",
+      "bytes": 512,
+      "sha256": "5b40d489b2a45b2f0b277465605f163a6c782ec387aed10e1cb2367dccdf2cad"
+    },
+    {
+      "path": "assets/anim/walk/walk_04.png",
+      "bytes": 512,
+      "sha256": "c736288f3f7f407c9ed8868ff00134146709bab9b002b618fb81ab71ff51ffb6"
+    },
+    {
+      "path": "assets/anim/walk/walk_05.png",
+      "bytes": 512,
+      "sha256": "bec556e1c7e6d049af460680c9cb06ca7b6873d422bd487f45a5709568d32662"
+    },
+    {
+      "path": "assets/anim/walk/walk_06.png",
+      "bytes": 512,
+      "sha256": "18898e7b4883efe47b41d71bef920b7ef76fa38220b7a8f690a066402ff1e3b8"
+    },
+    {
+      "path": "assets/anim/walk/walk_07.png",
+      "bytes": 512,
+      "sha256": "04bbe3a79f416f73a1491b1b018a84d24d011b4d00de5c3d5c77d30d4d6c7f02"
+    },
+    {
+      "path": "assets/anim/run/run_00.png",
+      "bytes": 512,
+      "sha256": "df79b67a170f1714a93daabe4fbe2a7f7c5eac2b51878ed61a9d16140f371635"
+    },
+    {
+      "path": "assets/anim/run/run_01.png",
+      "bytes": 512,
+      "sha256": "9c517e94013d21a3d73247ec48d9bec9f64daf8876a130238ae197012eaa8d0f"
+    },
+    {
+      "path": "assets/anim/run/run_02.png",
+      "bytes": 512,
+      "sha256": "6dd318807bc5fe3876a9b987e398591e78a605526774f5569a85a59f203aefc3"
+    },
+    {
+      "path": "assets/anim/run/run_03.png",
+      "bytes": 512,
+      "sha256": "5ff4bf02a20feda5d0e3e4cb8a7230e3262a3657354ce0a5bd3dfc1dea77324b"
+    },
+    {
+      "path": "assets/anim/run/run_04.png",
+      "bytes": 512,
+      "sha256": "ff791a032a8c9dd853951e294c113d851da8cd9125743add49287d98d792a1ec"
+    },
+    {
+      "path": "assets/anim/run/run_05.png",
+      "bytes": 512,
+      "sha256": "b6c631266ec2fdeff1a2895a6384662b06bbd5bf163c46e75761f42a79870c58"
+    },
+    {
+      "path": "assets/anim/pat_head/pat_head_00.png",
+      "bytes": 512,
+      "sha256": "000371731e51eafad9f5c16b9d71601a1904e7388632eb33d9ae710e3ba7e7ff"
+    },
+    {
+      "path": "assets/anim/pat_head/pat_head_01.png",
+      "bytes": 512,
+      "sha256": "cd35de68cab152746198f5d18f001f054e39b32bb9f2be48dec436b0051783f1"
+    },
+    {
+      "path": "assets/anim/pat_head/pat_head_02.png",
+      "bytes": 512,
+      "sha256": "a72ffd1364d244e6bad264f994228f8b114170774e538b26d54a94fb5ef6e9e3"
+    },
+    {
+      "path": "assets/anim/pat_head/pat_head_03.png",
+      "bytes": 512,
+      "sha256": "7858124031afce5886b2958e682170570f635125f9bdd005fd28bcf06da130a2"
+    },
+    {
+      "path": "assets/anim/ball_throw/ball_throw_00.png",
+      "bytes": 512,
+      "sha256": "1d2320403fe1b029e6db648ab9d431e2a610bb12a4a398df9af6fa5fced3e970"
+    },
+    {
+      "path": "assets/anim/ball_throw/ball_throw_01.png",
+      "bytes": 512,
+      "sha256": "f08a330b69c251e975401de255d0fad4ceadda30e31729bd228b5d7c9511b2e7"
+    },
+    {
+      "path": "assets/anim/ball_throw/ball_throw_02.png",
+      "bytes": 512,
+      "sha256": "11927b2feb46e40ecef9d632fea2c594f4b33f5b15517cceebd333deb9adbca3"
+    },
+    {
+      "path": "assets/anim/ball_throw/ball_throw_03.png",
+      "bytes": 512,
+      "sha256": "9d1f7119d82bd972f8d2d97f7ce376154d8b782837f3c59e8d9b39572146240a"
+    },
+    {
+      "path": "assets/anim/ball_throw/ball_throw_04.png",
+      "bytes": 512,
+      "sha256": "69b439af8aba7914a13dc8fd8951595630d5d2536be284cfe228636a6e5de132"
+    },
+    {
+      "path": "assets/anim/ball_chase/ball_chase_00.png",
+      "bytes": 512,
+      "sha256": "49e61c26c2f6e1312091aee288f9a37f83d4592af762c368ff5de2c64cfae4c3"
+    },
+    {
+      "path": "assets/anim/ball_chase/ball_chase_01.png",
+      "bytes": 512,
+      "sha256": "262fa9b31cff60d930e8868a27367725b88d5d23558d1433f5187d64b13cbf6e"
+    },
+    {
+      "path": "assets/anim/ball_chase/ball_chase_02.png",
+      "bytes": 512,
+      "sha256": "0f8e6b1fa394ab119907c31100a2e855745cee93a6720151b109aa314095a58a"
+    },
+    {
+      "path": "assets/anim/ball_chase/ball_chase_03.png",
+      "bytes": 512,
+      "sha256": "4e966315a11af39c92a65c5301833135acdbbcc4a1640b69be0e0a6c9df38c70"
+    },
+    {
+      "path": "assets/anim/ball_chase/ball_chase_04.png",
+      "bytes": 512,
+      "sha256": "ed299b68ba61f1982fd1fe218bf9487363eacf89bcb0b6039e081249fbff0833"
+    },
+    {
+      "path": "assets/anim/ball_chase/ball_chase_05.png",
+      "bytes": 512,
+      "sha256": "44e083392383a54b86d7cc7cad6a8348232611278f38bdcef56eedbce2916eff"
+    },
+    {
+      "path": "assets/anim/paw_face/paw_face_00.png",
+      "bytes": 512,
+      "sha256": "910f9ec714746f5d4e6a8337498a0cdd4c382109e8d2557fdb66ffa424e78064"
+    },
+    {
+      "path": "assets/anim/paw_face/paw_face_01.png",
+      "bytes": 512,
+      "sha256": "eb40bec68fc159271cc1df697708c9eea601ed8f033c750dd6c194364ac60101"
+    },
+    {
+      "path": "assets/anim/paw_face/paw_face_02.png",
+      "bytes": 512,
+      "sha256": "e9a273f86eac6b3b9890d6a59c339de1df98b75e04a6b55cd862b84364248575"
+    },
+    {
+      "path": "assets/anim/paw_face/paw_face_03.png",
+      "bytes": 512,
+      "sha256": "59972dd059385318d487468df90bb4bf3befec35de5ad1000469ca2a5a1c9201"
+    },
+    {
+      "path": "assets/anim/paw_face/paw_face_04.png",
+      "bytes": 512,
+      "sha256": "f6895f8645e8d6bc5952e61881805625076a4465a1fc197d406cba0fd46c1e30"
+    },
+    {
+      "path": "assets/anim/scratch/scratch_00.png",
+      "bytes": 512,
+      "sha256": "8b4fa2a8bd6e9aac3a3dbe1b02bb979c9e25973539910b5eb608f8f7016cb5f9"
+    },
+    {
+      "path": "assets/anim/scratch/scratch_01.png",
+      "bytes": 512,
+      "sha256": "fdda0846b83e3be7fca8d66a61c016ce414707942c6a3ae48dba196531f0259e"
+    },
+    {
+      "path": "assets/anim/scratch/scratch_02.png",
+      "bytes": 512,
+      "sha256": "51a19c24bee5084a8244b875bfa23835528b92ddefdea561e0a121c0d5e0bbc6"
+    },
+    {
+      "path": "assets/anim/scratch/scratch_03.png",
+      "bytes": 512,
+      "sha256": "4f556793bb1305a39ed9cedcbf47d728e60ba21333f13fb45ca72b24ef3ec1eb"
+    },
+    {
+      "path": "assets/anim/scratch/scratch_04.png",
+      "bytes": 512,
+      "sha256": "d8e1f9bfefec987996f63b6b4d6912476fd6571008854cdb4fc1a38189f21950"
+    },
+    {
+      "path": "assets/anim/scratch/scratch_05.png",
+      "bytes": 512,
+      "sha256": "a220d81a622384c7fb6205bb2b5ae42882f5b34f9f6526b082e2cca46b5cc3b5"
+    },
+    {
+      "path": "assets/anim/stand_wag/stand_wag_00.png",
+      "bytes": 512,
+      "sha256": "132016cf44a48d08d3df0bbbc30aa682ac5877aeb7fcb49162ca3951c1065b85"
+    },
+    {
+      "path": "assets/anim/stand_wag/stand_wag_01.png",
+      "bytes": 512,
+      "sha256": "dc231e8aadb0bb1cb865ce11c935da375f0f46e949c8a5a7a23ea6819f04739e"
+    },
+    {
+      "path": "assets/anim/stand_wag/stand_wag_02.png",
+      "bytes": 512,
+      "sha256": "38aaa061f6039f4d1cc7ecc9b9a009c7711ff11725885d754b9abfe1e4a28d95"
+    },
+    {
+      "path": "assets/anim/stand_wag/stand_wag_03.png",
+      "bytes": 512,
+      "sha256": "0cc15d8eb213e7ab00e55efc94560a4b45929e82d3a97faad7ce5791cb1d793d"
+    },
+    {
+      "path": "assets/anim/stand_wag/stand_wag_04.png",
+      "bytes": 512,
+      "sha256": "8907e0b955ba1a0fe50530379ec09c1e11bbbc2dcffac28f85bdd59b37cee183"
+    },
+    {
+      "path": "assets/anim/stand_wag/stand_wag_05.png",
+      "bytes": 512,
+      "sha256": "b091d20efcb98c8c6866bd51d037df5069e49fc9dea456d80f18f757e42c13ca"
+    },
+    {
+      "path": "assets/anim/stand_wag/stand_wag_06.png",
+      "bytes": 512,
+      "sha256": "b0140500929bb27bd9c35eee207f349ee278c19a56e2b53878c59c3b4dbf8687"
+    },
+    {
+      "path": "assets/anim/stand_wag/stand_wag_07.png",
+      "bytes": 512,
+      "sha256": "44cdaf39b34d1416caf4acc14427e020e93eba65a1403ae461925d27264aab95"
+    },
+    {
+      "path": "assets/anim/stand_wag/stand_wag_08.png",
+      "bytes": 512,
+      "sha256": "80aa8c5e5340df0829e8564cb9ddc1b5a49759c10269fd0599a94d24542693b6"
+    },
+    {
+      "path": "assets/anim/stand_wag/stand_wag_09.png",
+      "bytes": 512,
+      "sha256": "987a881741f88be7c903f98414dbe596230e40ff86511afb2461ddd5f3da11d3"
+    },
+    {
+      "path": "assets/anim/chase_tail/chase_tail_00.png",
+      "bytes": 512,
+      "sha256": "6797a0fd20f17f4d233e41d7de4681ed1b26be5196fa415fd74167c4648b83d4"
+    },
+    {
+      "path": "assets/anim/chase_tail/chase_tail_01.png",
+      "bytes": 512,
+      "sha256": "694fcf7da1955f3ebc3db6946b774253a5ee583969ba2765d4cc79d344fc657d"
+    },
+    {
+      "path": "assets/anim/chase_tail/chase_tail_02.png",
+      "bytes": 512,
+      "sha256": "556d89bb7d6c822dea766991540b58ed1340f88f1e4bd386051c3b57d09517cd"
+    },
+    {
+      "path": "assets/anim/chase_tail/chase_tail_03.png",
+      "bytes": 512,
+      "sha256": "77d4b78c95afe81c3c5d91da0def2465b9a70e910715bdbf35c0a69b7ec315c1"
+    },
+    {
+      "path": "assets/anim/chase_tail/chase_tail_04.png",
+      "bytes": 512,
+      "sha256": "101cc30a1d47fc66ac469f65319eed935cf48819bfc09beaa45de93f63f43bfe"
+    },
+    {
+      "path": "assets/anim/chase_tail/chase_tail_05.png",
+      "bytes": 512,
+      "sha256": "8bb804eb630826e91344999deddbf7814145ebf484247e4533eae82fcd954c24"
+    },
+    {
+      "path": "assets/anim/attack/attack_00.png",
+      "bytes": 512,
+      "sha256": "3da53519f43d9e620eb53d08e61dc0fe996fe2028d1acda453f818431a640768"
+    },
+    {
+      "path": "assets/anim/attack/attack_01.png",
+      "bytes": 512,
+      "sha256": "0bd1322845741751c1b84e937bbafec3bc9ef55a9f041d8e00bc1f2ce85d94de"
+    },
+    {
+      "path": "assets/anim/attack/attack_02.png",
+      "bytes": 512,
+      "sha256": "9d5c07c3e970a5dd1ab094cefbe963e79ebe3ac0031be4543a144a2e9b73c48f"
+    },
+    {
+      "path": "assets/anim/attack/attack_03.png",
+      "bytes": 512,
+      "sha256": "3fb5201d480f3df0a015c57344be5410ed2d2cdf24f2fec9d54b423b85122126"
+    },
+    {
+      "path": "assets/anim/attack/attack_04.png",
+      "bytes": 512,
+      "sha256": "d033d6b57da895c1c30049e6c45acc8d1e3bb989fe39f9762d99d7241ddbc508"
+    },
+    {
+      "path": "assets/anim/attack/attack_05.png",
+      "bytes": 512,
+      "sha256": "e9ddcd217e426e604541edc0cce00253d30b1aa7077acb3b7276ebfd44c1df1e"
+    },
+    {
+      "path": "assets/anim/attack/attack_06.png",
+      "bytes": 512,
+      "sha256": "f15bc703b726087b2c5f614d4b6a8dd840995ac74357cca75ecb7828fc4d0ce3"
+    },
+    {
+      "path": "assets/preview/cat.preview.png",
+      "bytes": 4096,
+      "sha256": "13cb276bb2da11999a444e4463c15681da24196c1d6c49bb95cdb089c45cfc2b"
+    }
+  ],
+  "source": "local",
+  "createdAt": "2026-11-19"
+}

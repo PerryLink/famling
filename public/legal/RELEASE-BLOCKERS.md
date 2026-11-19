@@ -1,22 +1,24 @@
 # 发布阻断清单（RELEASE-BLOCKERS）— 逐项、可验收 · DRAFT
 
-> **Status: DRAFT（engineering draft）· 2026-11-17 · 不是法律意见。**
-> **2026-11-17 状态注记：用户已拍板年龄口径为全年龄、不设年龄门；原“年龄 18+ 口径/无年龄门”消费者阻断项已按该拍板更新文本层，律师项仍暂缓。**
-> 本文把“发布前必须”落成**可勾选、可复验**的清单：gate 当前 16 条的具体内容、真实阻断（远多于 16）、安装包/portable 资源清单、旧产物清理、18 WAV/AI 标识/隐私政策/许可生效的放行条件。**全绿之前不得公开发布/上架/收费**；本文不改变任何代码/构建。
-> 基线证据：`node scripts/legal-check.mjs --strict`（**exit 1，BLOCKED 16 blocker(s), 16 warning(s)**）；`node scripts/release-win.mjs --verify`（**exit 1，missing artifacts/SHA256SUMS.txt**）；`npm test` consent/p1 相关 **56/56 pass**（2026-11-17 抓取）。来源：`docs/legal/review-2026-11-17/06-release-ops-ui.md`（主）、01/02/03/05 线；[APPROVALS](/legal/APPROVALS.md) · CONSOLIDATED · PATCH-PLAN。
+> **Status: DRAFT（engineering draft）· 2026-11-17（2026-11-19 实测更新）· 不是法律意见。**
+> **2026-11-19 状态注记：年龄口径以 2026-11-17.5 为准（一般功能全年龄 + roleplay/情感陪伴仅 18+，首启自报出生日期核验；旧“全年龄、不设年龄门”作废）。baked WAV 为 42（21 stella + 21 tide，用户 2026-11-17 授权随包；DeepSeek 书面再分发仍 TBD）。ASR 独立声明+单独同意、撤回同意、删除全部本地数据已实现；仍缺 ASR 独立常驻开关/日配额与第三方跨境披露。发布阻断以本文件 §3 为准，gate 计数只是快照。**
+> 本文把“发布前必须”落成**可勾选、可复验**的清单：gate 当前条目的具体内容、真实阻断、安装包/portable 资源清单、旧产物清理、42 WAV/AI 标识/隐私政策/许可生效的放行条件。**全绿之前不得公开发布/上架/收费**；本文不改变任何代码/构建。
+> 基线证据（2026-11-19 本机实测，含 `--sync` 后）：`node scripts/legal-check.mjs --strict` → **exit 1，BLOCKED 34 blocker(s), 34 warning(s)**（34 条 blocker 均为 warning 在 strict 下被复制；无 hard 文件缺失类 blocker）；warn-only 34 warnings = 16 条 DRAFT + 18 条 portable 缺 `legal/` 文件（二者相加 34，无 staging-过小 warning）。`node scripts/release-win.mjs --verify` → **exit 1，missing artifacts/SHA256SUMS.txt**。计数会随改动变化，发布前必须重跑并以输出为准。来源：`docs/legal/review-2026-11-17/06-release-ops-ui.md`（主）、01/02/03/05 线；[APPROVALS](/legal/APPROVALS.md) · CONSOLIDATED · PATCH-PLAN。
 
-## 1. gate 当前 16 条（具体、可复现）
+## 1. gate 当前 34 条（2026-11-19 实测，具体、可复现）
 
-命令：`node scripts/legal-check.mjs --strict` → `BLOCKED (16 blocker(s), 16 warning(s))`，退出码 1。
+命令：`node scripts/legal-check.mjs --strict` → `BLOCKED (34 blocker(s), 34 warning(s))`，退出码 1（`--sync` 后；此前 public/legal 副本 stale/新增文档未同步会额外报 warning/blocker）。
 
-**A. 8 条 DRAFT（文件仍含 `DRAFT` 标记）**：`NOTICE`、`CREDITS.md`、`THIRD-PARTY.md`、`AI-PROVENANCE.md`、`docs/legal/README.md`、`docs/legal/DECLARATION-MATRIX.md`、`SECURITY.md`、`TAKEDOWN.md`。
-**B. 7 条 portable 缺件**（`artifacts/portable/` 存在时）：缺 `LICENSE`、`NOTICE`、`LICENSE-ART`、`CREDITS.md`、`THIRD-PARTY.md`、`AI-PROVENANCE.md`、`DECLARATIONS.md`。
-**C. 1 条 staging 过小**：`artifacts/portable/` 仅 7 条目（`DesktopGames.exe` + README + packs + 3 个 run-*.cmd）→ “portable staging looks too small; rebuild after licence changes”。
+**A. 16 条 DRAFT（文件仍含 `DRAFT` 标记）**：`NOTICE`、`CREDITS.md`、`THIRD-PARTY.md`、`AI-PROVENANCE.md`、`docs/legal/README.md`、`docs/legal/DECLARATION-MATRIX.md`、`docs/legal/TOS.md`、`docs/legal/PRIVACY.md`、`docs/legal/TTS-TERMS.md`、`docs/legal/AI-LABELING.md`、`docs/legal/AI-CONTENT-POLICY.md`、`docs/legal/DLC-AND-PLUGIN-TERMS.md`、`docs/legal/TAKEDOWN-AND-REPORTING.md`、`SECURITY.md`、`TAKEDOWN.md`、`DECLARATIONS.md`。
+**B. 18 条 portable 缺 `legal/` 副本**（`artifacts/portable/` 存在时）：缺 `legal/{TOS,PRIVACY,AI-LABELING,USE-RESTRICTIONS-2026-11-19,TTS-TERMS,DLC-TERMS,TAKEDOWN,SECURITY,DECLARATIONS,NOTICE,LICENSE-ART,LICENSE.txt,LICENSE-COMMERCIAL,CREDITS,THIRD-PARTY,AI-PROVENANCE,AI-CONTENT-POLICY,AI-COMPANION-REGULATION-2026-11-16}.md`（`LICENSE-ART`/`NOTICE` 无扩展名）；portable 根目录 7 份声明文件当前已在（`LICENSE`/`NOTICE`/`LICENSE-ART`/`CREDITS.md`/`THIRD-PARTY.md`/`AI-PROVENANCE.md`/`DECLARATIONS.md`），缺的是 `legal/` 子目录。
+**C. staging 过小**：当前 `artifacts/portable/` 有 14 条目（旧 7 条目警告已消失）；本项 2026-11-19 未触发。
+**D. 硬 blocker（缺 required 文件/死链/tauri 配置/portable 校验失败等）**：2026-11-19 实测为 0；全部 34 条均为 warning 在 `--strict` 下被复制（见 §2）。
 
-## 2. 为什么“16”不能当验收
+## 2. 为什么“34”不能当验收
 
-- 16 = 8(A) + 7(B) + 1(C)，且 `--strict` 把每条 warning 复制成 blocker（`legal-check.mjs:68-74`）→**重复计数**，不是 16 个独立问题。
-- gate **盲区**（06 P0-4）：只扫 9 个文件；**不扫** `DECLARATIONS.md`（虽随 NSIS 资源）、`TOS.md`/`TTS-TERMS.md`/`PRIVACY.md`、HTML/UI、`public/` 18 WAV、`artifacts/` 产物、安装包资源清单、图片/音频标识、docs 链接；`INCLUDE_UNCLEARED_AUDIO=1` 可同时绕过 gate 与 vite 剔除；`release.yml` 在 build 前跑 gate（干净 checkout 上音频规则空跑）；`ci.yml` 无 legal 步骤。
+- 34 = 16(A DRAFT) + 18(B portable 缺 `legal/` 文件)，且 `--strict` 把每条 warning 复制成 blocker（`legal-check.mjs` strict 分支）→**重复计数**，不是 34 个独立问题；A 类清掉即消失，B 类需重建 portable。
+- **gate 现在实际覆盖**（`scripts/legal-check.mjs`）：① 17 个法律文本文件的 `DRAFT`/`TBD` 标记（含 `DECLARATIONS.md`、`TOS`/`PRIVACY`/`TTS-TERMS`/`AI-LABELING`/`AI-CONTENT-POLICY`/`DLC`/`TAKEDOWN`）；② `public/legal/` 副本与 manifest 是否与源一致、入口 `index.html` 是否存在、包内交叉链接/相对链接是否死链；③ 仓库根 `*.html` 的绝对 `/legal/...` 引用是否存在、`/docs/...` 是否残留；④ Tauri `resources`/`licenseFile` 是否解析；⑤ `artifacts/portable/` 存在时是否缺根声明（当前已全）与 `legal/` 副本（当前 18 缺）；⑥ `dist/assets/voice/pet` 存在时校验 42 WAV manifest/bytes/sha/无多余文件（构建后）。
+- **仍未覆盖/需人工或其它门禁**：图片/音频 AI 标识与元数据；TOS/PRIVACY 正文与 `terms.ts` 的逐字镜像（部分 tests 覆盖，非 gate）；旧 `artifacts/`/zip 内实际内容与未清权音频全路径扫描；真实安装/卸载与许可页、签名/unsigned 证据；商店 AI/隐私申报；`ci.yml` **无** legal 步骤；`_windows-build.yml` 在 `npm run build` **之前**跑 `legal-check --strict`（此时 `dist/` 不存在，baked 音频校验不会执行；由 vite 构建 guard 在 build 时校验 42 WAV）。`vite.config.ts` 的 `INCLUDE_UNCLEARED_AUDIO=1` 绕过已移除（现仅打印 obsolete 警告）。
 - 结论：**gate 转绿是必要条件，不是合规证明**；本文件 §3 才是放行口径。
 
 ## 3. 真实发布阻断（与合并总表 R-P0 对应；全部须销项）
@@ -24,10 +26,10 @@
 | 组 | 阻断 | 对应 | 放行条件 |
 |---|---|---|---|
 | 权利/许可 | 美术许可三口径未生效；Pearl 37 文件随仓；Pixiv CC0 不可核；AI 供应商条款 TBD；相似性 G2 未清 | R-P0-11/12/13/15/16 | A-04/A-06/A-10/A-11 签字；LICENSE-ART/NOTICE 去 DRAFT；Pearl deny-list 生效 |
-| 音频 | 18 WAV 再分发未确认；旧包已内嵌；WAV 无 AI 元数据/音频标识 | R-P0-02 | §6 决策树完成 + 包内 0 未清权 WAV（全路径扫描） |
+| 音频 | **42 WAV（21 stella + 21 tide）** 再分发未确认；用户 2026-11-17 授权 baked 随包但**不等于** DeepSeek 书面再分发许可；旧包已内嵌旧语音；WAV 无 AI 音频标识/首播提示 | R-P0-02 | §6 决策树完成 + 服务商书面结论或替换/移除 + 旧产物清理 + 音频标识（A-16） |
 | AI 标识 | 2026-11-18 用户决定移除常驻 AI 角标（改为首启/About/TTS 流程提示）；无隐式元数据/导出标识/音频起始提示；显式标识“显著性”待律师复核；TOS 无方法样式；商店问卷未定 | R-P0-03 | [AI-LABELING](/legal/AI-LABELING.md) §8 全勾 + A-16 + 律师确认“流程提示是否足够显著” |
-| 隐私 | 无生效隐私政策；ASR 无告知/同意/开关/配额；无撤回/全清；第三方/跨境不具体 | R-P0-04/05/06/07 | [PRIVACY](/legal/PRIVACY.md) §16 全勾 + A-05/A-13 |
-| 消费者/未成年人 | 年龄口径**已拍板全年龄、不设年龄门**（2026-11-17，无年龄识别/未成年人模式须如实披露）；roleplay 文案已改全年龄并可如实说明仅本地模板；消费者条款缺失；投诉通道不足 | R-P0-01/08/09/10 | [CONSUMER-MINORS-HEALTH](/legal/CONSUMER-MINORS-HEALTH.md) §3/§4/§6 落地 + A-14（文本层已解，律师项仍暂缓） |
+| 隐私 | 无生效隐私政策；ASR 独立声明+单独同意/拒绝不上传、撤回同意、删除全部本地数据**已实现**；仍缺 ASR 独立常驻开关/日配额/费用提示、TTS/ASR 第三方留存与跨境具体披露、卸载清理说明 | R-P0-04/05/06/07 | [PRIVACY](/legal/PRIVACY.md) §16 全勾 + A-05/A-13 |
+| 消费者/未成年人 | 年龄口径**已拍板 2026-11-17.5：一般功能全年龄 + roleplay/情感陪伴仅 18+**（首启自报出生日期核验；非官方身份证/实名核验，可被虚假自报或修改绕过；无未成年人模式/监护人验证，须如实披露）；roleplay 仅本地模板并可如实说明；消费者条款缺失；投诉通道不足 | R-P0-01/08/09/10 | [CONSUMER-MINORS-HEALTH](/legal/CONSUMER-MINORS-HEALTH.md) §3/§4/§6 落地 + A-14（文本层已解，律师项仍暂缓） |
 | 内容安全 | 零容忍漏放+空格绕过；审核零留痕 | R-P0-20/21 | 红线回归全绿 + 最小审核审计（不存原文） |
 | 包/安装器 | portabe/zip 0 声明；安装器无 licensePage、资源不齐；docs 链接 404 | R-P0-18/19 | §4 清单齐 + 实机安装核验 + 链接可达 |
 | 商标/名称 | Pagefold/折角/DesktopGames 未清即用 | R-P0-14 | A-09 定名+检索 |
@@ -36,8 +38,8 @@
 ## 4. 发行包资源清单（安装包 resources + portable + zip 必须含）
 
 根许可/声明（9）：`LICENSE` · `NOTICE` · `LICENSE-ART` · `LICENSE-COMMERCIAL.md` · `CREDITS.md` · `THIRD-PARTY.md` · `AI-PROVENANCE.md` · `DECLARATIONS.md` · `ASSET-LICENSES.md`
-法务文本（至少 6）：`docs/legal/TOS.md`（与 `terms.ts` 同步哈希）· `TTS-TERMS.md` · `AI-CONTENT-POLICY.md` · `PRIVACY.md`（草案状态如实）· `TAKEDOWN-AND-REPORTING.md` · `SECURITY-AND-PRIVACY.md`
-可选/后续：`docs/legal/AI-LABELING.md`、`CONTENT-POLICY.md`、`LEGAL-BASELINE.md`、`LICENSES/`（npm/Rust 传递依赖许可，当前**不存在**）。
+法务文本：**以 `scripts/legal-check.mjs` 的 `LEGAL_PACKAGE_REQUIRED` 为唯一清单（当前 18 份，含 TOS/TTS-TERMS/AI-LABELING/AI-CONTENT-POLICY/PRIVACY/USE-RESTRICTIONS/DLC-TERMS/TAKEDOWN/SECURITY/DECLARATIONS + 根许可/署名 + AI-COMPANION 研究稿）**；`TOS.md` 必须与 `terms.ts` 同步哈希；`PRIVACY.md` 草案状态须如实。
+可选/后续：`CONTENT-POLICY.md`、`LEGAL-BASELINE.md`、`DECLARATION-MATRIX.md`、`LAWYER-REVIEW-CHECKLIST-2026-11-19.md`、`LICENSES/`（npm/Rust 传递依赖许可，当前**不存在**）。
 [现状] `tauri.conf.json:34-44` 仅 `packs/` + LICENSE/NOTICE/DECLARATIONS.md/LICENSE-COMMERCIAL.md（4 份声明）；无 `bundle.licenseFile`；NSIS `LICENSE ""`、资源段为空；portable 7 条目 0 声明；zip 14 条目 0 声明。安装器/包**必须**按上表补齐并在 HEAD 重新构建（11-14 旧安装器早于 11-17 配置改动，不可用）。
 
 ## 5. 旧 artifacts / 工作区清理（发布前必须）
@@ -45,12 +47,13 @@
 - 删除或移出仓库工作区（不进任何渠道/不共享）：`artifacts/DesktopGames-0.1.0-portable.zip`（11-14 14:44，6.6 MB，14 条目 0 许可；内嵌 exe 14,964,224 B，strings 命中 `assets/voice`×19、`stella`×2、`fold_a.wav`）；`artifacts/portable/`（旧 exe+README+packs+3 cmd）；`artifacts/bundle/nsis/*`（11-14 setup.exe + 同刻 nsi，无 licensePage）；`artifacts/playtest-kit/`（原样复制旧 zip）；`artifacts/` 中 941 个 `cdp-*` browser profile、38 个 pilot WAV（18+10+10）、11-11~11-15 旧包。
 - `.keys/dev-private.pem` 仅本地（gitignored）：不得进任何包/截图/共享目录；dev 公钥签名的 pack 不得表述为“signed”生产包。
 - 只允许：`npm run build → tauri build → release-win --all --strict` 产出的 HEAD 产物；`SHA256SUMS.txt` + `RELEASE-MANIFEST.json` 必须存在；playtest kit 从新构建取件。
-- 构建 deny-list 必须覆盖：`pearl-placeholder/`、`tinglan-256/`（非 final 且逐文件证据不全时）、`public/assets/voice/pet/*.wav`、`art/_placeholder/refs/`、`.keys/`、旧 `artifacts/`。
+- 构建 deny-list 必须覆盖：`pearl-placeholder/`、`tinglan-256/`（非 final 且逐文件证据不全时）、`art/_placeholder/refs/`、`.keys/`、旧 `artifacts/`。**`public/assets/voice/pet/*.wav` 不再默认剔除**：42 个 baked WAV 经用户 2026-11-17 授权随包，vite/legal-check 构建 guard 校验 42 行 manifest、bytes/sha 与 `tide/` 布局；若 DeepSeek 条款无法确认，则按 §6 决策树移除/替换并恢复剔除。
 
-## 6. 18 WAV 处置决策树（A-04 前提）
+## 6. 42 WAV 处置决策树（A-04 前提）
 
-1. **取得 DeepSeek 书面结论**（商用 + 再分发 + 署名/限制，版本+日期+URL）→ 给 WAV 加 AI 元数据/来源字段 + 音频层标识 + 播放器标签 + 发布清单 → 可随包（仍须 AI 标识 A-16）。
-2. **无法取得** → 发布前全部替换为自录/已授权音源（并登记 ASSET-LICENSES/THIRD-PARTY），或从所有渠道移除（保留 baked/system 本地语音路径，注意 `voice-mode` 文案与实际 404 不一致）。
+0. **现状**：42 个 WAV（21 `stella` + 21 `tide`）经用户 2026-11-17 授权作为 baked pack 随包/缓存；该授权只决定“本项目是否随包”，**不是** DeepSeek 书面再分发/商用许可（见 [TTS-TERMS](/legal/TTS-TERMS.md) §3A）。Open question 见 [LAWYER-REVIEW-CHECKLIST-2026-11-19](/legal/LAWYER-REVIEW-CHECKLIST-2026-11-19.md) LQ-06。
+1. **取得 DeepSeek 书面结论**（商用 + 再分发 + 署名/限制，版本+日期+URL）→ 保持随包 + 给 WAV 加 AI 元数据/来源字段 + 音频层标识 + 播放器标签 + 发布清单（仍须 AI 标识 A-16）。
+2. **无法取得** → 发布前全部替换为自录/已授权音源（并登记 ASSET-LICENSES/THIRD-PARTY），或从所有渠道移除 baked pack（保留 system/mock 本地语音路径；注意 `voice-mode` 文案与实际能力一致）。
 3. 无论哪种：删除/重建旧 dist 与安装包；全路径扫描“无未清权音频”；**不提供去标识**。
 
 ## 7. AI 标识放行检查（对应 A-16）
@@ -59,7 +62,7 @@
 
 ## 8. 隐私政策放行检查（对应 A-13）
 
-- [ ] `PRIVACY.md` 去 DRAFT（律师定稿 + 主体/生效日期）；[ ] About/首启/商店页入口可达（非 404）；[ ] ASR 告知/单独同意/开关/配额（或发布版关闭云 ASR）；[ ] 撤回同意 + 删除全部本地数据 + 卸载说明；[ ] TTS/ASR 第三方 DeepSeek 与跨境具体披露；[ ] 未成年人条款与年龄口径一致；[ ] 安全事件通知承诺；[ ] 联系方式与投诉渠道常驻。
+- [ ] `PRIVACY.md` 去 DRAFT（律师定稿 + 主体/生效日期）；[ ] About/首启/商店页入口可达（非 404）；[x] ASR 告知/单独同意/拒绝不上传（2026-11-17.3）；[ ] ASR 独立常驻开关/日配额/费用提示（或发布版关闭云 ASR）；[x] 撤回同意 + 删除全部本地数据已实现（残留如实披露）；[ ] 卸载清理说明；[ ] TTS/ASR 第三方 DeepSeek 与跨境具体披露；[ ] 未成年人条款与年龄口径一致（一般功能全年龄 + roleplay 18+，自报出生日期核验）；[ ] 安全事件通知承诺；[ ] 联系方式与投诉渠道常驻；[ ] D6 顺序（TOS/关键事实先读）如采用需更新政策与实现。
 
 ## 9. 许可/署名放行检查（对应 A-04/A-10/A-11）
 

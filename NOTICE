@@ -1,14 +1,12 @@
-Famling — NOTICE
-
-> **2026-11-18 公开导出边界（本仓当前状态）**：本公开导出已按清理方案 A 移除全部预生成 TTS 音频（42 WAV + manifest）、游戏内容包（`packs/`）、DLC 校验链（`native/dlc-verify`）与未使用 kernel 模块；本导出**不随包分发任何音频 / DLC / 游戏基座**。下文历史统计（18/42 WAV、baked pack、随包授权等）保留作私有 mono-repo 的历史记录，**不代表本公开导出当前内容**；音频再分发条款仍为 TBD。
+Desktop Games — NOTICE
 
 Copyright (c) 2026 PerryLink contributors
 
 Required Notice: Copyright (c) 2026 PerryLink contributors
 
-Status: DRAFT (2026-11-17) — project declarations by the owner (PerryLink) are
-recorded here, but this NOTICE is NOT a lawyer-approved or effective licensing
-opinion and must not be quoted as such. Legal review is deferred (owner decision
+Status: DRAFT (2026-11-17; factual statements synced 2026-11-19) — project
+declarations by the owner (PerryLink) are recorded here, but this NOTICE is NOT a
+lawyer-approved or effective licensing opinion and must not be quoted as such. Legal review is deferred (owner decision
 2026-11-16). Until counsel confirms, do not describe any DRAFT item as
 "approved", "cleared", "published" or "compliant". See docs/LEGAL-STATUS-2026-11-15.md.
 
@@ -124,14 +122,19 @@ bundle WebView2 unless its terms are checked.
 The Steamworks SDK is proprietary to Valve and is not included in this
 repository. It must not be committed or distributed with public builds.
 
-This public export ships **no TTS audio**. The 42 pre-generated DeepSeek TTS
-WAVs (and their manifest) that existed in the private mono-repo were removed on
-2026-11-18 by the public-boundary cleanup (plan A). No audio file is tracked,
-built into `dist/`, or bundled with the installer; older archives or clips are
-not part of this repository. Any future audio (cloud/system TTS at runtime) is
-synthetic AI voice, is not a human recording, and must be labelled as
-AI-generated. Redistribution terms for DeepSeek TTS output remain TBD; see
-`docs/legal/TTS-TERMS.md`.
+TTS audio under public/assets/voice/pet/ is output of the DeepSeek TTS API
+(voices "stella" default and "tide" optional): 42 WAV files total (21 stella
+generated 2026-11-14 / backfilled, 21 tide generated 2026-11-17). By the owner's
+explicit authorization of 2026-11-17 these files are cached and shipped as a
+baked pack; the build/legal guards verify the 42-row manifest, byte sizes and
+sha256 hashes. This owner authorization is NOT a written redistribution or
+commercial license from DeepSeek: redistribution/commercial terms remain NOT
+confirmed, so do not sell or sublicense the audio separately and remove/replace
+the pack if the provider's terms require it. Any older dist/artifact containing
+uncleared audio must not be shipped. See THIRD-PARTY.md §2,
+docs/legal/TTS-TERMS.md §3A and AI-PROVENANCE.md §10. TTS output is synthetic AI
+voice, is not a human recording, and must be labelled as AI-generated where used
+at all.
 
 ---------------------------------------------------------------------------
 5. Assets: what is distributed vs excluded (accurate as of 2026-11-17)

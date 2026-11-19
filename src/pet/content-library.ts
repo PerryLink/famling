@@ -45,6 +45,10 @@
  *   (researchOnly + six prohibited uses + canonical legal sentence);
  * - v2 zip bundles are validated through an injected inventory (paths, sizes,
  *   allowed asset types, sha256); no archive bytes are parsed here;
+ * - `famling.pet-anim/0.2` (third-party character animation packs) shares the
+ *   same envelope/sha256/zip caps but is a separate payload schema; its
+ *   loader/registry/installer are NOT implemented here (spec + pure validation
+ *   + install PLAN only);
  * - remote packs/catalogs are refused unless structurally signed AND verified
  *   through the injected Ed25519 verifier + trust root; unverified = fail-closed.
  *
@@ -53,6 +57,11 @@
  */
 
 import { canonicalJson } from '../pack/canonical.ts'
+import { CANVAS_SIZE_ALIGNMENT, CANVAS_SIZE_MAX, CANVAS_SIZE_MIN } from './pixel-scale.ts'
+import { CLIP_IDS, type ClipCategory, type ClipId, type ClipLayer } from './anim/types.ts'
+import { parseHeroRegionConfig, type HeroRegionConfig } from './anim/regions.ts'
+import { validateBehaviorProfile } from './character/validate.ts'
+import type { BehaviorProfile } from './character/types.ts'
 import { countCodePoints, stripBidiControls, stripControlChars, SECURITY_LIMITS } from './security/limits.ts'
 import { checkRelativePath } from './security/path-safety.ts'
 import { toPlainText } from './security/html.ts'
@@ -460,6 +469,17 @@ export type ContentIssueCode =
   | 'invalid-market-catalog'
   | 'unverified-remote'
   | 'missing-references'
+  // pet-anim 0.2: character animation asset packs (spec layer)
+  | 'invalid-anim-pack'
+  | 'invalid-anim-spec'
+  | 'invalid-anim-clip'
+  | 'invalid-character'
+  | 'invalid-voice'
+  | 'invalid-audio'
+  | 'audio-rights-unconfirmed'
+  | 'invalid-behavior'
+  | 'invalid-region'
+  | 'missing-preview'
 
 export interface ContentIssue {
   /** JSON-ish location, e.g. "$.themes[0].vars.bubbleBg". */
@@ -4565,4 +4585,1689 @@ export function describeUsageConfirmation(): ContentUsageConfirmation {
     sha256: CONTENT_USAGE_STATEMENT_SHA256,
     prohibitedUses: PROHIBITED_USES,
   })
+}
+
+// ===========================================================================
+// pet-anim 0.2: character animation asset packs — SPEC LAYER ONLY (MB-040/044)
+// ===========================================================================
+//
+// `famling.pet-anim/0.2` is the third-party "new rig" bundle: one pack.json
+// (this schema) + individual PNG frames + optional Ogg audio + a required
+// preview. It is a SEPARATE payload schema from `famling.content-pack/0.2`
+// (role-theme packs); only the envelope semantics are shared: usageDeclaration,
+// license, aiProvenance, files[] + sha256, remote Ed25519 signature and the
+// same zip/path/size caps (ARCH triage C-03 / E5-T5 / E6-T5).
+//
+// This module is the SPEC layer: pure schema validation, zip-layout validation
+// against a host-computed inventory, and an INSTALLER PLAN contract. It does
+// NOT unzip bytes, touch the filesystem, fetch the network, execute scripts,
+// load a renderer, register a character, hot-switch or show UI (MB-041/MB-042
+// are explicitly out of scope). A host installer must:
+//   1. show the canonical usageDeclaration and require explicit confirmation;
+//   2. bounded-unzip into its own staging directory under the caps below,
+//      rejecting traversal/symlink/encrypted/duplicate/case-colliding entries;
+//   3. hash every extracted file, then call validateCharacterPackZip();
+//   4. call planCharacterPackInstall() and atomically rename staging -> final.
+
+/** Schema id of the third-party character animation asset pack (current). */
+export const CHARACTER_PACK_SCHEMA_V2 = 'famling.pet-anim/0.2'
+/** Canonical schema id (alias of CHARACTER_PACK_SCHEMA_V2). */
+export const CHARACTER_PACK_SCHEMA = CHARACTER_PACK_SCHEMA_V2
+/** Version of the install-plan contract returned by planCharacterPackInstall(). */
+export const CHARACTER_PACK_INSTALL_PLAN_SCHEMA = 'famling.character-install-plan/0.1'
+
+/** Character kinds with a shipped animation rig contract in v0.2. */
+export const CHARACTER_PACK_KINDS = ['cat', 'dog', 'humanoid'] as const
+export type CharacterPackKind = (typeof CHARACTER_PACK_KINDS)[number]
+
+/**
+ * Envelope + zip limits for `famling.pet-anim/0.2`. Zip-level caps are shared
+ * with `famling.content-pack/0.2` so one host unzip boundary serves both.
+ */
+export const CHARACTER_PACK_V2_LIMITS = Object.freeze({
+  maxZipBytes: CONTENT_PACK_V2_LIMITS.maxZipBytes,
+  maxZipEntries: CONTENT_PACK_V2_LIMITS.maxZipEntries,
+  maxAssetBytes: CONTENT_PACK_V2_LIMITS.maxAssetBytes,
+  maxTotalUncompressedBytes: CONTENT_PACK_V2_LIMITS.maxTotalUncompressedBytes,
+  maxCompressionRatio: CONTENT_PACK_V2_LIMITS.maxCompressionRatio,
+  maxPackJsonBytes: CONTENT_PACK_V2_LIMITS.maxPackJsonBytes,
+  maxFiles: 192,
+  maxFramesPerClip: 16,
+  maxTotalFrames: 144,
+  maxFps: 30,
+  maxFrameBytes: 512 * 1024,
+  maxPreviewBytes: 2 * 1024 * 1024,
+  maxAudioBytes: 2 * 1024 * 1024,
+  maxAudioTotalBytes: 8 * 1024 * 1024,
+  maxSfx: 8,
+  maxVoiceLines: 32,
+  maxHoldMs: 2000,
+  maxClipDurationMs: 10000,
+  maxBehaviorStates: 64,
+  maxBehaviorSlots: 64,
+  maxFallbackEntries: 32,
+  maxPreviewChars: 160,
+  maxPaletteChars: 64,
+  maxAuthorChars: 80,
+  maxSpeciesChars: 32,
+  maxTraitChars: 32,
+  maxCapabilityList: 8,
+  maxAudioTextChars: 240,
+})
+
+/** Canonical zip layout: manifest at the root; assets only under assets/. */
+export const CHARACTER_PACK_MANIFEST_FILE = 'pack.json'
+export const CHARACTER_PACK_FRAME_ROOT = 'assets/anim/'
+export const CHARACTER_PACK_PREVIEW_ROOT = 'assets/preview/'
+export const CHARACTER_PACK_SFX_ROOT = 'assets/audio/sfx/'
+export const CHARACTER_PACK_VOICE_ROOT = 'assets/audio/voice/'
+/** Fixed frame file naming inside the zip: two-digit zero-padded index. */
+export const CHARACTER_PACK_FRAME_PATTERN = 'assets/anim/<clip>/<clip>_NN.png'
+/** Root-level human-readable docs allowed outside assets/. */
+export const CHARACTER_PACK_DOC_FILES = CONTENT_PACK_V2_DOC_FILES
+/** Frame files are PNG only (deterministic pixel-art pipeline). */
+export const CHARACTER_PACK_FRAME_EXTENSIONS = ['png'] as const
+/** Preview images may be PNG or WebP (same allowlist as content-pack 0.2). */
+export const CHARACTER_PACK_PREVIEW_EXTENSIONS = ['png', 'webp'] as const
+/** Baked audio must be Ogg (Opus) only: no WAV/MP3 redistributed in v0.2. */
+export const CHARACTER_PACK_AUDIO_EXTENSIONS = ['ogg'] as const
+
+/**
+ * Files a future data-driven loader (MB-041) derives from one installed pack.
+ * v0.2 installs `pack.json` + assets; the runtime documents are derived, not
+ * shipped as separate zip entries (single source of truth = pack.json).
+ */
+export const CHARACTER_PACK_RUNTIME_FILES = Object.freeze({
+  character: 'character.json',
+  behavior: 'behavior.json',
+  regions: 'regions.json',
+  heroManifest: 'manifest.json',
+})
+
+/** Per-clip semantics pinned by the v0.2 rig contract (frames/fps vary by art). */
+export interface CharacterPackClipRule {
+  readonly loop: boolean
+  readonly layer: ClipLayer
+  readonly category: ClipCategory
+  readonly priority: number
+}
+
+/**
+ * The 12 canonical clips every v0.2 pack must provide. Loop/layer/category/
+ * priority are pinned to the shipping scheduler contract; only frames/fps and
+ * optional per-frame holdMs are authored per character (validated by
+ * tests/content-pack-v2.test.ts against src/pet/anim/clips.ts so the two
+ * sources cannot drift silently).
+ */
+export const CHARACTER_PACK_CLIP_RULES: Readonly<Record<ClipId, CharacterPackClipRule>> = Object.freeze({
+  idle: { loop: true, layer: 'base', category: 'idle', priority: 0 },
+  idle_blink: { loop: false, layer: 'overlay', category: 'idle', priority: 10 },
+  walk: { loop: true, layer: 'base', category: 'locomotion', priority: 5 },
+  run: { loop: true, layer: 'base', category: 'locomotion', priority: 15 },
+  pat_head: { loop: false, layer: 'oneshot', category: 'social', priority: 50 },
+  ball_throw: { loop: false, layer: 'oneshot', category: 'interaction', priority: 40 },
+  ball_chase: { loop: false, layer: 'oneshot', category: 'interaction', priority: 45 },
+  paw_face: { loop: false, layer: 'oneshot', category: 'action', priority: 20 },
+  scratch: { loop: false, layer: 'oneshot', category: 'action', priority: 20 },
+  stand_wag: { loop: false, layer: 'oneshot', category: 'action', priority: 20 },
+  chase_tail: { loop: false, layer: 'oneshot', category: 'action', priority: 20 },
+  attack: { loop: false, layer: 'oneshot', category: 'combat', priority: 60 },
+})
+
+/** Voice/bubble policy is a product rule, not author preference. */
+export const CHARACTER_PACK_VOICE_RULES: Readonly<Record<CharacterPackKind, CharacterPackVoiceV2>> = Object.freeze({
+  humanoid: { mode: 'tts', canTts: true, bubble: 'speech' },
+  cat: { mode: 'none', canTts: false, bubble: 'thought' },
+  dog: { mode: 'none', canTts: false, bubble: 'thought' },
+})
+
+/** Behavior profile `extends` target pinned per kind (no arbitrary code). */
+export const CHARACTER_PACK_BEHAVIOR_EXTENDS: Readonly<Record<CharacterPackKind, string>> = Object.freeze({
+  humanoid: 'core:humanoid',
+  cat: 'core:pet.cat',
+  dog: 'core:pet.dog',
+})
+
+// ---------------------------------------------------------------------------
+// pet-anim 0.2: types
+// ---------------------------------------------------------------------------
+
+/** Declarative render spec (canvas/anchor/foot box/display/palette). */
+export interface CharacterPackSpecV2 {
+  readonly canvas: readonly [number, number]
+  readonly anchor: { readonly x: number; readonly y: number; readonly mode: 'foot-center' }
+  readonly footBox: { readonly x: number; readonly y: number; readonly w: number; readonly h: number }
+  readonly bbox?: readonly [number, number, number, number]
+  readonly display?: { readonly scale?: 1 | 2 | 4; readonly pixelated?: true }
+  readonly palette: string
+}
+
+/** One clip: data-authored timing for a pinned scheduler slot. */
+export interface CharacterPackClipV2 {
+  readonly frames: number
+  readonly fps: number
+  readonly loop: boolean
+  readonly layer: ClipLayer
+  readonly category: ClipCategory
+  readonly priority: number
+  readonly holdMs?: readonly number[]
+}
+
+/** All 12 canonical clips, keyed by clip id. */
+export interface CharacterPackAnimationsV2 {
+  readonly clips: Readonly<Record<ClipId, CharacterPackClipV2>>
+}
+
+/** Character identity/UI hints derived from the pack (no executable fields). */
+export interface CharacterPackCharacterV2 {
+  readonly id: string
+  readonly name: string
+  readonly kind: CharacterPackKind
+  readonly species?: string
+  readonly traits?: readonly string[]
+  readonly capabilities?: {
+    readonly sockets?: readonly string[]
+    readonly roles?: readonly string[]
+    readonly behaviors?: readonly string[]
+  }
+  readonly fallback?: Readonly<Record<string, readonly ClipId[]>>
+}
+
+/** Voice/TTS/bubble capability; must equal CHARACTER_PACK_VOICE_RULES[kind]. */
+export interface CharacterPackVoiceV2 {
+  readonly mode: VoiceMode
+  readonly canTts: boolean
+  readonly bubble: BubbleSemantic
+}
+
+/** One optional baked sound effect. */
+export interface CharacterPackSfxV2 {
+  readonly id: string
+  readonly file: string
+  readonly event?: string
+  readonly loop?: boolean
+  readonly durationMs?: number
+}
+
+/** One optional baked voice line (humanoid only; redistribution must be cleared). */
+export interface CharacterPackVoiceLineV2 {
+  readonly id: string
+  readonly file: string
+  readonly text: string
+  readonly locale?: string
+}
+
+/** Explicit rights declaration for baked audio (D8 gate). */
+export interface CharacterPackAudioRightsV2 {
+  readonly confirmed: boolean
+  readonly note?: string
+}
+
+/** Optional audio layer; absent = no baked audio (host TTS/voice policy only). */
+export interface CharacterPackAudioV2 {
+  readonly redistribution: CharacterPackAudioRightsV2
+  readonly sfx?: readonly CharacterPackSfxV2[]
+  readonly voiceLines?: readonly CharacterPackVoiceLineV2[]
+}
+
+/**
+ * One validated `famling.pet-anim/0.2` pack.json. Closed schema: unknown fields
+ * are rejected. `behavior` and `regions` reuse the shipping FCI/behavior/region
+ * validators (famling.behavior/0.1 + version-1 regions) so a pack can only
+ * describe data the existing runtime already understands.
+ */
+export interface CharacterPackV2 {
+  readonly schema: typeof CHARACTER_PACK_SCHEMA_V2
+  readonly id: string
+  readonly name: string
+  readonly version: string
+  readonly description: string
+  readonly author: string
+  readonly kind: CharacterPackKind
+  readonly usageDeclaration: ContentUsageDeclaration
+  readonly license: ContentPackLicense
+  readonly aiProvenance: ContentAiProvenance
+  readonly compatibility: ContentPackCompatibility
+  readonly character: CharacterPackCharacterV2
+  readonly spec: CharacterPackSpecV2
+  readonly animations: CharacterPackAnimationsV2
+  readonly voice: CharacterPackVoiceV2
+  readonly behavior: BehaviorProfile
+  readonly regions: HeroRegionConfig
+  readonly audio?: CharacterPackAudioV2
+  /** Required pack-relative preview path (assets/preview/, png/webp). */
+  readonly preview: string
+  /** Every bundle asset; the zip inventory must match this list exactly. */
+  readonly files: readonly ContentPackFileV2[]
+  readonly source: ContentPackSource
+  readonly remote?: ContentRemoteOrigin
+  readonly createdAt?: string
+}
+
+export type CharacterPackV2Validation =
+  | { readonly ok: true; readonly pack: CharacterPackV2 }
+  | { readonly ok: false; readonly issues: readonly ContentIssue[] }
+
+// ---------------------------------------------------------------------------
+// pet-anim 0.2: installer interface (plan only; the host does the I/O)
+// ---------------------------------------------------------------------------
+
+export type CharacterPackInstallAction = 'install' | 'update'
+
+/** Explicit consent shown by the UI before planning an install. */
+export interface CharacterPackInstallConsent {
+  readonly usageConfirmed: true
+  readonly licenseAcknowledged: true
+  readonly aiDisclosureAcknowledged: true
+}
+
+/** What the host already has installed for one pack id. */
+export interface CharacterPackInstalledRecord {
+  readonly packId: string
+  readonly version: string
+  /** SHA-256 (lowercase hex) of the exact zip the host installed. */
+  readonly zipSha256: string
+}
+
+export type CharacterPackInstallErrorCode =
+  | 'invalid-pack'
+  | 'invalid-zip'
+  | 'invalid-install-request'
+  | 'consent-required'
+  | 'remote-unverified'
+  | 'already-installed'
+  | 'version-conflict'
+  | 'downgrade-refused'
+  | 'not-installed'
+
+/** One file the host must extract (pack-relative path). */
+export interface CharacterPackInstallFile {
+  readonly path: string
+  readonly bytes: number
+  /** Present for manifest-declared files; pack.json hash is host-computed. */
+  readonly sha256?: string
+}
+
+/**
+ * Host-relative (POSIX) layout under the host characters root, e.g.
+ * `<userData>/characters/`. The pure module never joins these with an absolute
+ * path; the host MUST resolve them with its own safe join and re-check
+ * containment before any write.
+ */
+export interface CharacterPackInstallLayoutV2 {
+  readonly packRoot: string
+  readonly installDir: string
+  readonly stagingDir: string
+  readonly backupDir: string
+  readonly pointerFile: string
+}
+
+/** Read-only write budget the host must enforce while extracting the bundle. */
+export interface CharacterPackInstallWriteBudget {
+  readonly maxFileBytes: number
+  readonly maxTotalBytes: number
+  readonly maxFiles: number
+}
+
+/**
+ * Deterministic plan handed to the (future) host installer. Creating it has no
+ * side effects: no extraction, no writes, no rename, no network.
+ */
+export interface CharacterPackInstallPlan {
+  readonly schema: typeof CHARACTER_PACK_INSTALL_PLAN_SCHEMA
+  readonly action: CharacterPackInstallAction
+  readonly packId: string
+  readonly version: string
+  readonly zipSha256: string
+  readonly layout: CharacterPackInstallLayoutV2
+  readonly files: readonly CharacterPackInstallFile[]
+  readonly writeBudget: CharacterPackInstallWriteBudget
+  readonly consent: CharacterPackInstallConsent
+  readonly hostBoundary: {
+    readonly unzip: 'host'
+    readonly network: 'none'
+    readonly scripts: false
+    readonly atomicRename: true
+  }
+}
+
+export type CharacterPackInstallPlanResult =
+  | { readonly ok: true; readonly plan: CharacterPackInstallPlan }
+  | { readonly ok: false; readonly code: CharacterPackInstallErrorCode; readonly message: string; readonly issues?: readonly ContentIssue[] }
+
+export interface CharacterPackInstallRequest {
+  /** A value that has already passed validateCharacterPackV2(). */
+  readonly pack: CharacterPackV2
+  /** Host-computed inventory of the bounded-unzipped bundle. */
+  readonly inventory: ContentPackZipInventory
+  /** SHA-256 (lowercase hex) of the exact .zip bytes the host will install. */
+  readonly zipSha256: string
+  readonly consent?: Partial<CharacterPackInstallConsent>
+  readonly installed?: CharacterPackInstalledRecord
+  /** Required for source:'remote'; pass verifyRemoteCharacterPack()'s result. */
+  readonly remoteVerification?: ContentSignatureVerification
+}
+
+export interface CharacterPackUninstallRequest {
+  readonly packId: string
+  readonly installed?: CharacterPackInstalledRecord
+}
+
+/**
+ * Deterministic uninstall plan: removes exactly one pack root, never a shared
+ * directory, and keeps no backup (the host may keep its own restore copy).
+ */
+export interface CharacterPackUninstallPlan {
+  readonly schema: typeof CHARACTER_PACK_INSTALL_PLAN_SCHEMA
+  readonly action: 'uninstall'
+  readonly packId: string
+  readonly version: string
+  readonly removeRoot: string
+  readonly pointerFile: string
+  readonly keepBackup: false
+}
+
+export type CharacterPackUninstallPlanResult =
+  | { readonly ok: true; readonly plan: CharacterPackUninstallPlan }
+  | { readonly ok: false; readonly code: CharacterPackInstallErrorCode; readonly message: string }
+
+export interface CharacterPackHostInstallResult {
+  readonly ok: boolean
+  readonly installed?: CharacterPackInstalledRecord
+  readonly code?: string
+  readonly message?: string
+}
+
+/**
+ * The (future) host-side installer contract. This pure module only PLANS; the
+ * implementation lands in MB-042 behind the same bounded-unzip/atomic-rename
+ * rules documented for `famling.content-pack/0.2` zips. Never implement this
+ * with `unzip`-to-target, symlinks, network fetches or script execution.
+ */
+export interface CharacterPackHostInstaller {
+  readonly id: string
+  planInstall(request: CharacterPackInstallRequest): CharacterPackInstallPlanResult
+  planUninstall(request: CharacterPackUninstallRequest): CharacterPackUninstallPlanResult
+  install(plan: CharacterPackInstallPlan): Promise<CharacterPackHostInstallResult>
+  uninstall(plan: CharacterPackUninstallPlan): Promise<CharacterPackHostInstallResult>
+}
+
+// ---------------------------------------------------------------------------
+// pet-anim 0.2: parsers + validator (pure, issue-collecting, fail-closed)
+// ---------------------------------------------------------------------------
+
+const CHARACTER_PACK_CLIP_IDS: readonly ClipId[] = CLIP_IDS
+const CHARACTER_PACK_CLIP_LAYERS: readonly ClipLayer[] = ['base', 'overlay', 'oneshot']
+const CHARACTER_PACK_CLIP_CATEGORIES: readonly ClipCategory[] = ['idle', 'locomotion', 'social', 'action', 'interaction', 'combat']
+const CHARACTER_PACK_SPEECH_MODES = ['text', 'voice', 'sfx', 'none'] as const
+const CHARACTER_PACK_NON_HUMAN_SPEECH_MODES = ['sfx', 'none'] as const
+const HUMAN_SPEECH_MODES = ['text', 'voice', 'none'] as const
+const CHARACTER_PACK_EVENT_PATTERN = /^[a-z][a-z0-9_.-]{0,63}$/
+const CHARACTER_PACK_TRAIT_PATTERN = /^[a-z][a-z0-9-]{0,31}$/
+const CHARACTER_PACK_PALETTE_PATTERN = /^[a-z0-9][a-z0-9._@-]{0,63}$/
+const CHARACTER_PACK_DISPLAY_SCALES: readonly number[] = [1, 2, 4]
+
+function characterPackErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function readNumberTuple(
+  raw: unknown,
+  path: string,
+  length: number,
+  code: ContentIssueCode,
+  issues: ContentIssue[],
+  options: { readonly integer?: boolean; readonly min?: number; readonly max?: number } = {},
+): readonly number[] | undefined {
+  if (!Array.isArray(raw) || raw.length !== length) {
+    addIssue(issues, path, code, 'expected an array of ' + length + ' numbers')
+    return undefined
+  }
+  const out: number[] = []
+  for (let index = 0; index < raw.length; index += 1) {
+    const value = raw[index]
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      addIssue(issues, path + '[' + index + ']', code, 'expected a finite number')
+      return undefined
+    }
+    if (options.integer === true && !Number.isInteger(value)) {
+      addIssue(issues, path + '[' + index + ']', code, 'expected an integer')
+      return undefined
+    }
+    if (options.min !== undefined && value < options.min) {
+      addIssue(issues, path + '[' + index + ']', code, 'must be >= ' + options.min)
+      return undefined
+    }
+    if (options.max !== undefined && value > options.max) {
+      addIssue(issues, path + '[' + index + ']', code, 'must be <= ' + options.max)
+      return undefined
+    }
+    out.push(value)
+  }
+  return out
+}
+
+/** Fixed frame file path for one clip/frame (canonical zip layout). */
+export function characterPackFramePath(clip: ClipId, index: number): string {
+  const padded = index < 10 ? '0' + index : String(index)
+  return CHARACTER_PACK_FRAME_ROOT + clip + '/' + clip + '_' + padded + '.png'
+}
+
+function characterPackFramePathsForClips(clips: Readonly<Record<ClipId, CharacterPackClipV2>>): string[] {
+  const paths: string[] = []
+  for (const clip of CHARACTER_PACK_CLIP_IDS) {
+    const meta = clips[clip]
+    if (meta === undefined) continue
+    for (let index = 0; index < meta.frames; index += 1) paths.push(characterPackFramePath(clip, index))
+  }
+  return paths
+}
+
+/** Expected frame paths in clip order for one validated pack (QA/generator helper). */
+export function characterPackFramePaths(pack: Pick<CharacterPackV2, 'animations'>): readonly string[] {
+  return Object.freeze(characterPackFramePathsForClips(pack.animations.clips))
+}
+
+function parseCharacterPackSpec(raw: unknown, issues: ContentIssue[]): CharacterPackSpecV2 | undefined {
+  const path = '$.spec'
+  if (!isRecord(raw)) {
+    addIssue(issues, path, 'invalid-anim-spec', 'spec must be an object')
+    return undefined
+  }
+  checkUnknownKeys(raw, ['canvas', 'anchor', 'footBox', 'bbox', 'display', 'palette'], path, issues)
+  const canvas = readNumberTuple(raw.canvas, path + '.canvas', 2, 'invalid-anim-spec', issues, {
+    integer: true,
+    min: CANVAS_SIZE_MIN,
+    max: CANVAS_SIZE_MAX,
+  })
+  if (canvas !== undefined) {
+    for (const [index, side] of canvas.entries()) {
+      if (side % CANVAS_SIZE_ALIGNMENT !== 0) {
+        addIssue(issues, path + '.canvas[' + index + ']', 'invalid-anim-spec', 'canvas sides must be a multiple of ' + CANVAS_SIZE_ALIGNMENT)
+      }
+    }
+  }
+  const canvasWidth = canvas?.[0]
+  const canvasHeight = canvas?.[1]
+  let anchor: CharacterPackSpecV2['anchor'] | undefined
+  if (raw.anchor !== undefined && canvasWidth !== undefined && canvasHeight !== undefined) {
+    if (!isRecord(raw.anchor)) {
+      addIssue(issues, path + '.anchor', 'invalid-anim-spec', 'anchor must be an object')
+    } else {
+      checkUnknownKeys(raw.anchor, ['x', 'y', 'mode'], path + '.anchor', issues)
+      const x = readNumberField(raw.anchor, 'x', path + '.anchor.x', issues, { integer: true, min: 0, max: canvasWidth })
+      const y = readNumberField(raw.anchor, 'y', path + '.anchor.y', issues, { integer: true, min: 0, max: canvasHeight })
+      const mode = readEnumField(raw.anchor, 'mode', path + '.anchor.mode', issues, ['foot-center'])
+      if (x !== undefined && y !== undefined && mode !== undefined) anchor = { x, y, mode }
+    }
+  } else if (raw.anchor === undefined) {
+    addIssue(issues, path + '.anchor', 'missing-field', 'anchor is required')
+  }
+  let footBox: CharacterPackSpecV2['footBox'] | undefined
+  if (raw.footBox !== undefined) {
+    if (!isRecord(raw.footBox)) {
+      addIssue(issues, path + '.footBox', 'invalid-anim-spec', 'footBox must be an object')
+    } else {
+      checkUnknownKeys(raw.footBox, ['x', 'y', 'w', 'h'], path + '.footBox', issues)
+      const x = readNumberField(raw.footBox, 'x', path + '.footBox.x', issues, { integer: true })
+      const y = readNumberField(raw.footBox, 'y', path + '.footBox.y', issues, { integer: true })
+      const w = readNumberField(raw.footBox, 'w', path + '.footBox.w', issues, { integer: true, min: 1 })
+      const h = readNumberField(raw.footBox, 'h', path + '.footBox.h', issues, { integer: true, min: 1 })
+      if (x !== undefined && y !== undefined && w !== undefined && h !== undefined) {
+        footBox = { x, y, w, h }
+        if (canvasWidth !== undefined && canvasHeight !== undefined) {
+          if (x < -canvasWidth || y < -canvasHeight || x + w > canvasWidth || y + h > canvasHeight) {
+            addIssue(issues, path + '.footBox', 'invalid-anim-spec', 'footBox must stay inside the canvas origin box')
+          }
+        }
+      }
+    }
+  } else {
+    addIssue(issues, path + '.footBox', 'missing-field', 'footBox is required')
+  }
+  let bbox: readonly [number, number, number, number] | undefined
+  if (raw.bbox !== undefined) {
+    const tuple = readNumberTuple(raw.bbox, path + '.bbox', 4, 'invalid-anim-spec', issues, { integer: true, min: 0 })
+    if (tuple !== undefined && canvasWidth !== undefined && canvasHeight !== undefined) {
+      const [x, y, w, h] = tuple as [number, number, number, number]
+      if (w <= 0 || h <= 0 || x + w > canvasWidth || y + h > canvasHeight) {
+        addIssue(issues, path + '.bbox', 'invalid-anim-spec', 'bbox must stay inside the canvas')
+      } else {
+        bbox = [x, y, w, h]
+      }
+    }
+  }
+  let display: CharacterPackSpecV2['display'] | undefined
+  if (raw.display !== undefined) {
+    if (!isRecord(raw.display)) {
+      addIssue(issues, path + '.display', 'invalid-anim-spec', 'display must be an object')
+    } else {
+      checkUnknownKeys(raw.display, ['scale', 'pixelated'], path + '.display', issues)
+      let scale: 1 | 2 | 4 | undefined
+      if (raw.display.scale !== undefined) {
+        if (typeof raw.display.scale !== 'number' || !CHARACTER_PACK_DISPLAY_SCALES.includes(raw.display.scale)) {
+          addIssue(issues, path + '.display.scale', 'invalid-anim-spec', 'display.scale must be one of 1, 2, 4')
+        } else {
+          scale = raw.display.scale as 1 | 2 | 4
+        }
+      }
+      let pixelated: true | undefined
+      if (raw.display.pixelated !== undefined) {
+        if (raw.display.pixelated !== true) addIssue(issues, path + '.display.pixelated', 'invalid-anim-spec', 'display.pixelated must be true when present')
+        else pixelated = true
+      }
+      if ((raw.display.scale === undefined || scale !== undefined) && (raw.display.pixelated === undefined || pixelated === true)) {
+        display = { ...(scale !== undefined ? { scale } : {}), ...(pixelated !== undefined ? { pixelated } : {}) }
+      }
+    }
+  }
+  const palette = readStringField(raw, 'palette', path + '.palette', issues)
+  if (palette !== undefined && (!CHARACTER_PACK_PALETTE_PATTERN.test(palette) || palette.length > CHARACTER_PACK_V2_LIMITS.maxPaletteChars)) {
+    addIssue(issues, path + '.palette', 'invalid-anim-spec', 'palette must be a safe lowercase id (max ' + CHARACTER_PACK_V2_LIMITS.maxPaletteChars + ' chars)')
+  }
+  if (
+    canvas === undefined ||
+    anchor === undefined ||
+    footBox === undefined ||
+    palette === undefined ||
+    (raw.bbox !== undefined && bbox === undefined) ||
+    (raw.display !== undefined && display === undefined)
+  ) {
+    return undefined
+  }
+  const spec: { -readonly [K in keyof CharacterPackSpecV2]: CharacterPackSpecV2[K] } = {
+    canvas: [canvas[0] as number, canvas[1] as number],
+    anchor,
+    footBox,
+    palette,
+  }
+  if (bbox !== undefined) spec.bbox = bbox
+  if (display !== undefined) spec.display = display
+  return spec
+}
+
+function parseCharacterPackClips(
+  raw: unknown,
+  issues: ContentIssue[],
+): Readonly<Record<ClipId, CharacterPackClipV2>> | undefined {
+  const path = '$.animations'
+  if (!isRecord(raw)) {
+    addIssue(issues, path, 'invalid-anim-clip', 'animations must be an object with a clips table')
+    return undefined
+  }
+  checkUnknownKeys(raw, ['clips'], path, issues)
+  const rawClips = raw.clips
+  if (!isRecord(rawClips)) {
+    addIssue(issues, path + '.clips', 'invalid-anim-clip', 'clips must be an object keyed by clip id')
+    return undefined
+  }
+  checkUnknownKeys(rawClips, CHARACTER_PACK_CLIP_IDS, path + '.clips', issues)
+  const clips: Partial<Record<ClipId, CharacterPackClipV2>> = {}
+  let totalFrames = 0
+  for (const clip of CHARACTER_PACK_CLIP_IDS) {
+    const rawClip = rawClips[clip]
+    const clipPath = path + '.clips.' + clip
+    if (rawClip === undefined) {
+      addIssue(issues, clipPath, 'missing-field', 'clip "' + clip + '" is required in famling.pet-anim/0.2')
+      continue
+    }
+    if (!isRecord(rawClip)) {
+      addIssue(issues, clipPath, 'invalid-anim-clip', 'clip must be an object')
+      continue
+    }
+    checkUnknownKeys(rawClip, ['frames', 'fps', 'loop', 'layer', 'category', 'priority', 'holdMs'], clipPath, issues)
+    const frames = readNumberField(rawClip, 'frames', clipPath + '.frames', issues, {
+      integer: true,
+      min: 1,
+      max: CHARACTER_PACK_V2_LIMITS.maxFramesPerClip,
+    })
+    const fps = readNumberField(rawClip, 'fps', clipPath + '.fps', issues, { integer: true, min: 1, max: CHARACTER_PACK_V2_LIMITS.maxFps })
+    const loop = readBooleanField(rawClip, 'loop', clipPath + '.loop', issues)
+    const layer = readEnumField(rawClip, 'layer', clipPath + '.layer', issues, CHARACTER_PACK_CLIP_LAYERS)
+    const category = readEnumField(rawClip, 'category', clipPath + '.category', issues, CHARACTER_PACK_CLIP_CATEGORIES)
+    const priority = readNumberField(rawClip, 'priority', clipPath + '.priority', issues, { integer: true, min: 0, max: 200 })
+    const rule = CHARACTER_PACK_CLIP_RULES[clip]
+    if (loop !== undefined && loop !== rule.loop) addIssue(issues, clipPath + '.loop', 'invalid-anim-clip', 'loop must be ' + String(rule.loop) + ' for clip "' + clip + '"')
+    if (layer !== undefined && layer !== rule.layer) addIssue(issues, clipPath + '.layer', 'invalid-anim-clip', 'layer must be "' + rule.layer + '" for clip "' + clip + '"')
+    if (category !== undefined && category !== rule.category) addIssue(issues, clipPath + '.category', 'invalid-anim-clip', 'category must be "' + rule.category + '" for clip "' + clip + '"')
+    if (priority !== undefined && priority !== rule.priority) addIssue(issues, clipPath + '.priority', 'invalid-anim-clip', 'priority must be ' + rule.priority + ' for clip "' + clip + '"')
+    let holdMs: readonly number[] | undefined
+    if (rawClip.holdMs !== undefined) {
+      const holds = readNumberTuple(rawClip.holdMs, clipPath + '.holdMs', frames ?? 0, 'invalid-anim-clip', issues, {
+        integer: true,
+        min: 16,
+        max: CHARACTER_PACK_V2_LIMITS.maxHoldMs,
+      })
+      if (holds !== undefined) {
+        holdMs = holds
+        const total = holds.reduce((sum, hold) => sum + hold, 0)
+        if (total <= 0 || total > CHARACTER_PACK_V2_LIMITS.maxClipDurationMs) {
+          addIssue(issues, clipPath + '.holdMs', 'invalid-anim-clip', 'holdMs total must be 1..' + CHARACTER_PACK_V2_LIMITS.maxClipDurationMs + ' ms')
+        }
+      }
+    } else if (frames !== undefined && fps !== undefined && fps > 0) {
+      const durationMs = Math.round((frames / fps) * 1000)
+      if (durationMs > CHARACTER_PACK_V2_LIMITS.maxClipDurationMs) {
+        addIssue(issues, clipPath, 'invalid-anim-clip', 'clip duration ' + durationMs + ' ms > ' + CHARACTER_PACK_V2_LIMITS.maxClipDurationMs)
+      }
+    }
+    if (frames !== undefined) totalFrames += frames
+    if (
+      frames === undefined ||
+      fps === undefined ||
+      loop === undefined ||
+      layer === undefined ||
+      category === undefined ||
+      priority === undefined ||
+      (rawClip.holdMs !== undefined && holdMs === undefined)
+    ) {
+      continue
+    }
+    clips[clip] = {
+      frames,
+      fps,
+      loop,
+      layer,
+      category,
+      priority,
+      ...(holdMs !== undefined ? { holdMs } : {}),
+    }
+  }
+  if (totalFrames > CHARACTER_PACK_V2_LIMITS.maxTotalFrames) {
+    addIssue(issues, path + '.clips', 'too-many-files', totalFrames + ' total frames > ' + CHARACTER_PACK_V2_LIMITS.maxTotalFrames)
+  }
+  if (Object.keys(clips).length !== CHARACTER_PACK_CLIP_IDS.length) return undefined
+  return clips as Readonly<Record<ClipId, CharacterPackClipV2>>
+}
+
+function parseCharacterPackCharacter(
+  raw: unknown,
+  packKind: CharacterPackKind | undefined,
+  issues: ContentIssue[],
+): CharacterPackCharacterV2 | undefined {
+  const path = '$.character'
+  if (!isRecord(raw)) {
+    addIssue(issues, path, 'invalid-character', 'character must be an object')
+    return undefined
+  }
+  checkUnknownKeys(raw, ['id', 'name', 'kind', 'species', 'traits', 'capabilities', 'fallback'], path, issues)
+  const id = parsePackId(raw.id, path + '.id', issues)
+  const name = readPlainText(raw, 'name', path + '.name', issues, { maxChars: CONTENT_LIMITS.maxNameChars })
+  const kind = readEnumField(raw, 'kind', path + '.kind', issues, CHARACTER_PACK_KINDS)
+  if (kind !== undefined && packKind !== undefined && kind !== packKind) {
+    addIssue(issues, path + '.kind', 'invalid-character', 'character.kind must equal the pack kind "' + packKind + '"')
+  }
+  let species: string | undefined
+  if (raw.species !== undefined) {
+    species = readStringField(raw, 'species', path + '.species', issues)
+    if (species !== undefined && (!CHARACTER_PACK_TRAIT_PATTERN.test(species) || species.length > CHARACTER_PACK_V2_LIMITS.maxSpeciesChars)) {
+      addIssue(issues, path + '.species', 'invalid-character', 'species must be a safe lowercase id')
+    }
+  }
+  let traits: readonly string[] | undefined
+  if (raw.traits !== undefined) {
+    traits = parseStringList(raw.traits, path + '.traits', issues, {
+      max: CHARACTER_PACK_V2_LIMITS.maxCapabilityList,
+      pattern: CHARACTER_PACK_TRAIT_PATTERN,
+      patternMessage: 'trait ids must be lowercase ids (max 32 chars)',
+    })
+  }
+  let capabilities: CharacterPackCharacterV2['capabilities'] | undefined
+  if (raw.capabilities !== undefined) {
+    if (!isRecord(raw.capabilities)) {
+      addIssue(issues, path + '.capabilities', 'invalid-character', 'capabilities must be an object')
+    } else {
+      checkUnknownKeys(raw.capabilities, ['sockets', 'roles', 'behaviors'], path + '.capabilities', issues)
+      const capabilitiesOut: { sockets?: readonly string[]; roles?: readonly string[]; behaviors?: readonly string[] } = {}
+      for (const key of ['sockets', 'roles', 'behaviors'] as const) {
+        const rawList = raw.capabilities[key]
+        if (rawList === undefined) continue
+        const list = parseStringList(rawList, path + '.capabilities.' + key, issues, {
+          max: CHARACTER_PACK_V2_LIMITS.maxCapabilityList,
+          pattern: CHARACTER_PACK_TRAIT_PATTERN,
+          patternMessage: 'capability ids must be lowercase ids (max 32 chars)',
+        })
+        if (list !== undefined) capabilitiesOut[key] = list
+      }
+      capabilities = capabilitiesOut
+    }
+  }
+  let fallback: Readonly<Record<string, readonly ClipId[]>> | undefined
+  if (raw.fallback !== undefined) {
+    if (!isRecord(raw.fallback)) {
+      addIssue(issues, path + '.fallback', 'invalid-character', 'fallback must be an object of event -> clip id list')
+    } else {
+      const entries = Object.keys(raw.fallback)
+      if (entries.length === 0 || entries.length > CHARACTER_PACK_V2_LIMITS.maxFallbackEntries) {
+        addIssue(issues, path + '.fallback', 'invalid-character', 'fallback must have 1..' + CHARACTER_PACK_V2_LIMITS.maxFallbackEntries + ' entries')
+      } else {
+        const fallbackOut: Record<string, readonly ClipId[]> = {}
+        for (const event of entries) {
+          const list = parseStringList(raw.fallback[event], path + '.fallback.' + event, issues, {
+            max: 8,
+            values: CHARACTER_PACK_CLIP_IDS,
+          })
+          if (!CHARACTER_PACK_EVENT_PATTERN.test(event)) {
+            addIssue(issues, path + '.fallback.' + event, 'invalid-character', 'fallback event id is not safe')
+            continue
+          }
+          if (list !== undefined) fallbackOut[event] = list as ClipId[]
+        }
+        fallback = fallbackOut
+      }
+    }
+  }
+  if (id === undefined || name === undefined || kind === undefined) return undefined
+  const character: { -readonly [K in keyof CharacterPackCharacterV2]: CharacterPackCharacterV2[K] } = { id, name, kind }
+  if (species !== undefined) character.species = species
+  if (traits !== undefined) character.traits = traits
+  if (capabilities !== undefined) character.capabilities = capabilities
+  if (fallback !== undefined) character.fallback = fallback
+  return character
+}
+
+function parseCharacterPackVoice(
+  raw: unknown,
+  kind: CharacterPackKind | undefined,
+  issues: ContentIssue[],
+): CharacterPackVoiceV2 | undefined {
+  const path = '$.voice'
+  if (!isRecord(raw)) {
+    addIssue(issues, path, 'invalid-voice', 'voice must be an object')
+    return undefined
+  }
+  checkUnknownKeys(raw, ['mode', 'canTts', 'bubble'], path, issues)
+  const mode = readEnumField(raw, 'mode', path + '.mode', issues, VOICE_MODES)
+  const canTts = readBooleanField(raw, 'canTts', path + '.canTts', issues)
+  const bubble = readEnumField(raw, 'bubble', path + '.bubble', issues, BUBBLE_SEMANTICS)
+  if (kind !== undefined && mode !== undefined && canTts !== undefined && bubble !== undefined) {
+    const rule = CHARACTER_PACK_VOICE_RULES[kind]
+    if (mode !== rule.mode) addIssue(issues, path + '.mode', 'invalid-voice', 'voice.mode must be "' + rule.mode + '" for kind "' + kind + '"')
+    if (canTts !== rule.canTts) addIssue(issues, path + '.canTts', 'invalid-voice', 'voice.canTts must be ' + String(rule.canTts) + ' for kind "' + kind + '"')
+    if (bubble !== rule.bubble) addIssue(issues, path + '.bubble', 'invalid-voice', 'voice.bubble must be "' + rule.bubble + '" for kind "' + kind + '"')
+  }
+  if (mode === undefined || canTts === undefined || bubble === undefined) return undefined
+  return { mode, canTts, bubble }
+}
+
+function parseCharacterPackAudio(
+  raw: unknown,
+  kind: CharacterPackKind | undefined,
+  issues: ContentIssue[],
+): CharacterPackAudioV2 | undefined {
+  const path = '$.audio'
+  if (!isRecord(raw)) {
+    addIssue(issues, path, 'invalid-audio', 'audio must be an object')
+    return undefined
+  }
+  checkUnknownKeys(raw, ['redistribution', 'sfx', 'voiceLines'], path, issues)
+  let redistribution: CharacterPackAudioRightsV2 | undefined
+  if (!isRecord(raw.redistribution)) {
+    addIssue(issues, path + '.redistribution', 'invalid-audio', 'redistribution must be an object with confirmed: boolean')
+  } else {
+    checkUnknownKeys(raw.redistribution, ['confirmed', 'note'], path + '.redistribution', issues)
+    const confirmed = readBooleanField(raw.redistribution, 'confirmed', path + '.redistribution.confirmed', issues)
+    let note: string | undefined
+    if (raw.redistribution.note !== undefined) {
+      note = readPlainText(raw.redistribution, 'note', path + '.redistribution.note', issues, {
+        required: false,
+        maxChars: CONTENT_LIMITS.maxDescriptionChars,
+      })
+    }
+    if (confirmed !== undefined) redistribution = { confirmed, ...(note !== undefined ? { note } : {}) }
+  }
+  let sfx: readonly CharacterPackSfxV2[] | undefined
+  if (raw.sfx !== undefined) {
+    if (!Array.isArray(raw.sfx) || raw.sfx.length === 0 || raw.sfx.length > CHARACTER_PACK_V2_LIMITS.maxSfx) {
+      addIssue(issues, path + '.sfx', 'invalid-audio', 'sfx must be 1..' + CHARACTER_PACK_V2_LIMITS.maxSfx + ' entries')
+    } else {
+      const out: CharacterPackSfxV2[] = []
+      const seen = new Set<string>()
+      for (let index = 0; index < raw.sfx.length; index += 1) {
+        const entryPath = path + '.sfx[' + index + ']'
+        const entry = raw.sfx[index]
+        if (!isRecord(entry)) {
+          addIssue(issues, entryPath, 'invalid-audio', 'sfx entry must be an object')
+          continue
+        }
+        checkUnknownKeys(entry, ['id', 'file', 'event', 'loop', 'durationMs'], entryPath, issues)
+        const id = parseEntryId(entry.id, entryPath + '.id', issues)
+        if (id !== undefined) {
+          if (seen.has(id)) addIssue(issues, entryPath + '.id', 'duplicate-id', 'duplicate sfx id: ' + id)
+          seen.add(id)
+        }
+        const file = parseSafePath(entry.file, entryPath + '.file', issues, {
+          leadingSlash: false,
+          extensions: CHARACTER_PACK_AUDIO_EXTENSIONS,
+          maxChars: 160,
+        })
+        if (file !== undefined && !file.startsWith(CHARACTER_PACK_SFX_ROOT)) {
+          addIssue(issues, entryPath + '.file', 'invalid-audio', 'sfx files must live under ' + CHARACTER_PACK_SFX_ROOT)
+        }
+        let event: string | undefined
+        if (entry.event !== undefined) {
+          event = readStringField(entry, 'event', entryPath + '.event', issues)
+          if (event !== undefined && !CHARACTER_PACK_EVENT_PATTERN.test(event)) {
+            addIssue(issues, entryPath + '.event', 'invalid-audio', 'sfx event id is not safe')
+          }
+        }
+        let loop: boolean | undefined
+        if (entry.loop !== undefined) loop = readBooleanField(entry, 'loop', entryPath + '.loop', issues)
+        let durationMs: number | undefined
+        if (entry.durationMs !== undefined) {
+          durationMs = readNumberField(entry, 'durationMs', entryPath + '.durationMs', issues, {
+            integer: true,
+            min: 0,
+            max: CHARACTER_PACK_V2_LIMITS.maxClipDurationMs,
+          })
+        }
+        if (id === undefined || file === undefined) continue
+        const parsed: { -readonly [K in keyof CharacterPackSfxV2]: CharacterPackSfxV2[K] } = { id, file }
+        if (event !== undefined) parsed.event = event
+        if (loop !== undefined) parsed.loop = loop
+        if (durationMs !== undefined) parsed.durationMs = durationMs
+        out.push(parsed)
+      }
+      sfx = out
+    }
+  }
+  let voiceLines: readonly CharacterPackVoiceLineV2[] | undefined
+  if (raw.voiceLines !== undefined) {
+    if (kind !== undefined && kind !== 'humanoid') {
+      addIssue(issues, path + '.voiceLines', 'invalid-audio', 'cat/dog packs must never carry baked voice lines (silent thought bubbles only)')
+    } else if (!Array.isArray(raw.voiceLines) || raw.voiceLines.length === 0 || raw.voiceLines.length > CHARACTER_PACK_V2_LIMITS.maxVoiceLines) {
+      addIssue(issues, path + '.voiceLines', 'invalid-audio', 'voiceLines must be 1..' + CHARACTER_PACK_V2_LIMITS.maxVoiceLines + ' entries')
+    } else {
+      const out: CharacterPackVoiceLineV2[] = []
+      const seen = new Set<string>()
+      for (let index = 0; index < raw.voiceLines.length; index += 1) {
+        const entryPath = path + '.voiceLines[' + index + ']'
+        const entry = raw.voiceLines[index]
+        if (!isRecord(entry)) {
+          addIssue(issues, entryPath, 'invalid-audio', 'voice line entry must be an object')
+          continue
+        }
+        checkUnknownKeys(entry, ['id', 'file', 'text', 'locale'], entryPath, issues)
+        const id = parseEntryId(entry.id, entryPath + '.id', issues)
+        if (id !== undefined) {
+          if (seen.has(id)) addIssue(issues, entryPath + '.id', 'duplicate-id', 'duplicate voice line id: ' + id)
+          seen.add(id)
+        }
+        const file = parseSafePath(entry.file, entryPath + '.file', issues, {
+          leadingSlash: false,
+          extensions: CHARACTER_PACK_AUDIO_EXTENSIONS,
+          maxChars: 160,
+        })
+        if (file !== undefined && !file.startsWith(CHARACTER_PACK_VOICE_ROOT)) {
+          addIssue(issues, entryPath + '.file', 'invalid-audio', 'voice files must live under ' + CHARACTER_PACK_VOICE_ROOT)
+        }
+        const text = readPlainText(entry, 'text', entryPath + '.text', issues, { maxChars: CHARACTER_PACK_V2_LIMITS.maxAudioTextChars })
+        let locale: string | undefined
+        if (entry.locale !== undefined) {
+          locale = readStringField(entry, 'locale', entryPath + '.locale', issues)
+          if (locale !== undefined && !LANGUAGE_PATTERN.test(locale)) addIssue(issues, entryPath + '.locale', 'invalid-audio', 'locale must be a BCP-47-ish tag')
+        }
+        if (id === undefined || file === undefined || text === undefined) continue
+        const parsed: { -readonly [K in keyof CharacterPackVoiceLineV2]: CharacterPackVoiceLineV2[K] } = { id, file, text }
+        if (locale !== undefined) parsed.locale = locale
+        out.push(parsed)
+      }
+      voiceLines = out
+    }
+  }
+  const hasFiles = (sfx !== undefined && sfx.length > 0) || (voiceLines !== undefined && voiceLines.length > 0)
+  if (hasFiles && redistribution !== undefined && redistribution.confirmed !== true) {
+    addIssue(issues, path + '.redistribution.confirmed', 'audio-rights-unconfirmed', 'baked audio needs explicit confirmed redistribution rights before it can ship')
+  }
+  if (redistribution === undefined || (raw.sfx !== undefined && sfx === undefined) || (raw.voiceLines !== undefined && voiceLines === undefined)) {
+    return undefined
+  }
+  const audio: { -readonly [K in keyof CharacterPackAudioV2]: CharacterPackAudioV2[K] } = { redistribution }
+  if (sfx !== undefined && sfx.length > 0) audio.sfx = sfx
+  if (voiceLines !== undefined && voiceLines.length > 0) audio.voiceLines = voiceLines
+  return audio
+}
+
+function parseCharacterPackBehavior(
+  raw: unknown,
+  kind: CharacterPackKind | undefined,
+  clips: Readonly<Record<ClipId, CharacterPackClipV2>>,
+  issues: ContentIssue[],
+): BehaviorProfile | undefined {
+  const path = '$.behavior'
+  let behavior: BehaviorProfile
+  try {
+    behavior = validateBehaviorProfile(raw)
+  } catch (error) {
+    addIssue(issues, path, 'invalid-behavior', characterPackErrorMessage(error))
+    return undefined
+  }
+  const stateNames = Object.keys(behavior.states)
+  if (stateNames.length === 0 || stateNames.length > CHARACTER_PACK_V2_LIMITS.maxBehaviorStates) {
+    addIssue(issues, path + '.states', 'invalid-behavior', 'states must have 1..' + CHARACTER_PACK_V2_LIMITS.maxBehaviorStates + ' entries')
+  }
+  for (const name of stateNames) {
+    const state = behavior.states[name]
+    if (state === undefined) continue
+    if (!CHARACTER_PACK_EVENT_PATTERN.test(name)) {
+      addIssue(issues, path + '.states.' + name, 'invalid-behavior', 'state id is not safe')
+    }
+    if (!(state.tag in clips)) {
+      addIssue(issues, path + '.states.' + name + '.tag', 'invalid-behavior', 'state tag "' + state.tag + '" is not a declared clip')
+    }
+    if (state.after !== undefined && !(state.after in behavior.states)) {
+      addIssue(issues, path + '.states.' + name + '.after', 'invalid-behavior', 'after target "' + state.after + '" is not a declared state')
+    }
+    if (state.loop !== undefined && typeof state.loop !== 'boolean') {
+      addIssue(issues, path + '.states.' + name + '.loop', 'invalid-behavior', 'loop must be boolean')
+    }
+  }
+  const slots = behavior.slots
+  if (slots === undefined || Object.keys(slots).length === 0) {
+    addIssue(issues, path + '.slots', 'invalid-behavior', 'slots must declare at least one interaction slot')
+  } else if (Object.keys(slots).length > CHARACTER_PACK_V2_LIMITS.maxBehaviorSlots) {
+    addIssue(issues, path + '.slots', 'invalid-behavior', 'slots must have 1..' + CHARACTER_PACK_V2_LIMITS.maxBehaviorSlots + ' entries')
+  } else {
+    for (const [event, target] of Object.entries(slots)) {
+      if (!CHARACTER_PACK_EVENT_PATTERN.test(event)) {
+        addIssue(issues, path + '.slots.' + event, 'invalid-behavior', 'slot event id is not safe')
+      }
+      if (target === null) continue
+      if (typeof target !== 'string' || !(target in behavior.states)) {
+        addIssue(issues, path + '.slots.' + event, 'invalid-behavior', 'slot target "' + String(target) + '" is not a declared state')
+      }
+    }
+  }
+  if (behavior.extends === undefined) {
+    addIssue(issues, path + '.extends', 'invalid-behavior', 'extends is required for a v0.2 pack (core profile per kind)')
+  } else if (kind !== undefined && behavior.extends !== CHARACTER_PACK_BEHAVIOR_EXTENDS[kind]) {
+    addIssue(issues, path + '.extends', 'invalid-behavior', 'extends must be "' + CHARACTER_PACK_BEHAVIOR_EXTENDS[kind] + '" for kind "' + kind + '"')
+  }
+  if (kind !== undefined) {
+    const allowed = kind === 'humanoid' ? HUMAN_SPEECH_MODES : CHARACTER_PACK_NON_HUMAN_SPEECH_MODES
+    if (!(allowed as readonly string[]).includes(behavior.abilities.speech)) {
+      addIssue(issues, path + '.abilities.speech', 'invalid-behavior', 'speech mode "' + behavior.abilities.speech + '" is not allowed for kind "' + kind + '"')
+    }
+  }
+  return behavior
+}
+
+function parseCharacterPackRegions(
+  raw: unknown,
+  behavior: BehaviorProfile | undefined,
+  spec: CharacterPackSpecV2 | undefined,
+  issues: ContentIssue[],
+): HeroRegionConfig | undefined {
+  const path = '$.regions'
+  let regions: HeroRegionConfig
+  try {
+    regions = parseHeroRegionConfig(raw)
+  } catch (error) {
+    addIssue(issues, path, 'invalid-region', characterPackErrorMessage(error))
+    return undefined
+  }
+  if (spec !== undefined && (regions.canvas[0] !== spec.canvas[0] || regions.canvas[1] !== spec.canvas[1])) {
+    addIssue(issues, path + '.canvas', 'invalid-region', 'regions canvas must equal spec.canvas')
+  }
+  const slots = behavior?.slots ?? {}
+  for (let index = 0; index < regions.gestures.length; index += 1) {
+    const gesture = regions.gestures[index]
+    if (gesture === undefined) continue
+    if (slots[gesture.event] === undefined) {
+      addIssue(issues, path + '.gestures[' + index + '].event', 'invalid-region', 'gesture event "' + gesture.event + '" is not declared in behavior.slots')
+    }
+    if (gesture.states === undefined) continue
+    for (const state of gesture.states) {
+      if (behavior !== undefined && !(state in behavior.states)) {
+        addIssue(issues, path + '.gestures[' + index + '].states', 'invalid-region', 'gesture state "' + state + '" is not a declared behavior state')
+      }
+    }
+  }
+  for (let index = 0; index < (regions.actions ?? []).length; index += 1) {
+    const action = (regions.actions ?? [])[index]
+    if (action === undefined) continue
+    if (slots[action.event] === undefined) {
+      addIssue(issues, path + '.actions[' + index + '].event', 'invalid-region', 'action event "' + action.event + '" is not declared in behavior.slots')
+    }
+    if (action.followUpEvent !== undefined && slots[action.followUpEvent] === undefined) {
+      addIssue(issues, path + '.actions[' + index + '].followUpEvent', 'invalid-region', 'follow-up event is not declared in behavior.slots')
+    }
+  }
+  return regions
+}
+
+function parseCharacterPackPreview(raw: unknown, issues: ContentIssue[]): string | undefined {
+  if (raw === undefined) {
+    addIssue(issues, '$.preview', 'missing-preview', 'preview is required for a famling.pet-anim/0.2 pack')
+    return undefined
+  }
+  const preview = parseSafePath(raw, '$.preview', issues, {
+    leadingSlash: false,
+    extensions: CHARACTER_PACK_PREVIEW_EXTENSIONS,
+    maxChars: CHARACTER_PACK_V2_LIMITS.maxPreviewChars,
+  })
+  if (preview !== undefined && !preview.startsWith(CHARACTER_PACK_PREVIEW_ROOT)) {
+    addIssue(issues, '$.preview', 'invalid-path', 'preview must live under ' + CHARACTER_PACK_PREVIEW_ROOT)
+    return undefined
+  }
+  return preview
+}
+
+type CharacterPackFileKind = 'doc' | 'frame' | 'preview' | 'audio'
+
+function characterPackFileKind(relativePath: string): CharacterPackFileKind | null {
+  const slash = relativePath.lastIndexOf('/')
+  const base = slash === -1 ? relativePath : relativePath.slice(slash + 1)
+  if (slash === -1 && ROOT_PACK_DOC_PATTERN.test(base)) return 'doc'
+  const extension = fileExtension(relativePath)
+  if (relativePath.startsWith(CHARACTER_PACK_FRAME_ROOT)) {
+    return (CHARACTER_PACK_FRAME_EXTENSIONS as readonly string[]).includes(extension) ? 'frame' : null
+  }
+  if (relativePath.startsWith(CHARACTER_PACK_PREVIEW_ROOT)) {
+    return (CHARACTER_PACK_PREVIEW_EXTENSIONS as readonly string[]).includes(extension) ? 'preview' : null
+  }
+  if (relativePath.startsWith(CHARACTER_PACK_SFX_ROOT) || relativePath.startsWith(CHARACTER_PACK_VOICE_ROOT)) {
+    return (CHARACTER_PACK_AUDIO_EXTENSIONS as readonly string[]).includes(extension) ? 'audio' : null
+  }
+  return null
+}
+
+function parseCharacterPackFileV2(raw: unknown, path: string, issues: ContentIssue[]): ContentPackFileV2 | undefined {
+  if (!isRecord(raw)) {
+    addIssue(issues, path, 'invalid-type', 'file must be an object with path/bytes/sha256')
+    return undefined
+  }
+  checkUnknownKeys(raw, ['path', 'bytes', 'sha256'], path, issues)
+  const filePath = parseSafePath(raw.path, path + '.path', issues, { leadingSlash: false, maxChars: 160 })
+  let kind: CharacterPackFileKind | null = null
+  if (filePath !== undefined) {
+    kind = characterPackFileKind(filePath)
+    if (kind === null) {
+      addIssue(issues, path + '.path', 'forbidden-asset-type', 'only assets/anim/**/*.png, assets/preview/*.{png,webp}, assets/audio/**/*.ogg and root docs are allowed')
+    }
+  }
+  const bytes = readNumberField(raw, 'bytes', path + '.bytes', issues, {
+    integer: true,
+    min: 1,
+    max: CHARACTER_PACK_V2_LIMITS.maxAssetBytes,
+  })
+  const rawSha = readStringField(raw, 'sha256', path + '.sha256', issues)
+  let sha256: string | undefined
+  if (rawSha !== undefined) {
+    if (!SHA256_PATTERN.test(rawSha)) addIssue(issues, path + '.sha256', 'invalid-type', 'sha256 must be lowercase hex (64 chars)')
+    else sha256 = rawSha
+  }
+  if (filePath === undefined || kind === null || bytes === undefined || sha256 === undefined) return undefined
+  return { path: filePath, bytes, sha256 }
+}
+
+interface CharacterPackReferenceInput {
+  readonly clips: Readonly<Record<ClipId, CharacterPackClipV2>>
+  readonly preview: string
+  readonly license: ContentPackLicense
+  readonly audio: CharacterPackAudioV2 | undefined
+  readonly files: readonly ContentPackFileV2[]
+}
+
+function checkCharacterPackAssetReferences(input: CharacterPackReferenceInput, issues: ContentIssue[]): void {
+  const declared = new Map<string, ContentPackFileV2>()
+  for (const file of input.files) declared.set(file.path, file)
+  const expectedFrames = new Set(characterPackFramePathsForClips(input.clips))
+  const audioFiles = new Set<string>()
+  if (input.audio?.sfx !== undefined) for (const cue of input.audio.sfx) audioFiles.add(cue.file)
+  if (input.audio?.voiceLines !== undefined) for (const line of input.audio.voiceLines) audioFiles.add(line.file)
+  if (input.preview !== undefined && !declared.has(input.preview)) {
+    addIssue(issues, '$.preview', 'missing-file', 'preview is not listed in files: ' + input.preview)
+  }
+  if (input.license.file !== undefined && !declared.has(input.license.file)) {
+    addIssue(issues, '$.license.file', 'missing-file', 'license file is not listed in files: ' + input.license.file)
+  }
+  for (const framePath of expectedFrames) {
+    if (!declared.has(framePath)) addIssue(issues, '$.files', 'missing-file', 'expected frame is not listed in files: ' + framePath)
+  }
+  for (const cue of input.audio?.sfx ?? []) {
+    if (!declared.has(cue.file)) addIssue(issues, '$.audio.sfx', 'missing-file', 'sfx file is not listed in files: ' + cue.file)
+  }
+  for (const line of input.audio?.voiceLines ?? []) {
+    if (!declared.has(line.file)) addIssue(issues, '$.audio.voiceLines', 'missing-file', 'voice line file is not listed in files: ' + line.file)
+  }
+  let totalBytes = 0
+  let audioBytes = 0
+  let frameCount = 0
+  for (const file of input.files) {
+    totalBytes += file.bytes
+    const kind = characterPackFileKind(file.path)
+    if (kind === 'frame') {
+      frameCount += 1
+      if (!expectedFrames.has(file.path)) addIssue(issues, '$.files', 'unlisted-file', 'declared frame is not part of the clip table: ' + file.path)
+      if (file.bytes > CHARACTER_PACK_V2_LIMITS.maxFrameBytes) {
+        addIssue(issues, '$.files', 'too-large', 'frame ' + file.path + ' is ' + file.bytes + ' bytes > ' + CHARACTER_PACK_V2_LIMITS.maxFrameBytes)
+      }
+    } else if (kind === 'preview') {
+      if (file.path !== input.preview) addIssue(issues, '$.files', 'unlisted-file', 'preview asset is not the declared preview: ' + file.path)
+      if (file.bytes > CHARACTER_PACK_V2_LIMITS.maxPreviewBytes) {
+        addIssue(issues, '$.files', 'too-large', 'preview is ' + file.bytes + ' bytes > ' + CHARACTER_PACK_V2_LIMITS.maxPreviewBytes)
+      }
+    } else if (kind === 'audio') {
+      audioBytes += file.bytes
+      if (!audioFiles.has(file.path)) addIssue(issues, '$.files', 'unlisted-file', 'audio file is not referenced by audio.sfx/voiceLines: ' + file.path)
+      if (file.bytes > CHARACTER_PACK_V2_LIMITS.maxAudioBytes) {
+        addIssue(issues, '$.files', 'too-large', 'audio file ' + file.path + ' is ' + file.bytes + ' bytes > ' + CHARACTER_PACK_V2_LIMITS.maxAudioBytes)
+      }
+    }
+  }
+  if (frameCount !== expectedFrames.size) {
+    addIssue(issues, '$.files', 'missing-file', 'clip table expects ' + expectedFrames.size + ' frames, files declares ' + frameCount)
+  }
+  if (audioBytes > CHARACTER_PACK_V2_LIMITS.maxAudioTotalBytes) {
+    addIssue(issues, '$.audio', 'too-large', 'total audio ' + audioBytes + ' bytes > ' + CHARACTER_PACK_V2_LIMITS.maxAudioTotalBytes)
+  }
+  if (totalBytes > CHARACTER_PACK_V2_LIMITS.maxTotalUncompressedBytes) {
+    addIssue(issues, '$.files', 'too-large', 'declared files ' + totalBytes + ' bytes > ' + CHARACTER_PACK_V2_LIMITS.maxTotalUncompressedBytes)
+  }
+}
+
+function parseCharacterPackV2(input: unknown, issues: ContentIssue[]): CharacterPackV2 | undefined {
+  if (!isRecord(input)) {
+    addIssue(issues, '$', 'invalid-anim-pack', 'character pack must be an object')
+    return undefined
+  }
+  checkUnknownKeys(
+    input,
+    [
+      'schema',
+      'id',
+      'name',
+      'version',
+      'description',
+      'author',
+      'kind',
+      'usageDeclaration',
+      'license',
+      'aiProvenance',
+      'compatibility',
+      'character',
+      'spec',
+      'animations',
+      'voice',
+      'behavior',
+      'regions',
+      'audio',
+      'preview',
+      'files',
+      'source',
+      'remote',
+      'createdAt',
+    ],
+    '$',
+    issues,
+  )
+  const schema = readStringField(input, 'schema', '$.schema', issues)
+  if (schema !== undefined && schema !== CHARACTER_PACK_SCHEMA_V2) {
+    addIssue(issues, '$.schema', 'invalid-schema', 'schema must be "' + CHARACTER_PACK_SCHEMA_V2 + '"')
+  }
+  const id = parsePackId(input.id, '$.id', issues)
+  const name = readPlainText(input, 'name', '$.name', issues, { maxChars: CONTENT_LIMITS.maxNameChars })
+  const version = readStringField(input, 'version', '$.version', issues)
+  if (version !== undefined && !SEMVER_PATTERN.test(version)) addIssue(issues, '$.version', 'invalid-version', 'version must be SemVer')
+  const description = readPlainText(input, 'description', '$.description', issues, { maxChars: CONTENT_LIMITS.maxDescriptionChars })
+  const author = readPlainText(input, 'author', '$.author', issues, { maxChars: CHARACTER_PACK_V2_LIMITS.maxAuthorChars })
+  const kind = readEnumField(input, 'kind', '$.kind', issues, CHARACTER_PACK_KINDS)
+  const usageDeclaration = parseUsageDeclaration(input.usageDeclaration, '$.usageDeclaration', issues)
+  let license: ContentPackLicense | undefined
+  if (input.license === undefined) addIssue(issues, '$.license', 'missing-field', 'license is required')
+  else license = parsePackLicense(input.license, '$.license', issues)
+  const aiProvenance = parseAiProvenance(input.aiProvenance, '$.aiProvenance', issues)
+  const compatibility = parsePackCompatibility(input.compatibility, '$.compatibility', issues)
+  if (compatibility !== undefined && compatibility.library !== CONTENT_LIBRARY_SCHEMA) {
+    addIssue(issues, '$.compatibility.library', 'incompatible', 'pet-anim/0.2 packs must target ' + CONTENT_LIBRARY_SCHEMA)
+  }
+  const character = parseCharacterPackCharacter(input.character, kind, issues)
+  const spec = parseCharacterPackSpec(input.spec, issues)
+  const clips = parseCharacterPackClips(input.animations, issues)
+  const voice = parseCharacterPackVoice(input.voice, kind, issues)
+  const audio = input.audio === undefined ? undefined : parseCharacterPackAudio(input.audio, kind, issues)
+  const behavior = clips === undefined ? undefined : parseCharacterPackBehavior(input.behavior, kind, clips, issues)
+  const regions = parseCharacterPackRegions(input.regions, behavior, spec, issues)
+  const preview = parseCharacterPackPreview(input.preview, issues)
+  let files: ContentPackFileV2[] = []
+  const rawFiles = readArrayField(input, 'files', '$.files', issues)
+  if (rawFiles !== undefined) {
+    if (rawFiles.length === 0 || rawFiles.length > CHARACTER_PACK_V2_LIMITS.maxFiles) {
+      addIssue(issues, '$.files', 'too-many-files', 'files must be 1..' + CHARACTER_PACK_V2_LIMITS.maxFiles)
+    } else {
+      const seenPaths = new Set<string>()
+      for (let index = 0; index < rawFiles.length; index += 1) {
+        const file = parseCharacterPackFileV2(rawFiles[index], '$.files[' + index + ']', issues)
+        if (file === undefined) continue
+        if (seenPaths.has(file.path)) {
+          addIssue(issues, '$.files[' + index + '].path', 'duplicate-id', 'duplicate file path: ' + file.path)
+          continue
+        }
+        seenPaths.add(file.path)
+        files.push(file)
+      }
+    }
+  }
+  if (clips !== undefined && preview !== undefined && license !== undefined) {
+    checkCharacterPackAssetReferences({ clips, preview, license, audio, files }, issues)
+  }
+  let source: ContentPackSource = 'local'
+  if (input.source !== undefined) {
+    const rawSource = readStringField(input, 'source', '$.source', issues)
+    if (rawSource !== undefined && rawSource !== 'local' && rawSource !== 'remote') {
+      addIssue(issues, '$.source', 'invalid-type', 'source must be local or remote')
+    } else if (rawSource === 'local' || rawSource === 'remote') {
+      source = rawSource
+    }
+  }
+  let remote: ContentRemoteOrigin | undefined
+  if (input.remote !== undefined) {
+    if (source !== 'remote') {
+      addIssue(issues, '$.remote', 'invalid-remote', 'remote is only allowed when source is "remote"')
+    } else {
+      remote = parseRemoteOrigin(input.remote, '$.remote', issues)
+      if (remote !== undefined && remote.signature === undefined) {
+        addIssue(issues, '$.remote.signature', 'missing-signature', 'remote anim packs must carry an Ed25519 signature')
+      }
+    }
+  } else if (source === 'remote') {
+    addIssue(issues, '$.remote', 'missing-signature', 'remote anim packs must carry a signed remote origin')
+  }
+  let createdAt: string | undefined
+  if (input.createdAt !== undefined) {
+    createdAt = readStringField(input, 'createdAt', '$.createdAt', issues)
+    if (createdAt !== undefined && !DATE_PATTERN.test(createdAt)) addIssue(issues, '$.createdAt', 'invalid-text', 'createdAt must be YYYY-MM-DD')
+  }
+  let jsonBytes = 0
+  try {
+    jsonBytes = countCodePoints(JSON.stringify(input))
+  } catch {
+    jsonBytes = 0
+  }
+  if (jsonBytes > CHARACTER_PACK_V2_LIMITS.maxPackJsonBytes) {
+    addIssue(issues, '$', 'too-large', 'pack JSON is ' + jsonBytes + ' chars > ' + CHARACTER_PACK_V2_LIMITS.maxPackJsonBytes)
+  }
+  if (
+    issues.length > 0 ||
+    schema !== CHARACTER_PACK_SCHEMA_V2 ||
+    id === undefined ||
+    name === undefined ||
+    version === undefined ||
+    description === undefined ||
+    author === undefined ||
+    kind === undefined ||
+    usageDeclaration === undefined ||
+    license === undefined ||
+    aiProvenance === undefined ||
+    compatibility === undefined ||
+    character === undefined ||
+    spec === undefined ||
+    clips === undefined ||
+    voice === undefined ||
+    behavior === undefined ||
+    regions === undefined ||
+    preview === undefined ||
+    files.length === 0
+  ) {
+    return undefined
+  }
+  const pack: { -readonly [K in keyof CharacterPackV2]: CharacterPackV2[K] } = {
+    schema: CHARACTER_PACK_SCHEMA_V2,
+    id,
+    name,
+    version,
+    description,
+    author,
+    kind,
+    usageDeclaration,
+    license,
+    aiProvenance,
+    compatibility,
+    character,
+    spec,
+    animations: { clips },
+    voice,
+    behavior,
+    regions,
+    preview,
+    files,
+    source,
+  }
+  if (audio !== undefined) pack.audio = audio
+  if (source === 'remote' && remote !== undefined) pack.remote = remote
+  if (createdAt !== undefined) pack.createdAt = createdAt
+  return deepFreeze(pack) as CharacterPackV2
+}
+
+/**
+ * Strictly validate one `famling.pet-anim/0.2` pack.json. Returns every issue
+ * instead of throwing. Missing usage declaration / licence / AI provenance /
+ * preview / frames / sha256 or an unsigned remote origin are always rejected.
+ * Pure: no bytes, no filesystem, no network, no script execution.
+ */
+export function validateCharacterPackV2(input: unknown): CharacterPackV2Validation {
+  const issues: ContentIssue[] = []
+  const pack = parseCharacterPackV2(input, issues)
+  return issues.length === 0 && pack !== undefined ? { ok: true, pack } : { ok: false, issues }
+}
+
+// ===========================================================================
+// pet-anim 0.2: zip layout validation (host unzips + hashes; module validates)
+// ===========================================================================
+
+/**
+ * Validate an unzipped `famling.pet-anim/0.2` bundle inventory against its
+ * manifest. The host bounded-unzips the .zip and computes sha256 for every
+ * file; this pure function enforces: canonical relative paths (no traversal /
+ * absolute / URL / backslash), zip/file/total/compression caps, pack.json at
+ * the root, exact file coverage (no unlisted files, no missing files) and
+ * sha256/size equality. Frames/audio/preview zones were already constrained by
+ * validateCharacterPackV2(); anything else in the zip is rejected.
+ */
+export function validateCharacterPackZip(pack: CharacterPackV2, inventory: ContentPackZipInventory): ContentPackZipValidation {
+  const issues: ContentIssue[] = []
+  if (!isRecord(inventory)) {
+    addIssue(issues, '$', 'invalid-zip', 'zip inventory must be an object')
+    return Object.freeze({ ok: false, issues: Object.freeze(issues) })
+  }
+  const zipBytes = inventory.bytes
+  if (typeof zipBytes !== 'number' || !Number.isInteger(zipBytes) || zipBytes <= 0 || zipBytes > CHARACTER_PACK_V2_LIMITS.maxZipBytes) {
+    addIssue(issues, '$.bytes', 'zip-too-large', 'zip size must be 1..' + CHARACTER_PACK_V2_LIMITS.maxZipBytes + ' bytes')
+  }
+  const rawEntries: readonly unknown[] = Array.isArray(inventory.entries) ? inventory.entries : []
+  if (!Array.isArray(inventory.entries)) addIssue(issues, '$.entries', 'invalid-zip', 'zip entries must be an array')
+  if (rawEntries.length > CHARACTER_PACK_V2_LIMITS.maxZipEntries) {
+    addIssue(issues, '$.entries', 'zip-too-large', rawEntries.length + ' entries > ' + CHARACTER_PACK_V2_LIMITS.maxZipEntries)
+  }
+  const entries = new Map<string, { bytes: number; sha256?: string }>()
+  const seenLower = new Set<string>()
+  let totalUncompressed = 0
+  for (let index = 0; index < rawEntries.length; index += 1) {
+    const rawEntry = rawEntries[index]
+    const path = '$.entries[' + index + ']'
+    if (!isRecord(rawEntry)) {
+      addIssue(issues, path, 'invalid-zip', 'zip entry must be an object')
+      continue
+    }
+    if (typeof rawEntry.path !== 'string') {
+      addIssue(issues, path + '.path', 'invalid-zip', 'zip entry path must be a string')
+      continue
+    }
+    const isDirectory = rawEntry.isDirectory === true || rawEntry.path.endsWith('/')
+    const entryPath = isDirectory ? rawEntry.path.replace(/\/+$/, '') : rawEntry.path
+    if (!isSafeZipEntryPath(entryPath)) {
+      addIssue(issues, path + '.path', 'unsafe-zip-entry', 'unsafe zip entry path: ' + String(rawEntry.path).slice(0, 64))
+      continue
+    }
+    const lower = entryPath.toLowerCase()
+    if (seenLower.has(lower)) {
+      addIssue(issues, path + '.path', 'duplicate-id', 'duplicate/case-colliding zip entry: ' + entryPath)
+      continue
+    }
+    seenLower.add(lower)
+    if (isDirectory) continue
+    const bytes = rawEntry.bytes
+    if (typeof bytes !== 'number' || !Number.isInteger(bytes) || bytes < 0 || bytes > CHARACTER_PACK_V2_LIMITS.maxAssetBytes) {
+      addIssue(issues, path + '.bytes', 'zip-too-large', 'file size must be 0..' + CHARACTER_PACK_V2_LIMITS.maxAssetBytes + ' bytes')
+      continue
+    }
+    if (rawEntry.sha256 !== undefined && (typeof rawEntry.sha256 !== 'string' || !SHA256_PATTERN.test(rawEntry.sha256))) {
+      addIssue(issues, path + '.sha256', 'hash-mismatch', 'sha256 must be lowercase hex (64 chars)')
+      continue
+    }
+    totalUncompressed += bytes
+    entries.set(entryPath, {
+      bytes,
+      ...(typeof rawEntry.sha256 === 'string' ? { sha256: rawEntry.sha256 } : {}),
+    })
+  }
+  const packJsonEntry = entries.get(CHARACTER_PACK_MANIFEST_FILE)
+  if (packJsonEntry === undefined) {
+    addIssue(issues, '$.entries', 'missing-file', 'bundle must contain ' + CHARACTER_PACK_MANIFEST_FILE + ' at the root')
+  } else if (packJsonEntry.bytes > CHARACTER_PACK_V2_LIMITS.maxPackJsonBytes) {
+    addIssue(issues, '$.entries', 'too-large', CHARACTER_PACK_MANIFEST_FILE + ' is ' + packJsonEntry.bytes + ' bytes > ' + CHARACTER_PACK_V2_LIMITS.maxPackJsonBytes)
+  }
+  if (totalUncompressed > CHARACTER_PACK_V2_LIMITS.maxTotalUncompressedBytes) {
+    addIssue(issues, '$.entries', 'zip-too-large', 'uncompressed total ' + totalUncompressed + ' > ' + CHARACTER_PACK_V2_LIMITS.maxTotalUncompressedBytes)
+  }
+  if (typeof zipBytes === 'number' && zipBytes > 0 && totalUncompressed > zipBytes * CHARACTER_PACK_V2_LIMITS.maxCompressionRatio) {
+    addIssue(issues, '$.entries', 'zip-too-large', 'compression ratio > ' + CHARACTER_PACK_V2_LIMITS.maxCompressionRatio + ' (possible zip bomb)')
+  }
+  const declared = new Map<string, ContentPackFileV2>()
+  for (const file of pack.files) declared.set(file.path, file)
+  for (const entryPath of entries.keys()) {
+    if (entryPath === CHARACTER_PACK_MANIFEST_FILE) continue
+    if (!declared.has(entryPath)) addIssue(issues, '$.entries', 'unlisted-file', 'zip file is not declared in pack.files: ' + entryPath)
+  }
+  for (let index = 0; index < pack.files.length; index += 1) {
+    const declaredFile = pack.files[index]
+    if (declaredFile === undefined) continue
+    const entry = entries.get(declaredFile.path)
+    if (entry === undefined) {
+      addIssue(issues, '$.files[' + index + ']', 'missing-file', 'declared file is missing from the zip: ' + declaredFile.path)
+      continue
+    }
+    if (entry.bytes !== declaredFile.bytes) {
+      addIssue(issues, '$.files[' + index + '].bytes', 'file-size-mismatch', 'declared ' + declaredFile.bytes + ' bytes, actual ' + entry.bytes)
+    }
+    if (entry.sha256 === undefined) {
+      addIssue(issues, '$.files[' + index + '].sha256', 'hash-mismatch', 'host must compute sha256 for ' + declaredFile.path)
+    } else if (entry.sha256.toLowerCase() !== declaredFile.sha256) {
+      addIssue(issues, '$.files[' + index + '].sha256', 'hash-mismatch', 'sha256 mismatch for ' + declaredFile.path)
+    }
+  }
+  return issues.length === 0 ? Object.freeze({ ok: true }) : Object.freeze({ ok: false, issues: Object.freeze(issues) })
+}
+
+// ===========================================================================
+// pet-anim 0.2: remote signature contract (same trust root/verifier as packs)
+// ===========================================================================
+
+/** Canonical bytes to sign for a remote anim pack.json (remote.signature excluded). */
+export function characterPackSignaturePayload(pack: CharacterPackV2): string {
+  const clone = JSON.parse(JSON.stringify(pack)) as Record<string, unknown>
+  const remote = clone.remote
+  if (isRecord(remote)) delete remote.signature
+  return canonicalJson(clone)
+}
+
+/**
+ * Verify a remote anim pack.json against the trust root. Local packs are
+ * implicitly trusted after validation (no signature required); remote packs
+ * are fail-closed unless the detached Ed25519 signature verifies.
+ */
+export function verifyRemoteCharacterPack(
+  pack: CharacterPackV2,
+  trustRoot: ContentTrustRoot,
+  verifier: ContentEd25519Verifier,
+  options?: ContentSignatureVerifyOptions,
+): ContentSignatureVerification {
+  if (pack.source !== 'remote') return Object.freeze({ ok: true, keyId: 'local', status: 'active' })
+  return verifyDetachedSignature(characterPackSignaturePayload(pack), pack.remote?.signature, trustRoot, verifier, options)
+}
+
+// ===========================================================================
+// pet-anim 0.2: installer PLAN contract (no I/O; host executes the plan)
+// ===========================================================================
+
+function isSafeInstallRelativePath(value: string): boolean {
+  if (typeof value !== 'string' || value.length === 0 || value.length > 200) return false
+  if (CONTROL_TEST.test(value) || MARKUP_TEST.test(value) || value.includes('\\') || value.startsWith('/')) return false
+  if (value.includes(':') || value.includes('#') || value.includes('?') || SOURCE_SCHEME_TEST.test(value)) return false
+  const segments = value.split('/')
+  return segments.every((segment) => segment.length > 0 && segment !== '.' && segment !== '..' && !/[<>"|*]/.test(segment))
+}
+
+function characterPackInstallLayout(packId: string, version: string): CharacterPackInstallLayoutV2 {
+  return Object.freeze({
+    packRoot: packId,
+    installDir: packId + '/' + version,
+    stagingDir: packId + '/.staging-' + version,
+    backupDir: packId + '/.backup-' + version,
+    pointerFile: packId + '/current.json',
+  })
+}
+
+/**
+ * Host-relative install layout for one pack version (same convention as
+ * planCharacterPackInstall()). Exported for the stateful runtime layer
+ * (character-packs.ts), which must address a previous version directory when
+ * planning an explicit rollback: <packId>/<version>, <packId>/current.json.
+ * Callers must pass an already-validated pack id + SemVer; this helper does
+ * not re-validate and performs no I/O.
+ */
+export function characterPackInstallLayoutFor(packId: string, version: string): CharacterPackInstallLayoutV2 {
+  return characterPackInstallLayout(packId, version)
+}
+
+function isReservedBuiltinPackId(packId: string): boolean {
+  return packId === 'famling' || packId.startsWith('famling.') || packId.startsWith('famling-')
+}
+
+/**
+ * Plan a local install/update from an already-validated manifest and a
+ * host-computed zip inventory. This function performs NO I/O: it re-validates
+ * fail-closed, requires explicit consent, refuses unsigned remote packs, and
+ * returns the exact file list + host-relative layout for the future MB-042
+ * installer to execute atomically (bounded unzip to staging, fsync, rename).
+ */
+export function planCharacterPackInstall(request: CharacterPackInstallRequest): CharacterPackInstallPlanResult {
+  if (!isRecord(request)) return { ok: false, code: 'invalid-install-request', message: 'install request must be an object' }
+  const validation = validateCharacterPackV2(request.pack)
+  if (!validation.ok) return { ok: false, code: 'invalid-pack', message: 'pack does not validate', issues: validation.issues }
+  const pack = validation.pack
+  const rawZipSha = request.zipSha256
+  const zipSha256 = typeof rawZipSha === 'string' ? rawZipSha.toLowerCase() : ''
+  if (!SHA256_PATTERN.test(zipSha256)) {
+    return { ok: false, code: 'invalid-install-request', message: 'zipSha256 must be lowercase hex (64 chars)' }
+  }
+  const consent = request.consent
+  if (
+    consent === undefined ||
+    consent.usageConfirmed !== true ||
+    consent.licenseAcknowledged !== true ||
+    consent.aiDisclosureAcknowledged !== true
+  ) {
+    return { ok: false, code: 'consent-required', message: 'explicit usage/licence/AI-disclosure consent is required before planning an install' }
+  }
+  if (pack.source === 'remote') {
+    const verification = request.remoteVerification
+    if (verification === undefined || verification.ok !== true) {
+      return { ok: false, code: 'remote-unverified', message: 'remote anim packs must pass verifyRemoteCharacterPack() before install' }
+    }
+  }
+  const zip = validateCharacterPackZip(pack, request.inventory)
+  if (!zip.ok) return { ok: false, code: 'invalid-zip', message: 'zip inventory does not match the manifest', issues: zip.issues }
+  let action: CharacterPackInstallAction = 'install'
+  const installed = request.installed
+  if (installed !== undefined) {
+    if (
+      typeof installed.packId !== 'string' ||
+      installed.packId !== pack.id ||
+      !PACK_ID_PATTERN.test(installed.packId) ||
+      typeof installed.version !== 'string' ||
+      !SEMVER_PATTERN.test(installed.version) ||
+      typeof installed.zipSha256 !== 'string' ||
+      !SHA256_PATTERN.test(installed.zipSha256)
+    ) {
+      return { ok: false, code: 'invalid-install-request', message: 'installed record is invalid or does not match the pack id' }
+    }
+    const order = compareSemver(pack.version, installed.version)
+    if (order === 0) {
+      if (installed.zipSha256 === zipSha256) {
+        return { ok: false, code: 'already-installed', message: 'identical version and zip are already installed' }
+      }
+      return { ok: false, code: 'version-conflict', message: 'same version with a different zip hash; bump the pack version' }
+    }
+    if (order < 0) {
+      return { ok: false, code: 'downgrade-refused', message: 'updates must be a higher SemVer version; rollback is a separate host action' }
+    }
+    action = 'update'
+  }
+  const layout = characterPackInstallLayout(pack.id, pack.version)
+  for (const value of Object.values(layout)) {
+    if (!isSafeInstallRelativePath(value)) {
+      return { ok: false, code: 'invalid-install-request', message: 'refusing unsafe install layout path: ' + value }
+    }
+  }
+  const entries = new Map<string, { bytes: number; sha256?: string }>()
+  for (const rawEntry of request.inventory.entries) {
+    if (!isRecord(rawEntry) || typeof rawEntry.path !== 'string') continue
+    if (rawEntry.isDirectory === true || rawEntry.path.endsWith('/')) continue
+    const entryPath = rawEntry.path
+    if (entries.has(entryPath)) continue
+    if (typeof rawEntry.bytes !== 'number') continue
+    entries.set(entryPath, {
+      bytes: rawEntry.bytes,
+      ...(typeof rawEntry.sha256 === 'string' ? { sha256: rawEntry.sha256 } : {}),
+    })
+  }
+  const packJsonEntry = entries.get(CHARACTER_PACK_MANIFEST_FILE)
+  if (packJsonEntry === undefined) {
+    return { ok: false, code: 'invalid-zip', message: 'zip inventory has no ' + CHARACTER_PACK_MANIFEST_FILE }
+  }
+  const files: CharacterPackInstallFile[] = []
+  files.push({
+    path: CHARACTER_PACK_MANIFEST_FILE,
+    bytes: packJsonEntry.bytes,
+    ...(packJsonEntry.sha256 !== undefined ? { sha256: packJsonEntry.sha256 } : {}),
+  })
+  for (const file of pack.files) files.push({ path: file.path, bytes: file.bytes, sha256: file.sha256 })
+  const plan: CharacterPackInstallPlan = deepFreeze({
+    schema: CHARACTER_PACK_INSTALL_PLAN_SCHEMA,
+    action,
+    packId: pack.id,
+    version: pack.version,
+    zipSha256,
+    layout,
+    files,
+    writeBudget: {
+      maxFileBytes: CHARACTER_PACK_V2_LIMITS.maxAssetBytes,
+      maxTotalBytes: CHARACTER_PACK_V2_LIMITS.maxTotalUncompressedBytes,
+      maxFiles: CHARACTER_PACK_V2_LIMITS.maxFiles,
+    },
+    consent: {
+      usageConfirmed: true,
+      licenseAcknowledged: true,
+      aiDisclosureAcknowledged: true,
+    },
+    hostBoundary: { unzip: 'host', network: 'none', scripts: false, atomicRename: true },
+  })
+  return { ok: true, plan }
+}
+
+/**
+ * Plan an uninstall: removes exactly `<packId>/` under the host characters
+ * root. Built-in (`famling.*`) characters are never removable, and an
+ * uninstall without an installed record fails closed.
+ */
+export function planCharacterPackUninstall(request: CharacterPackUninstallRequest): CharacterPackUninstallPlanResult {
+  if (!isRecord(request)) return { ok: false, code: 'invalid-install-request', message: 'uninstall request must be an object' }
+  const packId = request.packId
+  if (typeof packId !== 'string' || !PACK_ID_PATTERN.test(packId) || packId.length > 64) {
+    return { ok: false, code: 'invalid-install-request', message: 'packId must be a safe lowercase pack id' }
+  }
+  if (isReservedBuiltinPackId(packId)) {
+    return { ok: false, code: 'invalid-install-request', message: 'built-in famling.* characters cannot be uninstalled' }
+  }
+  const installed = request.installed
+  if (installed === undefined) return { ok: false, code: 'not-installed', message: 'no installed record for ' + packId }
+  if (installed.packId !== packId || typeof installed.version !== 'string' || !SEMVER_PATTERN.test(installed.version)) {
+    return { ok: false, code: 'invalid-install-request', message: 'installed record does not match the pack id/version' }
+  }
+  const layout = characterPackInstallLayout(packId, installed.version)
+  if (!isSafeInstallRelativePath(layout.packRoot) || !isSafeInstallRelativePath(layout.pointerFile)) {
+    return { ok: false, code: 'invalid-install-request', message: 'refusing unsafe uninstall path' }
+  }
+  const plan: CharacterPackUninstallPlan = deepFreeze({
+    schema: CHARACTER_PACK_INSTALL_PLAN_SCHEMA,
+    action: 'uninstall',
+    packId,
+    version: installed.version,
+    removeRoot: layout.packRoot,
+    pointerFile: layout.pointerFile,
+    keepBackup: false,
+  })
+  return { ok: true, plan }
 }

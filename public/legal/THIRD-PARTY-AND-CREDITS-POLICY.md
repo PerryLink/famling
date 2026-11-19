@@ -35,7 +35,7 @@
 - 禁止从网络“下载即用”的商业字体、禁止改名冒充自有字体。
 
 ### 2.3 音频（TTS / SFX / BGM）
-- 本项目 18 个 WAV 为 DeepSeek TTS 输出，**再分发条款 TBD** → 发布前必须：确认条款（记录版本+日期+URL）或替换/删除；`manifest.json` 每项须有 `license`/`ai`/provenance。
+- 本项目 **42 个 WAV**（21 `stella` + 21 `tide`）为 DeepSeek TTS 输出：用户 2026-11-17 授权 baked 随包，**服务商书面再分发/商用条款仍 TBD** → 发布前必须：取得书面结论（记录版本+日期+URL）或替换/移除；`manifest.json` 每项须有 `license`/`ai`/provenance（v2 已含 42 行）。
 - 禁止：影视/动画/游戏/VTuber 音频提取；未授权音效库；真人声音克隆（见替换政策 §3）。
 - 合成语音须披露（AI 政策）；不得声称真人配音。
 
@@ -68,7 +68,7 @@
 - [ ] `LICENSES/` 归档生成；发布包内含 `LICENSE`/`LICENSE-ART`(生效版)/`NOTICE`/`CREDITS`/`THIRD-PARTY`/`AI-PROVENANCE`。
 - [ ] 发行脚本 `LICENSE_FILES` 已扩展到全部署名文件（现状仅 4 个）。
 - [ ] 字体：未打包，或已获嵌入许可并归档。
-- [ ] 音频：18 WAV 条款已确认或已替换；manifest `license` 非 TBD。
+- [ ] 音频：42 WAV（21 stella + 21 tide）服务商条款已确认为书面结论或已替换/移除；manifest `license` 非 TBD（用户 2026-11-17 授权 ≠ 服务商许可）。
 - [ ] refs / Pearl 草稿 / ref10：零发布；反向图搜记录归档。
 - [ ] 无 Steamworks SDK、无私钥/`.keys/`、无 `rustup-init.exe` 类第三方二进制。
 - [ ] 图标来源确认；依赖许可扫描完成（npm + Rust）。
@@ -94,7 +94,7 @@
 
 ## 8. 统一声明段（2026-11-17 追加，必须随本文引用）
 
-1. **TTS 18 WAV**：`public/assets/voice/pet/*.wav` 为 DeepSeek TTS 输出，**再分发/商用条款未确认**；构建默认剔除、发布 gate 必须继续拦截；旧 `dist/`/安装包须核验是否残留，残留即不得分发。未确认前不随包。
+1. **TTS 42 WAV（21 stella + 21 tide）**：`public/assets/voice/pet/*.wav` 为 DeepSeek TTS 输出；用户 2026-11-17 授权 baked 随包（当前构建随包，vite/legal-check 校验 42 行 manifest/bytes/sha），但**服务商书面再分发/商用条款未确认**；不得单独售卖/再授权、不得扩大渠道，服务商条款要求替换/移除时立即执行并重建安装包；旧 `dist/`/安装包须核验是否残留旧未清权音频。
 2. **AI 标识**：所有 AI 生成/合成素材须显式+隐式标识；不得删除/伪造；语音须在播放器/首播提示“AI 语音·合成”。
 3. **真人声音**：不得使用/克隆未授权真人声音（含名人、声优、同事、网友）；不得用影视/游戏/动画提取音频。
 4. **法律基线**见 [LEGAL-BASELINE](/legal/LEGAL-BASELINE.md)；应用内短文本见 [APP-DISCLOSURE-TEXTS](/legal/APP-DISCLOSURE-TEXTS.md)；声明模板见 DECLARATION-TEMPLATES。
@@ -104,5 +104,6 @@
 |---|---|---|
 | 2026-11-15 | 首版 | draft；待用户 + 律师 |
 | 2026-11-17 | 增 §8：TTS 18 WAV 未确认状态、AI 标识、禁真人克隆、法律基线链接 | draft；待用户 + 律师 |
+| 2026-11-19 | 事实同步：18→42 WAV（21 stella + 21 tide；用户 2026-11-17 授权 baked 随包，服务商再分发仍 TBD）；构建改为随包+guard 校验（不再默认剔除）；发布 gate 措辞同步 | draft；未经律师 |
 
 > 草案，不是法律意见。

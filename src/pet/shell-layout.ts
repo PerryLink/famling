@@ -28,6 +28,26 @@ function visiblePetRect(): DOMRect | null {
   return null
 }
 
+/**
+ * Current bubble component zoom (advanced → 组件缩放 → 气泡). The bubble is
+ * anchored by an inline translate, so the same scale must be composed here or
+ * the visual width would drift from the measured anchor. Missing/invalid CSS
+ * values fall back to 1 (the shipped look).
+ */
+function bubbleZoom(): number {
+  try {
+    const raw = getComputedStyle(document.documentElement).getPropertyValue('--bubble-zoom').trim()
+    const value = Number(raw)
+    return Number.isFinite(value) && value > 0 ? Math.min(2.5, Math.max(0.25, value)) : 1
+  } catch {
+    return 1
+  }
+}
+
+function bubbleTransform(zoom: number): string {
+  return `translateX(-50%) scale(${zoom})`
+}
+
 function place(rect: DOMRect | null): void {
   if (document.documentElement.dataset.petShell !== 'desktop') return
   const bubble = document.getElementById('bubble')
@@ -35,11 +55,12 @@ function place(rect: DOMRect | null): void {
   if (!bubble || !trigger) return
   const viewportWidth = window.innerWidth
   const viewportHeight = window.innerHeight
+  const zoom = bubbleZoom()
   if (!rect) {
     bubble.style.left = '50%'
     bubble.style.bottom = '200px'
     bubble.style.top = 'auto'
-    bubble.style.transform = 'translateX(-50%)'
+    bubble.style.transform = bubbleTransform(zoom)
     trigger.style.left = '50%'
     trigger.style.top = 'auto'
     trigger.style.bottom = `${TRIGGER_SIZE + 8}px`
@@ -51,10 +72,11 @@ function place(rect: DOMRect | null): void {
   bubble.style.top = 'auto'
   bubble.style.position = 'absolute'
   bubble.style.bottom = `${Math.round(viewportHeight - rect.top + BUBBLE_GAP)}px`
-  bubble.style.transform = 'translateX(-50%)'
+  bubble.style.transform = bubbleTransform(zoom)
   bubble.style.pointerEvents = 'none'
-  // Measure after the text/size settles, then clamp inside the viewport.
-  const half = bubble.offsetWidth / 2
+  // Measure after the text/size settles, then clamp inside the viewport. The
+  // measured offsetWidth is layout px, so multiply by the composed zoom.
+  const half = (bubble.offsetWidth * zoom) / 2
   const minLeft = half + 8
   const maxLeft = viewportWidth - half - 8
   const clampedLeft = minLeft > maxLeft ? viewportWidth / 2 : Math.min(Math.max(centreX, minLeft), maxLeft)
@@ -84,7 +106,10 @@ export function startDesktopShellLayout(): void {
   window.addEventListener('resize', schedule)
   // The shell attribute, hero/fold switch and pet sprite size all change late.
   const observer = new MutationObserver(schedule)
-  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-pet-shell', 'data-pet-render'] })
+  // `style` is included because desktop-shell.ts writes the scale variables on
+  // <html>; a zoom change must re-anchor the bubble without waiting for the
+  // 500ms fallback tick.
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-pet-shell', 'data-pet-render', 'style'] })
   const pet = document.getElementById('pet')
   if (pet) observer.observe(pet, { attributes: true, childList: true, subtree: true })
   if (typeof ResizeObserver !== 'undefined') {

@@ -87,7 +87,7 @@
 | E9 | 应用内法务包 | `public/legal/index.html` + 生成的 `public/legal/USE-RESTRICTIONS-2026-11-19.md` | 短句 + 包内链接 |
 | E10 | 法律文档索引 | `docs/legal/README.md` | 条目 + 本文件链接 |
 
-> 说明：E4/E5 为 UI 层（由 lead 落地，本文件只做契约登记）；E1–E3、E6–E10 由本任务落地。`public/legal/USE-RESTRICTIONS-2026-11-19.md` 由 `node scripts/legal-check.mjs --sync` 从本文件生成，**禁止手改**。
+> 说明：E4/E5（应用内 About、setup.html 使用限制卡片）已落地（2026-11-19 静态核对：`pet.html`/`setup.html` 均含短句并链接本文件）；E1–E3、E6–E10 亦已落地。`public/legal/USE-RESTRICTIONS-2026-11-19.md` 由 `node scripts/legal-check.mjs --sync` 从本文件生成，**禁止手改**。回归断言见 `tests/use-restrictions.test.ts`（E1–E10 入口 + canonical SHA-256 + `PACKAGE-MANIFEST.json` required/hash）。
 
 ## 6. 与许可、TOS、年龄口径的关系
 
@@ -106,7 +106,7 @@
 
 ## 8. 版本、同步与校验
 
-- **当前版本**：v1 · 2026-11-19。
+- **当前版本**：v1 · 2026-11-19（2026-11-19 元数据修订：仅更新入口/测试/待办状态，**§1 短句与 SHA-256 未变**）。
 - **修改流程**：改本文件 → 提升版本（`vN · YYYY-MM-DD`）→ 同步 §5 全部入口与本文件 §1 的 SHA-256 → 运行 `node scripts/legal-check.mjs --sync` 生成 `public/legal/` 副本 → 运行 `node scripts/legal-check.mjs`（warn-only）/ 发布前 `--strict`。
 - **校验口径**（回归测试/发布脚本由维护者统一落地，见 §9）：
   1. 入口文件清单以 §5 为准；
@@ -120,14 +120,15 @@
 
 1. **TOS 正文内联**：`src/pet/consent/terms.ts` 未含本短句（需 bump `TOS_VERSION` 与同意哈希，影响既有用户重新同意）——需维护者决策后由 TOS 任务落地。
 2. **发布门禁 required 登记（已由维护者 2026-11-19 完成）**：`scripts/legal-check.mjs` 的 `LEGAL_PACKAGE_REQUIRED` 已加入本文件；`--sync` 后 `PACKAGE-MANIFEST.json` 中本文件 `required: true`，portable/release 检查随之覆盖。
-3. **回归测试**：`tests/` 尚无断言本短句在全部入口逐字存在并校验 SHA-256 的测试；建议新增 `tests/use-restrictions.test.ts`（README 首屏/TOS/LEGAL-BASELINE/DECLARATIONS/public/legal/index.html/插件 LEGAL/DETAIL）。
+3. **回归测试（已完成）**：`tests/use-restrictions.test.ts` 已断言本短句在入口逐字存在（README/pet.html/setup.html/TOS/LEGAL-BASELINE/README 索引/DECLARATIONS/DECLARATION-MATRIX/public/legal 入口与副本/插件 README+LEGAL+DETAIL）、canonical SHA-256 稳定、`public/legal/PACKAGE-MANIFEST.json` 中本文件 `required:true` 且 sha256 与副本一致。
 4. **英文版本/引用**：v1 只有中文规范文本；若对外英文仓/商店需要，须以“非规范翻译 + 中文为准”的方式另行评审。
-5. **律师复核**：本文件与既有法律文档同为工程草案，正式发布/商业化前须由执业律师复核。
+5. **律师复核**：本文件与既有法律文档同为工程草案，正式发布/商业化前须由执业律师复核；复核前检查清单与未决问题见 [LAWYER-REVIEW-CHECKLIST-2026-11-19](/legal/LAWYER-REVIEW-CHECKLIST-2026-11-19.md)（非法律意见）。
 
 ## 10. 版本记录
 
 | 日期 | 版本 | 变更 | 状态 |
 |---|---|---|---|
 | 2026-11-19 | v1 | 首版：统一使用限制短句（扩展素材枚举版）+ 适用范围/白名单/红线/多入口索引/许可与 TOS 关系/举报/同步规则；落 README、TOS 抬头、LEGAL-BASELINE、DECLARATIONS、public/legal、插件 LEGAL | 工程声明；待律师复核 |
+| 2026-11-19 | v1（元数据修订） | 仅更新 §5 入口落地状态、§9 回归测试已完成、律师复核清单链接；**§1 短句与 SHA-256 不变**，入口文件无需改动 | 工程声明；待律师复核 |
 
 > 本文件不是法律意见，不构成律师审查、合规认证或对任何第三方的授权；不得引用为“已审核/已合规/已获法律意见”。

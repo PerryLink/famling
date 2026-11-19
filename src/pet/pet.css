@@ -8,6 +8,11 @@
   --ui-dur-120: 120ms;
   --ui-dur-200: 200ms;
   --ui-ease-standard: cubic-bezier(.2, 0, .2, 1);
+  /* Panel typography basis: the shipped look renders these panels at 2× their
+     design px before this model existed (--ui-scale was 2 on first run). Panel
+     zoom is now applied as a container transform, so their inner font sizes use
+     this fixed base instead of --ui-scale to avoid double scaling. */
+  --panel-base: 2;
 }
 * { box-sizing: border-box; }
 body { margin: 0; font-family: "Segoe UI", "Microsoft YaHei", sans-serif; background: #0b0f14; color: #f0e4d4; overflow: hidden; }
@@ -49,6 +54,20 @@ main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1
    applyAppearance() (only for non-default theme/background/font choices). */
 .bubble { position: absolute; left: 10px; top: 10px; max-width: 70%; background: var(--famling-content-bubble-bg, #ffffff); color: var(--famling-content-bubble-fg, #111111); border: 2px solid var(--famling-content-bubble-border, #9a9a9a); border-radius: 9px; padding: 6px 9px; font-family: var(--famling-content-font-family, inherit); font-size: 10.5px; line-height: 1.5; font-weight: 500; box-shadow: var(--famling-content-bubble-shadow, 0 3px 10px rgba(0, 0, 0, .30)); opacity: 0; transition: opacity var(--ui-dur-120) var(--ui-ease-standard); }
 .bubble.show { opacity: 1; }
+/* Visible AI attribution (MB-076): a compact second line INSIDE the bubble, so
+   it stays attached to the speech/thought in both the window shell and the
+   desktop shell. It is not a persistent badge: it is hidden with the bubble and
+   only re-shown for an AI reply or while AI TTS is playing. */
+.bubble-ai {
+  display: block;
+  margin-top: 2px;
+  font-size: .82em;
+  line-height: 1.3;
+  font-weight: 400;
+  letter-spacing: .02em;
+  opacity: .72;
+}
+.bubble-ai[hidden] { display: none; }
 /* Cat/dog personas: silent thought bubble. It must still be a readable balloon:
    a dark ink panel keeps cream text visible on both light and dark wallpapers;
    the dashed border keeps the "thought" semantics without making the text sink
@@ -227,7 +246,9 @@ html[data-pet-render="tinglan-preview"] .hero-stage { pointer-events: auto; }
 .setup-actions { display: flex; gap: 8px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
 .setup-actions a { color: #99c8ff; font-size: 10px; }
 .setup-actions button { font-size: 10px; padding: 3px 7px; white-space: nowrap; }
-.setup-notice { max-width: calc(100% - 20px); }
+/* The notice follows UI/text zoom, so cap its box to the window and let it
+   scroll instead of growing past the bottom edge at high zoom (no clipping). */
+.setup-notice { max-width: calc(100% - 20px); max-height: calc(100vh - 16px); overflow-y: auto; }
 
 
 /* Advisers face status (read-only bridge; never blocks normal pet actions).
@@ -369,6 +390,21 @@ html[data-pet-shell="desktop"] .fold-pet {
   transform-origin: bottom center;
   margin-bottom: 12px;
 }
+/* The hero canvas already renders at its fitted size, so the image axis scales
+   the canvas in place (no layout change, no double --pet-scale); the fit cap in
+   desktop-shell.ts keeps the scaled art inside the window at every DPI. */
+html[data-pet-shell="desktop"] .hero-stage canvas {
+  transform: scale(var(--hero-zoom, 1));
+  transform-origin: bottom center;
+}
+/* Keyboard focus for the character (E-06/MB-061): Tab reaches #pet (folded) or
+   the hero stage (animated character) and Enter opens the menu. */
+.fold-pet:focus-visible,
+.hero-stage:focus-visible {
+  outline: 2px solid #e0b35a;
+  outline-offset: 4px;
+  border-radius: 8px;
+}
 /* The hero canvas is intentionally NOT transformed here: its CSS size is already
    the fitted pixel-art size (pack canvas × display scale), so applying
    --pet-scale again would double-scale and clip it (measured 192px canvas →
@@ -381,7 +417,10 @@ html[data-pet-shell="desktop"] .bubble {
   bottom: 200px;
   transform: translateX(-50%);
   max-width: min(300px, calc(100% - 16px));
-  font-size: calc(10px * var(--ui-scale, 2));
+  /* Bubble text follows UI+文本 (--ui-scale) and its own component override
+     (--bubble-zoom); shell-layout.ts composes the same zoom into the anchor
+     transform so the bubble never drifts off the pet. */
+  font-size: calc(10px * var(--ui-scale, 2) * var(--bubble-zoom, 1));
   transform-origin: bottom center;
   pointer-events: none;
 }
@@ -443,8 +482,10 @@ html:not([data-pet-shell="desktop"]) .pet-menu-button { display: none; }
 .pet-shell-menu {
   position: fixed;
   z-index: 80;
-  width: min(230px, calc(100vw - 8px));
-  max-height: calc(100vh - 8px);
+  /* Viewport-relative max size is divided by the component zoom, and the
+     whole panel is transform-scaled, so a zoom can never clip it on-screen. */
+  width: min(230px, calc((100vw - 8px) / var(--menu-zoom, 1)));
+  max-height: calc((100vh - 8px) / var(--menu-zoom, 1));
   overflow-y: auto;
   padding: 7px;
   border: 1px solid #6a4a2e;
@@ -460,7 +501,7 @@ html:not([data-pet-shell="desktop"]) .pet-menu-button { display: none; }
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transform: translateY(-2px) scale(.98);
+  transform: translateY(-2px) scale(calc(.98 * var(--menu-zoom, 1)));
   transition:
     opacity var(--ui-dur-100) var(--ui-ease-standard),
     transform var(--ui-dur-100) var(--ui-ease-standard);
@@ -470,13 +511,13 @@ html:not([data-pet-shell="desktop"]) .pet-menu-button { display: none; }
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
-  transform: translateY(0) scale(1);
+  transform: translateY(0) scale(var(--menu-zoom, 1));
 }
 .pet-shell-menu[data-state="closed"] {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transform: translateY(-2px) scale(.98);
+  transform: translateY(-2px) scale(calc(.98 * var(--menu-zoom, 1)));
   transition:
     opacity var(--ui-dur-80) var(--ui-ease-standard),
     transform var(--ui-dur-80) var(--ui-ease-standard),
@@ -487,7 +528,7 @@ html:not([data-pet-shell="desktop"]) .pet-menu-button { display: none; }
   min-height: 22px;
   margin: 1px 0;
   text-align: left;
-  font-size: calc(9px * var(--ui-scale, 2));
+  font-size: calc(9px * var(--panel-base, 2));
 }
 .pet-shell-menu button:hover { background: #362619; }
 .pet-shell-menu button:focus-visible {
@@ -502,7 +543,7 @@ html:not([data-pet-shell="desktop"]) .pet-menu-button { display: none; }
 .pet-menu-heading {
   margin: 5px 2px 2px;
   color: var(--famling-content-panel-fg, #c9a46a);
-  font-size: calc(7px * var(--ui-scale, 2));
+  font-size: calc(7px * var(--panel-base, 2));
   letter-spacing: .08em;
 }
 .pet-menu-inline { display: flex; gap: 3px; }
@@ -540,23 +581,27 @@ html:not([data-pet-shell="desktop"]) .pet-menu-button { display: none; }
 }
 .pet-settings-card {
   position: relative;
-  width: min(330px, calc(100vw - 12px));
-  max-height: calc(100vh - 12px);
+  /* Same viewport-aware zoom rule as the menu: layout size is divided by the
+     zoom, then the panel is transform-scaled, so it always fits the window. */
+  width: min(330px, calc((100vw - 12px) / var(--settings-zoom, 1)));
+  max-height: calc((100vh - 12px) / var(--settings-zoom, 1));
   overflow-y: auto;
   padding: 9px 11px;
+  transform: scale(var(--settings-zoom, 1));
+  transform-origin: center center;
   border: 1px solid #6a4a2e;
   border-radius: 10px;
   background: var(--famling-content-panel-bg, #1b1410);
   color: var(--famling-content-panel-fg, #f0e4d4);
   box-shadow: 0 14px 36px #000b;
-  font-size: calc(9px * var(--ui-scale, 1));
+  font-size: calc(9px * var(--panel-base, 2));
   line-height: 1.45;
 }
 .pet-settings-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .pet-settings-title {
   margin: 0;
   color: #ffd98a;
-  font-size: calc(12px * var(--ui-scale, 1));
+  font-size: calc(12px * var(--panel-base, 2));
 }
 .pet-settings-close {
   min-width: 24px;
@@ -565,9 +610,9 @@ html:not([data-pet-shell="desktop"]) .pet-menu-button { display: none; }
 }
 .pet-settings-status {
   margin: 2px 0 4px;
-  min-height: calc(13px * var(--ui-scale, 1));
+  min-height: calc(13px * var(--panel-base, 2));
   color: #ffd98a;
-  font-size: calc(8px * var(--ui-scale, 1));
+  font-size: calc(8px * var(--panel-base, 2));
 }
 .pet-settings-group {
   margin: 0 0 6px;
@@ -579,7 +624,7 @@ html:not([data-pet-shell="desktop"]) .pet-menu-button { display: none; }
 .pet-settings-group-title {
   margin: 0 0 4px;
   color: #c9a46a;
-  font-size: calc(9px * var(--ui-scale, 1));
+  font-size: calc(9px * var(--panel-base, 2));
   letter-spacing: .04em;
 }
 .pet-settings-field {
@@ -591,12 +636,12 @@ html:not([data-pet-shell="desktop"]) .pet-menu-button { display: none; }
 }
 .pet-settings-label {
   color: #e8d3a0;
-  font-size: calc(8px * var(--ui-scale, 1));
+  font-size: calc(8px * var(--panel-base, 2));
 }
 .pet-settings-value {
   margin-left: auto;
   color: #ffd98a;
-  font-size: calc(8px * var(--ui-scale, 1));
+  font-size: calc(8px * var(--panel-base, 2));
 }
 .pet-settings-check {
   display: flex;
@@ -610,18 +655,18 @@ html:not([data-pet-shell="desktop"]) .pet-menu-button { display: none; }
   height: 14px;
   margin: 0;
 }
-.pet-settings-check-text { font-size: calc(8px * var(--ui-scale, 1)); }
+.pet-settings-check-text { font-size: calc(8px * var(--panel-base, 2)); }
 .pet-settings-note {
   margin: 1px 0 2px;
   color: #a08a70;
-  font-size: calc(7px * var(--ui-scale, 1));
+  font-size: calc(7px * var(--panel-base, 2));
   line-height: 1.4;
 }
 .pet-settings-action,
 .pet-settings-chip {
   min-height: 24px;
   padding: 2px 8px;
-  font-size: calc(8px * var(--ui-scale, 1));
+  font-size: calc(8px * var(--panel-base, 2));
 }
 .pet-settings-chip {
   min-width: 34px;
@@ -648,13 +693,87 @@ html:not([data-pet-shell="desktop"]) .pet-menu-button { display: none; }
 }
 .pet-settings-advanced-title {
   color: #b9a58e;
-  font-size: calc(8px * var(--ui-scale, 1));
+  font-size: calc(8px * var(--panel-base, 2));
   cursor: pointer;
 }
 .pet-settings :focus-visible {
   outline: 2px solid #e0b35a;
   outline-offset: 1px;
 }
+/* Scale rows: a native range plus its live value; the value column is fixed
+   width so the slider does not jump while dragging. */
+.pet-settings-scale-field input[type="range"] {
+  flex: 1 1 120px;
+  min-width: 90px;
+  accent-color: #e0b35a;
+}
+.pet-settings-scale-field .pet-settings-value {
+  flex: none;
+  min-width: calc(44px * var(--panel-base, 2));
+  text-align: right;
+}
+.pet-settings-scale-field .pet-settings-note { flex: 1 1 100%; }
+.pet-settings-select {
+  flex: 1 1 120px;
+  min-height: 24px;
+  padding: 1px 4px;
+  border: 1px solid #5a402b;
+  border-radius: 6px;
+  background: #241b15;
+  color: #f0e4d4;
+  font: inherit;
+  font-size: calc(8px * var(--panel-base, 2));
+}
+.pet-settings-select:focus-visible { outline: 2px solid #e0b35a; outline-offset: 1px; }
+/* Quiet-hours time picks (MB-070): native time inputs keep keyboard/screen-reader
+   operability for free and stay inside the compact 480x336 settings card. */
+.pet-settings-quiet-field input[type="time"] {
+  flex: 0 1 78px;
+  min-height: 24px;
+  padding: 1px 4px;
+  border: 1px solid #5a402b;
+  border-radius: 6px;
+  background: #241b15;
+  color: #f0e4d4;
+  font: inherit;
+  font-size: calc(8px * var(--panel-base, 2));
+}
+.pet-settings-quiet-field input[type="time"]:focus-visible {
+  outline: 2px solid #e0b35a;
+  outline-offset: 1px;
+}
+
+/* One-time first-run menu coach (E-01/MB-060): teaches 右键 / Shift+F10 /
+   Enter / 设置里固定显示 ⋯. Non-blocking (top edge, the pet stays clickable),
+   dismissible, removed from the DOM after the first dismissal. */
+.pet-menu-coach {
+  position: fixed;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 76;
+  width: min(300px, calc(100vw - 16px));
+  padding: 7px 9px;
+  border: 1px solid #6a4a2e;
+  border-left: 3px solid #e0b35a;
+  border-radius: 8px;
+  background: rgba(24, 18, 14, .96);
+  color: #f0e4d4;
+  box-shadow: 0 8px 22px #0009;
+  font-family: var(--famling-content-font-family, "Microsoft YaHei", "Segoe UI", sans-serif);
+}
+.pet-menu-coach-text {
+  margin: 0 0 5px;
+  font-size: calc(9px * var(--panel-base, 2));
+  line-height: 1.45;
+}
+.pet-menu-coach-actions { display: flex; justify-content: flex-end; gap: 4px; }
+.pet-menu-coach-button {
+  min-height: 24px;
+  padding: 2px 8px;
+  font-size: calc(8px * var(--panel-base, 2));
+}
+.pet-menu-coach-button:focus-visible { outline: 2px solid #e0b35a; outline-offset: 1px; }
 
 /* Hero renderer's minimal non-art state chip: loading (first frame pending),
    empty (no character/pack) and error (render/start failure). The default
@@ -1109,7 +1228,13 @@ html[data-reduce-motion="1"] *::after {
 }
 
 /* About / statements panel (full TOS + TTS declaration + health/exit entries) */
-.about-card { width: min(560px, 96vw); }
+.about-card {
+  /* 关于与声明 is one of the individually scalable components (advanced). */
+  width: min(560px, calc((100vw - 20px) / var(--about-zoom, 1)));
+  max-height: calc(92vh / var(--about-zoom, 1));
+  transform: scale(var(--about-zoom, 1));
+  transform-origin: center center;
+}
 .about-tos {
   max-height: 170px;
   overflow-y: auto;
@@ -1174,10 +1299,14 @@ html[data-reduce-motion="1"] *::after {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  width: min(760px, 100%);
-  max-height: 92vh;
+  /* Component zoom is applied as a container transform; the layout size is
+     divided by the zoom first so the scaled panel always fits the window. */
+  width: min(760px, calc((100vw - 24px) / var(--hub-zoom, 1)));
+  max-height: calc(92vh / var(--hub-zoom, 1));
   overflow: hidden;
   padding: 14px 16px;
+  transform: scale(var(--hub-zoom, 1));
+  transform-origin: center center;
   border: 1px solid #5a402b;
   border-radius: 12px;
   background: #12100e;
@@ -1229,7 +1358,7 @@ html[data-reduce-motion="1"] *::after {
 .content-hub-body {
   flex: 1 1 auto;
   min-height: 120px;
-  max-height: 54vh;
+  max-height: calc(54vh / var(--hub-zoom, 1));
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -1701,3 +1830,82 @@ html[data-reduce-motion="1"] *::after {
   line-height: 1.4;
 }
 .consent-roleplay-form .consent-check { margin: 4px 0; }
+
+/* ==========================================================================
+   Independent content/settings window (MB-062 / E6, task-85).
+   The Tauri host opens a second, decorated, resizable window on THIS page with
+   `window.__CONTENT_WINDOW_ROUTE__` set; main.ts adds `data-content-window="1"`.
+   The pet surface is hidden there and the SAME content-hub / #pet-settings
+   renderers get a readable 760x560 layout (min 640x480). Nothing here changes
+   the installed 480x336 pet window look.
+   ========================================================================== */
+html[data-content-window="1"],
+html[data-content-window="1"] body {
+  /* Override the desktop-shell transparent background (pet.css §desktop). */
+  background: radial-gradient(ellipse at 30% 20%, #241b15 0%, #0b0f14 70%);
+  color: #f0e4d4;
+  overflow: hidden;
+}
+html[data-content-window="1"] #pet-app { display: none !important; }
+html[data-content-window="1"] #pet-menu-button,
+html[data-content-window="1"] .pet-shell-menu,
+html[data-content-window="1"] .pet-menu-coach { display: none !important; }
+
+.content-window-home {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: radial-gradient(ellipse at 30% 20%, #241b15 0%, #0b0f14 70%);
+  color: #f0e4d4;
+  font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+}
+.content-window-home[hidden] { display: none; }
+.content-window-card {
+  width: min(620px, 100%);
+  padding: 26px 30px;
+  border: 1px solid #5a402b;
+  border-radius: 14px;
+  background: #16120f;
+  box-shadow: 0 24px 70px #000d;
+}
+.content-window-kicker { margin: 0; color: #99c8ff; font-size: 12px; letter-spacing: .18em; }
+.content-window-title { margin: 6px 0 4px; color: #f0d6a8; font-size: 30px; line-height: 1.2; }
+.content-window-sub { margin: 0 0 20px; color: #cbb79f; font-size: 14px; line-height: 1.7; }
+.content-window-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.content-window-action {
+  min-height: 42px;
+  padding: 8px 18px;
+  border: 1px solid #6a4a2e;
+  border-radius: 9px;
+  background: #241b15;
+  color: #f0e4d4;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.content-window-action:hover { background: #362619; }
+.content-window-action:focus-visible { outline: 2px solid #e0b35a; outline-offset: 2px; }
+.content-window-close { margin-left: auto; border-color: #8a3a3a; color: #ffb3a7; }
+.content-window-note { margin: 20px 0 0; color: #a08a70; font-size: 12px; line-height: 1.6; }
+
+/* Reused panels: use the whole resizable window and readable body sizes. The
+   layout size is divided by the component zoom before the container transform
+   so a user with 125%/150% panel zoom still fits the window. */
+html[data-content-window="1"] .content-hub-panel {
+  width: min(760px, calc((100vw - 24px) / var(--hub-zoom, 1)));
+  height: calc((100vh - 24px) / var(--hub-zoom, 1));
+  max-height: calc((100vh - 24px) / var(--hub-zoom, 1));
+  font-size: 13px;
+}
+html[data-content-window="1"] .content-hub-body { max-height: none; min-height: 0; }
+html[data-content-window="1"] .content-hub-card { font-size: 12px; }
+html[data-content-window="1"] .content-hub-blurb { font-size: 11px; }
+html[data-content-window="1"] .content-hub-tab,
+html[data-content-window="1"] .content-hub-close { min-height: 30px; font-size: 12px; }
+html[data-content-window="1"] .pet-settings-card {
+  width: min(560px, calc((100vw - 24px) / var(--settings-zoom, 1)));
+  max-height: calc((100vh - 24px) / var(--settings-zoom, 1));
+}

@@ -4,9 +4,9 @@ Copyright (c) 2026 PerryLink contributors
 
 Required Notice: Copyright (c) 2026 PerryLink contributors
 
-Status: DRAFT (2026-11-17) — project declarations by the owner (PerryLink) are
-recorded here, but this NOTICE is NOT a lawyer-approved or effective licensing
-opinion and must not be quoted as such. Legal review is deferred (owner decision
+Status: DRAFT (2026-11-17; factual statements synced 2026-11-19) — project
+declarations by the owner (PerryLink) are recorded here, but this NOTICE is NOT a
+lawyer-approved or effective licensing opinion and must not be quoted as such. Legal review is deferred (owner decision
 2026-11-16). Until counsel confirms, do not describe any DRAFT item as
 "approved", "cleared", "published" or "compliant". See docs/LEGAL-STATUS-2026-11-15.md.
 
@@ -123,12 +123,18 @@ The Steamworks SDK is proprietary to Valve and is not included in this
 repository. It must not be committed or distributed with public builds.
 
 TTS audio under public/assets/voice/pet/ is output of the DeepSeek TTS API
-(voice "stella"), generated 2026-11-14 (18 WAV files). Its redistribution and
-commercial-use terms are NOT confirmed: the build pipeline excludes these files
-by default, release gating must continue to exclude them, and any older
-dist/artifact containing them must not be shipped. See THIRD-PARTY.md §2 and
-docs/legal/TTS-TERMS.md. TTS output is synthetic AI voice, is not a human
-recording, and must be labelled as AI-generated where used at all.
+(voices "stella" default and "tide" optional): 42 WAV files total (21 stella
+generated 2026-11-14 / backfilled, 21 tide generated 2026-11-17). By the owner's
+explicit authorization of 2026-11-17 these files are cached and shipped as a
+baked pack; the build/legal guards verify the 42-row manifest, byte sizes and
+sha256 hashes. This owner authorization is NOT a written redistribution or
+commercial license from DeepSeek: redistribution/commercial terms remain NOT
+confirmed, so do not sell or sublicense the audio separately and remove/replace
+the pack if the provider's terms require it. Any older dist/artifact containing
+uncleared audio must not be shipped. See THIRD-PARTY.md §2,
+docs/legal/TTS-TERMS.md §3A and AI-PROVENANCE.md §10. TTS output is synthetic AI
+voice, is not a human recording, and must be labelled as AI-generated where used
+at all.
 
 ---------------------------------------------------------------------------
 5. Assets: what is distributed vs excluded (accurate as of 2026-11-17)

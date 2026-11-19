@@ -3,7 +3,8 @@
 > 状态：**规范 + 纯函数校验已落地；安装器 / 远程市场 UI 未实现，本目录不联网、不加载任何包**。
 > 日期：2026-11-19（Asia/Shanghai）。
 > 唯一校验实现：`src/pet/content-library.ts`（`validateContentPackV2` / `validatePackZip` / `mergeCharacterThemes` / `validateMarketCatalog` / `verify*`）。
-> 回归测试：`tests/content-library.test.ts` + `tests/content-pack-v2.test.ts`。
+> 回归测试：`tests/content-library.test.ts` + `tests/content-pack-v2.test.ts` + `tests/character-packs.test.ts`。
+> **角色动画资产包（新 rig）**：`famling.pet-anim/0.2` 的 spec/zip/安装器 PLAN 契约见 [`ANIM-PACK-0.2.md`](ANIM-PACK-0.2.md)；运行时层（安装/注册表/热切换状态机，纯注入、无 I/O）见 [`CHARACTER-RUNTIME-2026-11-19.md`](CHARACTER-RUNTIME-2026-11-19.md)。**真实 host 适配器/UI/main 接线未做**，不得暗示第三方角色已可安装。
 > 上游：`public/content/README.md`（内置目录 + v1 迁移）、`docs/design/CONTENT-MARKET-2026-11-19.md`（产品设计）。
 
 ## 0. 产品澄清：**角色就是主题**
@@ -25,13 +26,19 @@
 ```text
 docs/content-packs/
   README.md                     # 本文件（第三方起步）
+  ANIM-PACK-0.2.md              # 新 rig 契约：famling.pet-anim/0.2（spec + 安装器 PLAN；真实 host 未接线）
+  CHARACTER-RUNTIME-2026-11-19.md  # 运行时层：CharacterPackRuntime 安装/回滚/注册表/热切换 + 接入点（纯注入）
   HUMAN-DESIGN-REFERENCE.md     # 人形 96×96 / 12 clip / 68 帧 / 地线 89 / 调色 / 动作 / 语气 / 禁止
   CAT-DESIGN-REFERENCE.md       # 猫 96×96 / 12 clip / 72 帧（stand_wag 10）/ 地线 89 / 灰白调色 / 禁止
   DOG-DESIGN-REFERENCE.md       # 狗 96×96 / 12 clip / 68 帧 / 地线 89 / 金毛调色 / 禁止
   examples/
-    human.example.pack.json     # 可直接 validate 的 0.2 清单（占位资产引用，不加载）
+    README.md                   # 示例索引：主题包 vs 动画资产包怎么选
+    human.example.pack.json     # 角色主题包 0.2（famling.content-pack/0.2；占位资产引用，不加载）
     cat.example.pack.json
     dog.example.pack.json
+    human.anim.example.pack.json  # 动画资产包 0.2（famling.pet-anim/0.2；68 帧占位清单，不加载）
+    cat.anim.example.pack.json    # 72 帧（cat stand_wag 10 帧非均匀）
+    dog.anim.example.pack.json    # 68 帧
 ```
 
 ## 2. zip 素材包布局（推荐分发形态）
@@ -200,6 +207,19 @@ import {
 5. **本地自检**：`validateContentPackV2` → `validatePackZip`（需要宿主解压 + 算哈希）；必要时 `mergeCharacterThemes` 在临时目录合并，确认没有 `missing-references`。
 6. **分发**：zip 内 `pack.json` 在根；远程市场上架还需要目录与 zip 的 Ed25519 签名（见 §6），未签名一律拒绝。
 
+### 7.1 若要交付新动画 / 新 rig（`famling.pet-anim/0.2`，spec 层）
+
+角色主题包只能复用内置 rig；要交付**新动画/新角色 rig**，用 `famling.pet-anim/0.2`（与主题包共享 envelope，但 payload 不同）：
+
+| 内容 | 位置 |
+|---|---|
+| 规范全文（字段/zip 布局/12 clip 契约/安装器 PLAN/负向红线） | [`ANIM-PACK-0.2.md`](ANIM-PACK-0.2.md) |
+| 人 / 猫 / 狗示例（68/72/68 帧占位清单，可直接 `validateCharacterPackV2`） | `examples/{human,cat,dog}.anim.example.pack.json` |
+| 帧预算参考（96×96、12 clip、地线 y=89、调色/剪影/语气） | `HUMAN/CAT/DOG-DESIGN-REFERENCE.md` |
+
+最短路径：复制对应 `.anim.example.pack.json` → 改 `id`/`name`/`character.id` → 按设计参考产出 PNG 帧放进 `assets/anim/<clip>/<clip>_NN.png` → 重算 `files[].sha256` → `validateCharacterPackV2` + `validateCharacterPackZip` 自检。
+
+**重要边界（诚实文案）**：本规范冻结数据契约；`src/pet/character-packs.ts` 已提供**纯注入的运行时层**（安装/更新/卸载/回滚/注册表/热切换状态机，见 [`CHARACTER-RUNTIME-2026-11-19.md`](CHARACTER-RUNTIME-2026-11-19.md)），但真实文件系统 host 适配器（MB-042）、`main.ts`/`desktop-shell.ts`/`content-hub.ts` 接线、渲染器适配与活动角色持久化**均未实现**。在这些接线完成并通过验收前，UI/市场文案不得暗示“已可安装新角色/新动画”，也不得把运行时单测当成端到端安装证据。
 ## 8. 许可、AI 标识与用途边界（摘要）
 
 - 每个主题/包必须有 `license.spdx` + `license.attribution`；作者对素材权利负责，禁止描摹/盗用现有版权角色或真人素材。
@@ -213,3 +233,5 @@ import {
 | 日期 | 变更 |
 |---|---|
 | 2026-11-19 | 初版：内容包 0.2（角色主题主入口、统一用途声明、zip 素材包清单、远程市场目录/验签契约）、三份角色设计参考、三个 example pack。 |
+| 2026-11-19 | 追加 `famling.pet-anim/0.2`（新 rig）spec 层：`ANIM-PACK-0.2.md` + 三个 68/72 帧 anim 示例 + §7.1 最短路径。**loader/注册表/热切换/真实安装器未实现**。 |
+| 2026-11-19 | 追加角色包运行时层：`src/pet/character-packs.ts`（安装/更新/卸载/回滚/启用/热切换 + 注册表，注入 host、无直接 I/O）+ `tests/character-packs.test.ts`（20 项）+ `CHARACTER-RUNTIME-2026-11-19.md`（host 契约/事务/门禁/接线上游模块/未实现清单）。**真实 host 适配器与 UI/main 接线未实现**。 |

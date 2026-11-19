@@ -1,18 +1,29 @@
 /**
  * Remote content market client v1 (famling.market-client/0.1).
  *
- * Scope (task-66): the **host-side transport + verification client** for the
- * remote market contract defined by content-library.ts (catalog shape,
+ * Scope (task-66 + task-75): the **host-side transport + verification client**
+ * for the remote market contract defined by content-library.ts (catalog shape,
  * Ed25519 canonical payloads, trust root) and content-hub.ts (RemoteMarketSource
- * UI contract). This module is the only place in the app that may talk to the
- * network for content, and it does so **only when an explicit method is called**:
- * constructing a client, creating a RemoteMarketSource or creating the
- * content-hub refresh handler never fetches.
+ * UI contract). This module is a pure state machine/validator: it NEVER performs
+ * network I/O itself and NEVER reads a global `fetch` (`globalThis.fetch`,
+ * `window.fetch`, `self.fetch`); a static CI gate test enforces this. The host
+ * MUST inject a `MarketTransport` (a future Rust/IPC bridge, or a test fake)
+ * through `MarketplaceClientConfig.transport`. There is no global-fetch
+ * fallback: without an injected transport the client is unconfigured with the
+ * stable failure code `transport-unavailable` and performs zero requests.
+ *
+ * Zero-request rules (task-75, enforced by tests):
+ * - importing the module, constructing a client, creating a RemoteMarketSource or
+ *   creating the content-hub refresh handler never performs a request;
+ * - `transport` defaults to null: no injected transport => no network call of any
+ *   kind and `transport-unavailable` (configured:false, market UI stays disabled);
+ * - the only paths that can call the injected transport are the explicit
+ *   refreshCatalog() / downloadPack() calls, after all fail-closed checks.
  *
  * Hard rules implemented here (all fail-closed):
  * - catalog/pack transport must be HTTPS; plain HTTP only when the host
  *   explicitly passes allowHttp: true (tests/dev) — production callers must not;
- * - credential-bearing URLs and URL fragments are rejected before any fetch;
+ * - credential-bearing URLs and URL fragments are rejected before any transport call;
  * - loopback/private/link-local/CGNAT/metadata hosts are rejected unless the
  *   host explicitly passes allowPrivateHosts: true (tests only);
  * - redirects are followed manually (redirect: 'manual'), are capped, must stay
@@ -44,6 +55,8 @@
  *   URL/query/fragment, never a signature, never response bytes).
  *
  * What this module does NOT do (see docs/design/CONTENT-MARKET-2026-11-19.md §11):
+ * - it does not perform network I/O and has no global `fetch` fallback: the host
+ *   injects the transport (Rust restricted downloader / IPC / test fake);
  * - it does not host a server, CDN, review backend, payment or key ceremony;
  * - it does not ask the user for consent: the UI must show the canonical usage
  *   declaration and call installPack only after an explicit confirmation;
@@ -122,6 +135,7 @@ export const MARKET_SERIAL_STORAGE_VERSION = 1
 /** Every stable failure code returned by the client (UI/i18n keys). */
 export const MARKET_FAILURE_CODES = Object.freeze([
   'not-configured',
+  'transport-unavailable',
   'invalid-config',
   'invalid-argument',
   'invalid-url',
@@ -180,7 +194,7 @@ const LOCATION_HEADER = 'location'
 // Injectable transport
 // ---------------------------------------------------------------------------
 
-/** Minimal fetch init this client uses; kept explicit so tests fake it easily. */
+/** Minimal request init this client hands to the host-injected transport. */
 export interface MarketplaceRequestInit {
   readonly method: 'GET'
   readonly signal: AbortSignal
@@ -194,7 +208,10 @@ export interface MarketplaceRequestInit {
   readonly headers: Readonly<Record<string, string>>
 }
 
-/** Minimal response surface (the platform Response satisfies it). */
+/**
+ * Minimal response surface. A browser/WebView2 Response satisfies it, and so does
+ * a Rust bridge reply (status/headers/bytes) returned over IPC.
+ */
 export interface MarketResponseLike {
   readonly ok: boolean
   readonly status: number
@@ -204,15 +221,14 @@ export interface MarketResponseLike {
   arrayBuffer(): Promise<ArrayBuffer>
 }
 
-/** Injectable transport: production defaults to global fetch, tests fake it. */
-export type MarketplaceFetch = (url: string, init: MarketplaceRequestInit) => Promise<MarketResponseLike>
-
-const defaultMarketFetch: MarketplaceFetch = async (url, init) => {
-  const globalFetch = (globalThis as { fetch?: (input: string, init?: unknown) => Promise<unknown> }).fetch
-  if (typeof globalFetch !== 'function') throw new Error('fetch is unavailable in this host')
-  const response = await globalFetch(url, init as unknown as RequestInit)
-  return response as MarketResponseLike
-}
+/**
+ * Host-injected transport (IPC/Rust bridge or a test fake).
+ *
+ * There is intentionally NO default: this module never reads globalThis.fetch,
+ * window.fetch or self.fetch. Without an injected transport the client fails
+ * closed with `transport-unavailable` and stays completely offline.
+ */
+export type MarketTransport = (url: string, init: MarketplaceRequestInit) => Promise<MarketResponseLike>
 
 // ---------------------------------------------------------------------------
 // Result / log types
@@ -697,7 +713,7 @@ export function isPrivateOrLoopbackHost(rawHost: string): boolean {
 
 /**
  * Strict URL check for a catalog/pack request. This runs before the injected
- * fetch is ever called, so a rejected URL cannot produce a network request.
+ * transport is ever called, so a rejected URL cannot produce a network request.
  */
 export function validateMarketRequestUrl(raw: unknown, policy: MarketUrlPolicy = {}): MarketUrlCheck {
   const maxChars = policy.maxChars ?? MARKET_CLIENT_DEFAULTS.maxUrlChars
@@ -756,7 +772,7 @@ interface MarketHttpRequestOptions {
   readonly timeoutMs: number
   readonly signal?: AbortSignal
   readonly policy: MarketUrlPolicy
-  readonly fetcher: MarketplaceFetch
+  readonly transport: MarketTransport
   readonly maxRedirects: number
 }
 
@@ -803,6 +819,15 @@ async function requestMarketBytes(rawUrl: string, options: MarketHttpRequestOpti
   const mapThrown = (error: unknown): MarketFailure => {
     if (timedOut) return failure('timeout', 'request timed out after ' + options.timeoutMs + 'ms', { host: start.host })
     if (abortedByCaller || external?.aborted === true) return failure('aborted', 'request was aborted', { host: start.host })
+    // The Rust transport bridge reports stable market codes (private-host,
+    // too-large, redirect-insecure, ...). Preserve them instead of flattening
+    // every transport failure to network-error.
+    const transportCode = isRecord(error) && typeof error.code === 'string' ? error.code : ''
+    if ((MARKET_FAILURE_CODES as readonly string[]).includes(transportCode)) {
+      return failure(transportCode as MarketFailureCode, boundedMessage(error instanceof Error ? error.message : transportCode, 'transport failed'), {
+        host: start.host,
+      })
+    }
     if (isAbortError(error)) return failure('timeout', 'request was aborted before completion', { host: start.host })
     return failure('network-error', 'network request failed: ' + boundedMessage(error instanceof Error ? error.message : 'unknown', 'network error'), {
       host: start.host,
@@ -815,7 +840,7 @@ async function requestMarketBytes(rawUrl: string, options: MarketHttpRequestOpti
     for (;;) {
       let response: MarketResponseLike
       try {
-        response = await options.fetcher(current.href, buildRequestInit(controller.signal, options.accept))
+        response = await options.transport(current.href, buildRequestInit(controller.signal, options.accept))
       } catch (error) {
         return mapThrown(error)
       }
@@ -1026,8 +1051,13 @@ export interface MarketplaceClientConfig {
   readonly verifier: ContentEd25519Verifier
   /** Injected clock (ms since epoch); defaults to Date.now. */
   readonly now?: () => number
-  /** Injected transport; defaults to global fetch (never called at import). */
-  readonly fetch?: MarketplaceFetch
+  /**
+   * Host-injected transport (Rust/IPC bridge or a test fake). REQUIRED for any
+   * networking. There is no global-fetch fallback: when this is null/undefined
+   * the client is unconfigured with `transport-unavailable` and performs zero
+   * requests. Injection never causes a request by itself.
+   */
+  readonly transport?: MarketTransport | null
   readonly timeoutMs?: number
   readonly maxCatalogBytes?: number
   readonly maxPackBytes?: number
@@ -1082,7 +1112,7 @@ interface ResolvedMarketClientConfig {
   readonly trustRoot: ContentTrustRoot
   readonly verifier: ContentEd25519Verifier
   readonly now: (() => number) | null
-  readonly fetch: MarketplaceFetch
+  readonly transport: MarketTransport
   readonly timeoutMs: number
   readonly maxCatalogBytes: number
   readonly maxPackBytes: number
@@ -1181,7 +1211,9 @@ function resolveMarketClientConfig(raw: unknown): ResolvedMarketClient {
   if (!isRecord(raw.verifier) || !isFunction(raw.verifier.verify)) {
     return reject('invalid-config', 'verifier.verify() must be injected')
   }
-  if (raw.fetch !== undefined && !isFunction(raw.fetch)) return reject('invalid-config', 'fetch must be a function')
+  if (raw.transport !== undefined && raw.transport !== null && !isFunction(raw.transport)) {
+    return reject('invalid-config', 'transport must be a function')
+  }
   if (raw.now !== undefined && !isFunction(raw.now)) return reject('invalid-config', 'now must be a function')
   if (raw.logger !== undefined && !isFunction(raw.logger)) return reject('invalid-config', 'logger must be a function')
   if (raw.storage !== undefined && raw.storage !== null && !isStorageLike(raw.storage)) {
@@ -1210,6 +1242,13 @@ function resolveMarketClientConfig(raw: unknown): ResolvedMarketClient {
     }
     serialStorageKey = trimmed
   }
+  // The network fuse: no host-injected transport => never fetch anything. This is
+  // checked after the other config fields so a malformed config keeps reporting
+  // invalid-config, while an otherwise-valid config without transport stays
+  // offline and reports the dedicated transport-unavailable code.
+  if (raw.transport === undefined || raw.transport === null) {
+    return reject('transport-unavailable', 'market transport is not injected; this build performs zero network requests')
+  }
   const storage = raw.storage === null || raw.storage === undefined ? null : (raw.storage as StorageLike)
   const requireSerialStorage = raw.requireSerialStorage !== false
   const allowHttp = raw.allowHttp === true
@@ -1223,7 +1262,7 @@ function resolveMarketClientConfig(raw: unknown): ResolvedMarketClient {
     trustRoot: raw.trustRoot,
     verifier: raw.verifier as unknown as ContentEd25519Verifier,
     now: isFunction(raw.now) ? (raw.now as () => number) : null,
-    fetch: isFunction(raw.fetch) ? (raw.fetch as MarketplaceFetch) : defaultMarketFetch,
+    transport: raw.transport as unknown as MarketTransport,
     timeoutMs: resolveInteger(raw.timeoutMs, MARKET_CLIENT_DEFAULTS.timeoutMs, 1, MARKET_CLIENT_HARD_LIMITS.timeoutMs),
     maxCatalogBytes: resolveInteger(
       raw.maxCatalogBytes,
@@ -1397,7 +1436,7 @@ export class MarketplaceClient {
           timeoutMs: config.timeoutMs,
           ...(options.signal !== undefined ? { signal: options.signal } : {}),
           policy: this.urlPolicy(false),
-          fetcher: config.fetch,
+          transport: config.transport,
           maxRedirects: config.maxRedirects,
         })
       } catch (error) {
@@ -1646,7 +1685,7 @@ export class MarketplaceClient {
       timeoutMs: config.timeoutMs,
       ...(options.signal !== undefined ? { signal: options.signal } : {}),
       policy: this.urlPolicy(true),
-      fetcher: config.fetch,
+      transport: config.transport,
       maxRedirects: config.maxRedirects,
     })
     const durationMs = Math.max(0, this.nowMs() - startedAt)
@@ -1872,6 +1911,7 @@ export class MarketplaceError extends Error {
 
 const MARKET_FAILURE_LABELS: Readonly<Partial<Record<MarketFailureCode, string>>> = Object.freeze({
   'not-configured': '远程市场未配置（不会联网）',
+  'transport-unavailable': '未注入市场传输层（不会联网）',
   'invalid-config': '远程市场客户端配置无效',
   'invalid-argument': '参数无效',
   'invalid-url': '市场 URL 无效',

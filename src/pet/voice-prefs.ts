@@ -1,8 +1,8 @@
 /**
  * Pet TTS voice preference (`stella` | `tide`) — storage + TTS-signature helper.
  *
- * 2026-11-17 voice-switch: the official DeepSeek TTS voice ids travelled
- * through the UI. The preference lives next to the
+ * 2026-11-17 voice-switch: the baked pack ships both official DeepSeek TTS
+ * voices, but until now the UI had no switch. The preference lives next to the
  * other pet preferences under `desktop-games/pet/voice` (plain voice id, same
  * style as the volume key) and is read through the defensive safe-storage
  * helpers, so a missing/blocked/corrupted entry keeps the default `stella`
@@ -36,13 +36,13 @@ export interface VoiceOption {
   readonly default?: boolean
 }
 
-/** Both voice ids name official DeepSeek TTS synthetic voices (cloud TTS; system TTS ignores the id). */
+/** Both voices are official DeepSeek TTS synthetic voices, both baked (21 lines each). */
 export const VOICE_OPTIONS: readonly VoiceOption[] = [
   { id: 'stella', label: 'stella · 海星', description: '女声 · 默认', default: true },
   { id: 'tide', label: 'tide · 暗潮', description: '男声' },
 ]
 
-/** The cloud voice ids this build understands (anything else is invalid). */
+/** The baked/cloud voice ids this build understands (anything else is invalid). */
 export function isTtsVoiceId(value: unknown): value is TtsVoiceId {
   return value === 'stella' || value === 'tide'
 }

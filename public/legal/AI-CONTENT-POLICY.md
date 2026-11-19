@@ -1,6 +1,6 @@
 # AI 内容政策：生成、披露、标识与供应商条款 — 草案
 
-> **状态：DRAFT · 2026-11-15（2026-11-17 增补 §2A 与拟人化条款；2026-11-17.4 增补 §2A.10 用户自行接入边界）· 非法律意见。** 待用户 + 律师确认。本文是项目内部规范 + 发布检查表；具体法定义务以官方原文为准（链接见 §5，URL 于 2026-11-16 研究稿复核，平台页面可能改版，发布前须复核）。
+> **状态：DRAFT · 2026-11-15（2026-11-17 增补 §2A 与拟人化条款；2026-11-17.4 增补 §2A.10 用户自行接入边界；2026-11-19 事实同步）· 非法律意见。** 待用户 + 律师确认。本文是项目内部规范 + 发布检查表；具体法定义务以官方原文为准（链接见 §5，URL 于 2026-11-16 研究稿复核，平台页面可能改版，发布前须复核）。
 > **2026-11-17.5 状态注记：年龄口径更新为用户拍板“一般功能全年龄 + 角色扮演/情感陪伴仅限 18+”；首次启动须完成自报出生日期年龄核验（非官方身份证核验），未成年人可用一般功能但不能启动 roleplay。旧“全年龄、不设年龄门”表述作废；2h/危机/未成年人保护保留。**
 > 适用：AI 生成的图/文/音/视频/对话/宣发，AI 训练/微调/语音合成，以及向终端用户的 AI 披露。
 > 关联：[CONTENT-POLICY](/legal/CONTENT-POLICY.md) · [ASSET-REPLACEMENT-AND-MODDING-POLICY](/legal/ASSET-REPLACEMENT-AND-MODDING-POLICY.md) · [SECURITY-AND-PRIVACY](/legal/SECURITY-AND-PRIVACY.md) · `AI-PROVENANCE.md`。
@@ -10,9 +10,9 @@
 | 类型 | 事实 | 记录位置 |
 |---|---|---|
 | 角色图 | `openai/gpt-image-2.6-sunburst`（经 OpenRouter Images API），2026-11-14/15，19 次生成 + 人工筛选/裁剪/像素化 | `AI-PROVENANCE.md`（含 sha256） |
-| 语音 | DeepSeek TTS（音色 “stella”），2026-11-14，18 个 WAV；**再分发条款 TBD** | `THIRD-PARTY.md` §2、manifest |
+| 语音 | DeepSeek TTS（音色 `stella` 默认 + `tide` 可选），stella 2026-11-14（补录至 21 句）、tide 2026-11-17（21 句），共 **42 WAV**；用户 2026-11-17 授权 baked 随包，**服务商书面再分发条款 TBD** | `THIRD-PARTY.md` §2、`public/assets/voice/pet/manifest.json`、`AI-PROVENANCE.md` §10 |
 | 实时识别 | DeepSeek ASR，经 Rust 代理；音频不持久化、≤8 MiB、≤60 s | [SECURITY-AND-PRIVACY](/legal/SECURITY-AND-PRIVACY.md) §3 |
-| 对话/文案 | 桌宠台词为规则/脚本（无默认云 LLM）；ASR 文本仅做关键词匹配；若未来接入 LLM/云对话，须先按本政策披露 | 应用内 About |
+| 对话/文案 | famling 桌宠台词为规则/脚本（**无默认云 LLM、无自由 LLM 对话**；roleplay 仅本地模板）；ASR 文本仅做关键词匹配；`dsh-famling` 插件是另一产品，其文本聊天经 DSH Host 发往用户配置的模型供应商（见插件 LEGAL），不属 famling 本仓能力 | 应用内 About；插件仓 `docs/LEGAL-NOTICE-2026-11-18.md` |
 | 语音输出 | 默认 provider 链：baked 预生成 → 系统语音 → 静音 mock；云 TTS 仅在配置后加入，计每日字符预算（默认 2000 字/日）、不落盘 | `src/voice/service.ts`、`src/pet/main.ts` |
 | 占位像素图 | 确定性脚本（`placehold.py`），非模型生成 | `art/assets.csv` |
 | 第三方参考图 | `art/_placeholder/refs/`（gitignored，**不得发布**） | `AI-PROVENANCE.md` 缺口说明 |
@@ -76,7 +76,7 @@
 | 供应商 | 待确认 | 状态 |
 |---|---|---|
 | OpenRouter / OpenAI Images | 输出商用/再分发/署名/内容限制 | **TBD**（发布前复核 Model Terms） |
-| DeepSeek TTS | 输出商用、**预生成音频再分发**、音色限制、署名 | **TBD**（P0：不确认则替换 18 WAV） |
+| DeepSeek TTS | 输出商用、**预生成音频再分发**、音色限制、署名 | **TBD**（P0：不确认则替换/移除 42 WAV；用户 2026-11-17 授权 baked 随包 ≠ 服务商许可） |
 | DeepSeek ASR | 音频传输/留存/跨境 | **TBD**（隐私政策须披露） |
 | SDXL/ComfyUI（历史 3 行资产） | checkpoint 许可（CreativeML Open RAIL++-M 等） | **TBD**（来源不明 = 不可发布） |
 
@@ -92,10 +92,11 @@
 | 日期 | 变更 | 状态 |
 |---|---|---|
 | 2026-11-15 | 首版 | draft；待用户 + 律师 |
-| 2026-11-17 | 用户拍板全年龄、不设年龄门：§2A.4 roleplay 由“仅 18+”改为“全年龄适用 + 全年龄内容边界”，保留 2h/危机/未成年人保护；本条覆盖旧 18+ 建议 | draft；待用户 + 律师 |
+| 2026-11-17 | 用户拍板全年龄、不设年龄门：§2A.4 roleplay 由“仅 18+”改为“全年龄适用 + 全年龄内容边界”，保留 2h/危机/未成年人保护；本条覆盖旧 18+ 建议（**该口径已被 2026-11-17.5 取代：一般功能全年龄 + roleplay 仅 18+**） | draft；待用户 + 律师 |
 | 2026-11-17 | 增 §2A 拟人化/roleplay 强制声明（18+/2h/依赖/危机/退出/标识）；§5 补《拟人化办法》行；链接 [LEGAL-BASELINE](/legal/LEGAL-BASELINE.md) 与 [APP-DISCLOSURE-TEXTS](/legal/APP-DISCLOSURE-TEXTS.md) | draft；待用户 + 律师 |
 | 2026-11-17 | 修正硬错：标识办法官方 URL 改为 `c_1743654684782215`；拟人化办法“8 条红线”→“第 8 条七项红线”（原文复核，2026-11-17）；标识落地细节移交 [AI-LABELING](/legal/AI-LABELING.md) | draft |
 | 2026-11-17.4 | 增 §2A.10 用户自行接入第三方模型/自由 LLM 边界：官方不提供/不鼓励/明确反对、用户自担、无法强制阻止只尽提醒义务、不背书、保留举报/删除权；TOS 升版 `2026-11-17.4` 新增 §六之二 `user-agency` | draft；未经律师审核 |
 | 2026-11-17.5 | 年龄口径更新：一般功能全年龄可用、roleplay/情感陪伴仅限 18+；首启自报出生日期核验（非官方身份证核验）；未成年人 roleplay 禁止；TOS/ROLEPLAY 与文档同步 | draft；未经律师审核 |
+| 2026-11-19 | 事实同步（代码为准）：42 WAV（21 stella + 21 tide；用户授权 baked 随包、服务商再分发仍 TBD）；明确 famling 无自由 LLM / 插件有真实 LLM 的两端边界；D6 首启顺序现状 vs 目标见律师复核清单；本文件不重复 TOS 版本/hash | draft；未经律师 |
 
 > 草案，不是法律意见。

@@ -1104,7 +1104,7 @@ export interface RemoteMarketSource {
 
 /** Steps a future remote installer must implement (fail-closed order). */
 export const CONTENT_MARKET_CONTRACT_STEPS: readonly string[] = Object.freeze([
-  '1. 拉取市场目录 catalog.json（只有用户点击后才会联网）',
+  '1. 拉取市场目录 catalog.json（只有用户点击后才可能联网；出网必须经宿主注入的 transport，WebView 不直接 fetch）',
   '2. validateMarketCatalog + verifyMarketCatalogSignature（Ed25519 / 信任根）',
   '3. 展示该包的统一用途声明，用户显式确认后才允许下载',
   '4. 下载 .zip，先比 zipSha256，再 verifyMarketPackDownload 验签',
@@ -1175,6 +1175,22 @@ export function isRemoteMarketConfigured(source?: Pick<RemoteMarketSource, 'conf
   return source?.configured === true
 }
 
+/**
+ * Single network fuse for the 市场 tab (task-75/MB-086). A remote refresh may run
+ * only when the host-injected source reports configured:true AND a refresh
+ * callback was wired. The default state is unconfigured, so opening the market
+ * tab (or calling the controller refresh) performs ZERO network requests.
+ *
+ * content-hub itself never fetches; the callable it forwards to lives in
+ * content-market.ts and only works with a host-injected transport (default null).
+ */
+export function canRequestRemoteMarket(
+  state: Pick<ContentMarketUiState, 'configured'> | null | undefined,
+  hasRefreshHandler: boolean,
+): boolean {
+  return hasRefreshHandler === true && state?.configured === true
+}
+
 // ---------------------------------------------------------------------------
 // Controller / host wiring
 // ---------------------------------------------------------------------------
@@ -1242,9 +1258,11 @@ export interface ContentHubOptions {
   readonly getInstalledPacks?: () => readonly ContentHubInstalledPack[]
   readonly getMarketState?: () => ContentMarketUiState
   /**
-   * Called ONLY from the user's 「刷新市场目录…」 click. The host should wire
-   * createRemoteMarketRefresh(client) from content-market.ts; leaving it
-   * undefined keeps the market button disabled and the build offline.
+   * Called ONLY from the user's 「刷新市场目录…」 click, and only when the
+   * injected market state reports configured:true (see canRequestRemoteMarket).
+   * The host should wire createRemoteMarketRefresh(client) from content-market.ts
+   * (which itself requires a host-injected transport); leaving it undefined keeps
+   * the market button disabled and the build offline.
    */
   readonly refreshMarket?: () => Promise<ContentHubMarketRefreshResult>
   /** Local object URL for an installed pack preview (builtin themes use path). */
@@ -1874,7 +1892,7 @@ export function initContentHub(options: ContentHubOptions): ContentHubController
     const refresh = create('button', 'content-hub-market-refresh')
     refresh.type = 'button'
     refresh.textContent = state.configured ? '刷新市场目录…' : '远程市场未配置（不联网）'
-    refresh.disabled = !state.configured || options.refreshMarket === undefined
+    refresh.disabled = !canRequestRemoteMarket(state, options.refreshMarket !== undefined)
     refresh.addEventListener('click', () => {
       void handleRefreshMarket()
     })
@@ -2155,6 +2173,13 @@ export function initContentHub(options: ContentHubOptions): ContentHubController
   async function handleRefreshMarket(): Promise<void> {
     const refresh = options.refreshMarket
     if (refresh === undefined || importBusy) return
+    // Defense in depth (task-75): a programmatic click, a queued event or a host
+    // that wired refreshMarket before the source was configured must never reach
+    // the network. The default unconfigured state short-circuits with zero calls.
+    if (!canRequestRemoteMarket(getMarketState(), true)) {
+      setFeedback('远程市场未配置：不会发起任何网络请求。', 'info')
+      return
+    }
     importBusy = true
     setFeedback('正在读取市场目录（需要显式点击后才联网）…', 'info')
     try {

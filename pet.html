@@ -41,7 +41,10 @@
       </header>
       <main>
         <div class="book">
-          <div id="pet" class="fold-pet" title="摸摸它">
+          <!-- Keyboard-reachable character (E-06/MB-061): Tab focuses it and
+               Enter/Space opens the same menu as right-click / Shift+F10.
+               desktop-shell.ts also sets these at runtime for safety. -->
+          <div id="pet" class="fold-pet" title="摸摸它" tabindex="0" role="button" aria-haspopup="menu" aria-controls="pet-shell-menu" aria-label="桌面角色：按 Enter 打开菜单；右键或 Shift+F10 也可打开">
             <div class="ear left"></div><div class="ear right"></div>
             <div class="head"><div class="eye left"></div><div class="eye right"></div><div id="mouth" class="mouth"></div></div>
             <div class="body"><div class="crease"></div></div>
@@ -50,7 +53,7 @@
           <!-- Phase 2 hero renderer stage: opt-in (?hero=1 / localStorage), hidden
                until the first hero frame succeeds; the folded-paper #pet above is
                never removed and reappears on any failure. -->
-          <div id="hero-stage" class="hero-stage" hidden><canvas id="hero-canvas"></canvas></div>
+          <div id="hero-stage" class="hero-stage" hidden tabindex="0" role="button" aria-haspopup="menu" aria-controls="pet-shell-menu" aria-label="桌面角色：按 Enter 打开菜单；右键或 Shift+F10 也可打开"><canvas id="hero-canvas" aria-label="桌面角色画面"></canvas></div>
           <!-- Minimal non-art status for the hero renderer: first-frame loading,
                no-character (empty) and failed (error) are DOM states, not
                console-only; `off` keeps the default folded-paper DOM quiet. -->
@@ -58,7 +61,13 @@
             <span class="hero-placeholder-dot" aria-hidden="true"></span>
             <span class="hero-placeholder-text"></span>
           </div>
-          <div id="bubble" class="bubble">……</div>
+          <!-- Visible AI attribution (MB-076): the bubble carries a second line
+               「AI 生成 · 不是真人」 for every AI reply, switching to
+               「AI 语音 · 合成（不是真人）」 while TTS audio actually plays. The
+               desktop shell hides aside.panel, so this is the reachable surface
+               at the moment of hearing (not only the About panel). No extra
+               always-on button: the label only exists while a bubble is shown. -->
+          <div id="bubble" class="bubble"><span id="bubble-text">……</span><span id="bubble-ai" class="bubble-ai" role="note" hidden></span></div>
         </div>
         <aside class="panel">
           <div class="actions">
@@ -109,6 +118,27 @@
            character); 设置 → 显示菜单按钮 re-enables it and the preference is
            read from desktop-games/pet/show-menu-button on every load. -->
       <button id="pet-menu-button" class="pet-menu-button" type="button" aria-haspopup="menu" aria-controls="pet-shell-menu" aria-expanded="false" aria-label="打开桌面菜单" title="桌面菜单（右键 / Shift+F10）" hidden>⋯</button>
+    </div>
+    <!-- Independent content/settings window home (MB-062 / task-85). The Tauri
+         host opens a second resizable window on this SAME page; main.ts detects
+         content mode and shows this surface between the content center and the
+         reused #pet-settings dialog. Hidden in the installed pet window. -->
+    <div id="content-window-home" class="content-window-home" hidden role="main" aria-labelledby="content-window-title">
+      <div class="content-window-card">
+        <p class="content-window-kicker">DESKTOP GAMES</p>
+        <h1 id="content-window-title" class="content-window-title">内容与设置</h1>
+        <p class="content-window-sub">
+          角色、对话、声音、主题、内容包与全部桌面设置都在这个独立窗口里完成；关闭本窗口不会退出桌宠。
+        </p>
+        <div class="content-window-actions">
+          <button id="content-window-open-hub" class="content-window-action" type="button">角色与内容中心…</button>
+          <button id="content-window-open-settings" class="content-window-action" type="button">设置…</button>
+          <button id="content-window-close" class="content-window-action content-window-close" type="button">关闭窗口</button>
+        </div>
+        <p id="content-window-note" class="content-window-note" role="status">
+          窗口可自由缩放（最小 640×480）；面板内 Tab 循环焦点，Esc 关闭面板；在本页按 Esc 关闭窗口。
+        </p>
+      </div>
     </div>
     <!-- Role & content center mount point (famling.content/0.2). The single
          desktop-menu entry 「角色与内容中心…」 opens this full-screen panel

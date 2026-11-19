@@ -6,31 +6,31 @@
       "source": "docs/legal/TOS.md",
       "dest": "TOS.md",
       "required": true,
-      "sha256": "856158e75bb23df46c7a8190bc35238478a6d104d4f70646c3f2b9a5b8f80716"
+      "sha256": "2418566b9d50dbeedd4ba198128b4c46dea794974e6f4508fcf26b8dd446061c"
     },
     {
       "source": "docs/legal/PRIVACY.md",
       "dest": "PRIVACY.md",
       "required": true,
-      "sha256": "7f29da99b9b23409e688e105dc2a83eb3403616aba0585ae1aa5eed436cc1fc8"
+      "sha256": "34a6368aec5ef629e4cc58655401fd228e93f76a9c420f396f708770871ea706"
     },
     {
       "source": "docs/legal/AI-LABELING.md",
       "dest": "AI-LABELING.md",
       "required": true,
-      "sha256": "5d64cd6947004fae9cefccd64072bcde2c0c4fd09c30e1a34a2cf6ae2b40f060"
+      "sha256": "9fc50fd54e8b57ae7e6c50807e31e36860d2f1118141b92c4bf28d63b011f2a4"
     },
     {
       "source": "docs/legal/USE-RESTRICTIONS-2026-11-19.md",
       "dest": "USE-RESTRICTIONS-2026-11-19.md",
       "required": true,
-      "sha256": "cbd95d7e13232709ed0b0c7ce64d206dfe2eaab9a1ddfed6a0c2c4d380f4c2b7"
+      "sha256": "e9f0a3283d931644430d226c2fea09edd5b1563d522d83f0266db538dffc0f1b"
     },
     {
       "source": "docs/legal/TTS-TERMS.md",
       "dest": "TTS-TERMS.md",
       "required": true,
-      "sha256": "d63ea18b180728e430420aabfbb0746b6537fc60935da126330d8b8ec2fcc199"
+      "sha256": "98339eb99c092f66cbfb05a6ee1feaaa8791de2880f431ff776822b18278ed94"
     },
     {
       "source": "docs/legal/DLC-AND-PLUGIN-TERMS.md",
@@ -54,13 +54,13 @@
       "source": "DECLARATIONS.md",
       "dest": "DECLARATIONS.md",
       "required": true,
-      "sha256": "ac473a6c214003b1585e6a5b139bbf41675cc6b143e35646aefe286b6a96fbd8"
+      "sha256": "1c3a9598a8dd1a9b77ee12b6113c8932c774fc9daa3aa50ac0a60937762f91c0"
     },
     {
       "source": "NOTICE",
       "dest": "NOTICE",
       "required": true,
-      "sha256": "9e610be443bedef6f5071adc62ff7e5631bbc2374ce3e1edd8936925798467e6"
+      "sha256": "5a2cf1282aefbd11e5827c1f0500d673290e396508fc12050a881f27d8472876"
     },
     {
       "source": "LICENSE-ART",
@@ -102,7 +102,7 @@
       "source": "docs/legal/AI-CONTENT-POLICY.md",
       "dest": "AI-CONTENT-POLICY.md",
       "required": true,
-      "sha256": "762081da142fbc62958882dc498c7fc33f94fa85f912f85340579f62e17d12d7"
+      "sha256": "2f1635aee51e14b2da50ff49dba94a1e491d6e29c361f117c4a74f85e481de8c"
     },
     {
       "source": "docs/research/AI-COMPANION-REGULATION-2026-11-16.md",
@@ -120,31 +120,31 @@
       "source": "docs/legal/APP-DISCLOSURE-TEXTS.md",
       "dest": "APP-DISCLOSURE-TEXTS.md",
       "required": false,
-      "sha256": "25ee47a88ebbff83485cae84e7aeb899863bc935b177c12de2a06a44d1a025e8"
+      "sha256": "796358129232d95e4b23033cd580411c9ad892d3dc0713093a141de48f47352c"
     },
     {
       "source": "docs/legal/APPROVALS.md",
       "dest": "APPROVALS.md",
       "required": false,
-      "sha256": "1d66361a1b6d98f11c40f4f3b83446e340bfc04c38dbfa409725e5af835b211e"
+      "sha256": "6ae96ec2d6091c26c0d7ed962663c97e43fe3602f9ffb0f32e52e0f91a640c1d"
     },
     {
       "source": "docs/legal/ASSET-REPLACEMENT-AND-MODDING-POLICY.md",
       "dest": "ASSET-REPLACEMENT-AND-MODDING-POLICY.md",
       "required": false,
-      "sha256": "546ddbf8f00f203ddd0a8c34a3b2e09deef865e2a77ea6ccc6c390832ba6df0d"
+      "sha256": "4c0cb5416e16321ccb9d018c0fefd82af43a519fd2ff75f357ba68cca2980c52"
     },
     {
       "source": "docs/legal/CONSUMER-MINORS-HEALTH.md",
       "dest": "CONSUMER-MINORS-HEALTH.md",
       "required": false,
-      "sha256": "1b5565888d12153889a13e0050c0f55ef8f0259d468417e8d0abb59e6f33fb53"
+      "sha256": "e91d6934b9bedeffc37920bec4f21ee262ae60a853d22445938dbe04b8db48af"
     },
     {
       "source": "docs/legal/CONTENT-POLICY.md",
       "dest": "CONTENT-POLICY.md",
       "required": false,
-      "sha256": "d4c72c2815f28f5fb6ee7f74e4369618c6e07b6d6af7b3180f8d7d25b3508810"
+      "sha256": "076a8273d9bf91ed5bc2bf4adccc5d3be7f5a5d1d207a8c6a160c037a84658d7"
     },
     {
       "source": "docs/legal/CONTRIBUTOR-TERMS.md",
@@ -156,7 +156,7 @@
       "source": "docs/legal/DECLARATION-MATRIX.md",
       "dest": "DECLARATION-MATRIX.md",
       "required": false,
-      "sha256": "2e85977d87a70d70b13e77cdec9d8c93a356b7dceb3163c8163becf5e6d66073"
+      "sha256": "8fc629d70e3560614c7e1624a447907a98c99a9cbbd5b61635b99a9a907d6953"
     },
     {
       "source": "docs/legal/FANWORK-POLICY.md",
@@ -165,46 +165,52 @@
       "sha256": "4ead115195ccbfaa08aa0326157cebb8134f9b2466f5f043a5ba14161ed98b13"
     },
     {
+      "source": "docs/legal/LAWYER-REVIEW-CHECKLIST-2026-11-19.md",
+      "dest": "LAWYER-REVIEW-CHECKLIST-2026-11-19.md",
+      "required": false,
+      "sha256": "0ae2244a58247aed682b6bef9528652af0757a42e1353a047753b6d1ef795cf9"
+    },
+    {
       "source": "docs/legal/LEGAL-BASELINE.md",
       "dest": "LEGAL-BASELINE.md",
       "required": false,
-      "sha256": "c227913fb6d9ef0cf8835780da28be2318d165aadad07e3a94c27339418d3e6c"
+      "sha256": "01aead0eaa0f827bef3f1629d321dcf570a4dc3f11743a3eaae1c608041f06ea"
     },
     {
       "source": "docs/legal/README.md",
       "dest": "README.md",
       "required": false,
-      "sha256": "182ce7014ae4d5f8d6389c02e1736af860695e46d86fda80171e57aebf3f0051"
+      "sha256": "f6a8b1cd31e8f714e7f86868020dfcaaae3bfbc6db23960acd6c246c87bd22e6"
     },
     {
       "source": "docs/legal/RELEASE-BLOCKERS.md",
       "dest": "RELEASE-BLOCKERS.md",
       "required": false,
-      "sha256": "9cfdc33fbd1e66a4f719e979bf3b68aed6d88452eba3402a55321c09b29ee826"
+      "sha256": "fa0bf40bd280eda98d5d244a2209f799e967cca68bd974d4ebcc437922742a6c"
     },
     {
       "source": "docs/legal/SAFETY.md",
       "dest": "SAFETY.md",
       "required": false,
-      "sha256": "86bad6cd8fb1ab0a4a635a8d19cca8fc6cfb582b7ace3e145ac3b5fd668b624b"
+      "sha256": "cce1554b75c29587a62827cc399cb68b52e4bf264b0b87a5506e997cb0369092"
     },
     {
       "source": "docs/legal/SECURITY-AND-PRIVACY.md",
       "dest": "SECURITY-AND-PRIVACY.md",
       "required": false,
-      "sha256": "2b15f1f552c92aaf1efa3859a9bc567168d08d52979a9eb936157ff69fcb55a1"
+      "sha256": "ee6833ef877a251b212d976b5d8e5962529f22832d730574e10991f6eea0482e"
     },
     {
       "source": "docs/legal/SIMULATED-REVIEW-2026-11-17.md",
       "dest": "SIMULATED-REVIEW-2026-11-17.md",
       "required": false,
-      "sha256": "545a1a1e5f3ee1ff23f603e5cf963a227ee4d4d3cdb863dbb730ea5c6106c29a"
+      "sha256": "5000ee5338458eb2bf2a476a58feb2e11d147568fcd18c45979d850df0b80cb6"
     },
     {
       "source": "docs/legal/THIRD-PARTY-AND-CREDITS-POLICY.md",
       "dest": "THIRD-PARTY-AND-CREDITS-POLICY.md",
       "required": false,
-      "sha256": "008231199fe6c4df47b022735a2680b33e71d102616861f386bd8d48aacf1a41"
+      "sha256": "7db37c6a45ee0bbc0aa31553baebba219e2b15b309e185b39c2e76f7f996bdfe"
     },
     {
       "source": "docs/legal/TRADEMARK-AND-NAMING-POLICY.md",

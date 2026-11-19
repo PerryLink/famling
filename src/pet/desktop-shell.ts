@@ -14,6 +14,50 @@ import {
   type ConsentOverlayEventDetail,
 } from './consent/modal.ts'
 import { countCodePoints, sanitizePlainText, truncateCodePoints } from './security/limits.ts'
+import {
+  AXIS_SCALE_STEP,
+  COMPONENT_SCALE_MAX,
+  COMPONENT_SCALE_MIN,
+  GLOBAL_SCALE_MAX,
+  GLOBAL_SCALE_MIN,
+  GLOBAL_SCALE_STEP,
+  IMAGE_SCALE_MAX,
+  IMAGE_SCALE_MIN,
+  LEGACY_PET_SCALE_KEY,
+  LEGACY_TEXT_SCALE_KEY,
+  SCALE_COMPONENTS,
+  SCALE_COMPONENT_IDS,
+  UI_TEXT_SCALE_MAX,
+  UI_TEXT_SCALE_MIN,
+  clampScale,
+  fitScaleToViewport,
+  formatScaleMultiplier,
+  formatScalePercent,
+  loadScaleSettings,
+  normalizeScaleSettings,
+  persistScaleSettings,
+  resetScaleSettings,
+  resolveScaleSettings,
+  scaleCssVariables,
+  type ResolvedScales,
+  type ScaleComponentId,
+  type ScaleSettings,
+} from './scaling.ts'
+import {
+  isValidClockText,
+  normalizeQuietHours,
+  quietHoursSummary,
+  readQuietHours,
+  writeQuietHours,
+  type QuietHoursSettings,
+} from './low-disturb.ts'
+import {
+  REDUCE_MOTION_KEY as SHARED_REDUCE_MOTION_KEY,
+  applyReduceMotionAttribute,
+  systemPrefersReducedMotion,
+  watchReduceMotion,
+  writeExplicitReduceMotion,
+} from './reduce-motion.ts'
 
 /**
  * Desktop pet shell (Phase 1A): hide the settings chrome by default, keep the
@@ -50,8 +94,13 @@ import { countCodePoints, sanitizePlainText, truncateCodePoints } from './securi
  * - at init the shell records `documentElement.dataset.shellConsent` and fails
  *   closed; the menu container stays below the modal layer (pet.css).
  */
-const PET_SCALE_KEY = 'desktop-games/pet/scale'
-const TEXT_SCALE_KEY = 'desktop-games/pet/text-scale'
+/**
+ * Legacy two-axis keys (pet scale 1×–4× + text size). Kept exported because the
+ * one-time migration in scaling.ts reads exactly these keys; the shell itself
+ * now only uses the four-level model (整体 / UI+文本 / 图像 / 组件).
+ */
+export const PET_SCALE_KEY = LEGACY_PET_SCALE_KEY
+export const TEXT_SCALE_KEY = LEGACY_TEXT_SCALE_KEY
 /**
  * 「显示菜单按钮」setting (task-65): the desktop shell ships with NO persistent
  * chrome around the character. The ⋯ trigger is hidden by default (pet.html
@@ -59,8 +108,12 @@ const TEXT_SCALE_KEY = 'desktop-games/pet/text-scale'
  * right-click / Shift+F10 / ContextMenu keep opening the menu while hidden.
  */
 export const SHOW_MENU_BUTTON_KEY = 'desktop-games/pet/show-menu-button'
-/** 「减少动态」setting: collapses CSS motion tokens + pauses the hero loop. */
-export const REDUCE_MOTION_KEY = 'desktop-games/pet/reduce-motion'
+/**
+ * 「减少动态」setting: collapses CSS motion tokens, pauses the hero loop and is
+ * also installed in the game windows (reduce-motion.ts). Kept exported from this
+ * module for existing callers/tests; the value is the shared module constant.
+ */
+export const REDUCE_MOTION_KEY = SHARED_REDUCE_MOTION_KEY
 /** The consolidated settings dialog built by initDesktopShell. */
 export const SETTINGS_ID = 'pet-settings'
 /** Menu levels: root (≤5 entries), 互动… and 更多… (both have 返回). */
@@ -78,6 +131,15 @@ export const HERO_RENDERER_STORAGE = {
 } as const
 const MENU_ID = 'pet-shell-menu'
 const MENU_BUTTON_ID = 'pet-menu-button'
+/**
+ * One-time first-run coach (E-01/MB-060): explains 右键 / Shift+F10 / Enter and
+ * the 「显示菜单按钮」 setting. Shown at most once per profile, never a
+ * persistent button; marked as seen the moment it is shown so an interrupted
+ * session cannot resurrect it.
+ */
+export const MENU_COACH_KEY = 'desktop-games/pet/coach/menu'
+export const MENU_COACH_ID = 'pet-menu-coach'
+/** Legacy range constants kept for the old pure helpers / external callers. */
 export const PET_SCALE_MIN = 1
 export const PET_SCALE_MAX = 4
 export const TEXT_SCALE_MIN = 0.8
@@ -446,6 +508,24 @@ export interface DesktopShellOptions {
   /** Quit from the root menu; main.ts saves first, then closes the pet window. */
   readonly onExit?: () => void
   /**
+   * Open the independent content/settings window instead of the in-window
+   * #pet-settings modal (MB-062). Return true when the window was opened;
+   * false keeps today's in-window dialog as the browser/dev fallback. Only the
+   * pet-window menu supplies this; the content window itself omits it.
+   */
+  readonly openSettingsWindow?: (focusTarget?: string) => boolean
+  /**
+   * The open settings surface closed (backdrop/Escape/close). The content window
+   * uses this to bring its home surface back; the pet window ignores it.
+   */
+  readonly onSettingsClosed?: () => void
+  /**
+   * The pet shell menu itself. The independent content/settings window reuses
+   * this init to get the SAME settings dialog but must not expose the pet menu,
+   * coach or drag behavior, so it passes `false`.
+   */
+  readonly enableMenu?: boolean
+  /**
    * Settings wiring supplied by main.ts. Every callback is optional: absent
    * handlers keep the control visible but inert (dev pages never fake them).
    */
@@ -467,6 +547,12 @@ export interface DesktopShellOptions {
    * body-level shell menu must not open above/behind it (UX review P1-4).
    */
   readonly isHigherModalOpen?: () => boolean
+  /**
+   * Quiet-hours preference changed from the settings dialog (MB-070). main.ts
+   * mirrors it so ambient output stops/starts without a reload; the shell has
+   * already persisted the normalized value when this fires.
+   */
+  readonly onQuietHoursChange?: (settings: QuietHoursSettings) => void
 }
 
 /** Element handles for the #pet-settings dialog (built once per init). */
@@ -478,16 +564,25 @@ interface SettingsDom {
   readonly volume: HTMLInputElement
   readonly volumeValue: HTMLElement
   readonly reduceMotion: HTMLInputElement
-  readonly scaleButtons: HTMLButtonElement[]
-  readonly textMinus: HTMLButtonElement
-  readonly textPlus: HTMLButtonElement
-  readonly textValue: HTMLElement
-}
-
-function writeNumber(key: string, value: number): void {
-  try {
-    localStorage.setItem(key, String(value))
-  } catch {}
+  /** 安静 / 健康 / AI 标识 → quiet-hours controls (MB-070). */
+  readonly quietEnabled: HTMLInputElement
+  readonly quietStart: HTMLInputElement
+  readonly quietEnd: HTMLInputElement
+  /** 常用 → 整体缩放 (all content together). */
+  readonly globalScale: HTMLInputElement
+  readonly globalValue: HTMLElement
+  readonly resetScales: HTMLButtonElement
+  /** Second level → UI+文本 / 图像 independent axes. */
+  readonly uiTextScale: HTMLInputElement
+  readonly uiTextValue: HTMLElement
+  readonly uiTextFollow: HTMLButtonElement
+  readonly imageScale: HTMLInputElement
+  readonly imageValue: HTMLElement
+  readonly imageFollow: HTMLButtonElement
+  /** Advanced (one level deeper) → per-component overrides. */
+  readonly advanced: HTMLDetailsElement
+  readonly componentSelects: Record<ScaleComponentId, HTMLSelectElement>
+  readonly componentValues: Record<ScaleComponentId, HTMLElement>
 }
 
 /**
@@ -532,16 +627,62 @@ function openSetup(): void {
   activeWindow()?.open('/setup.html', '_blank')
 }
 
-/** Propagate the resolved scale to CSS + the `#pet-scale-label` node (both shells). */
-function applyScaleVariables(scale: number, textScale: number): void {
+/**
+ * Propagate resolved scales to CSS + the `#pet-scale-label` node (both shells).
+ *
+ * The four levels are already combined by scaling.ts; this function only writes
+ * its result. `fitted` carries the viewport-clamped character zooms so the
+ * applied value is what the user can actually see (never clipped).
+ */
+function applyScaleVariables(
+  resolved: ResolvedScales,
+  fitted?: { readonly foldedPetScale?: number; readonly heroZoom?: number },
+): void {
   const doc = activeDocument()
   if (!doc) return
   const root = doc.documentElement
-  root.style.setProperty('--pet-scale', String(scale))
-  root.style.setProperty('--ui-scale', String(textScale))
-  root.style.setProperty('--text-scale', `${Math.round(textScale * 100)}%`)
+  for (const [name, value] of Object.entries(scaleCssVariables(resolved, fitted))) {
+    root.style.setProperty(name, value)
+  }
   const label = doc.getElementById('pet-scale-label')
-  if (label) label.textContent = formatScaleLabel(scale)
+  if (label) label.textContent = formatScaleLabel(fitted?.foldedPetScale ?? resolved.foldedPetScale)
+}
+
+/**
+ * Ask an initialized desktop shell to show the one-time menu coach (E-01).
+ *
+ * main.ts calls this after the TOS gate resolves accepted, so the coach never
+ * appears under the consent modal and stored-acceptance profiles still get it
+ * once. No-op before the shell exists; idempotent after it was shown/dismissed.
+ */
+let menuCoachRequest: (() => void) | null = null
+/**
+ * The initialized settings dialog, exposed to the independent content window
+ * (MB-062) without duplicating its renderer/persistence. Null on pages where
+ * initDesktopShell returned early (the ?shell=window dev layout) or before init.
+ */
+let settingsSurface: {
+  open: (focusTarget?: string) => boolean
+  close: (restoreFocus?: boolean) => void
+} | null = null
+/** Open the same audited #pet-settings dialog from another bootstrap (content window). */
+export function openDesktopSettingsDialog(focusTarget?: string): boolean {
+  try {
+    return settingsSurface?.open(focusTarget) ?? false
+  } catch {
+    return false
+  }
+}
+/** Close the settings dialog from another bootstrap (content window route switch). */
+export function closeDesktopSettingsDialog(restoreFocus = false): void {
+  try {
+    settingsSurface?.close(restoreFocus)
+  } catch {
+    /* closing is best effort; the route switch still proceeds */
+  }
+}
+export function requestMenuCoach(): void {
+  menuCoachRequest?.()
 }
 
 export function initDesktopShell(options: DesktopShellOptions = {}): void {
@@ -550,6 +691,12 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
   if (!doc || !win) return
   shellDocument = doc
   shellWindow = win
+  // A previous shell instance (tests/stand-alone pages) must not keep the coach
+  // callback: the current shell re-registers it only in the desktop layout.
+  menuCoachRequest = null
+  // Same for the settings surface; it re-registers only after the desktop layout
+  // built the dialog (the ?shell=window dev layout never builds it).
+  settingsSurface = null
   const docRef: Document = doc
   const winRef: Window = win
   const consentGateOpen = options.canInteract ?? canInteract
@@ -592,36 +739,158 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
 
   const params = new URLSearchParams(winRef.location.search)
   const desktop = params.get('shell') !== 'window'
+  /**
+   * MB-062: the independent content/settings window reuses this init for the
+   * settings dialog, but the pet menu/coach/drag do not belong on that surface.
+   */
+  const menuEnabled = options.enableMenu !== false
+
+  /**
+   * Keyboard path to the pet (E-06/MB-061): the character itself is focusable
+   * (Tab) and Enter/Space opens the same menu the pointer path opens. The
+   * folded-paper #pet and the hero stage are mutually exclusive at runtime, so
+   * only the visible one is in the tab order. In the ?shell=window dev layout
+   * there is no shell menu, so the same keys fall back to the old 摸摸 action.
+   */
+  const petEl = docRef.getElementById('pet')
+  const heroStageEl = docRef.getElementById('hero-stage')
+  let openMenuFromKeyboard: (() => boolean) | null = null
+  for (const target of [petEl, heroStageEl]) {
+    if (!target) continue
+    target.setAttribute('tabindex', '0')
+    target.setAttribute('role', 'button')
+    target.setAttribute('aria-haspopup', 'menu')
+    target.setAttribute('aria-controls', MENU_ID)
+    target.setAttribute('aria-label', '桌面角色：按 Enter 打开菜单；右键或 Shift+F10 也可打开')
+    target.addEventListener('keydown', (event) => {
+      const key = (event as KeyboardEvent).key
+      if (key !== 'Enter' && key !== ' ' && key !== 'Spacebar') return
+      event.preventDefault()
+      if (openMenuFromKeyboard) openMenuFromKeyboard()
+      else click('pat')
+    })
+  }
+
   if (!desktop) {
     docRef.documentElement.dataset.petShell = 'window'
-    // Dev/E2E full-page layout: keep the label truthfully showing the stored
-    // scale even though only the desktop shell zooms the pet.
-    applyScaleVariables(resolvePetScale(), resolveTextScale())
+    // Dev/E2E full-page layout: resolve the same model so the label/QA surface
+    // truthfully shows the stored scales even though only the desktop shell
+    // paints the pet window chrome.
+    applyScaleVariables(resolveScaleSettings(loadScaleSettings().settings))
     return
   }
   docRef.documentElement.dataset.petShell = 'desktop'
 
-  const pet = docRef.getElementById('pet')
+  const pet = petEl
   if (!pet) return
-  let scale = resolvePetScale()
-  let textScale = resolveTextScale(scale)
-  const applyScale = (): void => applyScaleVariables(scale, textScale)
-  const setScale = (next: number): void => {
+
+  // ------------------------------------------------------------------
+  // Four-level scale state (整体 / UI+文本 / 图像 / 组件)
+  // ------------------------------------------------------------------
+  // Migration writes are deferred until the TOS gate is accepted so a fresh
+  // profile never gets preference writes while the consent modal is up.
+  const loadedScales = loadScaleSettings()
+  let scaleSettings = normalizeScaleSettings(loadedScales.settings)
+  let pendingScaleMigration = loadedScales.migrated
+  let resolvedScales: ResolvedScales = resolveScaleSettings(scaleSettings)
+  let fittedScales: { foldedPetScale: number; heroZoom: number } = {
+    foldedPetScale: resolvedScales.foldedPetScale,
+    heroZoom: resolvedScales.heroZoom,
+  }
+  const persistScaleMigration = (): void => {
+    if (!pendingScaleMigration || consentBlocked()) return
+    persistScaleSettings(scaleSettings)
+    pendingScaleMigration = false
+  }
+  /** Apply the model + viewport fit and write CSS (never before consent). */
+  const applyScale = (): void => {
+    resolvedScales = resolveScaleSettings(scaleSettings)
+    const viewport = { width: winRef.innerWidth || 480, height: winRef.innerHeight || 336 }
+    // offsetWidth ignores CSS transforms, so this is the layout size the fit needs.
+    const petBox = {
+      width: (pet as unknown as { offsetWidth?: number }).offsetWidth || 104,
+      height: (pet as unknown as { offsetHeight?: number }).offsetHeight || 90,
+    }
+    const foldedPetScale = fitScaleToViewport(resolvedScales.foldedPetScale, petBox, viewport, {
+      x: 8,
+      top: 8,
+      bottom: 12,
+    })
+    const stage = heroStageEl as unknown as { offsetWidth?: number } | null
+    const canvas = docRef.getElementById('hero-canvas') as unknown as { offsetWidth?: number; offsetHeight?: number } | null
+    const heroWidth = canvas?.offsetWidth || stage?.offsetWidth || 0
+    const heroHeight = canvas?.offsetHeight || 0
+    const heroZoom =
+      heroWidth > 0 && heroHeight > 0
+        ? fitScaleToViewport(resolvedScales.heroZoom, { width: heroWidth, height: heroHeight }, viewport, {
+            x: 4,
+            top: 6,
+            bottom: 18,
+          })
+        : resolvedScales.heroZoom
+    fittedScales = { foldedPetScale, heroZoom }
+    applyScaleVariables(resolvedScales, fittedScales)
+    persistScaleMigration()
+  }
+  /** Persist + apply one model change immediately (no reload). */
+  const applyScaleSettings = (next: ScaleSettings, status?: string): void => {
     // Defence in depth: never write a shell preference while consent is missing.
     if (consentBlocked()) return
-    scale = clamp(next, PET_SCALE_MIN, PET_SCALE_MAX)
-    // Text follows the pet scale by default; A-/A+ remains an independent override.
-    textScale = clamp(scale, TEXT_SCALE_MIN, TEXT_SCALE_MAX)
-    writeNumber(PET_SCALE_KEY, scale)
+    scaleSettings = normalizeScaleSettings(next)
+    resolvedScales = resolveScaleSettings(scaleSettings)
+    persistScaleSettings(scaleSettings)
+    pendingScaleMigration = false
     applyScale()
+    refreshSettings()
+    if (status !== undefined) settingsStatus(status)
   }
-  const setTextScale = (next: number): void => {
+  const setGlobalScale = (value: number): void => {
+    const next = clampScale(value, GLOBAL_SCALE_MIN, GLOBAL_SCALE_MAX)
+    applyScaleSettings(
+      { ...scaleSettings, global: next },
+      '整体缩放 ' + formatScalePercent(next) + '：角色、UI/文本、气泡与面板一起变化。',
+    )
+  }
+  const setUiTextScale = (value: number): void => {
+    const next = clampScale(value, UI_TEXT_SCALE_MIN, UI_TEXT_SCALE_MAX)
+    applyScaleSettings(
+      { ...scaleSettings, uiText: next },
+      Math.abs(next - 1) < 1e-9
+        ? 'UI + 文本已跟随整体缩放。'
+        : 'UI + 文本设为整体的 ' + formatScalePercent(next) + '（图像不变）。',
+    )
+  }
+  const setImageScale = (value: number): void => {
+    const next = clampScale(value, IMAGE_SCALE_MIN, IMAGE_SCALE_MAX)
+    applyScaleSettings(
+      { ...scaleSettings, image: next },
+      Math.abs(next - 1) < 1e-9
+        ? '图像已跟随整体缩放。'
+        : '图像设为整体的 ' + formatScalePercent(next) + '（UI/文本不变）。',
+    )
+  }
+  const setComponentScale = (id: ScaleComponentId, value: number | null): void => {
+    const components = { ...scaleSettings.components }
+    if (value === null || Math.abs(value - 1) < 1e-9) delete components[id]
+    else components[id] = clampScale(value, COMPONENT_SCALE_MIN, COMPONENT_SCALE_MAX)
+    const label = SCALE_COMPONENTS.find((component) => component.id === id)?.label ?? id
+    applyScaleSettings(
+      { ...scaleSettings, components },
+      value === null ? label + '已恢复继承（跟随 UI + 文本）。' : label + '调整为继承值的 ' + formatScalePercent(value) + '。',
+    )
+  }
+  const resetAllScales = (): void => {
     if (consentBlocked()) return
-    textScale = clamp(next, TEXT_SCALE_MIN, TEXT_SCALE_MAX)
-    writeNumber(TEXT_SCALE_KEY, textScale)
+    scaleSettings = resetScaleSettings()
+    resolvedScales = resolveScaleSettings(scaleSettings)
+    pendingScaleMigration = false
     applyScale()
+    refreshSettings()
+    settingsStatus('已恢复默认缩放：整体 100%，UI+文本/图像/组件全部跟随。')
   }
   applyScale()
+  winRef.addEventListener('resize', () => applyScale())
+
 
   const menu = docRef.createElement('div')
   menu.id = MENU_ID
@@ -664,23 +933,52 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
   }
   applyTriggerVisibility(showMenuButton)
 
-  const prefersReduceMotion = (): boolean => {
-    try {
-      return typeof winRef.matchMedia === 'function' && winRef.matchMedia('(prefers-reduced-motion: reduce)').matches
-    } catch {
-      return false
-    }
-  }
+  const prefersReduceMotion = (): boolean => systemPrefersReducedMotion(winRef)
   let reduceMotion = resolveReduceMotion(undefined, prefersReduceMotion())
+  /**
+   * Shared reduced-motion watcher (MB-071): the OS preference is the default and
+   * keeps applying while the user has not made an explicit choice; an explicit
+   * setting (including "off") wins and is persisted. The same attribute drives
+   * CSS tokens, the hero rAF loop and the game windows.
+   */
+  const reduceMotionWatcher = watchReduceMotion(docRef, winRef, {
+    onChange: (active) => {
+      reduceMotion = active
+      refreshSettings()
+    },
+  })
+  reduceMotion = reduceMotionWatcher.active()
   /** Apply + persist 减少动态: CSS tokens collapse and main.ts pauses hero ticks. */
   const applyReduceMotion = (enabled: boolean, persist = true): void => {
     reduceMotion = enabled
-    try {
-      docRef.documentElement.dataset.reduceMotion = enabled ? '1' : '0'
-    } catch {}
-    if (persist) writeStoredFlag(REDUCE_MOTION_KEY, enabled)
+    applyReduceMotionAttribute(docRef, enabled)
+    if (persist) writeExplicitReduceMotion(enabled)
   }
   applyReduceMotion(reduceMotion, false)
+
+  // ------------------------------------------------------------------
+  // Quiet hours / 夜间安静 (MB-070)
+  // ------------------------------------------------------------------
+  // Default 22:00–08:00, enabled, user-adjustable and can be turned off. The
+  // shell persists it; main.ts mirrors the value and suppresses ambient output
+  // while the window is active. The health reminder is deferred (not dropped)
+  // by the consent runtime during quiet hours.
+  let quietHours = readQuietHours()
+  const applyQuietHours = (next: QuietHoursSettings, persist = true): QuietHoursSettings => {
+    quietHours = persist ? writeQuietHours(next) : normalizeQuietHours(next)
+    if (persist) {
+      try {
+        options.onQuietHoursChange?.(quietHours)
+      } catch {
+        /* the preference is already saved; a listener failure must not undo it */
+      }
+      // The settings DOM exists by the time the user can change anything; the
+      // initial (persist=false) load above runs before it is constructed.
+      refreshSettings()
+    }
+    return quietHours
+  }
+  applyQuietHours(quietHours, false)
 
   // Dev/E2E-only entry point (完整面板). Never rendered in the release menu.
   const debugMode = debugShellFromSearch(winRef.location.search) || isViteDevBuild()
@@ -723,6 +1021,15 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
       target?.focus()
     }
     returnFocus = null
+  }
+
+  /**
+   * The ONE quit entry for every menu level (root + 更多). main.ts owns the
+   * save-then-close sequence (MB-010 / UX V-01); dev pages without a callback
+   * keep the old direct close so the shell still works stand-alone.
+   */
+  const requestExit = (): void => {
+    ;(options.onExit ?? (() => winRef.close()))()
   }
 
   const renderMenu = (focusAction?: string): void => {
@@ -841,11 +1148,11 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
       // entry all live in the role & content center. The four old 「渲染器：…」
       // rows are intentionally NOT rendered any more.
       add('角色与内容中心…', () => { openContentHub?.() }, '', 'menu/U-MENU-08a_32x32.png')
-      add('设置…', () => { openSettings() }, '', 'menu/U-MENU-07a_32x32.png')
+      add('设置…', () => { openSettingsSurface() }, '', 'menu/U-MENU-07a_32x32.png')
       addSubmenu('更多', 'more')
       // Quit stays at the root: with no persistent buttons, a nested-only exit
       // is too hard to find when a user wants to stop the pet.
-      add('退出', () => { (options.onExit ?? (() => winRef.close()))() }, '', 'menu/U-MENU-10a_32x32.png')
+      add('退出', requestExit, '', 'menu/U-MENU-10a_32x32.png')
     } else if (menuView === 'interact') {
       addBack('nav:interact')
       addHeading(heroActive() ? '互动 · 当前角色' : '互动 · 折纸')
@@ -893,51 +1200,26 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
       add('保存', () => { if (options.saveArchive) options.saveArchive(); else click('save') })
       add('读取', () => { if (options.loadArchive) options.loadArchive(); else click('load') })
       addHeading('窗口 / 工具')
+      // W-02 / UX-P0-4: recall entry at the product-menu level (the settings
+      // dialog already has one, but settings itself can be off screen). Reuses
+      // the exact same callback as 设置 → 复位窗口; on the Tauri host that is
+      // the Rust reset command, so the tray and the menu land in the same
+      // taskbar-aware bottom-right position.
+      add('复位窗口到右下角', () => {
+        if (options.resetWindow) options.resetWindow()
+        else click('reset-window')
+      })
       add('模型 / API Key 设置…', openSetup, '', 'menu/U-MENU-07a_32x32.png')
-      addHeading(`宠物缩放 · ${formatScaleLabel(scale)}`)
-      const scaleRow = docRef.createElement('div')
-      scaleRow.className = 'pet-menu-inline'
-      scaleRow.setAttribute('role', 'group')
-      scaleRow.setAttribute('aria-label', `宠物缩放，当前 ${formatScaleLabel(scale)}`)
-      for (const value of [1, 2, 3, 4]) {
-        addInline(scaleRow, {
-          label: formatScaleLabel(value),
-          actionId: `scale:${value}`,
-          role: 'menuitemradio',
-          checked: value === scale,
-          onActivate: () => {
-            setScale(value)
-            renderMenu(`scale:${clamp(value, PET_SCALE_MIN, PET_SCALE_MAX)}`)
-          },
-        })
-      }
-      menu.append(scaleRow)
-      addHeading(`文字大小 ${Math.round(textScale * 100)}%`)
-      const textRow = docRef.createElement('div')
-      textRow.className = 'pet-menu-inline'
-      textRow.setAttribute('role', 'group')
-      textRow.setAttribute('aria-label', '文字大小')
-      addInline(textRow, {
-        label: 'A−',
-        actionId: 'text:minus',
-        role: 'menuitem',
-        disabled: textScale <= TEXT_SCALE_MIN + 1e-9,
-        onActivate: () => {
-          setTextScale(textScale - 0.1)
-          renderMenu('text:minus')
-        },
-      })
-      addInline(textRow, {
-        label: 'A+',
-        actionId: 'text:plus',
-        role: 'menuitem',
-        disabled: textScale >= TEXT_SCALE_MAX - 1e-9,
-        onActivate: () => {
-          setTextScale(textScale + 0.1)
-          renderMenu('text:plus')
-        },
-      })
-      menu.append(textRow)
+      // Scale settings are one level down in 设置… (常用 → 整体缩放; second
+      // level → UI+文本 / 图像; 高级 → 组件缩放). One deep-link entry replaces
+      // the old duplicated「宠物缩放/文字大小」rows (E-02) and keeps the axis
+      // hierarchy strictly deeper than the global control.
+      add('缩放…（整体 / UI+文本 / 图像 / 组件）', () => { openSettingsSurface('pet-settings-scale-global') }, '', 'menu/U-MENU-07a_32x32.png')
+      addHeading('安静 / 健康')
+      // Quiet hours + the 2h health reminder + AI attribution are one settings
+      // group; this deep-link is the discoverable "更多" entry (the product
+      // keeps zero always-on chrome around the character).
+      add('夜间安静 / 健康提醒 / AI 标识…', () => { openSettingsSurface('pet-settings-quiet-enabled') }, '', 'menu/U-MENU-07a_32x32.png')
       addHeading('关于 / 声明 / 数据控制')
       add('关于与声明（完整 TOS/免责声明/数据控制）…', openAboutPanel, '', 'menu/U-MENU-09a_32x32.png')
       // 2026-11-17 user decision: roleplay is NOT a public gameplay/selling point
@@ -958,7 +1240,9 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
       if (debugMode) {
         add('完整面板（开发/E2E）', () => { winRef.location.search = '?shell=window' })
       }
-      add('退出', () => winRef.close(), '', 'menu/U-MENU-10a_32x32.png')
+      // Same save-then-close path as the root entry: a nested bare
+      // window.close() silently dropped unsaved state (MB-010 / UX P0-3).
+      add('退出', requestExit, '', 'menu/U-MENU-10a_32x32.png')
     }
     if (focusAction !== undefined) focusActionItem(focusAction)
   }
@@ -971,14 +1255,34 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
 
   /** Last pointer anchor so a sub-menu re-render can re-clamp inside the window. */
   let menuAnchor = { x: 4, y: 4 }
+  /** Current component zoom of the menu (advanced override or inherited). */
+  const menuZoomValue = (): number => {
+    try {
+      const view = (docRef as Document & { defaultView?: Window | null }).defaultView
+      const raw = view?.getComputedStyle(docRef.documentElement).getPropertyValue('--menu-zoom').trim() ?? ''
+      const value = Number(raw)
+      return Number.isFinite(value) && value > 0 ? value : 1
+    } catch {
+      return 1
+    }
+  }
   const positionMenu = (): void => {
     menu.style.left = '0px'
     menu.style.top = '0px'
+    // Measure the LAYOUT box (offsetWidth/Height ignore the transform) and
+    // multiply by the component zoom: during the open transition the animated
+    // scale(.98) rect is smaller than the final panel, so clamping on the live
+    // rect would let the final, zoomed menu overflow the window edge.
     const rect = menu.getBoundingClientRect()
-    const left = Math.max(4, Math.min(menuAnchor.x, winRef.innerWidth - rect.width - 4))
-    const top = Math.max(4, Math.min(menuAnchor.y, winRef.innerHeight - rect.height - 4))
-    menu.style.left = `${left}px`
-    menu.style.top = `${top}px`
+    const zoom = menuZoomValue()
+    const layoutWidth = menu.offsetWidth || (zoom > 0 ? rect.width / zoom : rect.width)
+    const layoutHeight = menu.offsetHeight || (zoom > 0 ? rect.height / zoom : rect.height)
+    const width = layoutWidth * zoom
+    const height = layoutHeight * zoom
+    const left = Math.max(4, Math.min(menuAnchor.x, winRef.innerWidth - width - 4))
+    const top = Math.max(4, Math.min(menuAnchor.y, winRef.innerHeight - height - 4))
+    menu.style.left = left + 'px'
+    menu.style.top = top + 'px'
   }
 
   /**
@@ -991,6 +1295,7 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
    * is not accepted or a consent overlay is showing.
    */
   const openMenuAt = (x: number, y: number): boolean => {
+    if (!menuEnabled) return false
     if (menuBlocked()) {
       closeMenu(false)
       return false
@@ -1007,6 +1312,8 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
     menu.setAttribute('aria-hidden', 'false')
     trigger?.setAttribute('aria-expanded', 'true')
     menuOpen = true
+    // The user found the menu: the one-time coach is no longer needed.
+    ackMenuCoach()
     setConsentState()
     positionMenu()
     focusMenuItem(0)
@@ -1021,6 +1328,9 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
     const anchor = anchorEl.getBoundingClientRect()
     return openMenuAt(anchor.left, anchor.top - 4)
   }
+  // The focused character (Tab → #pet/#hero-stage → Enter/Space) opens the same
+  // menu as right-click / Shift+F10 / the ⋯ trigger.
+  openMenuFromKeyboard = () => openFromTrigger()
 
   trigger?.addEventListener('click', (event) => {
     event.stopPropagation()
@@ -1084,9 +1394,10 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
     const detail = (event as CustomEvent<ConsentOverlayEventDetail>).detail
     if (!detail || detail.open) {
       closeMenu(false)
-      // The settings dialog is body-level chrome too: a TOS/TTS/blocked modal
-      // must never leave it focusable behind the consent layer.
+      // The settings dialog and the one-time coach are body-level chrome too:
+      // a TOS/TTS/blocked modal must never leave them focusable behind it.
       closeSettings(false)
+      removeMenuCoach()
       setConsentState()
       return
     }
@@ -1097,6 +1408,8 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
     if (menuOpen) closeMenu(false)
     else menu.inert = true
     setConsentState()
+    // First run: the TOS just closed — teach the hidden entry points once.
+    showMenuCoachIfEligible()
   }
   docRef.addEventListener(CONSENT_OVERLAY_EVENT, onConsentOverlay)
 
@@ -1131,7 +1444,7 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
 
   function settingsFocusable(): HTMLElement[] {
     if (!settingsDom) return []
-    return Array.from(settingsDom.root.querySelectorAll<HTMLElement>('button, input, select, a[href]')).filter((element) => {
+    return Array.from(settingsDom.root.querySelectorAll<HTMLElement>('button, input, select, a[href], summary')).filter((element) => {
       const input = element as HTMLInputElement
       return !(element as HTMLButtonElement).disabled && !element.hidden && input.type !== 'hidden'
     })
@@ -1144,10 +1457,17 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
     else settingsDom?.root.focus()
   }
 
-  /** Open the settings dialog; false when consent/modal state refuses it. */
-  function openSettings(): boolean {
+  /**
+   * Open the settings dialog; false when consent/modal state refuses it.
+   * `focusTarget` is the deep-link target used by 「更多 → 缩放…」 (focus +
+   * scroll the requested control instead of landing on the first field).
+   */
+  function openSettings(focusTarget?: string): boolean {
     if (consentBlocked() || !settingsDom) return false
     closeMenu(false)
+    ackMenuCoach()
+    // Flush a pending legacy migration now that the gate is known to be open.
+    applyScale()
     const previous = docRef.activeElement
     // A menu item is about to become inert, so prefer it only when it is not
     // inside the menu; otherwise fall back to the (visible) ⋯ trigger.
@@ -1160,8 +1480,36 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
     settingsDom.root.setAttribute('aria-hidden', 'false')
     settingsDom.root.dataset.state = 'open'
     settingsOpen = true
-    focusSettingsFirst()
+    if (focusTarget !== undefined) {
+      const target = docRef.getElementById(focusTarget)
+      if (target) {
+        try {
+          target.scrollIntoView?.({ block: 'nearest' })
+        } catch {}
+        target.focus()
+      } else {
+        focusSettingsFirst()
+      }
+    } else {
+      focusSettingsFirst()
+    }
     return true
+  }
+
+  /**
+   * Open settings: the independent content/settings window when the host supplies
+   * the opener (MB-062), else today's in-window modal (browser/dev fallback and a
+   * failed/denied window creation). Rendering/persistence stay identical.
+   */
+  function openSettingsSurface(focusTarget?: string): boolean {
+    if (options.openSettingsWindow) {
+      try {
+        if (options.openSettingsWindow(focusTarget)) return true
+      } catch {
+        /* fall through to the in-window dialog */
+      }
+    }
+    return openSettings(focusTarget)
   }
 
   /** Close the settings dialog and restore focus to the opener when possible. */
@@ -1183,6 +1531,11 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
       }
     }
     settingsReturnFocus = null
+    try {
+      options.onSettingsClosed?.()
+    } catch {
+      /* the dialog is already closed; a host hook failure must not break it */
+    }
   }
 
   /** Re-read every value from the live shell state into the dialog controls. */
@@ -1192,17 +1545,35 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
     const audio = settingsAudio()
     settingsDom.mute.checked = audio.muted
     settingsDom.volume.value = String(audio.volume)
-    settingsDom.volumeValue.textContent = `${audio.volume}%`
+    settingsDom.volumeValue.textContent = audio.volume + '%'
     settingsDom.reduceMotion.checked = reduceMotion
-    for (const button of settingsDom.scaleButtons) {
-      const activeValue = Number(button.dataset.scale)
-      button.setAttribute('aria-pressed', activeValue === scale ? 'true' : 'false')
-      if (activeValue === scale) button.classList.add('active')
-      else button.classList.remove('active')
+    settingsDom.quietEnabled.checked = quietHours.enabled
+    settingsDom.quietStart.value = quietHours.start
+    settingsDom.quietEnd.value = quietHours.end
+
+    // 常用 → 整体缩放 (all content together).
+    settingsDom.globalScale.value = String(scaleSettings.global)
+    settingsDom.globalValue.textContent = formatScalePercent(scaleSettings.global)
+
+    // Second level → UI+文本 / 图像 independent axes.
+    settingsDom.uiTextScale.value = String(scaleSettings.uiText)
+    settingsDom.uiTextValue.textContent =
+      formatScalePercent(resolvedScales.global * resolvedScales.uiText) +
+      (Math.abs(scaleSettings.uiText - 1) < 1e-9 ? '（跟随整体）' : '（独立）')
+    settingsDom.uiTextFollow.disabled = Math.abs(scaleSettings.uiText - 1) < 1e-9
+    settingsDom.imageScale.value = String(scaleSettings.image)
+    settingsDom.imageValue.textContent =
+      formatScalePercent(resolvedScales.global * resolvedScales.image) +
+      (Math.abs(scaleSettings.image - 1) < 1e-9 ? '（跟随整体）' : '（独立）')
+    settingsDom.imageFollow.disabled = Math.abs(scaleSettings.image - 1) < 1e-9
+
+    // Advanced (one level deeper) → per-component overrides.
+    for (const id of SCALE_COMPONENT_IDS) {
+      const select = settingsDom.componentSelects[id]
+      const value = scaleSettings.components[id]
+      select.value = typeof value === 'number' ? String(value) : '1'
+      settingsDom.componentValues[id].textContent = '实际 ' + formatScaleMultiplier(resolvedScales.components[id])
     }
-    settingsDom.textValue.textContent = `${Math.round(textScale * 100)}%`
-    settingsDom.textMinus.disabled = textScale <= TEXT_SCALE_MIN + 1e-9
-    settingsDom.textPlus.disabled = textScale >= TEXT_SCALE_MAX - 1e-9
   }
 
   function buildSettingsModal(): SettingsDom {
@@ -1277,11 +1648,60 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
       if (hint !== undefined) wrap.append(note(hint))
       return { wrap, input }
     }
-    const chipRow = (): HTMLElement => makeElement(docRef, 'div', 'pet-settings-chips')
+    /**
+     * Percent range row for the scale axes. The model stores multipliers
+     * (100% = 1×); the control is a native range input so it is keyboard and
+     * screen-reader operable for free, and dragging applies immediately.
+     */
+    const percentSlider = (
+      id: string,
+      labelText: string,
+      minPercent: number,
+      maxPercent: number,
+      stepPercent: number,
+      percent: number,
+      onInput: (multiplier: number) => void,
+    ): { wrap: HTMLElement; input: HTMLInputElement; value: HTMLElement } => {
+      const wrap = field('pet-settings-field pet-settings-scale-field')
+      const label = makeElement(docRef, 'label', 'pet-settings-label', labelText)
+      label.setAttribute('for', id)
+      const input = docRef.createElement('input')
+      input.type = 'range'
+      input.id = id
+      input.min = String(minPercent)
+      input.max = String(maxPercent)
+      input.step = String(stepPercent)
+      input.value = String(Math.round(percent))
+      const valueEl = makeElement(docRef, 'span', 'pet-settings-value', '')
+      valueEl.id = id + '-value'
+      input.addEventListener('input', () => {
+        const next = Number(input.value)
+        if (Number.isFinite(next)) onInput(next / 100)
+      })
+      wrap.append(label, input, valueEl)
+      return { wrap, input, value: valueEl }
+    }
 
     // --- 常用 ---------------------------------------------------------
+    // First level: ONE global scale control (所有内容一并缩放). The independent
+    // axes and component overrides live strictly below it (下一个分组 / 高级).
     const common = group('常用')
     const audioNow = settingsAudio()
+    const globalScaleRow = percentSlider(
+      'pet-settings-scale-global',
+      '整体缩放（所有内容一并缩放）',
+      Math.round(GLOBAL_SCALE_MIN * 100),
+      Math.round(GLOBAL_SCALE_MAX * 100),
+      Math.round(GLOBAL_SCALE_STEP * 100),
+      scaleSettings.global * 100,
+      (multiplier) => setGlobalScale(multiplier),
+    )
+    globalScaleRow.wrap.append(
+      note('100% = 默认大小；角色、UI/文本、气泡与面板一起缩放。窗口放不下时会自动贴合，不裁切内容。'),
+    )
+    const resetScaleField = field('pet-settings-field pet-settings-actions')
+    const resetScalesButton = action('pet-settings-scale-reset', '恢复默认缩放', () => resetAllScales(), 'pet-settings-chip')
+    resetScaleField.append(resetScalesButton)
     const showMenu = checkbox(
       'pet-settings-show-menu-button',
       '显示菜单按钮（⋯）',
@@ -1333,7 +1753,7 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
         refreshSettings()
         settingsStatus(checked ? '已减少动态：过渡/循环动画暂停，角色画布只保留静态帧。' : '已恢复动效。')
       },
-      '系统开启「减少动态」时默认勾选；角色画布会停止逐帧动画，交互仍可用。',
+      '系统开启「减少动态」时默认勾选并随系统变化；手动设置后覆盖系统偏好。角色画布/farm 游戏页的循环动画会暂停或降频，交互仍可用。',
     )
     const resetWindowField = field()
     resetWindowField.append(
@@ -1356,48 +1776,108 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
         settingsStatus('已请求读取本机存档。')
       }),
     )
-    common.append(showMenu.wrap, muteField.wrap, volumeField, reduceField.wrap, resetWindowField, archiveField)
+    common.append(
+      globalScaleRow.wrap,
+      resetScaleField,
+      showMenu.wrap,
+      muteField.wrap,
+      volumeField,
+      reduceField.wrap,
+      resetWindowField,
+      archiveField,
+    )
 
-    // --- 外观 ---------------------------------------------------------
-    const appearance = group('外观')
-    const scaleField = field()
-    scaleField.append(makeElement(docRef, 'span', 'pet-settings-label', `宠物缩放 · ${formatScaleLabel(scale)}`))
-    const scaleRow = chipRow()
-    const scaleButtons: HTMLButtonElement[] = []
-    for (const value of [1, 2, 3, 4]) {
-      const button = action(
-        `pet-settings-scale-${value}`,
-        formatScaleLabel(value),
-        () => {
-          setScale(value)
-          refreshSettings()
-          settingsStatus(`宠物缩放设为 ${formatScaleLabel(value)}。`)
-        },
-        'pet-settings-chip',
-      )
-      button.dataset.scale = String(value)
-      scaleButtons.push(button)
-      scaleRow.append(button)
-    }
-    scaleField.append(scaleRow)
-    const textField = field()
-    const textLabel = makeElement(docRef, 'span', 'pet-settings-label', '文字大小')
-    const textValue = makeElement(docRef, 'span', 'pet-settings-value', `${Math.round(textScale * 100)}%`)
-    const textRow = chipRow()
-    const textMinus = action('pet-settings-text-minus', 'A−', () => {
-      setTextScale(textScale - 0.1)
-      refreshSettings()
-    }, 'pet-settings-chip')
-    const textPlus = action('pet-settings-text-plus', 'A+', () => {
-      setTextScale(textScale + 0.1)
-      refreshSettings()
-    }, 'pet-settings-chip')
-    const textReset = action('pet-settings-text-reset', '重置', () => {
-      setTextScale(scale)
-      refreshSettings()
-    }, 'pet-settings-chip')
-    textRow.append(textMinus, textPlus, textReset)
-    textField.append(textLabel, textRow, textValue)
+    // --- 安静 / 健康 / AI 标识 (E7: MB-070, MB-072, MB-076) -------------
+    // All three live in the consolidated 总设置 dialog (root 菜单 → 设置… /
+    // 更多 → 安静…): no extra always-on button around the character.
+    const calm = group('安静 / 健康 / AI 标识')
+    const quietCheck = checkbox(
+      'pet-settings-quiet-enabled',
+      '夜间安静时段（默认 22:00–08:00）',
+      quietHours.enabled,
+      (checked) => {
+        const next = applyQuietHours({ ...quietHours, enabled: checked })
+        settingsStatus(checked
+          ? '已开启夜间安静：' + next.start + '–' + next.end + ' 不主动冒泡/不主动提醒；点击角色仍有回应。'
+          : '已关闭夜间安静：自动气泡与提示恢复。')
+      },
+      '安静时段内自动气泡/环境动作停止，2 小时健康提醒会延后到安静结束；用户主动点击/说话仍会回应。可随时关闭。',
+    )
+    const quietTimes = field('pet-settings-field pet-settings-quiet-field')
+    const quietStartLabel = makeElement(docRef, 'label', 'pet-settings-label', '开始')
+    quietStartLabel.setAttribute('for', 'pet-settings-quiet-start')
+    const quietStartInput = docRef.createElement('input')
+    quietStartInput.type = 'time'
+    quietStartInput.id = 'pet-settings-quiet-start'
+    quietStartInput.value = quietHours.start
+    quietStartInput.addEventListener('change', () => {
+      if (!isValidClockText(quietStartInput.value)) {
+        quietStartInput.value = quietHours.start
+        settingsStatus('开始时间格式无效（需要 HH:MM），已保留原设置。')
+        return
+      }
+      const next = applyQuietHours({ ...quietHours, start: quietStartInput.value })
+      quietStartInput.value = next.start
+      settingsStatus('安静开始时间已保存：' + quietHoursSummary(next) + '。')
+    })
+    const quietEndLabel = makeElement(docRef, 'label', 'pet-settings-label', '结束')
+    quietEndLabel.setAttribute('for', 'pet-settings-quiet-end')
+    const quietEndInput = docRef.createElement('input')
+    quietEndInput.type = 'time'
+    quietEndInput.id = 'pet-settings-quiet-end'
+    quietEndInput.value = quietHours.end
+    quietEndInput.addEventListener('change', () => {
+      if (!isValidClockText(quietEndInput.value)) {
+        quietEndInput.value = quietHours.end
+        settingsStatus('结束时间格式无效（需要 HH:MM），已保留原设置。')
+        return
+      }
+      const next = applyQuietHours({ ...quietHours, end: quietEndInput.value })
+      quietEndInput.value = next.end
+      settingsStatus('安静结束时间已保存：' + quietHoursSummary(next) + '。')
+    })
+    quietTimes.append(quietStartLabel, quietStartInput, quietEndLabel, quietEndInput)
+    calm.append(
+      quietCheck.wrap,
+      quietTimes,
+      note('安静时段当前：' + quietHoursSummary(quietHours) + '。与「安静」对话模式叠加生效。'),
+      note('健康使用：连续使用每 2 小时提醒一次；提醒只有「休息一下（2 小时后仍会提醒）」和「10 分钟后再提醒」，不能永久关闭。页面隐藏/切到游戏窗口/重启都不清零。'),
+      note('AI 标识：每次 AI 回复与语音播放时，气泡旁显示「AI 生成 · 不是真人」/「AI 语音 · 合成（不是真人）」，不只写在关于页。'),
+    )
+
+    // --- 缩放（独立轴）-------------------------------------------------
+    // Second level: UI+文本 and 图像 can deviate from 整体缩放 independently.
+    // Both are RELATIVE multipliers (100% = follow the global scale) so the
+    // first-level 整体缩放 still controls them until the user decouples one.
+    const independent = group('缩放（独立轴）')
+    const uiTextRow = percentSlider(
+      'pet-settings-scale-ui-text',
+      'UI + 文本',
+      Math.round(UI_TEXT_SCALE_MIN * 100),
+      Math.round(UI_TEXT_SCALE_MAX * 100),
+      Math.round(AXIS_SCALE_STEP * 100),
+      scaleSettings.uiText * 100,
+      (multiplier) => setUiTextScale(multiplier),
+    )
+    const uiTextFollow = action('pet-settings-scale-ui-text-follow', '跟随整体', () => setUiTextScale(1), 'pet-settings-chip')
+    uiTextRow.wrap.append(uiTextFollow)
+    uiTextRow.wrap.append(note('100% = 跟随整体缩放；单独调整后只有 UI/文本变化，角色图像不动。'))
+    const imageRow = percentSlider(
+      'pet-settings-scale-image',
+      '图像',
+      Math.round(IMAGE_SCALE_MIN * 100),
+      Math.round(IMAGE_SCALE_MAX * 100),
+      Math.round(AXIS_SCALE_STEP * 100),
+      scaleSettings.image * 100,
+      (multiplier) => setImageScale(multiplier),
+    )
+    const imageFollow = action('pet-settings-scale-image-follow', '跟随整体', () => setImageScale(1), 'pet-settings-chip')
+    imageRow.wrap.append(imageFollow)
+    imageRow.wrap.append(note('100% = 跟随整体缩放；单独调整后只有角色/预览图变化，UI/文本不动。窗口放不下时自动贴合。'))
+    independent.append(uiTextRow.wrap, imageRow.wrap)
+
+    // --- 内容与外观 ----------------------------------------------------
+    const contentGroup = group('内容与外观')
     const contentField = field('pet-settings-field pet-settings-actions')
     contentField.append(
       action('pet-settings-content-hub', '角色与内容中心…', () => {
@@ -1405,7 +1885,7 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
         openContentHub?.()
       }),
     )
-    appearance.append(scaleField, textField, contentField)
+    contentGroup.append(contentField, note('缩放只影响显示大小；换角色/内容仍在内容中心完成。'))
 
     // --- 隐私 / Advisers ---------------------------------------------
     const privacy = group('隐私 / Advisers')
@@ -1451,12 +1931,46 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
     )
     aboutGroup.append(aboutField, dangerField)
 
-    const cardChildren: HTMLElement[] = [head, status, common, appearance, privacy, aboutGroup]
-
-    // --- 高级 / 调试 (never rendered in the release menu) --------------
+    // --- 高级 · 组件缩放（比「整体缩放」更下一级） ----------------------
+    // Component overrides intentionally live behind a collapsed <details>:
+    // 整体缩放 = first level, UI+文本/图像 = second level, per-component
+    // overrides = third. Every component defaults to 继承 (multiplier 1).
+    const advanced = makeElement(docRef, 'details', 'pet-settings-advanced')
+    advanced.id = 'pet-settings-advanced'
+    advanced.append(makeElement(docRef, 'summary', 'pet-settings-advanced-title', '高级 · 组件缩放（默认全部继承）'))
+    advanced.append(note('组件缩放比「整体缩放」更下一级：默认全部继承 UI + 文本；只覆盖需要单独调整的组件，随时可恢复继承。'))
+    const componentSelects = {} as Record<ScaleComponentId, HTMLSelectElement>
+    const componentValues = {} as Record<ScaleComponentId, HTMLElement>
+    for (const component of SCALE_COMPONENTS) {
+      const row = field('pet-settings-field pet-settings-component-field')
+      const label = makeElement(docRef, 'label', 'pet-settings-label', component.label)
+      label.setAttribute('for', 'pet-settings-component-' + component.id)
+      const select = makeElement(docRef, 'select', 'pet-settings-select')
+      select.id = 'pet-settings-component-' + component.id
+      select.setAttribute('aria-label', component.label + '缩放')
+      for (const option of [
+        { value: '1', label: '继承（跟随 UI + 文本）' },
+        { value: '0.75', label: '75%' },
+        { value: '1.25', label: '125%' },
+        { value: '1.5', label: '150%' },
+      ]) {
+        const optionEl = docRef.createElement('option')
+        optionEl.value = option.value
+        optionEl.textContent = option.label
+        select.append(optionEl)
+      }
+      select.addEventListener('change', () => {
+        const raw = Number(select.value)
+        setComponentScale(component.id, Number.isFinite(raw) && Math.abs(raw - 1) > 1e-9 ? raw : null)
+      })
+      const valueEl = makeElement(docRef, 'span', 'pet-settings-value', '')
+      row.append(label, select, valueEl)
+      advanced.append(row)
+      componentSelects[component.id] = select
+      componentValues[component.id] = valueEl
+    }
     if (debugMode) {
-      const advanced = makeElement(docRef, 'details', 'pet-settings-advanced')
-      advanced.append(makeElement(docRef, 'summary', 'pet-settings-advanced-title', '高级 / 调试（仅 ?debug=1）'))
+      advanced.append(makeElement(docRef, 'p', 'pet-settings-note', '调试（仅 ?debug=1）'))
       const advancedField = field('pet-settings-field pet-settings-actions')
       advancedField.append(
         action('pet-settings-full-panel', '完整面板（开发/E2E）', () => {
@@ -1469,8 +1983,19 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
         }),
       )
       advanced.append(advancedField)
-      cardChildren.push(advanced)
     }
+
+    const cardChildren: HTMLElement[] = [
+      head,
+      status,
+      common,
+      calm,
+      independent,
+      contentGroup,
+      privacy,
+      aboutGroup,
+      advanced,
+    ]
 
     card.append(...cardChildren)
     root.append(backdrop, card)
@@ -1502,22 +2027,103 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
       volume: volumeInput,
       volumeValue,
       reduceMotion: reduceField.input,
-      scaleButtons,
-      textMinus,
-      textPlus,
-      textValue,
+      quietEnabled: quietCheck.input,
+      quietStart: quietStartInput,
+      quietEnd: quietEndInput,
+      globalScale: globalScaleRow.input,
+      globalValue: globalScaleRow.value,
+      resetScales: resetScalesButton,
+      uiTextScale: uiTextRow.input,
+      uiTextValue: uiTextRow.value,
+      uiTextFollow,
+      imageScale: imageRow.input,
+      imageValue: imageRow.value,
+      imageFollow,
+      advanced,
+      componentSelects,
+      componentValues,
     }
   }
 
   settingsDom = buildSettingsModal()
   refreshSettings()
+  // Expose the SAME dialog to the independent content window bootstrap (MB-062).
+  settingsSurface = {
+    open: (focusTarget?: string) => openSettings(focusTarget),
+    close: (restoreFocus?: boolean) => closeSettings(restoreFocus),
+  }
+
+  // -------------------------------------------------------------------------
+  // First-run menu coach (E-01 / MB-060)
+  //
+  // Zero persistent chrome around the character stays the default; the coach
+  // teaches the hidden entry points ONCE (右键 / Shift+F10 / Enter / 设置里可
+  // 固定显示 ⋯), is non-blocking, dismissible, and never comes back. It is
+  // marked as seen as soon as it is shown so a crash/blur cannot resurrect it.
+  // -------------------------------------------------------------------------
+  let coachShown = readStoredFlag(MENU_COACH_KEY, false)
+  let coachEl: HTMLElement | null = null
+  const removeMenuCoach = (): void => {
+    coachEl?.remove()
+    coachEl = null
+  }
+  const ackMenuCoach = (): void => {
+    writeStoredFlag(MENU_COACH_KEY, true)
+    coachShown = true
+    removeMenuCoach()
+  }
+  const showMenuCoachIfEligible = (): void => {
+    if (!menuEnabled) return
+    if (coachShown || coachEl) return
+    if (consentBlocked() || consentOverlayOpen()) return
+    if (settingsOpen || options.isHigherModalOpen?.() === true) return
+    coachShown = true
+    // One-time by contract: persist on show, not only on dismiss.
+    writeStoredFlag(MENU_COACH_KEY, true)
+    const card = docRef.createElement('div')
+    card.id = MENU_COACH_ID
+    card.className = 'pet-menu-coach'
+    card.setAttribute('role', 'status')
+    card.setAttribute('aria-live', 'polite')
+    card.setAttribute('aria-atomic', 'true')
+    card.append(
+      makeElement(
+        docRef,
+        'p',
+        'pet-menu-coach-text',
+        '右键点击角色、按 Shift+F10，或聚焦角色后按 Enter 都能打开菜单；也可以在 设置 → 显示菜单按钮 固定显示 ⋯。',
+      ),
+    )
+    const actions = makeElement(docRef, 'div', 'pet-menu-coach-actions')
+    const openSettingsFromCoach = makeElement(docRef, 'button', 'pet-menu-coach-button', '打开设置…')
+    openSettingsFromCoach.type = 'button'
+    openSettingsFromCoach.addEventListener('click', () => {
+      ackMenuCoach()
+      openSettingsSurface('pet-settings-show-menu-button')
+    })
+    const dismissCoach = makeElement(docRef, 'button', 'pet-menu-coach-button', '知道了')
+    dismissCoach.type = 'button'
+    dismissCoach.addEventListener('click', () => { ackMenuCoach() })
+    actions.append(openSettingsFromCoach, dismissCoach)
+    card.append(actions)
+    docRef.body.append(card)
+    coachEl = card
+  }
+  menuCoachRequest = showMenuCoachIfEligible
+  // Stored-acceptance launches never show a consent overlay, so try once here;
+  // first-run launches are handled by the overlay-close listener below.
+  showMenuCoachIfEligible()
 
   // Closing the window/clicking the desktop away closes body-level chrome too
   // (the menu's outside-click path cannot see a click that lands on another
   // application, so window blur is the desktop-shell equivalent).
   winRef.addEventListener('blur', () => {
     if (menuOpen) closeMenu()
-    if (settingsOpen) closeSettings()
+    // The 480x336 pet window dismisses its transient dialog when it loses focus;
+    // the independent content window behaves like a normal settings window and
+    // keeps the panel open (its home surface is still reachable on close).
+    if (menuEnabled && settingsOpen) closeSettings()
+    removeMenuCoach()
   })
 
   // Left-drag the pet to move the window (Tauri), while a short left click
@@ -1547,6 +2153,9 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
   }, { capture: true })
 
   docRef.addEventListener('contextmenu', (event) => {
+    // The content/settings window is a normal desktop surface: leave the native
+    // context menu (copy/paste etc.) alone and never open the pet menu there.
+    if (!menuEnabled) return
     event.preventDefault()
     // The settings dialog already covers the window with its own backdrop;
     // never let a right-click open the menu behind/above it.
@@ -1562,6 +2171,10 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
   })
   docRef.addEventListener('pointerdown', (event) => {
     const target = event.target as Node | null
+    if (coachEl && !(target !== null && coachEl.contains(target))) {
+      // The coach is one-time chrome: any click elsewhere retires it.
+      ackMenuCoach()
+    }
     if (settingsOpen) {
       if (target && settingsDom?.root.contains(target)) return
       closeSettings()
@@ -1573,6 +2186,10 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
   })
   docRef.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
+      if (coachEl) {
+        ackMenuCoach()
+        return
+      }
       if (settingsOpen) {
         closeSettings()
         return
@@ -1581,6 +2198,7 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
       return
     }
     if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+      if (!menuEnabled) return
       event.preventDefault()
       // Keyboard path has the same consent gate as the pointer path.
       if (menuBlocked()) {
@@ -1796,8 +2414,11 @@ export function buildLocalReply(intent: LocalIntentKind, text: string): string {
     return quoted ? `好，我念一句：${quoted}` : '好，我在听。'
   }
   if (/名字|你是谁|叫什么/.test(text)) return '我是折角。当前版本只会本地回应。'
-  if (/晚安|睡吧|休息/.test(text)) return '晚安。灯我留着，明天见。'
-  if (/你好|早上好|在吗/.test(text)) return '我在。你忙你的，我在这里。'
+  // Low-disturbance copy (PSY-P1-7/Q-04): no waiting / leaving-the-light-on
+  // hints in template replies. This mirrors the pet-page rewrites and keeps a
+  // new soft-tone line from sneaking in through the typed-input surface.
+  if (/晚安|睡吧|休息/.test(text)) return '晚安，明天见。'
+  if (/你好|早上好|在吗/.test(text)) return '你好。我在。'
   if (/谢谢|辛苦/.test(text)) return '嗯。你也辛苦了。'
   if (/喜欢|可爱|乖/.test(text)) return '……嗯。'
   return '我听见了。本地版本只会这样回应；自由对话还没有接上。'
