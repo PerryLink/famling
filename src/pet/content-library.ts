@@ -658,8 +658,36 @@ export type ContentPackZipValidation =
 // v2 types: remote market catalog + Ed25519 signature verification contract
 // ---------------------------------------------------------------------------
 
-/** Schema id of the remote market catalog (metadata only; never fetched here). */
+/**
+ * Legacy schema id of the remote market catalog (metadata only; never fetched
+ * here). v0.1 is still parsed for read-only compatibility, but it has no
+ * monotonic serial and no expiry, so the market client refuses to install from
+ * it. New publishers MUST emit {@link CONTENT_MARKET_CATALOG_SCHEMA_V2}.
+ */
 export const CONTENT_MARKET_CATALOG_SCHEMA = 'famling.market-catalog/0.1'
+
+/** Current schema id (v0.2): monotonic serial + expires + transport policy + mirrors. */
+export const CONTENT_MARKET_CATALOG_SCHEMA_V2 = 'famling.market-catalog/0.2'
+
+/** Protocol bounds of the v0.2 catalog; content-market.ts mirrors the client side. */
+export const CONTENT_MARKET_LIMITS = Object.freeze({
+  maxSerial: 2_147_483_647,
+  maxExpiresDays: 90,
+  maxOfflineGraceSeconds: 30 * 24 * 60 * 60,
+  maxMirrors: 8,
+  maxMirrorOriginChars: 200,
+  maxRetryAttempts: 3,
+  minRetryDelayMs: 100,
+  maxRetryDelayMs: 15_000,
+  maxRequestsPerMinute: 60,
+  maxConcurrentDownloads: 4,
+  defaultRetryAttempts: 3,
+  defaultRetryBaseDelayMs: 1_000,
+  defaultRetryMaxDelayMs: 4_000,
+  defaultRequestsPerMinute: 5,
+  defaultConcurrentDownloads: 1,
+  defaultOfflineGraceSeconds: 7 * 24 * 60 * 60,
+})
 
 export interface ContentMarketSignature {
   readonly algorithm: 'ed25519'
@@ -690,8 +718,8 @@ export interface ContentMarketPack {
   readonly signature: ContentMarketSignature
 }
 
-/** Remote market catalog document (version + packs + detached Ed25519 signature). */
-export interface ContentMarketCatalog {
+/** Legacy v0.1 catalog document (version + packs + detached Ed25519 signature). */
+export interface ContentMarketCatalogV1 {
   readonly schema: typeof CONTENT_MARKET_CATALOG_SCHEMA
   readonly version: string
   readonly updatedAt: string
@@ -702,8 +730,69 @@ export interface ContentMarketCatalog {
   readonly packs: readonly ContentMarketPack[]
 }
 
+/**
+ * Retry guidance advertised by the signed v0.2 catalog. Clients hard-cap every
+ * value (see CONTENT_MARKET_LIMITS) and only retry 408/425/429/500/502/503/504
+ * and transient transport failures.
+ */
+export interface ContentMarketRetryPolicy {
+  readonly maxAttempts: number
+  readonly baseDelayMs: number
+  readonly maxDelayMs: number
+}
+
+/** Client-side request budget advertised by the signed v0.2 catalog. */
+export interface ContentMarketRateLimitPolicy {
+  /** Hard ceiling for market requests per rolling minute (1..60). */
+  readonly requestsPerMinute: number
+  /** Hard ceiling for concurrent pack downloads (1..4). */
+  readonly maxConcurrentDownloads: number
+}
+
+/**
+ * v0.2 catalog: every field of v0.1 plus the protocol state the client needs to
+ * stay safe offline: a monotonic `serial`, a `expires` deadline, an offline
+ * grace window, retry / rate-limit guidance and signed mirror origins.
+ */
+export interface ContentMarketCatalogV2 {
+  readonly schema: typeof CONTENT_MARKET_CATALOG_SCHEMA_V2
+  /** Monotonic publisher sequence; the primary anti-rollback order. */
+  readonly serial: number
+  readonly version: string
+  readonly updatedAt: string
+  /** Hard freshness deadline (ISO-8601 UTC), later than updatedAt, <= 90 days after it. */
+  readonly expires: string
+  /** Extra offline tolerance after expires (0..30 days). Clients clamp it to their own cap. */
+  readonly offlineGraceSeconds?: number
+  readonly retry?: ContentMarketRetryPolicy
+  readonly rateLimit?: ContentMarketRateLimitPolicy
+  /** Signed mirror origins (https://host[:port], no path); bounded and unique. */
+  readonly mirrors?: readonly string[]
+  /** Key id of the key that signed the catalog. */
+  readonly keyId: string
+  /** Ed25519 signature over marketCatalogSignaturePayload(catalog). */
+  readonly signature: ContentMarketSignature
+  readonly packs: readonly ContentMarketPack[]
+}
+
+/**
+ * Any catalog document this module can parse. `validateMarketCatalog()` keeps
+ * accepting 0.1 for read-only compatibility; the market client requires 0.2 and
+ * uses {@link isMarketCatalogV2} to narrow.
+ */
+export type ContentMarketCatalog = ContentMarketCatalogV1 | ContentMarketCatalogV2
+
+/** Narrow a validated catalog to the current v0.2 document. */
+export function isMarketCatalogV2(catalog: ContentMarketCatalog): catalog is ContentMarketCatalogV2 {
+  return catalog.schema === CONTENT_MARKET_CATALOG_SCHEMA_V2
+}
+
 export type ContentMarketCatalogValidation =
   | { readonly ok: true; readonly catalog: ContentMarketCatalog }
+  | { readonly ok: false; readonly issues: readonly ContentIssue[] }
+
+export type ContentMarketCatalogV2Validation =
+  | { readonly ok: true; readonly catalog: ContentMarketCatalogV2 }
   | { readonly ok: false; readonly issues: readonly ContentIssue[] }
 
 /** Trust-root key record; mirrors the DLC signing trust root semantics. */
@@ -4357,22 +4446,22 @@ function parseMarketPack(raw: unknown, path: string, issues: ContentIssue[]): Co
   return pack
 }
 
-function parseMarketCatalog(input: unknown, issues: ContentIssue[]): ContentMarketCatalog | undefined {
-  if (!isRecord(input)) {
-    addIssue(issues, '$', 'invalid-market-catalog', 'market catalog must be an object')
-    return undefined
-  }
-  checkUnknownKeys(input, ['schema', 'version', 'updatedAt', 'keyId', 'signature', 'packs'], '$', issues)
-  const schema = readStringField(input, 'schema', '$.schema', issues)
-  if (schema !== undefined && schema !== CONTENT_MARKET_CATALOG_SCHEMA) {
-    addIssue(issues, '$.schema', 'invalid-schema', 'expected ' + CONTENT_MARKET_CATALOG_SCHEMA)
-  }
+interface ParsedMarketCatalogCommon {
+  readonly version: string
+  readonly updatedAt: string
+  readonly keyId: string
+  readonly signature: ContentMarketSignature
+  readonly packs: readonly ContentMarketPack[]
+}
+
+/** Fields shared by v0.1 and v0.2: version / updatedAt / keyId / signature / packs. */
+function parseMarketCatalogCommon(input: Record<string, unknown>, issues: ContentIssue[]): ParsedMarketCatalogCommon | undefined {
   const version = readStringField(input, 'version', '$.version', issues)
   if (version !== undefined && !SEMVER_PATTERN.test(version)) {
     addIssue(issues, '$.version', 'invalid-version', 'catalog version must be SemVer')
   }
   const updatedAt = readStringField(input, 'updatedAt', '$.updatedAt', issues)
-  if (updatedAt !== undefined && !ISO_DATE_TIME_PATTERN.test(updatedAt)) {
+  if (updatedAt !== undefined && (!ISO_DATE_TIME_PATTERN.test(updatedAt) || parseMarketCatalogDateMs(updatedAt) === null)) {
     addIssue(issues, '$.updatedAt', 'invalid-text', 'updatedAt must be YYYY-MM-DD or an ISO-8601 UTC timestamp')
   }
   const keyId = readStringField(input, 'keyId', '$.keyId', issues)
@@ -4411,28 +4500,287 @@ function parseMarketCatalog(input: unknown, issues: ContentIssue[]): ContentMark
   if (jsonBytes > CONTENT_PACK_V2_LIMITS.maxMarketJsonBytes) {
     addIssue(issues, '$', 'too-large', 'catalog JSON is ' + jsonBytes + ' chars > ' + CONTENT_PACK_V2_LIMITS.maxMarketJsonBytes)
   }
-  if (
-    issues.length > 0 ||
-    schema !== CONTENT_MARKET_CATALOG_SCHEMA ||
-    version === undefined ||
-    updatedAt === undefined ||
-    keyId === undefined ||
-    signature === undefined ||
-    packs.length === 0
-  ) {
+  if (version === undefined || updatedAt === undefined || keyId === undefined || signature === undefined || packs.length === 0) {
     return undefined
   }
-  return deepFreeze({ schema: CONTENT_MARKET_CATALOG_SCHEMA, version, updatedAt, keyId, signature, packs }) as ContentMarketCatalog
+  return { version, updatedAt, keyId, signature, packs }
+}
+
+const MARKET_CATALOG_DATE_ONLY_PATTERN = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/
+
+/** Parse a catalog timestamp (date-only = UTC midnight) into milliseconds. */
+function parseMarketCatalogDateMs(value: string): number | null {
+  const text = value.trim()
+  if (!text) return null
+  const iso = MARKET_CATALOG_DATE_ONLY_PATTERN.test(text) ? text + 'T00:00:00Z' : text
+  const ms = Date.parse(iso)
+  return Number.isFinite(ms) ? ms : null
+}
+
+function parseMarketCatalogV1(input: Record<string, unknown>, issues: ContentIssue[]): ContentMarketCatalogV1 | undefined {
+  checkUnknownKeys(input, ['schema', 'version', 'updatedAt', 'keyId', 'signature', 'packs'], '$', issues)
+  const common = parseMarketCatalogCommon(input, issues)
+  if (issues.length > 0 || common === undefined) return undefined
+  return deepFreeze({
+    schema: CONTENT_MARKET_CATALOG_SCHEMA,
+    version: common.version,
+    updatedAt: common.updatedAt,
+    keyId: common.keyId,
+    signature: common.signature,
+    packs: common.packs,
+  }) as ContentMarketCatalogV1
+}
+
+/** Parse the optional v0.2 retry guidance; every missing field gets the protocol default. */
+function parseMarketRetryPolicy(raw: unknown, path: string, issues: ContentIssue[]): ContentMarketRetryPolicy | undefined {
+  if (!isRecord(raw)) {
+    addIssue(issues, path, 'invalid-market-catalog', 'retry must be an object')
+    return undefined
+  }
+  checkUnknownKeys(raw, ['maxAttempts', 'baseDelayMs', 'maxDelayMs'], path, issues)
+  let maxAttempts: number = CONTENT_MARKET_LIMITS.defaultRetryAttempts
+  if (raw.maxAttempts !== undefined) {
+    const value = readNumberField(raw, 'maxAttempts', path + '.maxAttempts', issues, {
+      required: false,
+      min: 1,
+      max: CONTENT_MARKET_LIMITS.maxRetryAttempts,
+      integer: true,
+    })
+    if (value === undefined) return undefined
+    maxAttempts = value
+  }
+  let baseDelayMs: number = CONTENT_MARKET_LIMITS.defaultRetryBaseDelayMs
+  if (raw.baseDelayMs !== undefined) {
+    const value = readNumberField(raw, 'baseDelayMs', path + '.baseDelayMs', issues, {
+      required: false,
+      min: CONTENT_MARKET_LIMITS.minRetryDelayMs,
+      max: CONTENT_MARKET_LIMITS.maxRetryDelayMs,
+      integer: true,
+    })
+    if (value === undefined) return undefined
+    baseDelayMs = value
+  }
+  let maxDelayMs: number = Math.min(CONTENT_MARKET_LIMITS.defaultRetryMaxDelayMs, CONTENT_MARKET_LIMITS.maxRetryDelayMs)
+  if (raw.maxDelayMs !== undefined) {
+    const value = readNumberField(raw, 'maxDelayMs', path + '.maxDelayMs', issues, {
+      required: false,
+      min: CONTENT_MARKET_LIMITS.minRetryDelayMs,
+      max: CONTENT_MARKET_LIMITS.maxRetryDelayMs,
+      integer: true,
+    })
+    if (value === undefined) return undefined
+    maxDelayMs = value
+  }
+  if (maxDelayMs < baseDelayMs) {
+    addIssue(issues, path + '.maxDelayMs', 'out-of-range', 'maxDelayMs must be >= baseDelayMs')
+    return undefined
+  }
+  return deepFreeze({ maxAttempts, baseDelayMs, maxDelayMs }) as ContentMarketRetryPolicy
+}
+
+/** Parse the optional v0.2 rate-limit guidance; missing fields get protocol defaults. */
+function parseMarketRateLimitPolicy(raw: unknown, path: string, issues: ContentIssue[]): ContentMarketRateLimitPolicy | undefined {
+  if (!isRecord(raw)) {
+    addIssue(issues, path, 'invalid-market-catalog', 'rateLimit must be an object')
+    return undefined
+  }
+  checkUnknownKeys(raw, ['requestsPerMinute', 'maxConcurrentDownloads'], path, issues)
+  let requestsPerMinute: number = CONTENT_MARKET_LIMITS.defaultRequestsPerMinute
+  if (raw.requestsPerMinute !== undefined) {
+    const value = readNumberField(raw, 'requestsPerMinute', path + '.requestsPerMinute', issues, {
+      required: false,
+      min: 1,
+      max: CONTENT_MARKET_LIMITS.maxRequestsPerMinute,
+      integer: true,
+    })
+    if (value === undefined) return undefined
+    requestsPerMinute = value
+  }
+  let maxConcurrentDownloads: number = CONTENT_MARKET_LIMITS.defaultConcurrentDownloads
+  if (raw.maxConcurrentDownloads !== undefined) {
+    const value = readNumberField(raw, 'maxConcurrentDownloads', path + '.maxConcurrentDownloads', issues, {
+      required: false,
+      min: 1,
+      max: CONTENT_MARKET_LIMITS.maxConcurrentDownloads,
+      integer: true,
+    })
+    if (value === undefined) return undefined
+    maxConcurrentDownloads = value
+  }
+  return deepFreeze({ requestsPerMinute, maxConcurrentDownloads }) as ContentMarketRateLimitPolicy
+}
+
+/** A signed mirror must be a bare credential-free HTTPS origin (no path/query/fragment). */
+function parseMarketMirrorOrigins(raw: unknown, path: string, issues: ContentIssue[]): readonly string[] | undefined {
+  if (!Array.isArray(raw)) {
+    addIssue(issues, path, 'invalid-type', 'mirrors must be an array of HTTPS origins')
+    return undefined
+  }
+  if (raw.length === 0 || raw.length > CONTENT_MARKET_LIMITS.maxMirrors) {
+    addIssue(issues, path, 'out-of-range', 'mirrors must be 1..' + CONTENT_MARKET_LIMITS.maxMirrors)
+    return undefined
+  }
+  const origins: string[] = []
+  for (let index = 0; index < raw.length; index += 1) {
+    const entry = raw[index]
+    const entryPath = path + '[' + index + ']'
+    if (typeof entry !== 'string' || countCodePoints(entry) > CONTENT_MARKET_LIMITS.maxMirrorOriginChars) {
+      addIssue(issues, entryPath, 'invalid-type', 'mirror must be a bounded HTTPS origin')
+      continue
+    }
+    let parsed: URL
+    try {
+      parsed = new URL(entry)
+    } catch {
+      addIssue(issues, entryPath, 'invalid-type', 'mirror is not a valid URL')
+      continue
+    }
+    if (parsed.protocol !== 'https:' || parsed.username !== '' || parsed.password !== '') {
+      addIssue(issues, entryPath, 'invalid-type', 'mirror must be a credential-free HTTPS origin')
+      continue
+    }
+    if (parsed.pathname !== '/' || parsed.search !== '' || parsed.hash !== '' || parsed.hostname === '') {
+      addIssue(issues, entryPath, 'invalid-type', 'mirror must be a bare origin (no path/query/fragment)')
+      continue
+    }
+    const origin = parsed.origin
+    if (origins.includes(origin)) {
+      addIssue(issues, entryPath, 'duplicate-id', 'duplicate mirror origin: ' + origin)
+      continue
+    }
+    origins.push(origin)
+  }
+  if (origins.length === 0) return undefined
+  return deepFreeze(origins) as readonly string[]
+}
+
+function parseMarketCatalogV2(input: Record<string, unknown>, issues: ContentIssue[]): ContentMarketCatalogV2 | undefined {
+  checkUnknownKeys(
+    input,
+    [
+      'schema',
+      'serial',
+      'version',
+      'updatedAt',
+      'expires',
+      'offlineGraceSeconds',
+      'retry',
+      'rateLimit',
+      'mirrors',
+      'keyId',
+      'signature',
+      'packs',
+    ],
+    '$',
+    issues,
+  )
+  if (input.schema !== CONTENT_MARKET_CATALOG_SCHEMA_V2) {
+    addIssue(issues, '$.schema', 'invalid-schema', 'expected ' + CONTENT_MARKET_CATALOG_SCHEMA_V2)
+  }
+  const serial = readNumberField(input, 'serial', '$.serial', issues, {
+    min: 1,
+    max: CONTENT_MARKET_LIMITS.maxSerial,
+    integer: true,
+  })
+  const common = parseMarketCatalogCommon(input, issues)
+  const updatedAtMs = common === undefined ? null : parseMarketCatalogDateMs(common.updatedAt)
+  const expires = readStringField(input, 'expires', '$.expires', issues)
+  let expiresMs: number | null = null
+  if (expires !== undefined) {
+    if (!ISO_DATE_TIME_PATTERN.test(expires) || parseMarketCatalogDateMs(expires) === null) {
+      addIssue(issues, '$.expires', 'invalid-text', 'expires must be YYYY-MM-DD or an ISO-8601 UTC timestamp')
+    } else {
+      expiresMs = parseMarketCatalogDateMs(expires)
+    }
+  }
+  if (updatedAtMs !== null && expiresMs !== null) {
+    const maxWindowMs = CONTENT_MARKET_LIMITS.maxExpiresDays * 24 * 60 * 60 * 1000
+    if (expiresMs <= updatedAtMs) {
+      addIssue(issues, '$.expires', 'out-of-range', 'expires must be later than updatedAt')
+    } else if (expiresMs - updatedAtMs > maxWindowMs) {
+      addIssue(
+        issues,
+        '$.expires',
+        'out-of-range',
+        'expires must be at most ' + CONTENT_MARKET_LIMITS.maxExpiresDays + ' days after updatedAt',
+      )
+    }
+  }
+  let offlineGraceSeconds: number | undefined
+  if (input.offlineGraceSeconds !== undefined) {
+    offlineGraceSeconds = readNumberField(input, 'offlineGraceSeconds', '$.offlineGraceSeconds', issues, {
+      required: false,
+      min: 0,
+      max: CONTENT_MARKET_LIMITS.maxOfflineGraceSeconds,
+      integer: true,
+    })
+  }
+  let retry: ContentMarketRetryPolicy | undefined
+  if (input.retry !== undefined) retry = parseMarketRetryPolicy(input.retry, '$.retry', issues)
+  let rateLimit: ContentMarketRateLimitPolicy | undefined
+  if (input.rateLimit !== undefined) rateLimit = parseMarketRateLimitPolicy(input.rateLimit, '$.rateLimit', issues)
+  let mirrors: readonly string[] | undefined
+  if (input.mirrors !== undefined) mirrors = parseMarketMirrorOrigins(input.mirrors, '$.mirrors', issues)
+  if (issues.length > 0 || serial === undefined || common === undefined || expires === undefined) return undefined
+  const catalog: { -readonly [K in keyof ContentMarketCatalogV2]: ContentMarketCatalogV2[K] } = {
+    schema: CONTENT_MARKET_CATALOG_SCHEMA_V2,
+    serial,
+    version: common.version,
+    updatedAt: common.updatedAt,
+    expires,
+    keyId: common.keyId,
+    signature: common.signature,
+    packs: common.packs,
+  }
+  if (offlineGraceSeconds !== undefined) catalog.offlineGraceSeconds = offlineGraceSeconds
+  if (retry !== undefined) catalog.retry = retry
+  if (rateLimit !== undefined) catalog.rateLimit = rateLimit
+  if (mirrors !== undefined) catalog.mirrors = mirrors
+  return deepFreeze(catalog) as ContentMarketCatalogV2
+}
+
+function parseMarketCatalog(input: unknown, issues: ContentIssue[]): ContentMarketCatalog | undefined {
+  if (!isRecord(input)) {
+    addIssue(issues, '$', 'invalid-market-catalog', 'market catalog must be an object')
+    return undefined
+  }
+  const schema = input.schema
+  if (schema === CONTENT_MARKET_CATALOG_SCHEMA) return parseMarketCatalogV1(input, issues)
+  if (schema === CONTENT_MARKET_CATALOG_SCHEMA_V2) return parseMarketCatalogV2(input, issues)
+  addIssue(
+    issues,
+    '$.schema',
+    'invalid-schema',
+    'expected ' + CONTENT_MARKET_CATALOG_SCHEMA_V2 + ' (or read-only ' + CONTENT_MARKET_CATALOG_SCHEMA + ')',
+  )
+  return undefined
 }
 
 /**
- * Strictly validate a remote market catalog. This is data/contract validation
- * only: no network request is ever made and no signature is verified here (see
+ * Strictly validate a remote market catalog. Accepts the current v0.2 document
+ * and the read-only v0.1 document. This is data/contract validation only: no
+ * network request is ever made and no signature is verified here (see
  * verifyMarketCatalogSignature / verifyMarketPackDownload).
  */
 export function validateMarketCatalog(input: unknown): ContentMarketCatalogValidation {
   const issues: ContentIssue[] = []
   const catalog = parseMarketCatalog(input, issues)
+  return issues.length === 0 && catalog !== undefined ? { ok: true, catalog } : { ok: false, issues }
+}
+
+/**
+ * Strictly validate a v0.2 remote market catalog. v0.1 documents fail with an
+ * invalid-schema issue; this is the only schema the market client accepts for
+ * refresh/install (v0.1 has no serial or expiry).
+ */
+export function validateMarketCatalogV2(input: unknown): ContentMarketCatalogV2Validation {
+  const issues: ContentIssue[] = []
+  let catalog: ContentMarketCatalogV2 | undefined
+  if (!isRecord(input)) {
+    addIssue(issues, '$', 'invalid-market-catalog', 'market catalog must be an object')
+  } else {
+    catalog = parseMarketCatalogV2(input, issues)
+  }
   return issues.length === 0 && catalog !== undefined ? { ok: true, catalog } : { ok: false, issues }
 }
 

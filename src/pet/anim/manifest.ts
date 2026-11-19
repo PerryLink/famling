@@ -37,6 +37,7 @@ import {
   getClip,
 } from './clips.ts'
 import { clipDurationMs, frameFile, roundedDurationMs } from './timeline.ts'
+import { SPEC_ONLY_CLIPS } from './timing.ts'
 
 export const ANIM_MANIFEST_CONTRACT = 'famling.pet-anim/0.1' as const
 export const ANIM_FORMAT_VERSION = 1 as const
@@ -121,6 +122,13 @@ export interface AnimManifest {
       readonly canTts: boolean
       readonly bubble: BubbleSemantic
     }
+    /**
+     * Spec-only freeze (MB-047/E5-T7): clip id -> decision reason, mirrored
+     * from `timing.json`. These clips have no product entry point and are not
+     * part of the default runtime path; the frames stay in the pack as the
+     * reference contract until a product entry is decided.
+     */
+    readonly specOnly: Readonly<Partial<Record<ClipId, string>>>
   }
   readonly assets: readonly string[]
   readonly license: string
@@ -376,6 +384,27 @@ export function validateAnimManifest(
     bubble: expectedVoice.bubbleSemantic,
   }
 
+  // Spec-only freeze (MB-047/E5-T7): the pack must mirror timing.json exactly,
+  // so a frozen clip cannot be re-declared live and a live clip cannot be
+  // silently frozen only in the manifest.
+  const specOnlyRaw = requireRecord(animRaw.specOnly, 'pack.anim.specOnly')
+  const specOnly: Partial<Record<ClipId, string>> = {}
+  for (const name of Object.keys(specOnlyRaw)) {
+    if (!(CLIP_IDS as readonly string[]).includes(name)) throw new AnimationError(`pack.anim.specOnly.${name} is not a v0.1 clip id`)
+  }
+  for (const clip of CLIP_IDS) {
+    const expectedReason = SPEC_ONLY_CLIPS[clip]
+    const rawReason = specOnlyRaw[clip]
+    if (expectedReason === undefined) {
+      if (rawReason !== undefined) throw new AnimationError(`pack.anim.specOnly.${clip} is not frozen in timing.json`)
+      continue
+    }
+    if (rawReason === undefined) throw new AnimationError(`pack.anim.specOnly.${clip} is missing (frozen spec-only clip)`)
+    const reason = requireString(rawReason, `pack.anim.specOnly.${clip}`)
+    if (reason !== expectedReason) throw new AnimationError(`pack.anim.specOnly.${clip} does not match timing.json`)
+    specOnly[clip] = reason
+  }
+
   const assetsRaw = raw.assets
   if (!Array.isArray(assetsRaw) || assetsRaw.length === 0) throw new AnimationError('pack.assets must be a non-empty array')
   const assets = assetsRaw.map((asset, index) => requireString(asset, `pack.assets[${index}]`))
@@ -417,6 +446,7 @@ export function validateAnimManifest(
       tracks,
       bubblePolicy: { speech: 'solid', thought: 'hollow' },
       voice,
+      specOnly,
     },
     assets,
     license,

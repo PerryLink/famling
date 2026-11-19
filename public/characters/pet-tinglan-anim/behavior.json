@@ -37,7 +37,6 @@
     "stand_wag": "stand_wag",
     "chase_tail": "chase_tail",
     "idle_blink": "idle_blink",
-    "attack": "attack",
     "run": "run"
   },
   "states": {
@@ -121,11 +120,6 @@
     "ball_chase": {
       "tag": "ball_chase",
       "priority": 45,
-      "after": "idle"
-    },
-    "attack": {
-      "tag": "attack",
-      "priority": 60,
       "after": "idle"
     },
     "run": {
@@ -231,12 +225,6 @@
       "to": "idle_blink",
       "priority": 15,
       "cooldownMs": 500
-    },
-    {
-      "on": "attack",
-      "to": "attack",
-      "priority": 60,
-      "cooldownMs": 800
     },
     {
       "on": "run",

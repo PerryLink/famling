@@ -67,17 +67,22 @@
 
 import {
   CONTENT_LIMITS,
+  CONTENT_MARKET_CATALOG_SCHEMA,
+  CONTENT_MARKET_LIMITS,
   CONTENT_PACK_V2_LIMITS,
+  isMarketCatalogV2,
   marketCatalogSignaturePayload,
   marketPackSignaturePayload,
   validateContentPackV2,
-  validateMarketCatalog,
+  validateMarketCatalogV2,
   verifyMarketCatalogSignature,
   verifyMarketPackDownload,
   verifyRemoteContentPack,
   type ContentEd25519Verifier,
   type ContentMarketCatalog,
+  type ContentMarketCatalogV2,
   type ContentMarketPack,
+  type ContentMarketRetryPolicy,
   type ContentPackV2,
   type ContentSignatureFailureCode,
   type ContentSignatureVerification,
@@ -110,11 +115,19 @@ export const MARKET_CLIENT_DEFAULTS = Object.freeze({
   maxCatalogBytes: CONTENT_PACK_V2_LIMITS.maxMarketJsonBytes,
   maxPackBytes: CONTENT_PACK_V2_LIMITS.maxZipBytes,
   maxRedirects: 3,
-  maxConcurrentDownloads: 2,
-  maxSerialStorageChars: 2048,
+  maxConcurrentDownloads: CONTENT_MARKET_LIMITS.defaultConcurrentDownloads,
+  maxSerialStorageChars: 4096,
+  maxCatalogCacheChars: CONTENT_PACK_V2_LIMITS.maxMarketJsonBytes + 4096,
   maxUrlChars: CONTENT_LIMITS.maxRemoteUrlChars,
   maxMessageChars: 160,
   maxIssues: 8,
+  requestsPerMinute: CONTENT_MARKET_LIMITS.defaultRequestsPerMinute,
+  rateLimitWindowMs: 60_000,
+  retryMaxAttempts: CONTENT_MARKET_LIMITS.defaultRetryAttempts,
+  retryBaseDelayMs: CONTENT_MARKET_LIMITS.defaultRetryBaseDelayMs,
+  retryMaxDelayMs: CONTENT_MARKET_LIMITS.defaultRetryMaxDelayMs,
+  maxRetryAfterMs: 60_000,
+  offlineGraceSeconds: CONTENT_MARKET_LIMITS.defaultOfflineGraceSeconds,
 })
 
 /** Absolute ceilings: a host cannot configure itself beyond these. */
@@ -123,14 +136,25 @@ export const MARKET_CLIENT_HARD_LIMITS = Object.freeze({
   maxCatalogBytes: 4 * 1024 * 1024,
   maxPackBytes: 64 * 1024 * 1024,
   maxRedirects: 5,
-  maxConcurrentDownloads: 4,
+  maxConcurrentDownloads: CONTENT_MARKET_LIMITS.maxConcurrentDownloads,
+  requestsPerMinute: CONTENT_MARKET_LIMITS.maxRequestsPerMinute,
+  retryMaxAttempts: CONTENT_MARKET_LIMITS.maxRetryAttempts,
+  retryBaseDelayMs: CONTENT_MARKET_LIMITS.maxRetryDelayMs,
+  retryMaxDelayMs: CONTENT_MARKET_LIMITS.maxRetryDelayMs,
+  offlineGraceSeconds: CONTENT_MARKET_LIMITS.maxOfflineGraceSeconds,
 })
 
 /** Local storage key for the anti-rollback catalogue serial envelope. */
 export const MARKET_SERIAL_STORAGE_KEY = 'desktop-games/pet/content/market/catalog-serial'
 
-/** Storage schema version of the serial envelope written by this module. */
-export const MARKET_SERIAL_STORAGE_VERSION = 1
+/** Storage schema version of the serial envelope written by this module (v2). */
+export const MARKET_SERIAL_STORAGE_VERSION = 2
+
+/** Local storage key for the bounded last-verified catalog cache (offline grace). */
+export const MARKET_CATALOG_CACHE_STORAGE_KEY = 'desktop-games/pet/content/market/catalog-cache'
+
+/** Storage schema version of the cached catalog envelope. */
+export const MARKET_CATALOG_CACHE_VERSION = 1
 
 /** Every stable failure code returned by the client (UI/i18n keys). */
 export const MARKET_FAILURE_CODES = Object.freeze([
@@ -148,6 +172,7 @@ export const MARKET_FAILURE_CODES = Object.freeze([
   'timeout',
   'aborted',
   'http-error',
+  'rate-limited',
   'redirect-invalid',
   'redirect-limit',
   'redirect-cross-host',
@@ -157,6 +182,8 @@ export const MARKET_FAILURE_CODES = Object.freeze([
   'size-mismatch',
   'catalog-invalid',
   'catalog-rollback',
+  'catalog-unsupported',
+  'catalog-expired',
   'storage-unavailable',
   'storage-corrupt',
   'serial-write-failed',
@@ -189,6 +216,9 @@ const SIGNATURE_FAILURE_CODES: Readonly<Record<ContentSignatureFailureCode, Mark
 const REDIRECT_STATUSES: readonly number[] = Object.freeze([301, 302, 303, 307, 308])
 const CONTENT_LENGTH_HEADER = 'content-length'
 const LOCATION_HEADER = 'location'
+const RETRY_AFTER_HEADER = 'retry-after'
+/** Only these HTTP statuses are retried (task/MB-080 v0.2 transport profile). */
+const RETRYABLE_HTTP_STATUSES: readonly number[] = Object.freeze([408, 425, 429, 500, 502, 503, 504])
 
 // ---------------------------------------------------------------------------
 // Injectable transport
@@ -235,7 +265,13 @@ export type MarketTransport = (url: string, init: MarketplaceRequestInit) => Pro
 // ---------------------------------------------------------------------------
 
 export type MarketLogLevel = 'debug' | 'info' | 'warn' | 'error'
-export type MarketLogEventKind = 'config' | 'catalog-refresh' | 'pack-download' | 'pack-install' | 'serial-reset'
+export type MarketLogEventKind =
+  | 'config'
+  | 'catalog-refresh'
+  | 'catalog-cache'
+  | 'pack-download'
+  | 'pack-install'
+  | 'serial-reset'
 
 /** Redacted log record: no URL beyond hostname, no signature, no body. */
 export interface MarketLogEvent {
@@ -250,6 +286,8 @@ export interface MarketLogEvent {
   readonly durationMs?: number
   readonly redirects?: number
   readonly keyId?: string
+  /** Transport attempts used by a retried catalogue/pack request (>= 1). */
+  readonly attempts?: number
 }
 
 export type MarketplaceLogger = (event: MarketLogEvent) => void
@@ -274,17 +312,27 @@ export interface MarketFailure {
   readonly issues?: readonly MarketIssue[]
   /** Transient transport/HTTP failures the UI may offer to retry. */
   readonly retryable?: boolean
+  /** Suggested delay before retrying (rate limit / Retry-After); bounded. */
+  readonly retryAfterMs?: number
 }
 
 export interface MarketCatalogSerial {
+  /** Monotonic publisher sequence from catalog.serial (primary rollback order). */
+  readonly serial: number
   /** Publisher timestamp from catalog.updatedAt, as UTC milliseconds. */
   readonly updatedAtMs: number
   /** Normalized publisher timestamp string as it appeared in the catalogue. */
   readonly updatedAt: string
-  /** Catalogue semver, used as a tie-break when updatedAt is equal. */
+  /** Catalogue semver (diagnostics only; ordering uses the monotonic serial). */
   readonly version: string
   /** SHA-256 of the canonical signed payload (identity of this catalogue). */
   readonly catalogSha256: string
+  /** catalog.expires as UTC milliseconds (hard freshness deadline). */
+  readonly expiresMs: number
+  /** expires + effective offline grace, as UTC milliseconds. */
+  readonly offlineGraceUntilMs: number
+  /** Signed mirror origins the next refresh/download may fall back to. */
+  readonly mirrors: readonly string[]
 }
 
 export interface MarketCatalogRefreshSuccess {
@@ -303,6 +351,18 @@ export interface MarketCatalogRefreshSuccess {
   readonly catalogHost: string
   /** True when the serial was read/verified against persisted storage. */
   readonly rollbackProtection: boolean
+  /** True when the result came from the bounded local cache (network unavailable). */
+  readonly cached: boolean
+  /** True when now is past catalog.expires but still inside the offline grace window. */
+  readonly stale: boolean
+  /** catalog.expires (ISO-8601 UTC). */
+  readonly expiresAt: string
+  /** expires + effective offline grace (ISO-8601 UTC). */
+  readonly offlineGraceUntil: string
+  /** Transport attempts used for the catalogue request (1 = no retry). */
+  readonly attempts: number
+  /** True when the catalogue body came from a signed mirror origin. */
+  readonly viaMirror: boolean
 }
 
 export type MarketCatalogRefreshResult = MarketCatalogRefreshSuccess | MarketFailure
@@ -320,6 +380,10 @@ export interface MarketPackDownloadSuccess {
   readonly redirects: number
   readonly httpStatus: number
   readonly fetchedAt: string
+  /** Transport attempts used for the pack request (1 = no retry). */
+  readonly attempts: number
+  /** True when the pack bytes came from a signed mirror origin. */
+  readonly viaMirror: boolean
 }
 
 export type MarketPackDownloadResult = MarketPackDownloadSuccess | MarketFailure
@@ -424,11 +488,13 @@ function failure(
     readonly httpStatus?: number
     readonly host?: string
     readonly issues?: readonly MarketIssue[]
+    readonly retryAfterMs?: number
   } = {},
 ): MarketFailure {
   const retryable =
     code === 'network-error' ||
     code === 'timeout' ||
+    code === 'rate-limited' ||
     (code === 'http-error' && (extra.httpStatus === 408 || extra.httpStatus === 425 || extra.httpStatus === 429 || (extra.httpStatus ?? 0) >= 500))
   const value: { -readonly [K in keyof MarketFailure]: MarketFailure[K] } = {
     ok: false,
@@ -439,6 +505,9 @@ function failure(
   if (extra.detailCode !== undefined) value.detailCode = boundedDetailCode(extra.detailCode)
   if (extra.httpStatus !== undefined) value.httpStatus = extra.httpStatus
   if (extra.host !== undefined) value.host = extra.host
+  if (extra.retryAfterMs !== undefined && Number.isFinite(extra.retryAfterMs)) {
+    value.retryAfterMs = Math.max(0, Math.min(MARKET_CLIENT_DEFAULTS.maxRetryAfterMs, Math.floor(extra.retryAfterMs)))
+  }
   if (extra.issues !== undefined && extra.issues.length > 0) value.issues = Object.freeze(extra.issues.slice(0, MARKET_CLIENT_DEFAULTS.maxIssues))
   return Object.freeze(value)
 }
@@ -480,17 +549,6 @@ function parseSemver(value: unknown): [number, number, number] | null {
   return [major, minor, patch]
 }
 
-function compareSemver(a: string, b: string): number {
-  const left = parseSemver(a) ?? [0, 0, 0]
-  const right = parseSemver(b) ?? [0, 0, 0]
-  for (let index = 0; index < 3; index += 1) {
-    const l = left[index] ?? 0
-    const r = right[index] ?? 0
-    if (l !== r) return l < r ? -1 : 1
-  }
-  return 0
-}
-
 /** Parse catalog.updatedAt (date-only = UTC midnight) to milliseconds. */
 export function parseMarketCatalogTimestamp(value: unknown): number | null {
   if (typeof value !== 'string') return null
@@ -507,31 +565,62 @@ export function marketCatalogFingerprint(catalog: ContentMarketCatalog): string 
 }
 
 /**
- * Build the anti-rollback serial for a validated catalogue:
- * updatedAt (primary) + version (tie-break) + canonical payload hash.
+ * Build the anti-rollback serial + freshness state for a validated v0.2
+ * catalogue. Returns null for a legacy v0.1 catalogue (no serial/expires) or
+ * unparseable timestamps. The effective offline grace is clamped to the client
+ * hard ceiling.
  */
-export function marketCatalogSerial(catalog: ContentMarketCatalog): MarketCatalogSerial | null {
+export function marketCatalogSerial(
+  catalog: ContentMarketCatalog,
+  offlineGraceSeconds: number = MARKET_CLIENT_DEFAULTS.offlineGraceSeconds,
+): MarketCatalogSerial | null {
+  const current = isMarketCatalogV2(catalog)
   const updatedAtMs = parseMarketCatalogTimestamp(catalog.updatedAt)
   if (updatedAtMs === null) return null
+  if (!current) {
+    // Legacy v0.1 read-only helper: it has no monotonic serial/expiry. The 0
+    // sentinel MUST NOT be used for ordering or install decisions; the market
+    // client rejects v0.1 before it ever reaches this point.
+    return Object.freeze({
+      serial: 0,
+      updatedAtMs,
+      updatedAt: catalog.updatedAt,
+      version: catalog.version,
+      catalogSha256: marketCatalogFingerprint(catalog),
+      expiresMs: updatedAtMs,
+      offlineGraceUntilMs: updatedAtMs,
+      mirrors: Object.freeze([]),
+    })
+  }
+  const expiresMs = parseMarketCatalogTimestamp(catalog.expires)
+  if (expiresMs === null) return null
+  const graceSeconds = Math.max(
+    0,
+    Math.min(MARKET_CLIENT_HARD_LIMITS.offlineGraceSeconds, Math.floor(offlineGraceSeconds)),
+  )
   return Object.freeze({
+    serial: catalog.serial,
     updatedAtMs,
     updatedAt: catalog.updatedAt,
     version: catalog.version,
     catalogSha256: marketCatalogFingerprint(catalog),
+    expiresMs,
+    offlineGraceUntilMs: expiresMs + graceSeconds * 1000,
+    mirrors: catalog.mirrors ?? Object.freeze([]),
   })
 }
 
 /**
- * Compare two catalogue serials: -1 incoming is older, 0 equal ordering,
- * 1 incoming is newer. updatedAt is primary; the semver version breaks ties.
+ * Compare two catalogue serials by their monotonic serial: -1 incoming is
+ * older, 0 equal ordering, 1 incoming is newer. An equal serial is only an
+ * idempotent refresh when the canonical payload hash also matches (the client
+ * enforces that separately).
  */
 export function compareMarketCatalogSerial(
   incoming: MarketCatalogSerial,
   stored: MarketCatalogSerial,
 ): number {
-  if (incoming.updatedAtMs !== stored.updatedAtMs) return incoming.updatedAtMs < stored.updatedAtMs ? -1 : 1
-  const versionOrder = compareSemver(incoming.version, stored.version)
-  if (versionOrder !== 0) return versionOrder
+  if (incoming.serial !== stored.serial) return incoming.serial < stored.serial ? -1 : 1
   return 0
 }
 
@@ -762,6 +851,27 @@ function parseContentLength(response: MarketResponseLike): number | null {
   }
 }
 
+/** Parse Retry-After (delta seconds or HTTP-date) into a bounded delay. */
+function parseRetryAfterMs(response: MarketResponseLike, nowMs: () => number): number | undefined {
+  try {
+    const raw = response.headers?.get(RETRY_AFTER_HEADER) ?? null
+    if (raw === null) return undefined
+    const text = raw.trim()
+    if (!text) return undefined
+    if (/^[0-9]{1,9}$/.test(text)) {
+      const seconds = Number(text)
+      if (!Number.isFinite(seconds)) return undefined
+      return Math.min(MARKET_CLIENT_DEFAULTS.maxRetryAfterMs, Math.floor(seconds * 1000))
+    }
+    const at = Date.parse(text)
+    if (!Number.isFinite(at)) return undefined
+    const now = nowMs()
+    return Math.max(0, Math.min(MARKET_CLIENT_DEFAULTS.maxRetryAfterMs, Math.floor(at - now)))
+  } catch {
+    return undefined
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Bounded HTTP GET (manual redirects, timeout, size cap, abort)
 // ---------------------------------------------------------------------------
@@ -774,6 +884,15 @@ interface MarketHttpRequestOptions {
   readonly policy: MarketUrlPolicy
   readonly transport: MarketTransport
   readonly maxRedirects: number
+  /** Injected clock used for Retry-After HTTP-date parsing. */
+  readonly nowMs: () => number
+  /** Optional client-side request budget; called before every transport attempt. */
+  readonly rateGate: (() => MarketRateDecision) | null
+}
+
+interface MarketRateDecision {
+  readonly ok: boolean
+  readonly retryAfterMs: number
 }
 
 interface MarketHttpSuccess {
@@ -783,6 +902,8 @@ interface MarketHttpSuccess {
   readonly redirects: number
   readonly httpStatus: number
   readonly statusChain: readonly number[]
+  /** Transport attempts used for this body (1 unless retried). */
+  readonly attempts: number
 }
 
 type MarketHttpResult = MarketHttpSuccess | MarketFailure
@@ -803,6 +924,15 @@ async function requestMarketBytes(rawUrl: string, options: MarketHttpRequestOpti
   const start = validateMarketRequestUrl(rawUrl, options.policy)
   if (!start.ok) return start
   if (options.signal?.aborted) return failure('aborted', 'request was aborted')
+  if (options.rateGate !== null) {
+    const decision = options.rateGate()
+    if (!decision.ok) {
+      return failure('rate-limited', 'client-side market request budget exhausted; retry later', {
+        host: start.host,
+        retryAfterMs: decision.retryAfterMs,
+      })
+    }
+  }
   const controller = new AbortController()
   let timedOut = false
   let abortedByCaller = false
@@ -887,7 +1017,12 @@ async function requestMarketBytes(rawUrl: string, options: MarketHttpRequestOpti
         continue
       }
       if (status < 200 || status >= 300) {
-        return failure('http-error', 'HTTP ' + status, { host: start.host, httpStatus: status })
+        const retryAfterMs = parseRetryAfterMs(response, options.nowMs)
+        return failure('http-error', 'HTTP ' + status, {
+          host: start.host,
+          httpStatus: status,
+          ...(retryAfterMs !== undefined ? { retryAfterMs } : {}),
+        })
       }
       if (typeof response.redirected === 'boolean' && response.redirected) {
         const finalUrl = typeof response.url === 'string' ? response.url : ''
@@ -935,6 +1070,7 @@ async function requestMarketBytes(rawUrl: string, options: MarketHttpRequestOpti
         redirects,
         httpStatus: status,
         statusChain: Object.freeze(statusChain),
+        attempts: 1,
       })
     }
   } finally {
@@ -944,16 +1080,134 @@ async function requestMarketBytes(rawUrl: string, options: MarketHttpRequestOpti
 }
 
 // ---------------------------------------------------------------------------
+// Bounded retry + signed-mirror fallback (v0.2 transport profile)
+// ---------------------------------------------------------------------------
+
+interface MarketRetryHooks {
+  /** Injected sleep so tests/dev can run retries without real delays. */
+  readonly sleep: (ms: number) => Promise<void>
+  /** Injected jitter source in [0, 1); defaults to Math.random. */
+  readonly random: () => number
+}
+
+interface MarketBodyFetchOutcome {
+  readonly result: MarketHttpResult
+  readonly attempts: number
+  readonly viaMirror: boolean
+}
+
+function isRetryableMarketHttpFailure(value: MarketFailure): boolean {
+  if (value.code === 'network-error' || value.code === 'timeout') return true
+  if (value.code === 'http-error') return RETRYABLE_HTTP_STATUSES.includes(value.httpStatus ?? 0)
+  return false
+}
+
+function backoffDelayMs(policy: ContentMarketRetryPolicy, attempt: number, random: () => number): number {
+  const exponential = policy.baseDelayMs * 2 ** Math.max(0, attempt - 1)
+  let jitter = 0
+  try {
+    const value = random()
+    if (Number.isFinite(value)) jitter = Math.min(1, Math.max(0, value)) * policy.baseDelayMs * 0.5
+  } catch {
+    jitter = 0
+  }
+  return Math.min(policy.maxDelayMs, exponential + jitter)
+}
+
+/**
+ * One URL with bounded retry: only transient transport failures and
+ * 408/425/429/500/502/503/504 are retried; Retry-After wins over backoff.
+ */
+async function requestMarketBytesWithRetry(
+  rawUrl: string,
+  options: MarketHttpRequestOptions,
+  policy: ContentMarketRetryPolicy,
+  hooks: MarketRetryHooks,
+): Promise<{ readonly result: MarketHttpResult; readonly attempts: number }> {
+  let attempts = 0
+  for (;;) {
+    if (options.signal?.aborted) return { result: failure('aborted', 'request was aborted'), attempts: Math.max(1, attempts) }
+    attempts += 1
+    const result = await requestMarketBytes(rawUrl, options)
+    if (result.ok) return { result: Object.freeze({ ...result, attempts }), attempts }
+    if (!isRetryableMarketHttpFailure(result) || attempts >= policy.maxAttempts) return { result, attempts }
+    const delayMs =
+      result.retryAfterMs !== undefined
+        ? result.retryAfterMs
+        : backoffDelayMs(policy, attempts, hooks.random)
+    try {
+      await hooks.sleep(delayMs)
+    } catch {
+      return { result: failure('aborted', 'retry delay was aborted'), attempts }
+    }
+    if (options.signal?.aborted) return { result: failure('aborted', 'request was aborted'), attempts }
+  }
+}
+
+/**
+ * Fetch a bounded body with retry + signed-mirror fallback. The primary URL
+ * uses the full retry policy; each signed mirror gets a single attempt (still
+ * subject to the request budget) after a retryable primary failure.
+ */
+async function requestMarketBytesWithFallback(
+  primaryUrl: string,
+  mirrorUrls: readonly string[],
+  options: MarketHttpRequestOptions,
+  policy: ContentMarketRetryPolicy,
+  hooks: MarketRetryHooks,
+): Promise<MarketBodyFetchOutcome> {
+  const primary = await requestMarketBytesWithRetry(primaryUrl, options, policy, hooks)
+  if (primary.result.ok || !isRetryableMarketHttpFailure(primary.result)) {
+    return { result: primary.result, attempts: primary.attempts, viaMirror: false }
+  }
+  let attempts = primary.attempts
+  let lastFailure = primary.result
+  for (const mirrorUrl of mirrorUrls) {
+    if (options.signal?.aborted) break
+    attempts += 1
+    // Signed mirrors are allowed even when the host configured a catalogue host
+    // allow-list: the mirror origin is part of the verified payload itself.
+    const mirrorPolicy: MarketUrlPolicy = Object.freeze({
+      ...(options.policy.allowHttp !== undefined ? { allowHttp: options.policy.allowHttp } : {}),
+      ...(options.policy.allowPrivateHosts !== undefined ? { allowPrivateHosts: options.policy.allowPrivateHosts } : {}),
+      ...(options.policy.maxChars !== undefined ? { maxChars: options.policy.maxChars } : {}),
+    })
+    const attempt = await requestMarketBytes(mirrorUrl, { ...options, policy: mirrorPolicy })
+    if (attempt.ok) return { result: Object.freeze({ ...attempt, attempts }), attempts, viaMirror: true }
+    lastFailure = attempt
+    if (!isRetryableMarketHttpFailure(attempt)) break
+  }
+  return { result: lastFailure, attempts, viaMirror: false }
+}
+
+/** Map a primary URL onto a signed mirror origin (same path/query, cross-host by design). */
+function mirrorUrlFor(primaryUrl: string, mirrorOrigin: string): string | null {
+  try {
+    const base = new URL(primaryUrl)
+    const mirror = new URL(mirrorOrigin)
+    if (mirror.protocol !== 'https:') return null
+    if (mirror.pathname !== '/' || mirror.search !== '' || mirror.hash !== '') return null
+    return mirror.origin + base.pathname + base.search
+  } catch {
+    return null
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Anti-rollback serial persistence
 // ---------------------------------------------------------------------------
 
 interface PersistedMarketSerial {
-  readonly version: number
+  readonly version: typeof MARKET_SERIAL_STORAGE_VERSION
   readonly data: {
+    readonly serial: number
     readonly catalogVersion: string
     readonly updatedAt: string
     readonly updatedAtMs: number
     readonly catalogSha256: string
+    readonly expiresMs: number
+    readonly offlineGraceUntilMs: number
+    readonly mirrors: readonly string[]
   }
 }
 
@@ -961,25 +1215,66 @@ type MarketSerialRead =
   | { readonly ok: true; readonly serial: MarketCatalogSerial | null }
   | { readonly ok: false; readonly code: 'storage-unavailable' | 'storage-corrupt'; readonly message: string }
 
+/** Normalize a signed mirror entry to a bare HTTPS origin, or null when unsafe. */
+function normalizeMirrorOrigin(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  if (countCodePoints(value) > CONTENT_MARKET_LIMITS.maxMirrorOriginChars) return null
+  try {
+    const parsed = new URL(value)
+    if (parsed.protocol !== 'https:') return null
+    if (parsed.username !== '' || parsed.password !== '') return null
+    if (parsed.pathname !== '/' || parsed.search !== '' || parsed.hash !== '') return null
+    return parsed.origin
+  } catch {
+    return null
+  }
+}
+
 function validateStoredSerial(raw: unknown): MarketCatalogSerial | null {
   if (!isRecord(raw)) return null
   if (raw.version !== MARKET_SERIAL_STORAGE_VERSION) return null
   const data = raw.data
   if (!isRecord(data)) return null
+  const serialValue = data.serial
   const catalogVersion = data.catalogVersion
   const updatedAt = data.updatedAt
   const updatedAtMs = data.updatedAtMs
   const catalogSha256 = data.catalogSha256
+  const expiresMs = data.expiresMs
+  const offlineGraceUntilMs = data.offlineGraceUntilMs
+  const rawMirrors = data.mirrors
+  if (typeof serialValue !== 'number' || !Number.isSafeInteger(serialValue) || serialValue < 1) return null
   if (typeof catalogVersion !== 'string' || parseSemver(catalogVersion) === null) return null
   if (typeof updatedAt !== 'string' || parseMarketCatalogTimestamp(updatedAt) === null) return null
   if (typeof updatedAtMs !== 'number' || !Number.isSafeInteger(updatedAtMs) || updatedAtMs < 0) return null
   if (typeof catalogSha256 !== 'string' || !SHA256_PATTERN.test(catalogSha256)) return null
-  return Object.freeze({ updatedAtMs, updatedAt, version: catalogVersion, catalogSha256 })
+  if (typeof expiresMs !== 'number' || !Number.isSafeInteger(expiresMs) || expiresMs < 0) return null
+  if (typeof offlineGraceUntilMs !== 'number' || !Number.isSafeInteger(offlineGraceUntilMs)) return null
+  if (offlineGraceUntilMs < expiresMs) return null
+  if (!Array.isArray(rawMirrors) || rawMirrors.length > CONTENT_MARKET_LIMITS.maxMirrors) return null
+  const mirrors: string[] = []
+  for (const entry of rawMirrors) {
+    const origin = normalizeMirrorOrigin(entry)
+    if (origin === null || mirrors.includes(origin)) return null
+    mirrors.push(origin)
+  }
+  return Object.freeze({
+    serial: serialValue,
+    updatedAtMs,
+    updatedAt,
+    version: catalogVersion,
+    catalogSha256,
+    expiresMs,
+    offlineGraceUntilMs,
+    mirrors: Object.freeze(mirrors),
+  })
 }
 
 /**
- * Read the persisted highest serial. Missing = null; corrupted/unreadable =
- * fail-closed storage-corrupt (the host may offer an explicit ops reset).
+ * Read the persisted highest serial + freshness/mirror state. Missing = null;
+ * corrupted/unreadable = fail-closed storage-corrupt (the host may offer an
+ * explicit ops reset). A v1 envelope is "unknown shape/version" on purpose: the
+ * baseline is never silently reset.
  */
 export function readMarketCatalogSerial(
   storage: StorageLike | null,
@@ -1020,10 +1315,14 @@ function writeMarketCatalogSerial(
   const envelope: PersistedMarketSerial = {
     version: MARKET_SERIAL_STORAGE_VERSION,
     data: {
+      serial: serial.serial,
       catalogVersion: serial.version,
       updatedAt: serial.updatedAt,
       updatedAtMs: serial.updatedAtMs,
       catalogSha256: serial.catalogSha256,
+      expiresMs: serial.expiresMs,
+      offlineGraceUntilMs: serial.offlineGraceUntilMs,
+      mirrors: serial.mirrors,
     },
   }
   let text: string
@@ -1041,8 +1340,114 @@ function writeMarketCatalogSerial(
 }
 
 // ---------------------------------------------------------------------------
+// Bounded last-verified catalog cache (offline grace, never a trust upgrade)
+// ---------------------------------------------------------------------------
+
+interface MarketCatalogCacheEntry {
+  readonly catalog: ContentMarketCatalogV2
+  readonly serial: number
+  readonly acceptedAtMs: number
+  readonly expiresMs: number
+  readonly offlineGraceUntilMs: number
+  /** Wire size of the accepted catalogue body (for the offline UI summary). */
+  readonly bytes: number
+  readonly keyId: string
+  readonly keyStatus: 'active' | 'retired' | 'revoked'
+}
+
+interface PersistedMarketCatalogCache {
+  readonly version: typeof MARKET_CATALOG_CACHE_VERSION
+  readonly data: {
+    readonly catalog: ContentMarketCatalogV2
+    readonly serial: number
+    readonly acceptedAtMs: number
+    readonly expiresMs: number
+    readonly offlineGraceUntilMs: number
+    readonly bytes: number
+    readonly keyId: string
+    readonly keyStatus: 'active' | 'retired' | 'revoked'
+  }
+}
+
+/**
+ * Best-effort cache read. Unlike the serial envelope this NEVER fails closed: a
+ * corrupt/oversized cache is simply ignored (the signed serial baseline remains
+ * the only security state). Crypto verification happens in the client.
+ */
+function readMarketCatalogCache(storage: StorageLike, storageKey: string): MarketCatalogCacheEntry | null {
+  let raw: string | null
+  try {
+    raw = storage.getItem(storageKey)
+  } catch {
+    return null
+  }
+  if (raw === null || raw.trim() === '') return null
+  if (countCodePoints(raw) > MARKET_CLIENT_DEFAULTS.maxCatalogCacheChars) return null
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    return null
+  }
+  if (!isRecord(parsed) || parsed.version !== MARKET_CATALOG_CACHE_VERSION) return null
+  const data = parsed.data
+  if (!isRecord(data)) return null
+  const validation = validateMarketCatalogV2(data.catalog)
+  if (!validation.ok) return null
+  const catalog = validation.catalog
+  const serial = data.serial
+  const acceptedAtMs = data.acceptedAtMs
+  const expiresMs = data.expiresMs
+  const offlineGraceUntilMs = data.offlineGraceUntilMs
+  if (typeof serial !== 'number' || !Number.isSafeInteger(serial) || serial < 1 || serial !== catalog.serial) return null
+  if (typeof acceptedAtMs !== 'number' || !Number.isSafeInteger(acceptedAtMs) || acceptedAtMs < 0) return null
+  if (typeof expiresMs !== 'number' || !Number.isSafeInteger(expiresMs) || expiresMs < 0) return null
+  if (typeof offlineGraceUntilMs !== 'number' || !Number.isSafeInteger(offlineGraceUntilMs)) return null
+  if (offlineGraceUntilMs < expiresMs) return null
+  const bytes = data.bytes
+  const keyId = data.keyId
+  const keyStatus = data.keyStatus
+  if (typeof bytes !== 'number' || !Number.isSafeInteger(bytes) || bytes < 0) return null
+  if (typeof keyId !== 'string' || !KEY_ID_PATTERN.test(keyId)) return null
+  if (keyStatus !== 'active' && keyStatus !== 'retired' && keyStatus !== 'revoked') return null
+  return Object.freeze({ catalog, serial, acceptedAtMs, expiresMs, offlineGraceUntilMs, bytes, keyId, keyStatus })
+}
+
+/** Best-effort cache write; a failure only means "no offline fallback". */
+function writeMarketCatalogCache(storage: StorageLike, storageKey: string, entry: MarketCatalogCacheEntry): boolean {
+  const envelope: PersistedMarketCatalogCache = {
+    version: MARKET_CATALOG_CACHE_VERSION,
+    data: {
+      catalog: entry.catalog,
+      serial: entry.serial,
+      acceptedAtMs: entry.acceptedAtMs,
+      expiresMs: entry.expiresMs,
+      offlineGraceUntilMs: entry.offlineGraceUntilMs,
+      bytes: entry.bytes,
+      keyId: entry.keyId,
+      keyStatus: entry.keyStatus,
+    },
+  }
+  let text: string
+  try {
+    text = JSON.stringify(envelope)
+  } catch {
+    return false
+  }
+  if (countCodePoints(text) > MARKET_CLIENT_DEFAULTS.maxCatalogCacheChars) return false
+  return safeSetItem(storageKey, text, storage) === 'ok'
+}
+
+// ---------------------------------------------------------------------------
 // Client configuration
 // ---------------------------------------------------------------------------
+
+/** Host overrides for the v0.2 retry policy (clamped to the protocol bounds). */
+export interface MarketRetryConfig {
+  readonly maxAttempts?: number
+  readonly baseDelayMs?: number
+  readonly maxDelayMs?: number
+}
 
 export interface MarketplaceClientConfig {
   /** Explicit catalogue URL; there is no built-in/default market endpoint. */
@@ -1064,6 +1469,22 @@ export interface MarketplaceClientConfig {
   readonly maxRedirects?: number
   /** Concurrent pack downloads; catalogue refreshes are always serialized. */
   readonly maxConcurrentDownloads?: number
+  /**
+   * Auto-retry policy for catalogue/pack requests. Only transient transport
+   * failures and 408/425/429/500/502/503/504 are retried, at most 3 attempts,
+   * exponential backoff + jitter, honoring Retry-After.
+   */
+  readonly retry?: MarketRetryConfig
+  /** Client-side request budget per rolling minute (1..60, default 5). */
+  readonly requestsPerMinute?: number
+  /** Offline grace after catalog.expires when the catalogue omits it (0..30 days, default 7 days). */
+  readonly offlineGraceSeconds?: number
+  /** Injected sleep for retry backoff (tests pass a no-op resolver). */
+  readonly sleep?: (ms: number) => Promise<void>
+  /** Injected jitter source in [0, 1); defaults to Math.random. */
+  readonly random?: () => number
+  /** Local storage key for the bounded last-verified catalog cache. */
+  readonly catalogCacheStorageKey?: string
   /** Anti-rollback storage; required by default (null disables but fails closed). */
   readonly storage?: StorageLike | null
   readonly serialStorageKey?: string
@@ -1104,6 +1525,9 @@ export interface MarketplaceClientDescription {
     readonly maxPackBytes: number
     readonly maxRedirects: number
     readonly maxConcurrentDownloads: number
+    readonly retryMaxAttempts: number
+    readonly requestsPerMinute: number
+    readonly offlineGraceSeconds: number
   }
 }
 
@@ -1118,6 +1542,12 @@ interface ResolvedMarketClientConfig {
   readonly maxPackBytes: number
   readonly maxRedirects: number
   readonly maxConcurrentDownloads: number
+  readonly retry: ContentMarketRetryPolicy
+  readonly requestsPerMinute: number
+  readonly offlineGraceSeconds: number
+  readonly sleep: (ms: number) => Promise<void>
+  readonly random: () => number
+  readonly catalogCacheStorageKey: string
   readonly storage: StorageLike | null
   readonly serialStorageKey: string
   readonly requireSerialStorage: boolean
@@ -1146,6 +1576,13 @@ function resolveInteger(value: unknown, fallback: number, min: number, max: numb
 
 function isFunction(value: unknown): value is (...args: never[]) => unknown {
   return typeof value === 'function'
+}
+
+/** Default retry sleep; tests inject an immediate resolver instead. */
+function defaultMarketSleep(ms: number): Promise<void> {
+  return new Promise<void>((resolve) => {
+    setTimeout(resolve, Math.max(0, Math.floor(ms)))
+  })
 }
 
 function isStorageLike(value: unknown): value is StorageLike {
@@ -1228,6 +1665,57 @@ function resolveMarketClientConfig(raw: unknown): ResolvedMarketClient {
   if (raw.requireSerialStorage !== undefined && typeof raw.requireSerialStorage !== 'boolean') {
     return reject('invalid-config', 'requireSerialStorage must be a boolean')
   }
+  if (raw.sleep !== undefined && !isFunction(raw.sleep)) return reject('invalid-config', 'sleep must be a function')
+  if (raw.random !== undefined && !isFunction(raw.random)) return reject('invalid-config', 'random must be a function')
+  let retry: ContentMarketRetryPolicy = Object.freeze({
+    maxAttempts: MARKET_CLIENT_DEFAULTS.retryMaxAttempts,
+    baseDelayMs: MARKET_CLIENT_DEFAULTS.retryBaseDelayMs,
+    maxDelayMs: MARKET_CLIENT_DEFAULTS.retryMaxDelayMs,
+  })
+  if (raw.retry !== undefined) {
+    if (!isRecord(raw.retry)) return reject('invalid-config', 'retry must be an object')
+    for (const field of ['maxAttempts', 'baseDelayMs', 'maxDelayMs'] as const) {
+      const value = raw.retry[field]
+      if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value))) {
+        return reject('invalid-config', 'retry.' + field + ' must be a finite number')
+      }
+    }
+    const maxAttempts = resolveInteger(raw.retry.maxAttempts, retry.maxAttempts, 1, MARKET_CLIENT_HARD_LIMITS.retryMaxAttempts)
+    const baseDelayMs = resolveInteger(
+      raw.retry.baseDelayMs,
+      retry.baseDelayMs,
+      CONTENT_MARKET_LIMITS.minRetryDelayMs,
+      MARKET_CLIENT_HARD_LIMITS.retryBaseDelayMs,
+    )
+    const maxDelayMs = resolveInteger(
+      raw.retry.maxDelayMs,
+      Math.max(baseDelayMs, retry.maxDelayMs),
+      baseDelayMs,
+      MARKET_CLIENT_HARD_LIMITS.retryMaxDelayMs,
+    )
+    retry = Object.freeze({ maxAttempts, baseDelayMs, maxDelayMs })
+  }
+  const requestsPerMinute = resolveInteger(
+    raw.requestsPerMinute,
+    MARKET_CLIENT_DEFAULTS.requestsPerMinute,
+    1,
+    MARKET_CLIENT_HARD_LIMITS.requestsPerMinute,
+  )
+  const offlineGraceSeconds = resolveInteger(
+    raw.offlineGraceSeconds,
+    MARKET_CLIENT_DEFAULTS.offlineGraceSeconds,
+    0,
+    MARKET_CLIENT_HARD_LIMITS.offlineGraceSeconds,
+  )
+  let catalogCacheStorageKey = MARKET_CATALOG_CACHE_STORAGE_KEY
+  if (raw.catalogCacheStorageKey !== undefined) {
+    if (typeof raw.catalogCacheStorageKey !== 'string') return reject('invalid-config', 'catalogCacheStorageKey must be a string')
+    const trimmed = raw.catalogCacheStorageKey.trim()
+    if (!trimmed || countCodePoints(trimmed) > 128 || CONTROL_TEST.test(trimmed)) {
+      return reject('invalid-config', 'catalogCacheStorageKey is invalid')
+    }
+    catalogCacheStorageKey = trimmed
+  }
   let allowedCatalogHosts: readonly string[] | null = null
   if (raw.allowedCatalogHosts !== undefined) {
     allowedCatalogHosts = normalizeHostAllowList(raw.allowedCatalogHosts)
@@ -1278,6 +1766,12 @@ function resolveMarketClientConfig(raw: unknown): ResolvedMarketClient {
       1,
       MARKET_CLIENT_HARD_LIMITS.maxConcurrentDownloads,
     ),
+    retry,
+    requestsPerMinute,
+    offlineGraceSeconds,
+    sleep: isFunction(raw.sleep) ? (raw.sleep as (ms: number) => Promise<void>) : defaultMarketSleep,
+    random: isFunction(raw.random) ? (raw.random as () => number) : Math.random,
+    catalogCacheStorageKey,
     storage,
     serialStorageKey,
     requireSerialStorage,
@@ -1318,9 +1812,11 @@ export class MarketplaceClient {
   private readonly resolvedConfig: ResolvedMarketClientConfig | null
   private readonly failureValue: MarketFailure | null
   private readonly warningsValue: readonly string[]
-  private lastCatalogValue: ContentMarketCatalog | null = null
+  private lastCatalogValue: ContentMarketCatalogV2 | null = null
   private lastSerialValue: MarketCatalogSerial | null = null
   private refreshTail: Promise<void> = Promise.resolve()
+  /** Timestamps (ms) of recent market requests for the client-side rate budget. */
+  private readonly rateWindow: number[] = []
   private downloadActive = 0
   private readonly downloadWaiters: Array<() => void> = []
 
@@ -1373,6 +1869,9 @@ export class MarketplaceClient {
       maxPackBytes: config?.maxPackBytes ?? MARKET_CLIENT_DEFAULTS.maxPackBytes,
       maxRedirects: config?.maxRedirects ?? MARKET_CLIENT_DEFAULTS.maxRedirects,
       maxConcurrentDownloads: config?.maxConcurrentDownloads ?? MARKET_CLIENT_DEFAULTS.maxConcurrentDownloads,
+      retryMaxAttempts: config?.retry.maxAttempts ?? MARKET_CLIENT_DEFAULTS.retryMaxAttempts,
+      requestsPerMinute: config?.requestsPerMinute ?? MARKET_CLIENT_DEFAULTS.requestsPerMinute,
+      offlineGraceSeconds: config?.offlineGraceSeconds ?? MARKET_CLIENT_DEFAULTS.offlineGraceSeconds,
     }
     return Object.freeze({
       configured: config !== null,
@@ -1419,6 +1918,11 @@ export class MarketplaceClient {
     const listing = resolved.pack
     const urlCheck = validateMarketRequestUrl(listing.download.url, this.urlPolicy(false))
     if (!urlCheck.ok) return urlCheck
+    if (this.currentCatalogFreshness() === 'expired') {
+      return failure('catalog-expired', 'the verified catalogue expired beyond its offline grace; new downloads are disabled', {
+        host: urlCheck.host,
+      })
+    }
     if (options.signal?.aborted) return failure('aborted', 'request was aborted', { host: urlCheck.host })
     if (listing.download.bytes > config.maxPackBytes) {
       return failure('too-large', 'catalogue pack is ' + listing.download.bytes + ' bytes > limit ' + config.maxPackBytes, {
@@ -1428,32 +1932,42 @@ export class MarketplaceClient {
     await this.acquireDownloadSlot()
     try {
       const startedAt = this.nowMs()
-      let request: MarketHttpResult
+      let outcome: MarketBodyFetchOutcome
       try {
-        request = await requestMarketBytes(listing.download.url, {
-          maxBytes: config.maxPackBytes,
-          accept: 'application/zip, application/octet-stream',
-          timeoutMs: config.timeoutMs,
-          ...(options.signal !== undefined ? { signal: options.signal } : {}),
-          policy: this.urlPolicy(false),
-          transport: config.transport,
-          maxRedirects: config.maxRedirects,
-        })
+        outcome = await requestMarketBytesWithFallback(
+          listing.download.url,
+          this.mirrorUrlsFor(listing.download.url, this.lastSerialValue?.mirrors ?? []),
+          {
+            maxBytes: config.maxPackBytes,
+            accept: 'application/zip, application/octet-stream',
+            timeoutMs: config.timeoutMs,
+            ...(options.signal !== undefined ? { signal: options.signal } : {}),
+            policy: this.urlPolicy(false),
+            transport: config.transport,
+            maxRedirects: config.maxRedirects,
+            nowMs: () => this.nowMs(),
+            rateGate: () => this.rateGate(),
+          },
+          this.effectiveRetryPolicy(),
+          { sleep: config.sleep, random: config.random },
+        )
       } catch (error) {
         return failure('internal-error', 'pack request failed unexpectedly: ' + boundedMessage(error instanceof Error ? error.message : 'unknown', 'unknown error'), {
           host: urlCheck.host,
         })
       }
+      const request = outcome.result
       const durationMs = Math.max(0, this.nowMs() - startedAt)
       if (!request.ok) {
         this.logFailure('pack-download', request, durationMs)
         return request
       }
+      const host = request.finalUrl.hostname
       if (request.bytes.byteLength !== listing.download.bytes) {
         const result = failure(
           'size-mismatch',
           'downloaded zip is ' + request.bytes.byteLength + ' bytes but the signed catalogue declares ' + listing.download.bytes,
-          { host: urlCheck.host },
+          { host },
         )
         this.logFailure('pack-download', result, durationMs)
         return result
@@ -1464,24 +1978,25 @@ export class MarketplaceClient {
         verification = verifyMarketPackDownload(listing, sha256, config.trustRoot, config.verifier, { now: this.nowDate() })
       } catch (error) {
         const result = failure('invalid-signature', 'pack verification threw: ' + boundedMessage(error instanceof Error ? error.message : 'unknown', 'unknown error'), {
-          host: urlCheck.host,
+          host,
         })
         this.logFailure('pack-download', result, durationMs)
         return result
       }
       if (!verification.ok) {
-        const result = signatureFailure(verification, 'pack signature verification failed', urlCheck.host)
+        const result = signatureFailure(verification, 'pack signature verification failed', host)
         this.logFailure('pack-download', result, durationMs)
         return result
       }
       this.log('info', 'pack-download', {
         code: 'ok',
-        host: urlCheck.host,
+        host,
         httpStatus: request.httpStatus,
         bytes: request.bytes.byteLength,
         durationMs,
         redirects: request.redirects,
         keyId: verification.keyId,
+        attempts: outcome.attempts,
       })
       return Object.freeze({
         ok: true as const,
@@ -1495,6 +2010,8 @@ export class MarketplaceClient {
         redirects: request.redirects,
         httpStatus: request.httpStatus,
         fetchedAt: normalizeIsoTimestamp(this.nowMs()),
+        attempts: outcome.attempts,
+        viaMirror: outcome.viaMirror,
       })
     } finally {
       this.releaseDownloadSlot()
@@ -1520,6 +2037,11 @@ export class MarketplaceClient {
     const resolved = this.resolveCatalogPack(pack)
     if (!resolved.ok) return resolved
     const listing = resolved.pack
+    if (this.currentCatalogFreshness() === 'expired') {
+      return failure('catalog-expired', 'the verified catalogue expired beyond its offline grace; new installs are disabled', {
+        host: hostOfUrlText(listing.download.url),
+      })
+    }
     const bytes = toUint8Array(bytesInput)
     if (bytes === null) return failure('invalid-argument', 'pack bytes must be a Uint8Array or ArrayBuffer')
     if (options.signal?.aborted) return failure('aborted', 'install was aborted')
@@ -1640,6 +2162,10 @@ export class MarketplaceClient {
     if (!removed) {
       return Object.freeze({ ok: false as const, message: 'stored catalogue serial could not be removed', code: 'storage-unavailable' as const })
     }
+    // The cached catalog is bound to the old baseline; drop it too (best effort).
+    safeRemoveItem(config.catalogCacheStorageKey, config.storage)
+    this.lastCatalogValue = null
+    this.lastSerialValue = null
     this.log('warn', 'serial-reset', { code: 'serial-reset' })
     return Object.freeze({ ok: true as const, message: 'catalogue serial reset; the next refresh starts a new anti-rollback baseline' })
   }
@@ -1662,43 +2188,291 @@ export class MarketplaceClient {
     return Object.freeze({ ok: true as const, pack: listing })
   }
 
+  /**
+   * Effective offline grace: the host config is the ceiling; a signed catalogue
+   * may only request a shorter window (never a longer one than the host allows).
+   */
+  private effectiveOfflineGraceSeconds(catalog?: ContentMarketCatalogV2): number {
+    const hostGrace = this.resolvedConfig?.offlineGraceSeconds ?? MARKET_CLIENT_DEFAULTS.offlineGraceSeconds
+    const catalogGrace = catalog?.offlineGraceSeconds
+    return catalogGrace === undefined ? hostGrace : Math.min(hostGrace, catalogGrace)
+  }
+
+  /** Freshness of the currently adopted serial at the injected clock. */
+  private currentCatalogFreshness(): 'fresh' | 'grace' | 'expired' {
+    const serial = this.lastSerialValue
+    if (serial === null) return 'expired'
+    return this.freshnessFor(serial.expiresMs, serial.offlineGraceUntilMs)
+  }
+
+  private freshnessFor(expiresMs: number, offlineGraceUntilMs: number): 'fresh' | 'grace' | 'expired' {
+    const now = this.nowMs()
+    if (now <= expiresMs) return 'fresh'
+    if (now <= offlineGraceUntilMs) return 'grace'
+    return 'expired'
+  }
+
+  /**
+   * Effective retry policy: the host config is the ceiling, a signed catalogue
+   * may only make it more conservative (fewer attempts, longer base delay).
+   */
+  private effectiveRetryPolicy(): ContentMarketRetryPolicy {
+    const config = this.resolvedConfig
+    const hostPolicy: ContentMarketRetryPolicy =
+      config === null
+        ? Object.freeze({
+            maxAttempts: MARKET_CLIENT_DEFAULTS.retryMaxAttempts,
+            baseDelayMs: MARKET_CLIENT_DEFAULTS.retryBaseDelayMs,
+            maxDelayMs: MARKET_CLIENT_DEFAULTS.retryMaxDelayMs,
+          })
+        : config.retry
+    const catalogPolicy = this.lastCatalogValue?.retry
+    if (catalogPolicy === undefined) return hostPolicy
+    const baseDelayMs = Math.max(hostPolicy.baseDelayMs, catalogPolicy.baseDelayMs)
+    return Object.freeze({
+      maxAttempts: Math.min(hostPolicy.maxAttempts, catalogPolicy.maxAttempts),
+      baseDelayMs,
+      maxDelayMs: Math.max(baseDelayMs, Math.min(hostPolicy.maxDelayMs, catalogPolicy.maxDelayMs)),
+    })
+  }
+
+  /** Request budget: the host cap lowered by a signed catalogue when present. */
+  private effectiveRequestsPerMinute(): number {
+    const host = this.resolvedConfig?.requestsPerMinute ?? MARKET_CLIENT_DEFAULTS.requestsPerMinute
+    const catalogLimit = this.lastCatalogValue?.rateLimit?.requestsPerMinute
+    return catalogLimit === undefined ? host : Math.min(host, catalogLimit)
+  }
+
+  /** Download concurrency: the host cap lowered by a signed catalogue when present. */
+  private effectiveMaxConcurrentDownloads(): number {
+    const host = this.resolvedConfig?.maxConcurrentDownloads ?? MARKET_CLIENT_DEFAULTS.maxConcurrentDownloads
+    const catalogLimit = this.lastCatalogValue?.rateLimit?.maxConcurrentDownloads
+    return catalogLimit === undefined ? host : Math.min(host, catalogLimit)
+  }
+
+  /** Rolling-window request budget; a denied request never reaches the transport. */
+  private rateGate(): MarketRateDecision {
+    const limit = Math.max(1, this.effectiveRequestsPerMinute())
+    const now = this.nowMs()
+    const windowMs = MARKET_CLIENT_DEFAULTS.rateLimitWindowMs
+    while (this.rateWindow.length > 0 && (this.rateWindow[0] ?? now) <= now - windowMs) this.rateWindow.shift()
+    if (this.rateWindow.length >= limit) {
+      const oldest = this.rateWindow[0] ?? now
+      return Object.freeze({
+        ok: false,
+        retryAfterMs: Math.max(0, Math.min(MARKET_CLIENT_DEFAULTS.maxRetryAfterMs, oldest + windowMs - now)),
+      })
+    }
+    this.rateWindow.push(now)
+    return Object.freeze({ ok: true, retryAfterMs: 0 })
+  }
+
+  /** Map signed mirror origins onto one primary URL (bounded, HTTPS only). */
+  private mirrorUrlsFor(primaryUrl: string, mirrors: readonly string[]): readonly string[] {
+    const urls: string[] = []
+    for (const mirror of mirrors) {
+      const candidate = mirrorUrlFor(primaryUrl, mirror)
+      if (candidate !== null && !urls.includes(candidate)) urls.push(candidate)
+    }
+    return Object.freeze(urls)
+  }
+
+  /**
+   * Load + re-verify the bounded cached catalog. Best effort: a corrupt or
+   * no-longer-valid cache is ignored (a cache is never a trust upgrade).
+   */
+  private loadCachedCatalog(config: ResolvedMarketClientConfig, host: string): MarketCatalogCacheEntry | null {
+    if (config.storage === null) return null
+    const entry = readMarketCatalogCache(config.storage, config.catalogCacheStorageKey)
+    if (entry === null) return null
+    let verification: ContentSignatureVerification
+    try {
+      verification = verifyMarketCatalogSignature(entry.catalog, config.trustRoot, config.verifier, { now: this.nowDate() })
+    } catch {
+      this.log('warn', 'catalog-cache', { code: 'cache-verification-failed', host })
+      return null
+    }
+    if (!verification.ok) {
+      this.log('warn', 'catalog-cache', { code: 'cache-signature-rejected', detail: verification.code, host })
+      return null
+    }
+    if (marketCatalogSerial(entry.catalog, this.effectiveOfflineGraceSeconds(entry.catalog)) === null) return null
+    return entry
+  }
+
+  /** Persist the accepted catalog as the bounded offline fallback (best effort). */
+  private rememberCatalog(
+    config: ResolvedMarketClientConfig,
+    catalog: ContentMarketCatalogV2,
+    serial: MarketCatalogSerial,
+    bytes: number,
+    keyId: string,
+    keyStatus: 'active' | 'retired' | 'revoked',
+    host: string,
+  ): void {
+    if (config.storage === null) return
+    const entry: MarketCatalogCacheEntry = Object.freeze({
+      catalog,
+      serial: serial.serial,
+      acceptedAtMs: this.nowMs(),
+      expiresMs: serial.expiresMs,
+      offlineGraceUntilMs: serial.offlineGraceUntilMs,
+      bytes,
+      keyId,
+      keyStatus,
+    })
+    if (!writeMarketCatalogCache(config.storage, config.catalogCacheStorageKey, entry)) {
+      this.log('warn', 'catalog-cache', { code: 'cache-write-failed', host })
+    }
+  }
+
+  /** Success value shared by network and offline-cache catalogue refreshes. */
+  private catalogRefreshSuccess(input: {
+    readonly catalog: ContentMarketCatalogV2
+    readonly serial: MarketCatalogSerial
+    readonly keyId: string
+    readonly keyStatus: 'active' | 'retired' | 'revoked'
+    readonly bytes: number
+    readonly durationMs: number
+    readonly redirects: number
+    readonly httpStatus: number
+    readonly catalogHost: string
+    readonly rollbackProtection: boolean
+    readonly cached: boolean
+    readonly attempts: number
+    readonly viaMirror: boolean
+  }): MarketCatalogRefreshSuccess {
+    const freshness = this.freshnessFor(input.serial.expiresMs, input.serial.offlineGraceUntilMs)
+    return Object.freeze({
+      ok: true as const,
+      catalog: input.catalog,
+      packs: input.catalog.packs,
+      sourceId: this.sourceId,
+      keyId: input.keyId,
+      keyStatus: input.keyStatus,
+      serial: input.serial,
+      bytes: input.bytes,
+      durationMs: input.durationMs,
+      redirects: input.redirects,
+      httpStatus: input.httpStatus,
+      fetchedAt: normalizeIsoTimestamp(this.nowMs()),
+      catalogHost: input.catalogHost,
+      rollbackProtection: input.rollbackProtection,
+      cached: input.cached,
+      stale: freshness === 'grace',
+      expiresAt: normalizeIsoTimestamp(input.serial.expiresMs),
+      offlineGraceUntil: normalizeIsoTimestamp(input.serial.offlineGraceUntilMs),
+      attempts: input.attempts,
+      viaMirror: input.viaMirror,
+    })
+  }
+
+  /**
+   * Offline grace fallback: only retryable network/HTTP failures may use the
+   * cached catalog, and only when it matches the persisted anti-rollback
+   * baseline and is still inside its grace window. Security failures
+   * (rollback/signature/schema) never fall back.
+   */
+  private offlineFallback(
+    config: ResolvedMarketClientConfig,
+    failureValue: MarketFailure,
+    cache: MarketCatalogCacheEntry | null,
+    storedSerial: MarketCatalogSerial | null,
+    durationMs: number,
+    attempts: number,
+    host: string,
+  ): MarketCatalogRefreshResult | null {
+    if (!failureValue.retryable || cache === null || storedSerial === null) return null
+    const cachedSerial = marketCatalogSerial(cache.catalog, this.effectiveOfflineGraceSeconds(cache.catalog))
+    if (cachedSerial === null) return null
+    if (cachedSerial.serial !== storedSerial.serial || cachedSerial.catalogSha256 !== storedSerial.catalogSha256) {
+      this.log('warn', 'catalog-cache', { code: 'cache-baseline-mismatch', host })
+      return null
+    }
+    if (this.freshnessFor(cachedSerial.expiresMs, cachedSerial.offlineGraceUntilMs) === 'expired') return null
+    this.lastCatalogValue = cache.catalog
+    this.lastSerialValue = cachedSerial
+    this.log('info', 'catalog-cache', { code: 'offline-cache-hit', host, bytes: cache.bytes, durationMs })
+    return this.catalogRefreshSuccess({
+      catalog: cache.catalog,
+      serial: cachedSerial,
+      keyId: cache.keyId,
+      keyStatus: cache.keyStatus,
+      bytes: cache.bytes,
+      durationMs,
+      redirects: 0,
+      httpStatus: failureValue.httpStatus ?? 0,
+      catalogHost: host,
+      rollbackProtection: config.storage !== null,
+      cached: true,
+      attempts,
+      viaMirror: false,
+    })
+  }
+
   private async performRefresh(options: MarketplaceRequestOptions): Promise<MarketCatalogRefreshResult> {
     const config = this.resolvedConfig
     if (config === null) return this.configurationFailureValue()
     const urlCheck = validateMarketRequestUrl(config.catalogUrl, this.urlPolicy(true))
     if (!urlCheck.ok) return urlCheck
-    if (options.signal?.aborted) return failure('aborted', 'request was aborted', { host: urlCheck.host })
+    const host = urlCheck.host
+    if (options.signal?.aborted) return failure('aborted', 'request was aborted', { host })
+    // 1. Anti-rollback state is the only security baseline: read it (and fail
+    // closed) BEFORE any network request is made.
     let storedSerial: MarketCatalogSerial | null = null
     if (config.storage !== null) {
       const stored = readMarketCatalogSerial(config.storage, config.serialStorageKey)
       if (!stored.ok) return failure(stored.code, stored.message)
       storedSerial = stored.serial
     } else if (config.requireSerialStorage) {
-      return failure('storage-unavailable', 'anti-rollback storage is required to use the remote market (inject storage)', {
-        host: urlCheck.host,
+      return failure('storage-unavailable', 'anti-rollback storage is required to use the remote market (inject storage)', { host })
+    }
+    // 2. Load + re-verify the offline cache (never a trust upgrade; best effort).
+    let cache = this.loadCachedCatalog(config, host)
+    if (cache !== null && storedSerial !== null && cache.serial !== storedSerial.serial) {
+      this.log('warn', 'catalog-cache', { code: 'cache-baseline-mismatch', host })
+      cache = null
+    }
+    // 3. Network: retry + signed-mirror fallback, all through the injected transport.
+    const startedAt = this.nowMs()
+    let outcome: MarketBodyFetchOutcome
+    try {
+      outcome = await requestMarketBytesWithFallback(
+        config.catalogUrl,
+        this.mirrorUrlsFor(config.catalogUrl, storedSerial?.mirrors ?? cache?.catalog.mirrors ?? []),
+        {
+          maxBytes: config.maxCatalogBytes,
+          accept: 'application/json',
+          timeoutMs: config.timeoutMs,
+          ...(options.signal !== undefined ? { signal: options.signal } : {}),
+          policy: this.urlPolicy(true),
+          transport: config.transport,
+          maxRedirects: config.maxRedirects,
+          nowMs: () => this.nowMs(),
+          rateGate: () => this.rateGate(),
+        },
+        this.effectiveRetryPolicy(),
+        { sleep: config.sleep, random: config.random },
+      )
+    } catch (error) {
+      return failure('internal-error', 'catalogue request failed unexpectedly: ' + boundedMessage(error instanceof Error ? error.message : 'unknown', 'unknown error'), {
+        host,
       })
     }
-    const startedAt = this.nowMs()
-    const request = await requestMarketBytes(config.catalogUrl, {
-      maxBytes: config.maxCatalogBytes,
-      accept: 'application/json',
-      timeoutMs: config.timeoutMs,
-      ...(options.signal !== undefined ? { signal: options.signal } : {}),
-      policy: this.urlPolicy(true),
-      transport: config.transport,
-      maxRedirects: config.maxRedirects,
-    })
+    const request = outcome.result
     const durationMs = Math.max(0, this.nowMs() - startedAt)
     if (!request.ok) {
+      const fallback = this.offlineFallback(config, request, cache, storedSerial, durationMs, outcome.attempts, host)
+      if (fallback !== null) return fallback
       this.logFailure('catalog-refresh', request, durationMs)
       return request
     }
-    const host = request.finalUrl.hostname
+    const finalHost = request.finalUrl.hostname
     let text: string
     try {
       text = new TextDecoder('utf-8', { fatal: true }).decode(request.bytes)
     } catch {
-      const result = failure('catalog-invalid', 'catalogue body is not valid UTF-8', { host })
+      const result = failure('catalog-invalid', 'catalogue body is not valid UTF-8', { host: finalHost })
       this.logFailure('catalog-refresh', result, durationMs)
       return result
     }
@@ -1707,52 +2481,75 @@ export class MarketplaceClient {
     try {
       raw = JSON.parse(text)
     } catch {
-      const result = failure('catalog-invalid', 'catalogue body is not valid JSON', { host })
+      const result = failure('catalog-invalid', 'catalogue body is not valid JSON', { host: finalHost })
       this.logFailure('catalog-refresh', result, durationMs)
       return result
     }
-    let validation: ReturnType<typeof validateMarketCatalog>
+    // v0.1 is read-only: never silently install from a downgraded catalogue.
+    if (isRecord(raw) && raw.schema === CONTENT_MARKET_CATALOG_SCHEMA) {
+      const result = failure('catalog-unsupported', 'catalogue schema 0.1 is read-only; a v0.2 catalogue with serial/expires is required', {
+        host: finalHost,
+      })
+      this.logFailure('catalog-refresh', result, durationMs)
+      return result
+    }
+    let validation: ReturnType<typeof validateMarketCatalogV2>
     try {
-      validation = validateMarketCatalog(raw)
+      validation = validateMarketCatalogV2(raw)
     } catch (error) {
-      const result = failure('catalog-invalid', 'catalogue validation threw: ' + boundedMessage(error instanceof Error ? error.message : 'unknown', 'unknown error'), { host })
+      const result = failure('catalog-invalid', 'catalogue validation threw: ' + boundedMessage(error instanceof Error ? error.message : 'unknown', 'unknown error'), {
+        host: finalHost,
+      })
       this.logFailure('catalog-refresh', result, durationMs)
       return result
     }
     if (!validation.ok) {
-      const result = failure('catalog-invalid', 'catalogue failed strict validation', { host, issues: mapIssues(validation.issues) })
+      const result = failure('catalog-invalid', 'catalogue failed strict validation', { host: finalHost, issues: mapIssues(validation.issues) })
       this.logFailure('catalog-refresh', result, durationMs)
       return result
     }
     const catalog = validation.catalog
+    const serial = marketCatalogSerial(catalog, this.effectiveOfflineGraceSeconds(catalog))
+    if (serial === null) {
+      const result = failure('catalog-invalid', 'catalogue has an unparseable updatedAt/expires', { host: finalHost })
+      this.logFailure('catalog-refresh', result, durationMs)
+      return result
+    }
+    // Signature first: nothing unverified may influence the serial/expiry checks.
     let verification: ContentSignatureVerification
     try {
       verification = verifyMarketCatalogSignature(catalog, config.trustRoot, config.verifier, { now: this.nowDate() })
     } catch (error) {
-      const result = failure('invalid-signature', 'catalogue signature verification threw: ' + boundedMessage(error instanceof Error ? error.message : 'unknown', 'unknown error'), { host })
+      const result = failure('invalid-signature', 'catalogue signature verification threw: ' + boundedMessage(error instanceof Error ? error.message : 'unknown', 'unknown error'), {
+        host: finalHost,
+      })
       this.logFailure('catalog-refresh', result, durationMs)
       return result
     }
     if (!verification.ok) {
-      const result = signatureFailure(verification, 'catalogue signature verification failed', host)
+      const result = signatureFailure(verification, 'catalogue signature verification failed', finalHost)
       this.logFailure('catalog-refresh', result, durationMs)
       return result
     }
-    const serial = marketCatalogSerial(catalog)
-    if (serial === null) {
-      const result = failure('catalog-invalid', 'catalogue has an unparseable updatedAt', { host })
+    // Expiry (spec v0.2 step 2) is checked before the rollback ordering decision.
+    if (this.freshnessFor(serial.expiresMs, serial.offlineGraceUntilMs) === 'expired') {
+      const result = failure('catalog-expired', 'catalogue expired beyond its offline grace; installed content stays usable but refresh/install are disabled', {
+        host: finalHost,
+      })
       this.logFailure('catalog-refresh', result, durationMs)
       return result
     }
     if (storedSerial !== null) {
       const order = compareMarketCatalogSerial(serial, storedSerial)
       if (order < 0) {
-        const result = failure('catalog-rollback', 'catalogue serial is older than the persisted serial (rollback rejected)', { host })
+        const result = failure('catalog-rollback', 'catalogue serial is older than the persisted serial (rollback rejected)', { host: finalHost })
         this.logFailure('catalog-refresh', result, durationMs)
         return result
       }
       if (order === 0 && serial.catalogSha256 !== storedSerial.catalogSha256) {
-        const result = failure('catalog-rollback', 'catalogue reuses the persisted serial with different signed content (rollback rejected)', { host })
+        const result = failure('catalog-rollback', 'catalogue reuses the persisted serial with different signed content (rollback rejected)', {
+          host: finalHost,
+        })
         this.logFailure('catalog-refresh', result, durationMs)
         return result
       }
@@ -1761,38 +2558,38 @@ export class MarketplaceClient {
     if (config.storage !== null && needsWrite) {
       const written = writeMarketCatalogSerial(config.storage, serial, config.serialStorageKey)
       if (!written.ok) {
-        const result = failure('serial-write-failed', written.message, { host })
+        const result = failure('serial-write-failed', written.message, { host: finalHost })
         this.logFailure('catalog-refresh', result, durationMs)
         return result
       }
     }
-    const verifiedAt = this.nowMs()
     this.lastCatalogValue = catalog
     this.lastSerialValue = serial
+    this.rememberCatalog(config, catalog, serial, request.bytes.byteLength, verification.keyId, verification.status, finalHost)
     this.log('info', 'catalog-refresh', {
       code: 'ok',
-      host,
+      host: finalHost,
       httpStatus: request.httpStatus,
       bytes: request.bytes.byteLength,
       durationMs,
       redirects: request.redirects,
       keyId: verification.keyId,
+      attempts: outcome.attempts,
     })
-    return Object.freeze({
-      ok: true as const,
+    return this.catalogRefreshSuccess({
       catalog,
-      packs: catalog.packs,
-      sourceId: this.sourceId,
+      serial,
       keyId: verification.keyId,
       keyStatus: verification.status,
-      serial,
       bytes: request.bytes.byteLength,
       durationMs,
       redirects: request.redirects,
       httpStatus: request.httpStatus,
-      fetchedAt: normalizeIsoTimestamp(verifiedAt),
-      catalogHost: host,
+      catalogHost: finalHost,
       rollbackProtection: config.storage !== null,
+      cached: false,
+      attempts: outcome.attempts,
+      viaMirror: outcome.viaMirror,
     })
   }
 
@@ -1823,17 +2620,12 @@ export class MarketplaceClient {
   }
 
   private async acquireDownloadSlot(): Promise<void> {
-    const limit = this.resolvedConfig?.maxConcurrentDownloads ?? MARKET_CLIENT_DEFAULTS.maxConcurrentDownloads
-    if (this.downloadActive < limit) {
-      this.downloadActive += 1
-      return
-    }
-    await new Promise<void>((resolve) => {
-      this.downloadWaiters.push(() => {
-        this.downloadActive += 1
-        resolve()
+    while (this.downloadActive >= this.effectiveMaxConcurrentDownloads()) {
+      await new Promise<void>((resolve) => {
+        this.downloadWaiters.push(resolve)
       })
-    })
+    }
+    this.downloadActive += 1
   }
 
   private releaseDownloadSlot(): void {
@@ -1864,6 +2656,7 @@ export class MarketplaceClient {
       readonly durationMs?: number
       readonly redirects?: number
       readonly keyId?: string
+      readonly attempts?: number
     } = {},
   ): void {
     const logger = this.resolvedConfig?.logger
@@ -1880,6 +2673,7 @@ export class MarketplaceClient {
       ...(fields.durationMs !== undefined ? { durationMs: fields.durationMs } : {}),
       ...(fields.redirects !== undefined ? { redirects: fields.redirects } : {}),
       ...(fields.keyId !== undefined ? { keyId: fields.keyId } : {}),
+      ...(fields.attempts !== undefined ? { attempts: fields.attempts } : {}),
     })
     try {
       logger(record)
@@ -1933,6 +2727,9 @@ const MARKET_FAILURE_LABELS: Readonly<Partial<Record<MarketFailureCode, string>>
   'size-mismatch': '下载大小与签名目录不一致，已拒绝',
   'catalog-invalid': '市场目录未通过严格校验，已拒绝',
   'catalog-rollback': '市场目录版本回退，已拒绝',
+  'catalog-unsupported': '市场目录版本过旧（0.1 只读），已拒绝',
+  'catalog-expired': '市场目录已过期超出离线宽限，已拒绝新安装/刷新',
+  'rate-limited': '市场请求过于频繁，已暂缓',
   'storage-unavailable': '防回滚存储不可用，已拒绝联网',
   'storage-corrupt': '本地防回滚记录损坏，已拒绝联网',
   'serial-write-failed': '防回滚记录写入失败，已拒绝采用该目录',
@@ -2063,11 +2860,14 @@ export function createRemoteMarketRefresh(
       return Object.freeze({
         ok: true as const,
         message:
-          '已验签市场目录 v' +
-          result.catalog.version +
+          (result.cached
+            ? '离线缓存：网络不可用，使用上次已验签市场目录 v' + result.catalog.version
+            : '已验签市场目录 v' + result.catalog.version) +
           '（' +
           result.packs.length +
-          ' 个内容包）；下载/安装仍需逐包展示统一用途声明并显式确认。',
+          ' 个内容包' +
+          (result.stale ? '；目录已过期，处于离线宽限期内，请尽快联网刷新' : '') +
+          '）；下载/安装仍需逐包展示统一用途声明并显式确认。',
         state: summarizeMarketCatalog(result.catalog, label),
       })
     } catch {

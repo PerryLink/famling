@@ -73,6 +73,12 @@ export interface AnimTimingTable {
   readonly fpsBands: Readonly<Partial<Record<ClipId, FpsBand>>>
   readonly tracks: readonly TrackSpec[]
   readonly randomMicroActions: readonly ClipId[]
+  /**
+   * Clips kept in the v0.1 pack contract but deliberately unreachable from the
+   * product runtime ("spec-only" freeze, MB-047/E5-T7). Map value = the
+   * decision record (why it is frozen, not how to animate it).
+   */
+  readonly specOnly: Readonly<Partial<Record<ClipId, string>>>
 }
 
 /** Parsed timing table (validated by `timingProblems()`). */
@@ -306,6 +312,23 @@ export function timingProblems(): string[] {
     }
   }
 
+  // Spec-only freeze (MB-047/E5-T7): kept in the contract, no runtime entry.
+  const specOnly = table.specOnly
+  if (!isRecord(specOnly)) {
+    problems.push('specOnly must be an object mapping clip id -> freeze reason')
+  } else {
+    const ambientSet = new Set<string>(
+      Array.isArray(ambient) ? ambient.filter((clip): clip is string => typeof clip === 'string') : [],
+    )
+    for (const [clip, reason] of Object.entries(specOnly)) {
+      if (!(CLIP_IDS as readonly string[]).includes(clip)) problems.push(`specOnly.${clip} is not a v0.1 clip id`)
+      if (typeof reason !== 'string' || reason.trim().length === 0) {
+        problems.push(`specOnly.${clip} must be a non-empty reason string (decision record)`)
+      }
+      if (ambientSet.has(clip)) problems.push(`specOnly "${clip}" must not be a random ambient micro-action`)
+    }
+  }
+
   return problems
 }
 
@@ -358,4 +381,37 @@ export function timingTracks(): readonly TrackSpec[] {
 /** Default ambient micro-action pool from `timing.json` (weights live in behavior.json). */
 export function timingRandomMicroActions(): readonly ClipId[] {
   return TIMING.randomMicroActions
+}
+
+/**
+ * Clips kept in the pack/timing contract but with no product entry point.
+ *
+ * Freeze decision MB-047 / E5-T7 (2026-11-20):
+ * - `walk`: no behavior slot/state/rule, no regions action/gesture, no hero
+ *   event — no entry point anywhere; kept as the locomotion reference for a
+ *   future roam mode.
+ * - `attack`: unreachable combat one-shot (no UI / regions / plugin
+ *   EVENT_CLIPS); the behavior state that pretended to trigger it was removed
+ *   in the same change. Kept as the spec for a future play-fight reaction with
+ *   cooldown.
+ *
+ * The manifests mirror this map (`anim.specOnly`) and the clip-polish gate
+ * audits behavior/regions for accidental re-wiring, so a frozen clip cannot
+ * silently become live (or a live clip silently become dead).
+ *
+ * Scope note (honest payload accounting): "spec-only" is an entry-point /
+ * contract decision, not a payload reduction — the 15 frames (walk 8 + attack 7
+ * of 68, ~22%) remain in the pack assets and are still embedded/preloaded by
+ * the current pack loader. Removing them from the loader payload needs a hero
+ * loader change plus a product decision on the clipped pack shape, so this task
+ * deliberately only froze and labeled them.
+ */
+export const SPEC_ONLY_CLIPS: Readonly<Partial<Record<ClipId, string>>> = TIMING.specOnly
+
+/** Ids of spec-only clips in canonical `CLIP_IDS` order. */
+export const SPEC_ONLY_CLIP_IDS: readonly ClipId[] = CLIP_IDS.filter((id) => SPEC_ONLY_CLIPS[id] !== undefined)
+
+/** True when a clip is frozen spec-only (declared but has no runtime entry). */
+export function isSpecOnlyClip(id: ClipId): boolean {
+  return SPEC_ONLY_CLIPS[id] !== undefined
 }

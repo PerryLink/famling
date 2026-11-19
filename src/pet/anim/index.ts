@@ -11,7 +11,9 @@
  * - ambient/random micro-actions, state priorities, cooldowns and the
  *   event -> state mapping: the character `behavior.json` profile, executed by
  *   `src/pet/scene/runtime.ts` (SceneRuntime) + `BehaviorRuntime`;
- * - speech vs. thought / TTS capability: `VOICE_CAPABILITIES`.
+ * - speech vs. thought / TTS capability: `VOICE_CAPABILITIES`;
+ * - clip reachability: `timing.json.specOnly` freezes `walk`/`attack` as
+ *   spec-only (MB-047/E5-T7); manifests mirror it in `anim.specOnly`.
  *
  * Removed in E10 (were never imported by production code): the parallel
  * `IdleAnimationScheduler` (behavior ambient already drives scheduling), its
@@ -23,7 +25,7 @@
  * `frameIndexFor()` in `hero.ts` for frame math driven by the pack manifest.
  * Nothing in this module imports DOM, hero.ts, main.ts or pet.css.
  */
-export const ANIMATION_MODULE_VERSION = '0.2.0' as const
+export const ANIMATION_MODULE_VERSION = '0.3.0' as const
 
 export * from './types.ts'
 export * from './timeline.ts'

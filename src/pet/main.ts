@@ -29,16 +29,7 @@ import {
   type PetSaveService,
 } from './save-host.ts'
 import { exportPortable, importPortable } from './portable.ts'
-import { encodeWav } from '../voice/wav.ts'
-import {
-  heroStatus,
-  isHeroCharacterId,
-  resolveHeroConfig,
-  startHeroRuntime,
-  type HeroCharacterId,
-  type HeroRuntime,
-  type HeroStatus,
-} from './hero-runtime.ts'
+import { heroStatus, isHeroCharacterId, resolveHeroConfig, startHeroRuntime, type HeroRuntime, type HeroStatus } from './hero-runtime.ts'
 import { startTinglanPreview } from './tinglan-preview.ts'
 import { isBuiltinCharacterId } from './character/builtin.ts'
 import { resolveHeroRegionReaction, type HeroRegionAction, type HeroRegionReaction } from './anim/regions.ts'
@@ -59,30 +50,9 @@ import {
   type AdvisersPanelPolicyView,
 } from './advisers/face.ts'
 import { describeAdvisersFaceView, heroPlaceholderView, type HeroPlaceholderView } from './ui-state.ts'
-import {
-  applyRendererChoice,
-  closeDesktopSettingsDialog,
-  initDesktopShell,
-  openDesktopSettingsDialog,
-  requestMenuCoach,
-  createComposerController,
-  type ComposerController,
-  type HeroMenuActionItem,
-  type PetRendererChoice,
-} from './desktop-shell.ts'
-import {
-  CONTENT_WINDOW_NAVIGATE_EVENT,
-  PET_RELOAD_EVENT,
-  contentWindowMode,
-  installContentWindowChrome,
-  normalizeContentWindowRoute,
-  openContentWindow,
-  stashContentWindowFocus,
-  takeContentWindowFocus,
-  type ContentWindowChrome,
-  type ContentWindowRoute,
-} from './content-window.ts'
-import { heroActionPlan, isHeroMenuAction, type HeroMenuAction } from './hero-actions.ts'
+import { initDesktopShell, requestMenuCoach, createComposerController, type ComposerController, type HeroMenuActionItem } from './desktop-shell.ts'
+import { PET_RELOAD_EVENT, contentWindowMode } from './content-window.ts'
+import { heroActionPlan, isHeroMenuAction } from './hero-actions.ts'
 import { startHitRegionSync } from './hit-regions.ts'
 import { startDesktopShellLayout } from './shell-layout.ts'
 import { characterBubbleSemantic, characterCanVoice } from './character-voice.ts'
@@ -96,7 +66,7 @@ import {
 } from './safety/gate.ts'
 import { MAX_TALK_MS, MAX_WAV_BYTES, TalkRecorder, type MediaStreamLike, type TalkState } from './recording.ts'
 import { checkRelativePath } from './security/path-safety.ts'
-import { readClampedInt, removeKey, resolveStorage, safeGetItem, safeSetItem } from './security/safe-storage.ts'
+import { readClampedInt, removeKey, safeGetItem, safeSetItem } from './security/safe-storage.ts'
 import { SECURITY_LIMITS, sanitizePlainText, utf8ByteLength } from './security/limits.ts'
 import { createErrorBoundary, toUserMessage, type ErrorBoundary } from './security/error-boundary.ts'
 import { createSecurityRateLimits, RateLimitError } from './security/rate-limit.ts'
@@ -108,7 +78,6 @@ import {
   loadCharacterPackWithConsent,
 } from './consent/content.ts'
 import { CONSENT_OVERLAY_EVENT } from './consent/modal.ts'
-import { hasOpenConsentOverlay } from './consent/modal.ts'
 import {
   bootstrapConsent,
   canInteract,
@@ -140,7 +109,7 @@ import { getSafetyAuditLedger, type SafetyReviewLike } from './consent/safety-au
 import { grantHostVoiceConsent, revokeHostConsent, syncHostConsent } from './consent/host.ts'
 import { asrConfigSignature } from './consent/asr.ts'
 import { ttsConfigSignature } from './consent/tts.ts'
-import { formatVoiceModeLabel, isTtsVoiceId, readVoicePref, writeVoicePref, VOICE_PREF_STORAGE_KEY } from './voice-prefs.ts'
+import { formatVoiceModeLabel, isTtsVoiceId, readVoicePref, VOICE_PREF_STORAGE_KEY } from './voice-prefs.ts'
 import {
   filterProactiveLine,
   isQuietHoursActive,
@@ -149,70 +118,9 @@ import {
 } from './low-disturb.ts'
 import { AI_REPLY_LABEL, installBubbleAiLabel } from './ai-label.ts'
 import { roleplayTemplateReply } from './consent/roleplay.ts'
-import {
-  applyContentSelectionAppearance,
-  commitPreparedThemePack,
-  decideDialogueLine,
-  defaultContentMarketState,
-  describeContentMarketState,
-  evaluateRoleThemeSupport,
-  initContentHub,
-  planStartupRoleTheme,
-  prepareThemePackImport,
-  readInstalledContentPacks,
-  readInstalledThemePacks,
-  type ContentHubController,
-  type ContentHubImportResult,
-  type ContentHubInstalledPack,
-  type ContentHubSelectResult,
-  type ContentMarketUiState,
-  type ContentPackFileSelection,
-  type DialogueLineKind,
-  type PreparedThemePackImport,
-  type RemoteMarketSource,
-  type ThemePackPrepareResult,
-} from './content-hub.ts'
-import {
-  createCharacterPackInstaller,
-  type CharacterPackHubAdapter,
-} from './content-hub/character-installer.ts'
-import {
-  CONTENT_CHARACTER_PRODUCT_IDS,
-  CONTENT_SELECTION_CATEGORY,
-  applyCharacterTheme,
-  clearRoleThemeSelection,
-  findCharacterTheme,
-  findContent,
-  mergeCharacterThemes,
-  mergeInstalledPacks,
-  parseContentLibrary,
-  resolveContentSelection,
-  resolveDialogueBehavior,
-  validateContentPack,
-  validateContentPackV2,
-  writeCharacterThemeSelection,
-  writeContentSelection,
-  writeRoleThemeSelection,
-  type ContentCharacterEntry,
-  type ContentCharacterTheme,
-  type ContentLibrary,
-  type ContentSelection,
-  type CharacterPackKind,
-  type ContentVoiceEntry,
-  type DialogueBehavior,
-  type SelectionKey,
-} from './content-library.ts'
-import {
-  buildAssetRecords,
-  contentAssetKey,
-  createAssetUrlRegistry,
-  openContentAssetStore,
-  persistAssetRecords,
-  registerPackFont,
-  type ContentAssetRecord,
-  type ContentAssetStore,
-  type ContentAssetUrls,
-} from './content-assets.ts'
+import { decideDialogueLine, type DialogueLineKind } from './content-hub.ts'
+import { type DialogueBehavior } from './content-library.ts'
+import { createContentRuntime } from './content-runtime.ts'
 import './pet.css'
 
 /**
@@ -320,13 +228,6 @@ if (CONTENT_SHELL && typeof document !== 'undefined') {
   // the transparent desktop-shell background for this attribute).
   document.documentElement.dataset.contentWindow = '1'
 }
-/** Only the independent content window may rebroadcast a pet reload. */
-let contentWindowNeedsPetReload = false
-/** The content window's in-window home surface (content hub / settings / close). */
-let contentWindowChrome: ContentWindowChrome | null = null
-let contentWindowBooted = false
-/** Suppresses onClose→showHome while main.ts itself is switching panels. */
-let contentWindowTransition = false
 
 // Host-side trust wiring (HARDENING-2026-11-17 P1): one token bucket each for
 // cloud TTS / manual saves, and one error boundary per concern so failures are
@@ -965,722 +866,44 @@ function render(): void {
 }
 
 // ---------------------------------------------------------------------------
-// Role & content center runtime (famling.content/0.2, task-54)
+// Role & content center runtime + independent content/settings window runtime
+// (E10 MB-100, task-102)
 //
-// The catalog, strict validation, pack merge, selection persistence, appearance
-// and dialogue resolution are pure modules (src/pet/content-library.ts,
-// src/pet/content-hub.ts, src/pet/content-assets.ts). This host section owns
-// only the side effects:
-// - startup: read /content/library.json (same-origin static asset, never a
-//   remote market), merge v1 installed components + v2 role-theme packs, read
-//   the role theme + six-key selection (migrating old profiles), apply
-//   theme/background/font and resolve dialogue behaviour, then load locally
-//   stored pack assets (IndexedDB, memory fallback) for previews/fonts;
-// - one-click role: applyCharacterTheme -> writeCharacterThemeSelection (six
-//   keys + role-theme key). Character changes go through the existing
-//   applyRendererChoice() write+reload path; voice changes re-prompt the TTS
-//   declaration; appearance/dialogue apply immediately without reload;
-// - per-component customisation: one six-key write, immediate appearance,
-//   voice keeps the existing TTS config-signature lifecycle;
-// - local pack import (.json / .zip / webkitdirectory folder): bounded read ->
-//   canonical validateContentPackV2 (+ validatePackZip for bundles) ->
-//   unified usage declaration shown -> explicit user confirmation ->
-//   mergeCharacterThemes -> persist manifest + assets. Remote/unverified packs
-//   are refused by the pure helper; nothing is ever fetched here.
+// The runtime itself now lives in `content-runtime.ts` (no CSS import, no
+// module-level DOM) so Node tests can import it: this page injects the same
+// boundaries, voice/render lifecycle and save/greet callbacks it used before
+// the split. content-library/content-hub are untouched.
 // ---------------------------------------------------------------------------
-
-interface ContentPreviewTarget {
-  readonly packId: string
-  readonly path: string
-}
-
-interface ContentRuntimeState {
-  /** Built-in catalog document (no installed packs). */
-  readonly baseLibrary: ContentLibrary
-  /** Built-in catalog + v1 installed components (v2 theme packs not merged). */
-  v1Library: ContentLibrary
-  installedPacks: readonly unknown[]
-  themePacks: readonly unknown[]
-  library: ContentLibrary
-  selection: ContentSelection
-  roleThemeId: string | null
-  dialogue: DialogueBehavior
-  hub: ContentHubController | null
-  /**
-   * Experimental character-pack installer (IndexedDB host +
-   * CharacterPackRuntime). Null when the host adapter could not be opened;
-   * the 内容包 tab then shows the honest 「安装器不可用」 note.
-   */
-  characterPacks: CharacterPackHubAdapter | null
-  assetStore: ContentAssetStore | null
-  readonly assetUrls: ContentAssetUrls
-  /** Locally persisted pack asset records, keyed by contentAssetKey(). */
-  readonly assetRecords: Map<string, ContentAssetRecord>
-  /** Registered FontFace families per pack (local sample preview only). */
-  readonly fontFamiliesByPack: Map<string, string[]>
-  /** Installed role theme id -> its pack preview asset target. */
-  readonly previewTargets: Map<string, ContentPreviewTarget>
-}
-
-let contentRuntime: ContentRuntimeState | null = null
-let contentLoad: Promise<ContentRuntimeState | null> | null = null
 /** Active dialogue policy for sayLater/pickSays (null = catalog not loaded yet). */
 let dialogueBehavior: DialogueBehavior | null = null
-/**
- * Remote market source is intentionally NOT configured in this build: the UI
- * shows the honest "服务器未配置" state and nothing fetches. A future installer
- * can inject a verified RemoteMarketSource here without changing the panel.
- */
-let activeMarketSource: RemoteMarketSource | null = null
 
-const CONTENT_KEY_LABELS: Readonly<Record<SelectionKey, string>> = Object.freeze({
-  character: '角色',
-  voice: '声音',
-  dialoguePack: '对话模式',
-  theme: '主题',
-  background: '背景',
-  font: '字体',
+const contentRuntimeApi = createContentRuntime({
+  document,
+  contentWindow: CONTENT_WINDOW,
+  hasTauri: HAS_TAURI,
+  heroConfig: HERO_CONFIG,
+  uiBoundary,
+  loadBoundary,
+  reportFailure,
+  showBubble,
+  getCurrentVoice: () => currentVoice,
+  applyVoicePreference,
+  renderVoiceMode,
+  setDialogueBehavior: (next) => {
+    dialogueBehavior = next
+  },
+  loadNow,
+  render,
 })
-
-function contentStorage() {
-  return resolveStorage()
-}
-
-/** Fail closed when the TOS gate is not accepted or a consent overlay is open. */
-function contentHubBlocked(): boolean {
-  try {
-    return !canInteract() || hasOpenConsentOverlay(document)
-  } catch {
-    return true
-  }
-}
-
-/** Map the live renderer state to a catalog character id (runtime truth wins). */
-function contentCharacterIdFromRenderer(): string {
-  if (!HERO_CONFIG.enabled) return 'origami'
-  if (HERO_CONFIG.character === 'tinglan') return 'humanoid'
-  return HERO_CONFIG.character
-}
-
-/**
- * Character-pack fallback registration kind for the current hero character.
- * The runtime only needs this for the uninstall fallback placeholder; the
- * installer never renders that placeholder (renderer adapter not wired).
- */
-function characterPackKindFor(character: HeroCharacterId): CharacterPackKind {
-  if (!HERO_CONFIG.enabled) return 'humanoid'
-  if (character === 'cat') return 'cat'
-  if (character === 'dog') return 'dog'
-  return 'humanoid'
-}
-
-function addFontFamily(runtime: ContentRuntimeState, packId: string, family: string): void {
-  const families = runtime.fontFamiliesByPack.get(packId) ?? []
-  if (families.includes(family)) return
-  families.push(family)
-  runtime.fontFamiliesByPack.set(packId, families)
-}
-
-/** Installed role theme id -> pack-relative preview asset (for object URLs). */
-function rebuildPreviewTargets(runtime: ContentRuntimeState): void {
-  runtime.previewTargets.clear()
-  for (const raw of runtime.themePacks) {
-    const validation = validateContentPackV2(raw)
-    if (!validation.ok) continue
-    for (const theme of validation.pack.roleThemes) {
-      runtime.previewTargets.set(theme.id, { packId: validation.pack.id, path: theme.preview })
-    }
-  }
-}
-
-/** Load persisted pack previews + register stored woff2 fonts (best effort). */
-async function hydrateInstalledAssets(runtime: ContentRuntimeState): Promise<void> {
-  rebuildPreviewTargets(runtime)
-  const store = runtime.assetStore
-  if (store === null) return
-  for (const target of runtime.previewTargets.values()) {
-    const record = await store.get(target.packId, target.path)
-    if (record !== null) runtime.assetRecords.set(record.key, record)
-  }
-  for (const raw of runtime.themePacks) {
-    const validation = validateContentPackV2(raw)
-    if (!validation.ok) continue
-    const metas = await store.list(validation.pack.id)
-    for (const meta of metas) {
-      if (!meta.path.endsWith('.woff2')) continue
-      const record = await store.get(meta.packId, meta.path)
-      if (record === null) continue
-      runtime.assetRecords.set(record.key, record)
-      try {
-        const registration = await registerPackFont(record)
-        if (registration.ok && registration.family !== undefined) {
-          addFontFamily(runtime, record.packId, registration.family)
-        }
-      } catch {
-        // A font that fails to load is not fatal: the pack metadata still works.
-      }
-    }
-  }
-}
-
-/** Host market status (default: unconfigured, no network). */
-function contentMarketState(): ContentMarketUiState {
-  try {
-    return describeContentMarketState(activeMarketSource)
-  } catch {
-    return defaultContentMarketState()
-  }
-}
-
-function buildContentHubController(): ContentHubController {
-  return initContentHub({
-    document,
-    getLibrary: () => contentRuntime?.library ?? null,
-    getSelection: () => contentRuntime?.selection ?? null,
-    getRoleThemeId: () => contentRuntime?.roleThemeId ?? null,
-    getBaseLibrary: () => contentRuntime?.baseLibrary ?? null,
-    applyRole: (roleThemeId) => applyRoleThemeFromHub(roleThemeId, 'apply'),
-    customize: customizeRoleComponent,
-    restoreRole: restoreCurrentRoleDefaults,
-    prepareImport: prepareContentImport,
-    commitImport: commitContentImport,
-    getInstalledPacks: installedPackSummaries,
-    characterPacks: contentRuntime?.characterPacks ?? null,
-    getMarketState: contentMarketState,
-    resolvePreviewUrl: resolveRolePreviewUrl,
-    // The independent content window (MB-062): closing the SAME hub returns to
-    // its home surface, and appearance/role edits made there are flushed to the
-    // live pet window (save + reload) so it does not keep a stale renderer.
-    onClose: () => {
-      if (!CONTENT_SHELL) return
-      if (!contentWindowTransition) contentWindowChrome?.showHome()
-      if (contentWindowNeedsPetReload) {
-        contentWindowNeedsPetReload = false
-        requestPetWindowReload(true)
-      }
-    },
-  })
-}
-
-/**
- * Open the SAME consolidated role & content center inside this window.
- * Used by the pet window's browser/dev fallback and by the content window
- * itself (menu / settings → 角色与内容中心).
- */
-async function openContentHubInWindow(): Promise<boolean> {
-  if (contentHubBlocked()) {
-    showBubble('请先同意完整声明后再打开角色与内容中心。')
-    return false
-  }
-  const runtime = await ensureContentRuntime()
-  if (!runtime || !runtime.hub) {
-    showBubble('内容目录没有加载出来，请稍后再试。')
-    return false
-  }
-  return runtime.hub.open()
-}
-
-/**
- * Load + merge the catalog once (retryable after a failure), restore/migrate the
- * role theme selection and apply the saved appearance/dialogue. Local static
- * fetch only (the built-in catalog), never a remote market.
- */
-async function ensureContentRuntime(): Promise<ContentRuntimeState | null> {
-  if (contentRuntime) return contentRuntime
-  if (contentLoad) return contentLoad
-  const pending = (async (): Promise<ContentRuntimeState | null> => {
-    try {
-      const response = await fetch('/content/library.json', { credentials: 'same-origin' })
-      if (!response.ok) throw new Error('content library request failed: ' + response.status)
-      const baseLibrary = parseContentLibrary(await response.json())
-      const storedV1 = readInstalledContentPacks(contentStorage())
-      const v1Merged = mergeInstalledPacks(baseLibrary, storedV1.packs)
-      const v1Library = v1Merged.library
-      const storedThemes = readInstalledThemePacks(contentStorage())
-      const themeMerged = mergeCharacterThemes(v1Library, storedThemes.packs)
-      const library = themeMerged.library
-      const plan = planStartupRoleTheme(library, contentStorage(), {
-        runtimeCharacter: contentCharacterIdFromRenderer(),
-        ...(isTtsVoiceId(currentVoice) ? { runtimeVoice: currentVoice } : {}),
-      })
-      if (plan.writeRoleTheme && plan.roleThemeId !== null) {
-        // Migration/default: persist the full six-key bundle + role-theme key so
-        // the next boot reads the same role instead of re-deriving it.
-        writeRoleThemeSelection(library, plan.roleThemeId, contentStorage())
-        writeContentSelection(library, plan.selection, contentStorage())
-      }
-      if (plan.clearRoleTheme) clearRoleThemeSelection(contentStorage())
-      const runtime: ContentRuntimeState = {
-        baseLibrary,
-        v1Library,
-        installedPacks: storedV1.packs,
-        themePacks: storedThemes.packs,
-        library,
-        selection: plan.selection,
-        roleThemeId: plan.roleThemeId,
-        dialogue: resolveDialogueBehavior(library, plan.selection),
-        hub: null,
-        characterPacks: null,
-        assetStore: null,
-        assetUrls: createAssetUrlRegistry(),
-        assetRecords: new Map<string, ContentAssetRecord>(),
-        fontFamiliesByPack: new Map<string, string[]>(),
-        previewTargets: new Map<string, ContentPreviewTarget>(),
-      }
-      contentRuntime = runtime
-      dialogueBehavior = runtime.dialogue
-      try {
-        applyContentSelectionAppearance(document, runtime.library, runtime.selection)
-      } catch (error) {
-        reportFailure(uiBoundary, error)
-      }
-      try {
-        runtime.assetStore = await openContentAssetStore()
-        await hydrateInstalledAssets(runtime)
-      } catch (error) {
-        // Asset storage is a preview enhancement; the catalog still works.
-        reportFailure(uiBoundary, error)
-      }
-      // E4 role-pack installer: the IndexedDB/memory file store + injected
-      // CharacterPackRuntime host. The renderer adapter is intentionally NOT
-      // injected (task-98: no hero rendering change), so the panel labels
-      // install/enable as registration-only / not applicable.
-      try {
-        runtime.characterPacks = await createCharacterPackInstaller({
-          kind: characterPackKindFor(HERO_CONFIG.character),
-        })
-      } catch (error) {
-        runtime.characterPacks = null
-        reportFailure(uiBoundary, error)
-      }
-      runtime.hub = buildContentHubController()
-      return runtime
-    } catch (error) {
-      reportFailure(uiBoundary, error)
-      return null
-    }
-  })()
-  contentLoad = pending
-  try {
-    return await pending
-  } finally {
-    if (contentLoad === pending) contentLoad = null
-  }
-}
-
-/**
- * Desktop-menu entry (pet window): open the independent content/settings window
- * (MB-062), focusing it when already open. Browser/dev (no Tauri) and a failed
- * window creation keep today's in-window panel — one renderer, two hosts.
- */
-function openContentHubFromMenu(): void {
-  if (CONTENT_SHELL) {
-    // Content window: switch the SAME window to the content panel (this is also
-    // what the settings dialog's 角色与内容中心… button reaches).
-    if (contentWindowChrome) contentWindowChrome.showRoute('content')
-    else void openContentHubInWindow().catch((error) => reportFailure(uiBoundary, error))
-    return
-  }
-  if (!HAS_TAURI) {
-    // Browser/dev fallback: keep the in-window panel (no popups, no new window).
-    void openContentHubInWindow().catch((error) => reportFailure(uiBoundary, error))
-    return
-  }
-  void openContentWindow('content')
-    .then((opened) => {
-      if (!opened) void openContentHubInWindow().catch((error) => reportFailure(uiBoundary, error))
-    })
-    .catch((error) => {
-      reportFailure(uiBoundary, error)
-      void openContentHubInWindow().catch((inner) => reportFailure(uiBoundary, inner))
-    })
-}
-
-/**
- * Pet-window menu 设置… entry: open the same audited settings dialog in the
- * independent content window (deep-linked focus target stashed for it). Returns
- * false in the browser fallback so desktop-shell opens its in-window modal.
- */
-function openSettingsInContentWindow(focusTarget?: string): boolean {
-  if (CONTENT_SHELL || !HAS_TAURI) return false
-  stashContentWindowFocus(contentStorage(), focusTarget)
-  void openContentWindow('settings')
-    .then((opened) => {
-      if (!opened && !openDesktopSettingsDialog(focusTarget)) {
-        showBubble('内容窗口没有打开，设置暂时不可用。')
-      }
-    })
-    .catch((error) => {
-      reportFailure(uiBoundary, error)
-      openDesktopSettingsDialog(focusTarget)
-    })
-  return true
-}
-
-/**
- * Ask the live pet window to save (optional) and reload after a content/role
- * change made in the independent window. Fired through the Tauri event bus
- * (both windows share one process); the pet window owns its own save path.
- */
-function requestPetWindowReload(save: boolean): void {
-  if (!HAS_TAURI || !CONTENT_SHELL) return
-  void import('@tauri-apps/api/event')
-    .then(({ emit }) => emit(PET_RELOAD_EVENT, { save }))
-    .catch((error: unknown) => {
-      console.warn('[pet] reload bridge unavailable', error)
-    })
-}
-
-/** Close only the content window (never the app, never the pet). */
-function closeContentWindow(): void {
-  try {
-    if (HAS_TAURI) {
-      void import('@tauri-apps/api/window')
-        .then(({ getCurrentWindow }) => getCurrentWindow().close())
-        .catch(() => {
-          try {
-            window.close()
-          } catch {}
-        })
-      return
-    }
-    window.close()
-  } catch {}
-}
-
-/** Local object URL for an installed pack preview; built-in previews use paths. */
-function resolveRolePreviewUrl(theme: ContentCharacterTheme): string | null {
-  const runtime = contentRuntime
-  if (runtime === null) return null
-  if (typeof theme.preview === 'string' && theme.preview.startsWith('/') && !theme.preview.startsWith('//')) {
-    return theme.preview
-  }
-  const target = runtime.previewTargets.get(theme.id)
-  if (target === undefined) return null
-  const record = runtime.assetRecords.get(contentAssetKey(target.packId, target.path))
-  if (record === undefined) return null
-  try {
-    return runtime.assetUrls.urlFor(record)
-  } catch {
-    return null
-  }
-}
-
-/**
- * One-click role application: resolve the role into a six-component selection,
- * persist six keys + role-theme key, then run the existing lifecycles:
- *  - character differs -> applyRendererChoice() (persist + reload, TOS-gated);
- *  - voice differs -> write the voice preference + applyVoicePreference()
- *    (re-prompts the separate TTS declaration, never auto-accepted);
- *  - appearance/dialogue -> apply immediately, no reload.
- */
-function applyRoleThemeFromHub(
-  roleThemeId: string,
-  verb: 'apply' | 'restore',
-): ContentHubSelectResult {
-  const runtime = contentRuntime
-  if (!runtime) return { ok: false, message: '内容目录尚未加载，请稍后再试。' }
-  if (contentHubBlocked()) return { ok: false, message: '请先同意完整声明后再切换角色。' }
-  const theme = findCharacterTheme(runtime.library, roleThemeId)
-  if (theme === undefined) return { ok: false, message: '该角色主题不存在或已失效，已保留原角色。' }
-  const support = evaluateRoleThemeSupport(runtime.baseLibrary, theme)
-  if (!support.supported) return { ok: false, message: support.reason }
-  const application = applyCharacterTheme(runtime.library, roleThemeId)
-  if (!application.ok || application.selection === undefined) {
-    const first = application.issues[0]
-    return {
-      ok: false,
-      message:
-        '角色主题解析失败' + (first !== undefined ? '（' + first.message + '）' : '') + '，已保留原角色。',
-    }
-  }
-  const character = findContent(runtime.library, 'characters', application.selection.character) as
-    | ContentCharacterEntry
-    | undefined
-  if (character === undefined) {
-    return { ok: false, message: '角色主题引用的角色不在内容目录中，已保留原角色。' }
-  }
-  const targetRenderer = CONTENT_CHARACTER_PRODUCT_IDS[character.kind].famling as PetRendererChoice
-  const characterChanged = contentCharacterIdFromRenderer() !== application.selection.character
-  // Persist the whole role first: if storage is unavailable nothing changes.
-  const stored = writeCharacterThemeSelection(runtime.library, roleThemeId, contentStorage())
-  if (!stored.ok) return { ok: false, message: '本地存储不可用，角色主题未切换（原状态保持不变）。' }
-  const themeVoiceId =
-    character.voiceMode === 'tts' && isTtsVoiceId(application.selection.voice) ? application.selection.voice : null
-  const voiceChanged = themeVoiceId !== null && themeVoiceId !== currentVoice
-  let voicePrefNote = ''
-  if (voiceChanged && themeVoiceId !== null) {
-    const savedVoice = writeVoicePref(themeVoiceId, contentStorage())
-    if (savedVoice !== 'ok') voicePrefNote = '（音色偏好未能保存到本地存储）'
-  }
-  runtime.selection = application.selection
-  runtime.roleThemeId = roleThemeId
-  if (characterChanged) {
-    const applied = applyRendererChoice(targetRenderer, {
-      storage: contentStorage(),
-      reload: () => {
-        // The pet window is a different process window: tell it to save+reload
-        // so the new renderer actually appears there (it owns the pet loop).
-        requestPetWindowReload(true)
-        window.location.reload()
-      },
-    })
-    if (!applied) return { ok: false, message: '本地存储不可用，无法切换角色（未刷新，原角色保持不变）。' }
-    return {
-      ok: true,
-      message: '正在切换到「' + theme.name + '」…页面会按既有渲染器生命周期刷新。' + voicePrefNote,
-      close: true,
-    }
-  }
-  try {
-    applyContentSelectionAppearance(document, runtime.library, runtime.selection)
-  } catch (error) {
-    reportFailure(uiBoundary, error)
-  }
-  runtime.dialogue = resolveDialogueBehavior(runtime.library, runtime.selection)
-  dialogueBehavior = runtime.dialogue
-  // Appearance/dialogue changed without a reload: flush the live pet window when
-  // the content window's hub closes (it re-reads the same persisted selection).
-  if (CONTENT_SHELL) contentWindowNeedsPetReload = true
-  if (voiceChanged) applyVoicePreference(themeVoiceId as TtsVoiceId)
-  else renderVoiceMode()
-  const prefix = verb === 'restore' ? '已恢复角色「' : '已应用角色「'
-  return {
-    ok: true,
-    message:
-      prefix +
-      theme.name +
-      '」：声音 / 对话 / 主题 / 背景 / 字体已同步。' +
-      (voiceChanged ? 'TTS 声明会按新的配置签名重新弹出确认。' : '') + voicePrefNote,
-  }
-}
-
-/** Restore the current role theme's six defaults (keeps the role key). */
-function restoreCurrentRoleDefaults(): ContentHubSelectResult {
-  const runtime = contentRuntime
-  if (!runtime) return { ok: false, message: '内容目录尚未加载，请稍后再试。' }
-  if (runtime.roleThemeId === null) {
-    return {
-      ok: false,
-      message: '当前是自定义组合，没有可恢复的角色主题；可在「角色」里一键应用一个角色。',
-    }
-  }
-  return applyRoleThemeFromHub(runtime.roleThemeId, 'restore')
-}
-
-/**
- * Per-component customisation on top of the current role: writes only the six
- * component keys (the role-theme key stays as the applied basis), applies
- * appearance/dialogue immediately and keeps the voice TTS lifecycle.
- */
-function customizeRoleComponent(key: SelectionKey, id: string): ContentHubSelectResult {
-  const runtime = contentRuntime
-  if (!runtime) return { ok: false, message: '内容目录尚未加载，请稍后再试。' }
-  if (contentHubBlocked()) return { ok: false, message: '请先同意完整声明后再修改内容。' }
-  if (key === 'character') {
-    return { ok: false, message: '角色切换请在「角色」标签一键应用角色主题。' }
-  }
-  const entry = findContent(runtime.library, CONTENT_SELECTION_CATEGORY[key], id)
-  if (entry === undefined || !entry.available) {
-    return { ok: false, message: '该内容不可用或已失效，已保留原选择。' }
-  }
-  const resolved = resolveContentSelection(runtime.library, { ...runtime.selection, [key]: id })
-  if (resolved.selection[key] !== id) {
-    return { ok: false, message: '该选择不在当前内容目录中，已保留原选择。' }
-  }
-  const character = findContent(runtime.library, 'characters', resolved.selection.character) as
-    | ContentCharacterEntry
-    | undefined
-  let voiceNote = ''
-  if (key === 'voice' && character !== undefined && character.voiceMode === 'tts') {
-    const voice = entry as ContentVoiceEntry
-    if (!isTtsVoiceId(voice.voiceId)) {
-      return { ok: false, message: '这个声音不是本机支持的 TTS 音色，未切换。' }
-    }
-    if (voice.voiceId !== currentVoice) {
-      const savedPref = writeVoicePref(voice.voiceId, contentStorage())
-      if (savedPref !== 'ok') {
-        return { ok: false, message: '无法保存音色偏好（本地存储不可用），未切换。' }
-      }
-      voiceNote = ' TTS 声明会按新的配置签名重新弹出确认。'
-    }
-  }
-  runtime.selection = resolved.selection
-  const written = writeContentSelection(runtime.library, resolved.selection, contentStorage())
-  try {
-    applyContentSelectionAppearance(document, runtime.library, resolved.selection)
-  } catch (error) {
-    reportFailure(uiBoundary, error)
-  }
-  if (key === 'dialoguePack') {
-    runtime.dialogue = resolveDialogueBehavior(runtime.library, resolved.selection)
-    dialogueBehavior = runtime.dialogue
-  }
-  // Same persisted selection read by the pet window: flush it on hub close.
-  if (CONTENT_SHELL) contentWindowNeedsPetReload = true
-  if (key === 'voice' && character !== undefined && character.voiceMode === 'tts') {
-    const voice = entry as ContentVoiceEntry
-    if (isTtsVoiceId(voice.voiceId)) {
-      if (voice.voiceId !== currentVoice) applyVoicePreference(voice.voiceId)
-      else renderVoiceMode()
-    }
-  }
-  const name = entry.name
-  if (!written.ok) {
-    return {
-      ok: false,
-      message: '已临时应用' + CONTENT_KEY_LABELS[key] + '「' + name + '」，但无法保存（本地存储不可用）。',
-    }
-  }
-  return {
-    ok: true,
-    message: '已自定义' + CONTENT_KEY_LABELS[key] + '「' + name + '」；其余组件仍跟随角色主题。' + voiceNote,
-  }
-}
-
-/** Pure validation / merge preview for a selected local pack (nothing written). */
-async function prepareContentImport(selection: ContentPackFileSelection): Promise<ThemePackPrepareResult> {
-  const runtime = contentRuntime
-  if (!runtime) return { ok: false, message: '内容目录尚未加载。' }
-  if (contentHubBlocked()) return { ok: false, message: '请先同意完整声明后再导入内容。' }
-  return prepareThemePackImport(selection, runtime.v1Library, runtime.themePacks)
-}
-
-/**
- * Explicitly confirmed install: persist the validated manifest, persist verified
- * assets (IndexedDB / memory fallback), re-merge the catalog and refresh UI.
- */
-async function commitContentImport(pending: PreparedThemePackImport): Promise<ContentHubImportResult> {
-  const runtime = contentRuntime
-  if (!runtime) return { ok: false, message: '内容目录尚未加载。' }
-  if (contentHubBlocked()) return { ok: false, message: '请先同意完整声明后再导入内容。' }
-  const stored = commitPreparedThemePack(pending, contentStorage())
-  if (!stored.ok) {
-    const reason =
-      stored.status === 'too-large'
-        ? '内容包存储超过大小上限'
-        : stored.status === 'quota'
-          ? '本地存储配额不足'
-          : '本地存储不可用'
-    return { ok: false, message: '内容包校验通过，但' + reason + '，未安装。' }
-  }
-  let assetNote = ''
-  if (pending.assets.length > 0) {
-    const records = buildAssetRecords(pending.pack.id, pending.assets)
-    const store = runtime.assetStore
-    if (store !== null) {
-      const persisted = await persistAssetRecords(store, records)
-      for (const record of records) runtime.assetRecords.set(record.key, record)
-      if (persisted.failed > 0) {
-        assetNote = '（' + persisted.failed + ' 个素材未能写入本地资产库，预览可能缺失）'
-      }
-      for (const record of records) {
-        if (!record.path.endsWith('.woff2')) continue
-        try {
-          const registration = await registerPackFont(record)
-          if (registration.ok && registration.family !== undefined) {
-            addFontFamily(runtime, record.packId, registration.family)
-          }
-        } catch {
-          // A font failure must not fail an otherwise valid pack install.
-        }
-      }
-    } else {
-      assetNote = '（本地资产库不可用，素材仅在本次会话可用）'
-    }
-  }
-  runtime.themePacks = pending.nextPacks
-  runtime.library = pending.library
-  runtime.selection = resolveContentSelection(pending.library, runtime.selection).selection
-  runtime.dialogue = resolveDialogueBehavior(pending.library, runtime.selection)
-  dialogueBehavior = runtime.dialogue
-  rebuildPreviewTargets(runtime)
-  // The pet window must re-read the merged catalog so the imported pack appears
-  // there too (flush on hub close; no duplicate window logic).
-  if (CONTENT_SHELL) contentWindowNeedsPetReload = true
-  try {
-    applyContentSelectionAppearance(document, runtime.library, runtime.selection)
-  } catch (error) {
-    reportFailure(uiBoundary, error)
-  }
-  const verb = pending.unchanged ? '已存在相同内容包' : pending.replaced ? '已更新内容包' : '已导入内容包'
-  const unsupported = pending.pack.roleThemes.filter(
-    (theme) => !evaluateRoleThemeSupport(runtime.baseLibrary, theme).supported,
-  ).length
-  const supportNote =
-    unsupported > 0
-      ? '；其中 ' + unsupported + ' 个角色主题需远程市场安装器才能实际渲染，已导入但不可一键应用。'
-      : ''
-  return {
-    ok: true,
-    message:
-      verb +
-      '「' +
-      pending.pack.name +
-      '」：' +
-      pending.pack.roleThemes.length +
-      ' 个角色主题，统一用途声明已确认，仅本地数据、未联网。' +
-      supportNote +
-      assetNote,
-    installedCount: runtime.themePacks.length + runtime.installedPacks.length,
-  }
-}
-
-/** Rows for the 内容包 tab: v1 local packs + imported v2 role-theme packs. */
-function installedPackSummaries(): readonly ContentHubInstalledPack[] {
-  const runtime = contentRuntime
-  if (!runtime) return Object.freeze([])
-  const out: ContentHubInstalledPack[] = []
-  for (const raw of runtime.installedPacks) {
-    const validation = validateContentPack(raw)
-    if (!validation.ok) continue
-    const pack = validation.pack
-    out.push(
-      Object.freeze({
-        id: pack.id,
-        name: pack.name,
-        version: pack.version,
-        kind: 'v1' as const,
-        roleThemes: 0,
-        declaration: false,
-      }),
-    )
-  }
-  for (const raw of runtime.themePacks) {
-    const validation = validateContentPackV2(raw)
-    if (!validation.ok) continue
-    const pack = validation.pack
-    const unsupported = pack.roleThemes.filter(
-      (theme) => !evaluateRoleThemeSupport(runtime.baseLibrary, theme).supported,
-    )
-    const fontFamilies = runtime.fontFamiliesByPack.get(pack.id)
-    out.push(
-      Object.freeze({
-        id: pack.id,
-        name: pack.name,
-        version: pack.version,
-        kind: 'role-theme' as const,
-        roleThemes: pack.roleThemes.length,
-        declaration: true,
-        aiDisclosure: pack.aiProvenance.disclosure,
-        license: pack.license.spdx + ' / ' + pack.license.attribution,
-        ...(unsupported.length > 0
-          ? {
-              note:
-                '已导入但需远程市场安装器：' +
-                unsupported.map((theme) => theme.name).join('、') +
-                ' 的角色动画/声音本机暂不可用。',
-            }
-          : {}),
-        ...(fontFamilies !== undefined && fontFamilies.length > 0
-          ? { fontFamilies: Object.freeze([...fontFamilies]) }
-          : {}),
-      }),
-    )
-  }
-  return Object.freeze(out)
-}
-
+const {
+  ensureContentRuntime,
+  openContentHubInWindow,
+  openContentHubFromMenu,
+  openSettingsInContentWindow,
+  requestPetWindowReload,
+  closeContentWindow,
+  bootContentWindowOnce,
+} = contentRuntimeApi
 
 function doPat(actorId?: string): void {
   state = patPet(state, now())
@@ -2437,9 +1660,9 @@ if (!CONTENT_SHELL) startDesktopShellLayout()
   // metadata plus the same gate-checked open path as the desktop menu. There is
   // no write bypass here; selection still goes through the panel callbacks.
   content: {
-    selection: (): ContentSelection | null => contentRuntime?.selection ?? null,
+    selection: () => contentRuntimeApi.getContentRuntime()?.selection ?? null,
     dialoguePack: (): string | null => dialogueBehavior?.packId ?? null,
-    installedPacks: (): number => contentRuntime?.installedPacks.length ?? 0,
+    installedPacks: () => contentRuntimeApi.getContentRuntime()?.installedPacks.length ?? 0,
     // The QA/console surface keeps the historical in-window panel so existing
     // E2E probes stay inside the pet page; the user-facing menu opens the
     // independent window (MB-062).
@@ -2505,7 +1728,6 @@ if (!CONTENT_SHELL) startDesktopShellLayout()
     heroEmit: (event: string, actorId?: string) => (hero ? hero.emit(event, actorId ? { actorId } : {}) : null),
   },
 }
-
 
 const WINDOW_KEY = 'desktop-games/pet/window'
 
@@ -3583,78 +2805,6 @@ function exitApplication(): void {
   } catch {}
 }
 
-// ---------------------------------------------------------------------------
-// Independent content/settings window boot (MB-062 / E6, task-85)
-//
-// Same modules as the pet window: ensureContentRuntime() builds the role content
-// center, desktop-shell.ts builds the #pet-settings dialog, and the shared
-// consent gate gates both. This section only routes between the home surface and
-// the two panels and bridges role/appearance edits back to the live pet window.
-// ---------------------------------------------------------------------------
-function presentContentWindowRoute(route: ContentWindowRoute): void {
-  const target = normalizeContentWindowRoute(route)
-  contentWindowTransition = true
-  try {
-    if (target === 'settings') {
-      contentRuntime?.hub?.close(false)
-      contentWindowChrome?.hideHome()
-      const focus = takeContentWindowFocus(contentStorage())
-      if (!openDesktopSettingsDialog(focus ?? undefined)) contentWindowChrome?.showHome()
-      return
-    }
-    closeDesktopSettingsDialog(false)
-    contentWindowChrome?.hideHome()
-    void openContentHubInWindow()
-      .then((opened) => {
-        if (!opened) contentWindowChrome?.showHome()
-      })
-      .catch((error) => {
-        reportFailure(uiBoundary, error)
-        contentWindowChrome?.showHome()
-      })
-  } finally {
-    contentWindowTransition = false
-  }
-}
-
-/**
- * Boot the content window: load the pet archive once (read-only; the settings
- * dialog reuses mute/volume/save/load from it), build the shared content runtime
- * and settings dialog, then show the requested panel. Never boots the pet loop,
- * hero, Advisers, hit regions or autosave.
- */
-async function bootContentWindowOnce(): Promise<void> {
-  if (contentWindowBooted) return
-  contentWindowBooted = true
-  try {
-    // Read-only load; a corrupt archive keeps the defaults and the dialog still
-    // works. There is no autosave in this window (see the guarded interval).
-    await loadNow()
-  } catch (error) {
-    reportFailure(loadBoundary, error)
-  }
-  renderVoiceMode()
-  render()
-  await ensureContentRuntime()
-  contentWindowChrome = installContentWindowChrome({
-    document,
-    openRoute: presentContentWindowRoute,
-    closeWindow: closeContentWindow,
-  })
-  if (HAS_TAURI) {
-    void import('@tauri-apps/api/event')
-      .then(({ listen }) =>
-        listen<string>(CONTENT_WINDOW_NAVIGATE_EVENT, (event) => {
-          contentWindowChrome?.showRoute(normalizeContentWindowRoute(event.payload))
-        }),
-      )
-      .catch((error: unknown) => {
-        console.warn('[pet] content window navigation unavailable', error)
-      })
-  }
-  contentWindowChrome.showRoute(CONTENT_WINDOW.route)
-}
-
 /** Content-window equivalent of startConsentApp: initialize -> consent -> panel. */
 async function startContentWindowApp(): Promise<void> {
   try {
@@ -3709,12 +2859,7 @@ function initializeApp(): void {
             // window reload into its own consent state (never save: read-only).
             await syncHostConsent(consentSnapshot())
             await bootContentWindowOnce()
-            contentWindowTransition = true
-            try {
-              contentWindowChrome?.showRoute(CONTENT_WINDOW.route)
-            } finally {
-              contentWindowTransition = false
-            }
+            contentRuntimeApi.showContentWindowRoute(CONTENT_WINDOW.route)
             requestPetWindowReload(false)
             return
           }
@@ -3760,8 +2905,7 @@ function initializeApp(): void {
       // the content window reuses the SAME dialog and does not open a third.
       openSettingsWindow: CONTENT_SHELL ? undefined : openSettingsInContentWindow,
       onSettingsClosed: () => {
-        if (!CONTENT_SHELL || contentWindowTransition) return
-        contentWindowChrome?.showHome()
+        contentRuntimeApi.handleContentWindowSettingsClosed()
       },
       // The content window gets the same dialog renderer/persistence but no pet
       // right-click menu, coach or pet drag behavior.
@@ -3785,7 +2929,7 @@ function initializeApp(): void {
       loadArchive: loadArchiveWithFeedback,
       resetWindow: resetPetWindow,
       // The role & content center is above the body-level shell menu.
-      isHigherModalOpen: () => contentRuntime?.hub?.isOpen() === true,
+      isHigherModalOpen: () => contentRuntimeApi.isContentHubOpen(),
       // Root 退出: best-effort save, then close; a hung IPC still exits. The
       // content window has no menu, and its close button never quits the app.
       onExit: () => { void exitAfterSave() },
@@ -3807,7 +2951,7 @@ function initializeApp(): void {
     // panel (and its feedback) remaining behind the modal.
     document.addEventListener(CONSENT_OVERLAY_EVENT, (event) => {
       const detail = (event as CustomEvent<{ open?: boolean; kind?: string }>).detail
-      if (detail && detail.open === true) contentRuntime?.hub?.close(false)
+      if (detail && detail.open === true) contentRuntimeApi.closeContentHubPanel()
       // 撤回同意 / 删除全部本地数据 executed in the content window end in the safe
       // read-only screen. The live pet window keeps an in-memory acceptance, so
       // ask it to reload WITHOUT saving (save would re-create wiped data).

@@ -22,6 +22,12 @@
  *   and are executed by `src/pet/scene/runtime.ts` (SceneRuntime) through
  *   `BehaviorRuntime`. There is intentionally no second idle scheduler and no
  *   interaction-plan table in this module any more (dead code removed by E10).
+ * - Clip reachability: `walk` and `attack` are frozen **spec-only** clips
+ *   (MB-047/E5-T7, 2026-11-20). They stay in the shared v0.1 clip contract so
+ *   all character packs keep the same shape, but no product entry plays them.
+ *   `timing.json.specOnly` is the decision record, the pack manifests mirror it
+ *   in `anim.specOnly`, and the behavior/regions audit gate fails if one of them
+ *   is wired up without updating the decision (or vice versa).
  *
  * The frame-rate bands documented in `timing.json` come from the 2D pixel
  * action-game research: idle 4-8 FPS / 2-8 frames, walk 8-12 FPS / 6-8 frames,

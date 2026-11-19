@@ -2,9 +2,9 @@
 
 | 项 | 内容 |
 |---|---|
-| 状态 | **核心模型 + 扩展规范已落地；UI / 安装器 / 真实市场服务器未实现**。本文件是设计决策记录，不含 UI 改动。2026-11-19 追加 v2（task-52）——角色即主题、内容包 0.2、远程市场契约，见 §10；v3（task-66）——远程市场客户端 v1（默认不联网）已实现并通过离线测试，见 §11；v4（task-75/MB-086）——市场联网保险丝：传输层改为宿主注入（默认 null）、无全局 fetch 静态门、市场 UI 默认零请求，见 §11.15。 |
+| 状态 | **核心模型 + 扩展规范已落地；UI / 安装器 / 真实市场服务器未实现**。本文件是设计决策记录，不含 UI 改动。2026-11-19 追加 v2（task-52）——角色即主题、内容包 0.2、远程市场契约，见 §10；v3（task-66）——远程市场客户端 v1（默认不联网）已实现并通过离线测试，见 §11；v4（task-75/MB-086）——市场联网保险丝：传输层改为宿主注入（默认 null）、无全局 fetch 静态门、市场 UI 默认零请求，见 §11.15；v5（task-103/MB-080）——目录协议 v0.2（serial/expires/离线宽限/重试/限流/镜像）+ 防回滚/过期/缓存状态机，见 §11.16。 |
 | 日期 | 2026-11-19（Asia/Shanghai） |
-| 任务 | task-48：为 famling + dsh-famling 建集中式内容中心/主题市场的共享数据模型与扩展规范。task-52：按产品澄清做 v2（角色主题主入口 / 内容包 0.2 / 远程市场契约 / 三份设计参考）。task-66：远程市场客户端 v1（可注入 transport/clock/storage/verifier，签名目录/防回滚/下载校验/适配器，默认不联网）。task-75/MB-086：市场联网保险丝（transport 宿主注入、默认 null、无全局 fetch 静态门、content-hub 市场 UI 默认零请求）。 |
+| 任务 | task-48：为 famling + dsh-famling 建集中式内容中心/主题市场的共享数据模型与扩展规范。task-52：按产品澄清做 v2（角色主题主入口 / 内容包 0.2 / 远程市场契约 / 三份设计参考）。task-66：远程市场客户端 v1（可注入 transport/clock/storage/verifier，签名目录/防回滚/下载校验/适配器，默认不联网）。task-75/MB-086：市场联网保险丝（transport 宿主注入、默认 null、无全局 fetch 静态门、content-hub 市场 UI 默认零请求）。task-103/MB-080：catalog v0.2（serial/expires/offlineGraceSeconds/retry/rateLimit/mirrors）+ 客户端最高 serial 防回滚、过期与离线宽限、有界缓存、重试/限流/镜像回退；仍不联网、不接生产服务器。 |
 | 写范围 | 'public/content/library.json'、'public/content/README.md'、'src/pet/content-library.ts'、'tests/content-library.test.ts'、'tests/content-pack-v2.test.ts'、'docs/content-packs/**'、'public/content/library.json'、本文件。 |
 | 不写范围 | 'src/pet/main.ts'、'src/pet/desktop-shell.ts'、'pet.html'、'plugins/dsh-famling/**'、任何 UI/main/plugin 文件；未 commit/push；未联网；未安装依赖。 |
 | 读者 | 后续接手的 UI agent（famling 菜单/内容面板）、dsh-famling 维护者、发布/法务。 |
@@ -708,7 +708,7 @@ initContentHub({
 | maxCatalogBytes | **1 MiB** | ≤4 MiB | 等于 maxMarketJsonBytes |
 | maxPackBytes | **16 MiB** | ≤64 MiB | 等于 maxZipBytes |
 | maxRedirects | **3** | 0..5 | 手动 redirect，同 host |
-| maxConcurrentDownloads | **2** | 1..4 | 目录刷新本身强制串行 |
+| maxConcurrentDownloads | **1**（v0.2 起） | 1..4 | 目录刷新本身强制串行；签名目录 `rateLimit` 只能再降低 |
 | storage | 无 | StorageLike | 缺省且 requireSerialStorage:true ⇒ 拒绝联网 |
 | requireSerialStorage | true | — | 显式 false 才允许无持久化（测试/无痕模式，结果标记 rollbackProtection=false） |
 | allowHttp | false | 测试/开发专用 | 开启会记一条 warning 日志 |
@@ -773,6 +773,8 @@ initContentHub({
 - 未知 key / 吊销 / 过期 / 缺签 / 哈希不符 ⇒ 对应失败码，绝不"降级信任"。
 
 ### 11.7 防回滚（serial）
+
+> v0.2 起排序主键改为目录内的单调 `catalog.serial`（旧的 updatedAt/version 只保留在 v1 兼容语义与诊断字段中，见 §12.2）。
 
 - serial = (updatedAtMs, version, catalogSha256)：
   - updatedAtMs 主序（date-only 视为 UTC 00:00:00）；
@@ -874,7 +876,7 @@ npm test                                          -> tests 1211, pass 1204, fail
 1. **真实服务器/CDN/审核后台**：目录发布流水线、pack 托管、镜像/回源、灰度、审核工作流；
 2. **支付/订单/退款/地区与年龄门**（产品红线：不做付费情感关系）；
 3. **生产密钥 ceremony/轮换自动化**（P1-1 后续）；
-4. **离线缓存/断点续传/自动重试/进度条**：本 v1 刻意只做显式、一次性、fail-closed 拉取；
+4. **断点续传（Range）/进度条**：v1 刻意只做显式、一次性、fail-closed 拉取；离线缓存与自动重试已由 v0.2 补上（见 §12）；
 5. **安装器 UI**（用途声明展示 + 显式确认按钮 + 解压进度）+ 宿主 main.ts 接线；
 6. **多市场/多 trust root/镜像选择**；preview 图片的远程加载（当前仍不联网取图）；
 7. **宿主 transport（Rust 受限下载器 / IPC 桥）未实现（本任务明确不改 Rust）**：v4 只把传输层改成注入式并加保险丝；真正的出网适配器属于 E6-T4，完成前市场保持 disabled（transport-unavailable），这是当前唯一的技术阻塞项（非本任务范围）。
@@ -936,3 +938,90 @@ v4 的决定：**TS 只做状态机/校验，出网由宿主注入的受限 tran
 #### 11.15.6 剩余阻塞（不在本任务范围）
 
 宿主 transport（Rust `market_fetch`/IPC 桥）尚未实现——本任务按指示不改 Rust。在 E6-T4 完成前，市场保持 `transport-unavailable`/disabled；这是唯一技术 blocker。真实服务器/catalog 审核/密钥 ceremony/法务仍见 §11.13。
+
+---
+
+## 12. v5（task-103/MB-080）：catalog v0.2 + 防回滚/过期/离线宽限/重试/限流/镜像（2026-11-20）
+
+> 仅离线工程实现：没有真实市场服务器，没有发出任何网络请求。所有协议行为由注入式 `transport` / `now` / `storage` / `sleep` / `random` 在测试中驱动。
+> v0.1 目录仍可被 `validateMarketCatalog` 解析（只读兼容），但 `content-market.ts` **拒绝**用 0.1 刷新/安装（`catalog-unsupported`）。
+
+### 12.1 目录 schema：`famling.market-catalog/0.2`
+
+`src/pet/content-library.ts` 新增 `CONTENT_MARKET_CATALOG_SCHEMA_V2`、`ContentMarketCatalogV1 | ContentMarketCatalogV2` 联合类型、`isMarketCatalogV2()`、`validateMarketCatalogV2()` 与 `CONTENT_MARKET_LIMITS`。
+
+| 字段 | 必填 | 校验 / 上限 |
+|---|---|---|
+| `schema` | 是 | 固定 `famling.market-catalog/0.2`（0.1 只读；按 schema 严格区分允许键） |
+| `serial` | 是 | 整数 1..2,147,483,647；防回滚主序 |
+| `version` | 是 | SemVer（仅诊断/展示，不参与排序） |
+| `updatedAt` | 是 | `YYYY-MM-DD` 或 ISO-8601 UTC |
+| `expires` | 是 | `YYYY-MM-DD` 或 ISO-8601 UTC；必须晚于 `updatedAt`，且最多晚 90 天 |
+| `offlineGraceSeconds` | 否 | 整数 0..2,592,000（30 天）；客户端还会以自身配置为上限 |
+| `retry` | 否 | `maxAttempts` 1..3、`baseDelayMs` 100..15,000、`maxDelayMs` ≥ `baseDelayMs` 且 ≤15,000；缺省字段按协议默认补齐 |
+| `rateLimit` | 否 | `requestsPerMinute` 1..60、`maxConcurrentDownloads` 1..4；缺省按协议默认补齐 |
+| `mirrors` | 否 | 1..8 个**裸 HTTPS origin**（`https://host[:port]`，无凭据/路径/query/fragment），不得重复 |
+| `keyId` / `signature` / `packs` | 是 | 与 0.1 相同的 Ed25519 分离签名字段与 packs 校验（1..256，逐包签名） |
+
+规则：目录 JSON 上限仍为 1 MiB；签名覆盖 canonical JSON（去掉顶层 `signature`）。v0.1 文档出现 v0.2 专有字段会被 `unknown-field` 拒绝，反之亦然。
+
+### 12.2 客户端状态机（`src/pet/content-market.ts`）
+
+**refreshCatalog（fail-closed 顺序）**
+
+1. 配置 / URL 策略检查（HTTPS、无凭据/片段、私网拒绝、可选 host 白名单）——均发生在任何请求之前；
+2. 读取 v2 防回滚信封；缺失=首刷，不可读/损坏/旧 v1 信封 ⇒ `storage-unavailable` / `storage-corrupt`，**零请求**；`requireSerialStorage` 默认 true；
+3. 读取并**重新校验 + 重新验签**有界缓存（最多约 1 MiB+4 KiB，单 key）；损坏/签名失效/被吊销 key 的缓存直接忽略（缓存不是信任升级）；
+4. 通过注入 transport 拉取：自动重试 + 签名镜像回退（见 12.3/12.5）；
+5. **仅当失败可重试**（network/timeout/408/425/429/5xx）且缓存与已持久化 serial 完全一致、且仍处于离线宽限期内 ⇒ 返回 `cached:true` 的缓存目录（不改写 serial，不移动防回滚基线）；
+6. 解码/JSON 后，`schema === famling.market-catalog/0.1` ⇒ `catalog-unsupported`（拒绝降级安装）；
+7. `validateMarketCatalogV2` → `verifyMarketCatalogSignature`（Ed25519 + 信任根状态/有效期）；
+8. **过期判定先于回滚判定**：`now <= expires` = fresh；`expires < now <= expires+grace` = 宽限（`stale:true`，仍允许下载/安装）；超过宽限 ⇒ `catalog-expired`（不采用；已安装内容保持可用）；
+9. serial 单调性：`incoming.serial < stored.serial` 或同 serial 但 canonical payload SHA-256 不同 ⇒ `catalog-rollback`（幂等重放=同 serial+同 hash 则接受且不重复写）；
+10. 只有验签/过期/回滚全部通过才写 v2 serial 信封，再最佳努力写缓存；返回值带 `cached/stale/expiresAt/offlineGraceUntil/attempts/viaMirror`。
+
+**downloadPack / installPack**：目录超过 expires+grace 后一律 `catalog-expired`（不发请求、不调用 unpack/install）；宽限期内仍允许。下载仍只接受**已验签目录条目**的精确 URL，先大小、再 SHA-256、再 Ed25519；镜像回退只改变 origin，校验链不变。
+
+**离线宽限公式**：`offlineGraceUntilMs = expiresMs + min(hostConfig.offlineGraceSeconds, catalog.offlineGraceSeconds)`（目录缺省时用 host 配置，默认 7 天，硬上限 30 天）。
+
+**持久化状态**：`MARKET_SERIAL_STORAGE_VERSION = 2`，信封 `{v:2,data:{serial,catalogVersion,updatedAt,updatedAtMs,catalogSha256,expiresMs,offlineGraceUntilMs,mirrors[]}}`（单 key ≤4096 字符，不存 URL/token/目录内容）。v1 旧信封按 `storage-corrupt` fail-closed，只能走显式 `resetRollbackProtection()`（同时清缓存）。
+
+**缓存**：新 key `desktop-games/pet/content/market/catalog-cache`，信封 v1 存完整已验签目录 + serial/expires/grace/bytes/keyId/keyStatus；读取时重新 validate + verify。写失败只告警（不阻止本次刷新），永不参与信任判断。
+
+### 12.3 重试（transport profile）
+
+- 仅重试：`network-error`、`timeout`、HTTP 408 / 425 / 429 / 500 / 502 / 503 / 504；其余（包括 404、签名/回滚/限流）不重试；
+- 最多 3 次（host 配置可降低；目录里的 `retry` 只能让客户端更保守：取更小 attempts、更大 baseDelay）；
+- 指数退避 1 s / 2 s + 抖动（0..baseDelay/2，可注入 `random`），总上限受 `maxDelayMs`；
+- `Retry-After`（秒数或 HTTP-date）优先于退避，单次延迟硬上限 60 s；调用方 abort 时不重试。
+
+### 12.4 限流
+
+- 客户端滚动 60 s 窗口，默认 5 次/分钟，硬上限 60；
+- 签名目录的 `rateLimit.requestsPerMinute` 只能降低 host 预算；`rateLimit.maxConcurrentDownloads` 只能降低 host 并发（默认 1，硬上限 4）；
+- 每次 transport 尝试（含重试与镜像尝试）都计入预算；超预算直接 `rate-limited` + `retryAfterMs`，**不触达 transport**。
+
+### 12.5 镜像
+
+- 来源：上一次成功刷新写入 serial 信封的 `mirrors[]`（首刷无法得知镜像，符合规范）；
+- 目录刷新：主 URL 重试耗尽后，按 order 尝试 `mirrorOrigin + 主 catalog path`；pack 下载：失败后尝试 `mirrorOrigin + pack path`；
+- 镜像 host 来自**已验签 payload**，因此即使配置了 `allowedCatalogHosts` 也允许（仍需通过 HTTPS/私网/重定向策略）；响应仍走完整大小/SHA-256/Ed25519 校验；
+- 每个镜像单次尝试（不无限回退），全部失败返回最后一次可重试失败。
+
+### 12.6 新失败码与配置
+
+新增稳定失败码：`catalog-unsupported`（0.1 只读）、`catalog-expired`（超出离线宽限）、`rate-limited`（客户端预算，retryable + retryAfterMs）。`MarketFailure` 新增可选 `retryAfterMs`。
+
+新增配置（全部有默认值/硬上限）：`retry?{maxAttempts,baseDelayMs,maxDelayMs}`、`requestsPerMinute?`、`offlineGraceSeconds?`、`sleep?(ms)`、`random?()`、`catalogCacheStorageKey?`。`MarketplaceClientDescription.limits` 增加 `retryMaxAttempts/requestsPerMinute/offlineGraceSeconds`。
+
+### 12.7 验收证据（2026-11-20 本机实测）
+
+- `node --import tsx --test tests/content-market.test.ts` → **47 tests / 47 pass / 0 fail**（原 34 项全部迁移到 v0.2 fixture；新增 13 项：schema 正/负例、0.1 只读拒绝、过期/宽限/安装门、离线缓存回退与安全失败不回退、坏缓存、v1 信封 fail-closed、重试/退避/Retry-After、限流、目录限流降并发、目录镜像、pack 镜像、缓存刷新 UI 文案）；
+- `node --import tsx --test tests/content-pack-v2.test.ts tests/content-hub.test.ts` → **98 / 98 pass**（0.1 目录解析保持向后兼容）；
+- `npx tsc --noEmit`：本任务 3 个文件无错误（全仓 tsc 当时被并发任务的未完成 `src/pet/content-runtime.ts` 阻断，与本任务无关）；
+- 全部测试使用注入 transport/clock/sleep/random/storage，**未联网**；未改 Rust/插件/content-hub/main；
+- 未 commit / 未 push。
+
+### 12.8 明确未做
+
+生产主机 transport（Rust/IPC）、真实服务器/CDN/审核后台、镜像健康探测与主动切换、断点续传/Range、下载进度/取消 UI、密钥轮换 ceremony、v0.1→v0.2 发布端迁移工具、法务复核。
