@@ -50,7 +50,17 @@ import {
   type AdvisersPanelPolicyView,
 } from './advisers/face.ts'
 import { describeAdvisersFaceView, heroPlaceholderView, type HeroPlaceholderView } from './ui-state.ts'
-import { initDesktopShell, requestMenuCoach, createComposerController, type ComposerController, type HeroMenuActionItem } from './desktop-shell.ts'
+import {
+  createSaveRecoveryPanel,
+  initDesktopShell,
+  requestDesktopShellScaleRefit,
+  requestMenuCoach,
+  createComposerController,
+  type ComposerController,
+  type HeroMenuActionItem,
+  type SaveRecoveryCloseReason,
+  type SaveRecoveryPanel,
+} from './desktop-shell.ts'
 import { PET_RELOAD_EVENT, contentWindowMode } from './content-window.ts'
 import { heroActionPlan, isHeroMenuAction } from './hero-actions.ts'
 import { startHitRegionSync } from './hit-regions.ts'
@@ -67,6 +77,7 @@ import {
 import { MAX_TALK_MS, MAX_WAV_BYTES, TalkRecorder, type MediaStreamLike, type TalkState } from './recording.ts'
 import { checkRelativePath } from './security/path-safety.ts'
 import { readClampedInt, removeKey, safeGetItem, safeSetItem } from './security/safe-storage.ts'
+import { migrateFamlingLocalState } from './state-migrations.ts'
 import { SECURITY_LIMITS, sanitizePlainText, utf8ByteLength } from './security/limits.ts'
 import { createErrorBoundary, toUserMessage, type ErrorBoundary } from './security/error-boundary.ts'
 import { createSecurityRateLimits, RateLimitError } from './security/rate-limit.ts'
@@ -1226,6 +1237,12 @@ function createPageSaveService(): PetSaveService {
     // never writes plaintext or a partial save (old saveWarningShown bubble).
     onEncryptUnavailable: () => showBubble('存档加密不可用，这次没有保存。'),
     onAsyncFailure: (_scope, failure) => reportFailure(saveBoundary, saveFailureToError(failure)),
+    // A corrupt primary (or a backup-only recovery) must open the actionable
+    // four-way panel instead of leaving the user in a read-only bubble. The
+    // runtime still owns the flag/autosave pause; this is presentation only.
+    onRecoveryNeededChange: (needed) => {
+      if (needed) openSaveRecoveryPanel()
+    },
   })
 }
 
@@ -1237,6 +1254,9 @@ let saveService = createPageSaveService()
  * autosave resumes without touching the already-empty slots (MB-011).
  */
 function resetSaveServiceAfterWipe(): void {
+  // A full wipe resolves the recovery question out-of-band: close the panel
+  // silently (no "稍后处理" bubble) before the fresh runtime starts autosave.
+  closeSaveRecoveryPanel('reset')
   saveService.dispose()
   saveService = createPageSaveService()
   if (!CONTENT_SHELL) saveService.startAutosave()
@@ -1278,7 +1298,14 @@ function loadArchiveWithFeedback(): void {
   if (!guardLocalAction('save-load')) return
   void loadNow()
     .then((ok) => {
-      if (!ok) showBubble('还没有旧书页。')
+      if (ok) return
+      // A readable-but-corrupt archive is not "no save yet": the runtime's
+      // recovery callback has opened the four-way panel, so do not contradict it.
+      showBubble(
+        saveService.recoveryNeeded
+          ? '存档损坏，已打开恢复面板，请选择下一步。'
+          : '还没有旧书页。',
+      )
     })
     .catch((error) => {
       reportFailure(loadBoundary, error)
@@ -1287,6 +1314,94 @@ function loadArchiveWithFeedback(): void {
 }
 $('save').addEventListener('click', () => saveArchiveWithFeedback())
 $('load').addEventListener('click', () => loadArchiveWithFeedback())
+
+/**
+ * Corrupt-archive recovery surface (E1 / MB-011, task-106).
+ *
+ * The save runtime pauses autosave and protects the last known-good `.bak` the
+ * moment a readable archive fails to parse (or only the backup parsed). This
+ * page-side wiring offers the four explicit choices the recovery path needs:
+ * save the current state as a new primary, re-read the backup, delete and start
+ * over (inline second confirmation), or leave without touching the archive.
+ *
+ * Every choice reuses the SAME audited paths as the menus (`saveNow` /
+ * `loadNow` / `saveService.deleteSave` / the unified exit), so the on-disk save
+ * envelope and the runtime's recovery invariants are unchanged. The panel is
+ * presentation + focus/keyboard/confirmation/failure fallback only.
+ */
+let saveRecoveryPanel: SaveRecoveryPanel | null = null
+
+function closeSaveRecoveryPanel(reason: SaveRecoveryCloseReason): void {
+  saveRecoveryPanel?.close(reason)
+}
+
+function openSaveRecoveryPanel(): void {
+  // The content window only holds a read-only snapshot; the pet window owns the
+  // archive and its recovery decision.
+  if (CONTENT_SHELL || !canInteract()) return
+  if (saveRecoveryPanel === null) {
+    saveRecoveryPanel = createSaveRecoveryPanel({
+      document,
+      saveAsNew: async () => {
+        try {
+          await saveNow()
+          return { ok: true }
+        } catch (error) {
+          if (!(error instanceof RateLimitError)) reportFailure(saveBoundary, error)
+          return { ok: false, message: toUserMessage(error) }
+        }
+      },
+      restoreFromBackup: async () => {
+        try {
+          const loaded = await loadNow()
+          if (!loaded) return { ok: false, message: '备份也读不出来：本机没有可用的备份档。' }
+          if (!saveService.recoveryNeeded) {
+            // The primary parsed this time (e.g. repaired externally): nothing
+            // left to recover, so close without a follow-up step.
+            closeSaveRecoveryPanel('restored')
+            return { ok: true }
+          }
+          return {
+            ok: true,
+            message: '已从备份读回存档；请再点「保存当前为新档」修复主档，之后自动保存会恢复。',
+          }
+        } catch (error) {
+          reportFailure(loadBoundary, error)
+          return { ok: false, message: toUserMessage(error) }
+        }
+      },
+      deleteAndRestart: async () => {
+        try {
+          await saveService.deleteSave()
+          state = createPet(now())
+          render()
+          renderMemoryBook()
+          return { ok: true }
+        } catch (error) {
+          reportFailure(importBoundary, error)
+          return { ok: false, message: '删除失败，请手动清理应用数据。' }
+        }
+      },
+      // Exiting from the recovery panel must NOT try to save: the runtime keeps
+      // autosave paused precisely so a corrupt archive is never overwritten.
+      exitApp: () => {
+        exitApplication()
+        return { ok: true }
+      },
+      onClose: (reason) => {
+        if (reason === 'saved') {
+          showBubble('已写入新档，自动保存已恢复。')
+        } else if (reason === 'deleted') {
+          showBubble('本机存档已删除，自动保存已恢复。')
+        } else if (reason === 'dismissed') {
+          showBubble('已稍后处理：自动保存仍暂停，可从「更多 → 读取」重新打开恢复面板。')
+        }
+      },
+    })
+  }
+  saveRecoveryPanel.show()
+}
+
 $('voice-cache').addEventListener('click', () => void (async () => {
   if (!HAS_TAURI) {
     showBubble('浏览器模式没有本地语音缓存。')
@@ -1567,6 +1682,17 @@ let chatImportWired = false
 async function bootPetOnce(): Promise<void> {
   if (booted || !canInteract()) return
   booted = true
+  // E1 MB-014: one-shot local-state schema migration. This runs only here (after
+  // the TOS gate resolved accepted; the consent layer owns every earlier read),
+  // never throws, and only normalizes the two documented legacy formats plus
+  // the state-schema marker — so it cannot change what the UI shows.
+  const stateMigration = migrateFamlingLocalState()
+  if (stateMigration.status === 'partial') {
+    console.warn(
+      '[pet] local state migration incomplete',
+      stateMigration.steps.filter((step) => step.status === 'failed').map((step) => step.id),
+    )
+  }
   // P1-4: mirror the accepted TOS into the host (Rust) so IPC commands can
   // verify consent; if a `--game=` launch was held at startup, the host opens
   // that window and closes this gate window, so skip the rest of the boot.
@@ -1575,18 +1701,20 @@ async function bootPetOnce(): Promise<void> {
   // loadNow() may throw (corrupt/unreadable save); never leave the boot chain
   // unhandled or boot a half-rendered pet (P0-2).
   const loaded = await loadBoundary.guardAsync(() => loadNow())
-  if (!loaded.ok) {
-    // Plain, reachable next steps (no dead-end instruction): the menu offers 保存
-    // (writes a new archive without touching the good .bak), and a full local
-    // data wipe restarts from a clean archive. Autosave stays paused until one
-    // of those happens, so a corrupt archive is never silently overwritten.
-    showBubble(
-      saveService.recoveryNeeded
-        ? '存档损坏，已保留备份：可在「更多 → 保存」写入新档，或「更多 → 删除全部本地数据」重新开始；期间不会自动覆盖旧档。'
-        : '旧存档没读出来，先用默认状态。',
-    )
-  } else if (saveService.recoveryNeeded) {
-    showBubble('已从备份恢复：可在「更多 → 保存」写入新档，收回损坏的主档。')
+  if (!loaded.ok || saveService.recoveryNeeded) {
+    // The recovery panel is the actionable surface (opened by the save runtime's
+    // onRecoveryNeededChange). Keep a bubble only as the fallback when the panel
+    // cannot be shown; both paths keep autosave paused so a corrupt archive is
+    // never silently overwritten.
+    if (!saveRecoveryPanel?.visible) {
+      showBubble(
+        !loaded.ok
+          ? saveService.recoveryNeeded
+            ? '存档损坏，已保留备份：可在「更多 → 保存」写入新档，或「更多 → 读取」重新打开恢复面板；期间不会自动覆盖旧档。'
+            : '旧存档没读出来，先用默认状态。'
+          : '已从备份恢复：可在「更多 → 保存」写入新档，收回损坏的主档。',
+      )
+    }
   }
   if (!loaded.ok || !loaded.value) {
     state = createPet(now())
@@ -2217,6 +2345,12 @@ async function startHeroPage(): Promise<void> {
     // then hide `#pet` via CSS (rect kept); the bubble/buttons keep working.
     stage.hidden = false
     document.documentElement.dataset.petRender = 'hero'
+    // MB-050: the desktop shell may have applied the hero fit before this
+    // canvas had a layout size (the stage was hidden and the canvas CSS size
+    // only exists after the first pack frame), which kept the unclamped hero
+    // zoom and pushed the scaled canvas above the window top. Now that the
+    // stage is visible and the canvas size is final, re-run the viewport fit.
+    requestDesktopShellScaleRefit()
     // QA hook: the fitted CSS canvas/display scale (e.g. 256x256@1 or
     // 128x128@0.125), plus the device-pixel backing store ratio.
     document.documentElement.dataset.heroCanvas = `${result.runtime.layout.width}x${result.runtime.layout.height}`
@@ -2928,8 +3062,9 @@ function initializeApp(): void {
       saveArchive: saveArchiveWithFeedback,
       loadArchive: loadArchiveWithFeedback,
       resetWindow: resetPetWindow,
-      // The role & content center is above the body-level shell menu.
-      isHigherModalOpen: () => contentRuntimeApi.isContentHubOpen(),
+      // The role & content center and the corrupt-archive recovery panel are
+      // above the body-level shell menu (the recovery panel is blocking).
+      isHigherModalOpen: () => contentRuntimeApi.isContentHubOpen() || saveRecoveryPanel?.visible === true,
       // Root 退出: best-effort save, then close; a hung IPC still exits. The
       // content window has no menu, and its close button never quits the app.
       onExit: () => { void exitAfterSave() },

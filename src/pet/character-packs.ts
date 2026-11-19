@@ -42,7 +42,7 @@ import {
   type ContentBundleReadResult,
 } from './content-assets.ts'
 import { parseHeroRegionConfig, type HeroRegionConfig } from './anim/regions.ts'
-import type { ClipId } from './anim/types.ts'
+import { CLIP_IDS, type ClipId } from './anim/types.ts'
 import { validateBehaviorProfile } from './character/validate.ts'
 import type { BehaviorProfile } from './character/types.ts'
 import {
@@ -85,6 +85,7 @@ const SHA256_HEX_PATTERN = /^[0-9a-f]{64}$/
 const CONTROL_CHARS_PATTERN = /[\u0000-\u001f\u007f]/
 const MAX_TARGET_CHARS = 96
 const MAX_ASSET_HINT_CHARS = 512
+const MAX_PROVENANCE_CHARS = 128
 const MAX_INSTALLED_NAME_CHARS = 80
 
 // ---------------------------------------------------------------------------
@@ -170,6 +171,23 @@ export interface CharacterPackArtHandle {
   readonly framePaths?: readonly string[]
   readonly assetBase?: string
   readonly assetUrls?: Readonly<Record<string, string>>
+  /**
+   * SPDX licence id copied from the validated pack (`license.spdx`). Optional
+   * for hand-authored built-ins that predate this field; the renderer adapter
+   * refuses to invent it (`missing-provenance`) rather than claim a licence.
+   */
+  readonly license?: string
+  /**
+   * AI-generation provenance copied from the validated pack (`aiProvenance`).
+   * Optional for the same reason as `license`: the renderer adapter never
+   * invents an AI status, because that would be a false disclosure.
+   */
+  readonly ai?: { readonly status: 'none' | 'concept' | 'final'; readonly tool?: string }
+  /**
+   * Behavior fallback chain from `character.fallback` (state/tag → clip ids).
+   * `missingTags()`/`resolveFallbackTag()` use it before failing a tag.
+   */
+  readonly fallback?: Readonly<Record<string, readonly ClipId[]>>
 }
 
 /** Input accepted by `defineBuiltinCharacter()` / runtime options. */
@@ -619,6 +637,48 @@ function normalizeArtHandle(raw: CharacterPackArtHandle, label: string): Charact
       urls[key] = value
     }
     out.assetUrls = urls
+  }
+  if (raw.license !== undefined) {
+    if (typeof raw.license !== 'string' || raw.license.length === 0 || raw.license.length > MAX_PROVENANCE_CHARS || CONTROL_CHARS_PATTERN.test(raw.license)) {
+      throw new TypeError(label + ': art.license must be a short plain-text SPDX id when present')
+    }
+    out.license = raw.license
+  }
+  if (raw.ai !== undefined) {
+    if (!isPlainRecord(raw.ai)) throw new TypeError(label + ': art.ai must be an object')
+    const status = raw.ai.status
+    if (status !== 'none' && status !== 'concept' && status !== 'final') {
+      throw new TypeError(label + ': art.ai.status must be one of none, concept, final')
+    }
+    const ai: { status: 'none' | 'concept' | 'final'; tool?: string } = { status }
+    if (raw.ai.tool !== undefined) {
+      if (typeof raw.ai.tool !== 'string' || raw.ai.tool.length === 0 || raw.ai.tool.length > MAX_ASSET_HINT_CHARS || CONTROL_CHARS_PATTERN.test(raw.ai.tool)) {
+        throw new TypeError(label + ': art.ai.tool must be a short plain-text tool id when present')
+      }
+      ai.tool = raw.ai.tool
+    }
+    out.ai = ai
+  }
+  if (raw.fallback !== undefined) {
+    if (!isPlainRecord(raw.fallback)) throw new TypeError(label + ': art.fallback must be an object')
+    const fallback: Record<string, ClipId[]> = {}
+    for (const [key, chain] of Object.entries(raw.fallback)) {
+      if (key.length === 0 || key.length > 64 || CONTROL_CHARS_PATTERN.test(key)) {
+        throw new TypeError(label + ': art.fallback keys must be short plain-text tag names')
+      }
+      if (!Array.isArray(chain) || chain.length === 0) {
+        throw new TypeError(label + ': art.fallback.' + key + ' must be a non-empty clip-id array')
+      }
+      const ids: ClipId[] = []
+      for (const value of chain as readonly unknown[]) {
+        if (typeof value !== 'string' || !(CLIP_IDS as readonly string[]).includes(value)) {
+          throw new TypeError(label + ': art.fallback.' + key + ' must list clip ids from the canonical clip set')
+        }
+        ids.push(value as ClipId)
+      }
+      fallback[key] = ids
+    }
+    out.fallback = fallback
   }
   return deepFreeze(out) as CharacterPackArtHandle
 }
@@ -1347,6 +1407,14 @@ export class CharacterPackRuntime {
       preview: pack.preview,
       clips: pack.animations.clips,
       framePaths: [...characterPackFramePaths(pack)],
+      // Provenance/fallback are copied (never invented) so the renderer
+      // adapter can hand hero.ts honest pack metadata and resolve fallback tags.
+      license: pack.license.spdx,
+      ai: {
+        status: pack.aiProvenance.generated ? 'concept' : 'none',
+        ...(pack.aiProvenance.tools?.[0] !== undefined ? { tool: pack.aiProvenance.tools[0] as string } : {}),
+      },
+      ...(pack.character.fallback !== undefined ? { fallback: pack.character.fallback } : {}),
       ...(typeof result.assetBase === 'string' ? { assetBase: result.assetBase } : {}),
       ...(isPlainRecord(result.assetUrls) ? { assetUrls: result.assetUrls as Readonly<Record<string, string>> } : {}),
     }, 'installed ' + key)

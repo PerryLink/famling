@@ -51,7 +51,7 @@
 | 区域 | 结论 | 状态 | 关键证据 | 不能声称的边界 |
 | --- | --- | --- | --- | --- |
 | **内容窗口** | 独立 760×560 可缩放内容/设置窗口已接通 | **DONE**（MB-062） | `src/pet/content-window.ts`（280 行）+ Rust 懒建/去重/focus；`tests/content-window.test.ts`（10 项）；`b83b11e` 称 CDP 实测 | 真实 CDP 证据未保存为 artifact，只在 commit message |
-| **四层缩放** | 整体/UI+文本/图像/组件四层已实现并验证 | **DONE ×4 + PARTIAL ×2**（050/054） | `src/pet/scaling.ts`（385 行）；`tests/scaling.test.ts`+`scaling-shell.test.ts`；`artifacts/scale-ux-verify` 19 组截图/`results.json`（failures=[]）；插件 `client-scale.test.js` | 无独立 ADR 文档；非 1 DPI 只测了设置窗；对比度未验证 |
+| **四层缩放** | 整体/UI+文本/图像/组件四层已实现并验证 | **DONE ×4 + PARTIAL ×1**（054 仅剩真机/对比度） | `src/pet/scaling.ts`（385 行）；`tests/scaling.test.ts`+`scaling-shell.test.ts`；ADR `docs/plan/ADR-SCALE-DPI-2026-11-20.md`；`scripts/scale-dpi-verify.mjs` CDP 矩阵（DPR 1/1.25/1.5/2，28 截图/267 检查/failures=0，clean HEAD `artifacts/scale-dpi-verify/head-4e50b3d/`）；`tests/scale-dpi-contract.test.ts`（11 项）；插件 `client-scale.test.js` | 真实 Windows 显示缩放/Tauri 窗口/多屏未验；对比度未验证；已知 200%+hero 重载溢出未修（MB-050-overflow-global200-hero-reload） |
 | **角色运行时** | 事务/注册表/热切换模块完成，**未接 UI/渲染器/host** | **PARTIAL**（041/042/043；040/044 DONE） | `src/pet/character-packs.ts`（1543 行，21 用例）；`docs/content-packs/CHARACTER-RUNTIME-2026-11-19.md` §7/§9 自证未接线；`main.ts` 仍 `location.reload()` | 三连同意/安装/卸载/回滚 UI、Tauri host 适配器、renderer 适配器均未实现 |
 | **Rust 市场传输** | 受限下载器 + IPC 桥 + 静态门完成 | **DONE**（MB-081/086） | `app/tauri/src-tauri/src/market.rs`（1109 行、20 Rust 单测）；`src/pet/market-transport.ts`（467 行）；`tests/market-transport.test.ts`；HTTPS-only/私网拒绝/redirect/8s/64MiB | 生产未接线；真实市场服务器不存在；协议仍 catalog 0.1 |
 | **低打扰** | quiet hours/健康提醒/reduce-motion/AI 标识/文案过滤完成 | **DONE ×5 + TODO ×2**（073/074） | `low-disturb.ts` 348 / `health-reminder.ts` 501 / `reduce-motion.ts` 249 / `ai-label.ts` 139；对应 5 组测试；`docs/design/LOW-DISTURB-2026-11-19.md` | 插件侧低打扰不在本仓；同意可读性、D6 顺序未做 |
@@ -162,11 +162,11 @@
 
 | ID | 状态 | 证据 | 剩余 / 说明 |
 | --- | --- | --- | --- |
-| MB-050 | **PARTIAL** | `src/pet/scaling.ts` 顶部契约明确四级语义、clamp、迁移、窗口内不裁切；`tests/scaling.test.ts` 锁定；D7 裁定见 triage | 无独立 ADR 文档；窗口溢出/DPI 策略未单列成文（DPI 回归见 MB-054） |
+| MB-050 | **DONE** | `docs/plan/ADR-SCALE-DPI-2026-11-20.md`：四层语义、范围/夹取、窗口溢出策略（480×336 fit-clamp/面板 viewport 相对/无文档溢出）、DPI 策略（CSS 布局跨 DPR 不变、背板 round(CSS×DPR)、DPR 启动读取）、证据协议与已知缺口；`src/pet/scaling.ts`/`desktop-shell.ts`/`pet.css` 引用；`tests/scale-dpi-contract.test.ts` 锁定 | 实现侧已知缺口 MB-050-overflow-global200-hero-reload 未修（src 范围外）；真机 DPI 见 MB-054 |
 | MB-051 | **DONE** | 设置层级：整体（常用）→ UI+文本 / 图像（独立轴）→ 高级·组件缩放；`desktop-shell.ts` 1691/1854/1866/1934；`tests/scaling-shell.test.ts` 13 项 | — |
 | MB-052 | **DONE** | canvas/气泡/面板/内容中心/设置/About 全表面应用；CSS 变量 + clamp + 重置 + 持久化；`artifacts/scale-ux-verify/results.json`（19 组，failures=[]）；提交 `6473104` | — |
 | MB-053 | **DONE** | 插件 0.10.5 `client.js` `<dsh-famling:scale>` 四层模型 + `test/client-scale.test.js`；插件 146 tests 绿；不改 DSH 全局主题 | 插件无 git（同 MB-004） |
-| MB-054 | **PARTIAL** | 480×336 全量 + 全局 150/200% + 组件覆盖 + DPI 1.25/1.5/2 截图（`results.json` failures=[]）；键盘可达/焦点在 scaling-shell 测试覆盖 | 非 1 DPI 只采集了设置窗（角色/菜单/内容中心未采集）；对比度未验证 |
+| MB-054 | **PARTIAL** | 480×336 全量 + 全局 150/200% + 组件覆盖 + DPI 1.25/1.5/2；新增 `scripts/scale-dpi-verify.mjs` 真实 Chrome/CDP 矩阵：角色（折叠纸+hero）/菜单/内容中心 × DPR 1/1.25/1.5/2 × 100%/200%，28 截图/267 检查/failures=0、跨 DPR 布局 maxDelta=0（clean HEAD `artifacts/scale-dpi-verify/head-4e50b3d/report.json`）；键盘可达/焦点在 scaling-shell 测试覆盖 | 真机 Windows 显示缩放 100/125/150/175/200 与多屏/混合 DPI（RM-08/09）未验；对比度未验证；非 1 DPI 证据为 CDP device-scale 模拟 |
 | MB-055 | **DONE** | 旧 `pet-scale`/`text-scale` 一次性迁移、重置后不复活（scaling.test 迁移/不复活断言）；旧“宠物缩放/文字大小”菜单两行移除，唯一“缩放…”入口（scaling-shell:387） | — |
 
 ### E6 导航/设置/可发现性/无障碍

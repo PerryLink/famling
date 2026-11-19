@@ -657,6 +657,15 @@ function applyScaleVariables(
  */
 let menuCoachRequest: (() => void) | null = null
 /**
+ * Re-run the viewport fit once late layout exists (MB-050). The hero canvas
+ * gets its fitted CSS size only after the first character frame; a fit computed
+ * before that has no layout box to clamp against and would keep the unclamped
+ * resolved hero zoom (2x at 整体 200%), leaving the scaled canvas above the
+ * window top. main.ts calls requestDesktopShellScaleRefit() after the hero
+ * render mode flips; the shell also watches the relevant boxes itself.
+ */
+let scaleRefitRequest: (() => void) | null = null
+/**
  * The initialized settings dialog, exposed to the independent content window
  * (MB-062) without duplicating its renderer/persistence. Null on pages where
  * initDesktopShell returned early (the ?shell=window dev layout) or before init.
@@ -685,6 +694,15 @@ export function requestMenuCoach(): void {
   menuCoachRequest?.()
 }
 
+/**
+ * Ask the initialized desktop shell to re-run the character fit now that the
+ * late layout (hero stage/canvas CSS size, render-mode switch) exists.
+ * No-op before initDesktopShell(); safe to call more than once per frame.
+ */
+export function requestDesktopShellScaleRefit(): void {
+  scaleRefitRequest?.()
+}
+
 export function initDesktopShell(options: DesktopShellOptions = {}): void {
   const doc = options.document ?? (typeof document === 'undefined' ? null : document)
   const win = options.window ?? (typeof window === 'undefined' ? null : window)
@@ -694,6 +712,8 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
   // A previous shell instance (tests/stand-alone pages) must not keep the coach
   // callback: the current shell re-registers it only in the desktop layout.
   menuCoachRequest = null
+  // Same for the late-layout refit hook (MB-050).
+  scaleRefitRequest = null
   // Same for the settings surface; it re-registers only after the desktop layout
   // built the dialog (the ?shell=window dev layout never builds it).
   settingsSurface = null
@@ -889,7 +909,53 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
     settingsStatus('已恢复默认缩放：整体 100%，UI+文本/图像/组件全部跟随。')
   }
   applyScale()
-  winRef.addEventListener('resize', () => applyScale())
+  /**
+   * MB-050: coalesce re-fits. The hero canvas receives its CSS size only after
+   * the first pack frame, so a boot-time applyScale() can be working with an
+   * unmeasurable stage (offsetWidth 0) and keep the unclamped resolved hero
+   * zoom. Any late layout change now re-runs the same fit; requestAnimationFrame
+   * lets the browser lay the new box out first.
+   */
+  let scaleRefitPending = false
+  const scheduleScaleRefit = (): void => {
+    if (scaleRefitPending) return
+    scaleRefitPending = true
+    const run = (): void => {
+      scaleRefitPending = false
+      applyScale()
+    }
+    try {
+      const raf = (winRef as unknown as { requestAnimationFrame?: (callback: () => void) => unknown }).requestAnimationFrame
+      if (typeof raf === 'function') raf.call(winRef, run)
+      else run()
+    } catch {
+      run()
+    }
+  }
+  scaleRefitRequest = scheduleScaleRefit
+  winRef.addEventListener('resize', scheduleScaleRefit)
+  // Late layout sources: the hero stage/canvas get their fitted size after the
+  // first frame, the render mode flips when the hero takes over the folded
+  // paper, and a pack switch can resize the canvas again. Observation is an
+  // optimisation: main.ts also requests a refit explicitly at that moment.
+  try {
+    if (typeof ResizeObserver !== 'undefined') {
+      const resizeObserver = new ResizeObserver(scheduleScaleRefit)
+      for (const element of [heroStageEl, pet, docRef.getElementById('hero-canvas')]) {
+        if (element) resizeObserver.observe(element)
+      }
+    }
+  } catch {
+    /* observation is best-effort; the explicit refit still runs */
+  }
+  try {
+    if (typeof MutationObserver !== 'undefined') {
+      const renderObserver = new MutationObserver(scheduleScaleRefit)
+      renderObserver.observe(docRef.documentElement, { attributes: true, attributeFilter: ['data-pet-render'] })
+    }
+  } catch {
+    /* same */
+  }
 
 
   const menu = docRef.createElement('div')
@@ -2224,6 +2290,447 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
   // Fail closed until the gate says otherwise; a later TOS acceptance without a
   // prompt (stored acceptance) flips this to "ready" on the first allowed open.
   setConsentState()
+}
+
+// ---------------------------------------------------------------------------
+// Corrupt-archive recovery panel (E1 / MB-011, task-106)
+//
+// The save runtime pauses autosave and protects the last known-good `.bak` as
+// soon as a readable archive cannot be parsed (or only the backup parsed). The
+// page used to explain that through a bubble pointing at other menus; this panel
+// is the single blocking decision the user needs:
+//
+//   保存当前为新档 / 从备份恢复 / 删除重来 / 退出应用
+//
+// Contract (locked by tests/save-recovery-panel.test.ts):
+// - presentation + focus/keyboard/confirmation/failure fallback live here; the
+//   injected callbacks own every side effect (the page still calls the SAME
+//   `save-runtime` API, so the `dsh-save` envelope is untouched);
+// - a failing action never closes the panel and never reports success; the
+//   sanitized message stays visible and the action stays retryable;
+// - destructive delete needs an explicit inline second confirmation (default
+//   focus on 取消); Escape only cancels that confirmation or dismisses the whole
+//   panel — it never chooses save/delete;
+// - while open, focus is trapped inside the dialog (Tab/Shift+Tab/arrows/Home/
+//   End), Enter/Space activate, focus returns to the prior control on close, and
+//   the caller marks the panel as a higher-level modal so the body-level pet
+//   menu cannot open behind it.
+// ---------------------------------------------------------------------------
+
+export const SAVE_RECOVERY_ID = 'save-recovery'
+
+/** The four recovery choices shown by the panel. */
+export type SaveRecoveryAction = 'save' | 'restore' | 'delete' | 'exit'
+
+/** Why the panel closed (used by the page for the follow-up bubble). */
+export type SaveRecoveryCloseReason =
+  | 'saved'
+  | 'deleted'
+  | 'exit'
+  | 'dismissed'
+  | 'restored'
+  | 'reset'
+
+/** Result of one recovery action; the panel never throws an action failure. */
+export interface SaveRecoveryOutcome {
+  readonly ok: boolean
+  /** Sanitized user-facing line shown in the panel (success or failure). */
+  readonly message?: string
+}
+
+/** Injected side effects + document seam (tests pass the fake DOM). */
+export interface SaveRecoveryPanelOptions {
+  readonly document?: Document
+  /** Write the in-memory state as a new primary slot (protects the `.bak`). */
+  readonly saveAsNew: () => Promise<SaveRecoveryOutcome>
+  /** Re-read primary -> `.bak` through the save runtime. */
+  readonly restoreFromBackup: () => Promise<SaveRecoveryOutcome>
+  /** Delete primary + backup and restart with a fresh archive (destructive). */
+  readonly deleteAndRestart: () => Promise<SaveRecoveryOutcome>
+  /** Leave without writing/deleting anything. */
+  readonly exitApp: () => Promise<SaveRecoveryOutcome> | SaveRecoveryOutcome
+  /** Observer for the final close; must never throw into the panel. */
+  readonly onClose?: (reason: SaveRecoveryCloseReason) => void
+}
+
+export interface SaveRecoveryPanel {
+  /** The body-level root (mount + CSS hooks); hidden until `show()`. */
+  readonly root: HTMLElement
+  readonly visible: boolean
+  show(): void
+  close(reason?: SaveRecoveryCloseReason): void
+  destroy(): void
+}
+
+interface SaveRecoveryActionSpec {
+  readonly action: SaveRecoveryAction
+  readonly label: string
+  readonly title: string
+  readonly primary?: boolean
+  readonly danger?: boolean
+}
+
+const SAVE_RECOVERY_ACTIONS: readonly SaveRecoveryActionSpec[] = Object.freeze([
+  {
+    action: 'save',
+    label: '保存当前为新档',
+    title: '把当前状态写成新的主档；恢复期间不会覆盖可用的 .bak 备份。',
+    primary: true,
+  },
+  {
+    action: 'restore',
+    label: '从备份恢复',
+    title: '重新读取本机备份（.bak）；只有备份可读时才会恢复。',
+  },
+  {
+    action: 'delete',
+    label: '删除重来…',
+    title: '删除主档和备份，回到全新存档；不可撤销（外部加密备份除外）。',
+    danger: true,
+  },
+  {
+    action: 'exit',
+    label: '退出应用',
+    title: '不写入、不删除任何存档文件，直接退出。',
+  },
+])
+
+const SAVE_RECOVERY_BUSY: Readonly<Record<SaveRecoveryAction, string>> = Object.freeze({
+  save: '正在写入新档…',
+  restore: '正在读取备份…',
+  delete: '正在删除本机存档…',
+  exit: '正在退出…',
+})
+
+const SAVE_RECOVERY_DELETE_CONFIRM =
+  '确认删除本机存档？主档和备份都会删除，删除后只能靠外部加密备份恢复；此操作不可撤销。'
+
+/**
+ * Build the corrupt-archive recovery panel. Pure view layer: it never reads or
+ * writes the archive itself, so the save envelope and the runtime's recovery
+ * invariants stay exactly as `save-runtime.ts` defines them.
+ */
+export function createSaveRecoveryPanel(options: SaveRecoveryPanelOptions): SaveRecoveryPanel {
+  const doc = options.document ?? document
+  let visible = false
+  let busy = false
+  let confirmOpen = false
+  let previousFocus: HTMLElement | null = null
+  let inertedApp: HTMLElement | null = null
+
+  const root = makeElement(doc, 'div', 'save-recovery-root')
+  root.id = SAVE_RECOVERY_ID
+  root.hidden = true
+  root.dataset.state = 'closed'
+  const backdrop = makeElement(doc, 'div', 'save-recovery-backdrop')
+  backdrop.setAttribute('aria-hidden', 'true')
+
+  const dialog = makeElement(doc, 'section', 'save-recovery-dialog')
+  dialog.setAttribute('role', 'dialog')
+  dialog.setAttribute('aria-modal', 'true')
+  dialog.setAttribute('aria-labelledby', 'save-recovery-title')
+  dialog.setAttribute('aria-describedby', 'save-recovery-desc')
+  dialog.tabIndex = -1
+
+  const kicker = makeElement(doc, 'p', 'save-recovery-kicker', 'SAVE · 存档恢复')
+  const title = makeElement(doc, 'h2', 'save-recovery-title', '存档需要恢复')
+  title.id = 'save-recovery-title'
+  const desc = makeElement(
+    doc,
+    'p',
+    'save-recovery-desc',
+    '主存档损坏或无法读取（备份完好时已自动回退）。自动保存已暂停，旧存档文件不会被覆盖。请选择下一步：',
+  )
+  desc.id = 'save-recovery-desc'
+  const status = makeElement(doc, 'p', 'save-recovery-status')
+  status.setAttribute('role', 'status')
+  status.setAttribute('aria-live', 'polite')
+
+  const actionsRow = makeElement(doc, 'div', 'save-recovery-actions')
+  const actionButtons = new Map<SaveRecoveryAction, HTMLButtonElement>()
+  for (const spec of SAVE_RECOVERY_ACTIONS) {
+    const className = spec.primary
+      ? 'save-recovery-action save-recovery-primary'
+      : spec.danger
+        ? 'save-recovery-action save-recovery-danger'
+        : 'save-recovery-action'
+    const button = makeElement(doc, 'button', className, spec.label)
+    button.type = 'button'
+    button.title = spec.title
+    button.dataset.action = spec.action
+    button.addEventListener('click', () => {
+      void handleAction(spec.action)
+    })
+    actionButtons.set(spec.action, button)
+    actionsRow.append(button)
+  }
+
+  const confirmRow = makeElement(doc, 'div', 'save-recovery-confirm')
+  confirmRow.hidden = true
+  const confirmText = makeElement(doc, 'p', 'save-recovery-confirm-text', SAVE_RECOVERY_DELETE_CONFIRM)
+  const confirmActions = makeElement(doc, 'div', 'save-recovery-confirm-actions')
+  const cancelButton = makeElement(doc, 'button', 'save-recovery-action', '取消')
+  cancelButton.type = 'button'
+  const confirmDeleteButton = makeElement(doc, 'button', 'save-recovery-action save-recovery-danger', '确认删除')
+  confirmDeleteButton.type = 'button'
+  confirmActions.append(cancelButton, confirmDeleteButton)
+  confirmRow.append(confirmText, confirmActions)
+
+  const hint = makeElement(
+    doc,
+    'p',
+    'save-recovery-hint',
+    '键盘：Tab 在面板内循环，方向键选择，Enter 确认；Esc 稍后处理（自动保存会继续暂停，可从「更多 → 读取」重新打开）。',
+  )
+
+  dialog.append(kicker, title, desc, status, actionsRow, confirmRow, hint)
+  root.append(backdrop, dialog)
+  doc.body.append(root)
+
+  const activeElement = (): HTMLElement | null => {
+    const active = doc.activeElement
+    if (typeof HTMLElement === 'undefined') return null
+    return active instanceof HTMLElement ? active : null
+  }
+
+  const allButtons = (): HTMLButtonElement[] => [
+    ...actionButtons.values(),
+    cancelButton,
+    confirmDeleteButton,
+  ]
+
+  const setStatus = (text: string, tone: 'info' | 'error' | 'success' = 'info'): void => {
+    status.textContent = text
+    status.dataset.tone = tone
+  }
+
+  const setBusy = (next: boolean): void => {
+    busy = next
+    if (next) root.setAttribute('aria-busy', 'true')
+    else root.removeAttribute('aria-busy')
+    for (const button of allButtons()) button.disabled = next
+  }
+
+  /** Buttons currently reachable by the keyboard trap. */
+  const focusables = (): HTMLButtonElement[] => {
+    if (confirmOpen) return [cancelButton, confirmDeleteButton].filter((button) => !button.disabled)
+    return [...actionButtons.values()].filter((button) => !button.disabled)
+  }
+
+  const focusAction = (action: SaveRecoveryAction): void => {
+    actionButtons.get(action)?.focus()
+  }
+
+  const setConfirm = (open: boolean): void => {
+    confirmOpen = open
+    confirmRow.hidden = !open
+    actionsRow.hidden = open
+    for (const button of allButtons()) button.disabled = false
+  }
+
+  const close = (reason: SaveRecoveryCloseReason = 'dismissed'): void => {
+    if (!visible) return
+    visible = false
+    busy = false
+    confirmOpen = false
+    root.hidden = true
+    root.dataset.state = 'closed'
+    root.removeAttribute('aria-busy')
+    actionsRow.hidden = false
+    confirmRow.hidden = true
+    for (const button of allButtons()) button.disabled = false
+    const app = inertedApp
+    inertedApp = null
+    if (app) app.removeAttribute('inert')
+    const target = previousFocus
+    previousFocus = null
+    if (target && target.isConnected) {
+      try {
+        target.focus()
+      } catch {
+        /* focus restoration is best effort */
+      }
+    }
+    if (reason === 'reset') return
+    try {
+      options.onClose?.(reason)
+    } catch {
+      /* an observer (bubble) must never break the close path */
+    }
+  }
+
+  const show = (): void => {
+    if (visible) return
+    visible = true
+    busy = false
+    confirmOpen = false
+    previousFocus = activeElement()
+    const app = doc.getElementById('pet-app')
+    if (app && !app.hasAttribute('inert')) {
+      app.setAttribute('inert', '')
+      inertedApp = app
+    }
+    root.hidden = false
+    root.dataset.state = 'open'
+    actionsRow.hidden = false
+    confirmRow.hidden = true
+    for (const button of allButtons()) button.disabled = false
+    setStatus('', 'info')
+    dialog.focus({ preventScroll: true })
+    focusAction('save')
+  }
+
+  const callbacks: Readonly<
+    Record<SaveRecoveryAction, () => Promise<SaveRecoveryOutcome> | SaveRecoveryOutcome>
+  > = {
+    save: options.saveAsNew,
+    restore: options.restoreFromBackup,
+    delete: options.deleteAndRestart,
+    exit: options.exitApp,
+  }
+
+  async function handleAction(action: SaveRecoveryAction): Promise<void> {
+    if (!visible || busy) return
+    // 删除重来 is the only destructive choice: it always goes through the inline
+    // second confirmation, with focus parked on 取消.
+    if (action === 'delete' && !confirmOpen) {
+      setConfirm(true)
+      setStatus('', 'info')
+      cancelButton.focus()
+      return
+    }
+    setBusy(true)
+    setStatus(SAVE_RECOVERY_BUSY[action], 'info')
+    let outcome: SaveRecoveryOutcome
+    try {
+      outcome = await callbacks[action]()
+    } catch {
+      // The page's callbacks return sanitized failures; a throwing observer is
+      // still turned into a retryable state instead of an unhandled rejection.
+      outcome = { ok: false, message: '操作失败，请重试。' }
+    }
+    if (!visible) return
+    setBusy(false)
+    if (!outcome.ok) {
+      setStatus(outcome.message ?? '操作失败，请重试。', 'error')
+      if (confirmOpen) confirmDeleteButton.focus()
+      else focusAction(action)
+      return
+    }
+    switch (action) {
+      case 'save':
+        close('saved')
+        return
+      case 'delete':
+        close('deleted')
+        return
+      case 'exit':
+        close('exit')
+        return
+      default:
+        // Restoring the backup does not clear the recovery flag (the primary is
+        // still corrupt); stay open on the repair step and point at 保存.
+        setStatus(outcome.message ?? '已从备份读取存档。', 'success')
+        setConfirm(false)
+        focusAction('save')
+    }
+  }
+
+  const onKeyDown = (event: KeyboardEvent): void => {
+    if (!visible) return
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      event.stopPropagation()
+      if (busy) return
+      if (confirmOpen) {
+        setConfirm(false)
+        setStatus('', 'info')
+        focusAction('delete')
+        return
+      }
+      close('dismissed')
+      return
+    }
+    if (busy) return
+    if (event.key === 'Tab') {
+      const items = focusables()
+      if (items.length === 0) {
+        event.preventDefault()
+        dialog.focus()
+        return
+      }
+      const current = items.indexOf(activeElement() as HTMLButtonElement)
+      const next = event.shiftKey
+        ? current <= 0
+          ? items.length - 1
+          : current - 1
+        : current < 0 || current >= items.length - 1
+          ? 0
+          : current + 1
+      event.preventDefault()
+      items[next]?.focus()
+      return
+    }
+    const navigationKeys =
+      event.key === 'ArrowDown' ||
+      event.key === 'ArrowRight' ||
+      event.key === 'ArrowUp' ||
+      event.key === 'ArrowLeft' ||
+      event.key === 'Home' ||
+      event.key === 'End'
+    if (navigationKeys) {
+      const items = focusables()
+      if (items.length === 0) return
+      const current = items.indexOf(activeElement() as HTMLButtonElement)
+      let next = current
+      if (event.key === 'Home') next = 0
+      else if (event.key === 'End') next = items.length - 1
+      else if (event.key === 'ArrowDown' || event.key === 'ArrowRight') next = current < 0 ? 0 : (current + 1) % items.length
+      else next = current <= 0 ? items.length - 1 : current - 1
+      event.preventDefault()
+      items[next]?.focus()
+      return
+    }
+    if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
+      const active = activeElement()
+      if (active === null) return
+      const actionButton = [...actionButtons.values()].find((button) => button === active)
+      const isConfirmButton = active === cancelButton || active === confirmDeleteButton
+      if (!(confirmOpen ? isConfirmButton : actionButton !== undefined)) return
+      const button = active as HTMLButtonElement
+      event.preventDefault()
+      button.click()
+    }
+  }
+  dialog.addEventListener('keydown', onKeyDown)
+  backdrop.addEventListener('click', () => {
+    // A destructive/saving decision is never made by clicking the backdrop;
+    // keep focus inside the panel (Escape is the explicit "稍后处理").
+    dialog.focus({ preventScroll: true })
+  })
+  cancelButton.addEventListener('click', () => {
+    if (busy) return
+    setConfirm(false)
+    setStatus('', 'info')
+    focusAction('delete')
+  })
+  confirmDeleteButton.addEventListener('click', () => {
+    void handleAction('delete')
+  })
+
+  return {
+    root,
+    get visible() {
+      return visible
+    },
+    show,
+    close,
+    destroy(): void {
+      if (visible) close('reset')
+      dialog.removeEventListener('keydown', onKeyDown)
+      root.remove()
+    },
+  }
 }
 
 // ---------------------------------------------------------------------------

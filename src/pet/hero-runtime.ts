@@ -315,7 +315,13 @@ export class HeroRuntimeError extends Error {
 
 /** One FCI character plus the hero pack it renders with (all data, no code). */
 export interface HeroCharacterBundle {
-  readonly key: HeroCharacterId
+  /**
+   * Character key used as the actor id. Built-in page characters use the closed
+   * `HERO_CHARACTER_IDS` set; data-driven character packs (MB-041 renderer
+   * adapter) may carry any FCI character id (`character-packs.ts`
+   * `characterId`, which already matches the actor-id grammar).
+   */
+  readonly key: string
   readonly character: LoadedCharacter
   /** Render-layer pack reference (`data` is the already-parsed manifest). */
   readonly pack: RenderPackRef
@@ -629,7 +635,7 @@ const DEFAULT_ONE_SHOT_MS = 1000
 
 export interface HeroActorRuntime {
   readonly id: string
-  readonly key: HeroCharacterId
+  readonly key: string
   readonly bundle: HeroCharacterBundle
   /** Actor top-left on the canvas, CSS pixels. */
   readonly x: number
@@ -677,7 +683,7 @@ export interface HeroSpeechInput {
 
 export interface HeroSnapshotActor {
   readonly id: string
-  readonly key: HeroCharacterId
+  readonly key: string
   readonly state: string
   readonly tag: string
   readonly x: number

@@ -9,11 +9,142 @@
  * above the pet, and the trigger hugs the pet lower-right corner so its menu
  * opens next to the pet too (desktop-shell.ts anchors the menu to the trigger).
  * No-ops outside the desktop shell (?shell=window keeps the full-page layout).
+ *
+ * MB-050 (fixed 2026-11-20): the bubble is a zoomed component. Its layout box
+ * is measured in CSS layout px; what must stay inside the 480x336 window is the
+ * *visual* box (layout size x composed component zoom). At 整体缩放 200% the
+ * composed bubble zoom is 1.75 on top of an absolute UI scale of 3.5, so a
+ * normal sentence used to become ~1475 CSS px tall and was anchored above the
+ * window top edge (rect top = -1475, bottom = 0). The anchor therefore:
+ *  1. fit-clamps the component zoom so the scaled box fits the window minus a
+ *     small margin (the same policy fitScaleToViewport applies to the character
+ *     image), and
+ *  2. positions that scaled box clamped inside the viewport: it still sits
+ *     centred above the pet when there is room, otherwise it is pushed down to
+ *     the top margin (possibly overlapping the pet) instead of leaving the
+ *     window; horizontal clamping uses the scaled width, not the layout width.
+ *
+ * The component zoom is applied ONCE, by the anchor transform (pet.css keeps
+ * the font at the fixed panel base). The bubble layout box is pinned at
+ * left: 0 so its shrink-to-fit width does not depend on its own anchor; the
+ * transform carries the visual centre, which keeps the measured wrap identical
+ * to the wrap the user sees.
  */
 
+import { fitScaleToViewport } from './scaling.ts'
+
 const BUBBLE_GAP = 8
+/** Minimum distance between the scaled bubble box and every window edge. */
+export const BUBBLE_VIEWPORT_MARGIN = 4
 const TRIGGER_SIZE = 24
 const TRIGGER_GAP = 6
+
+/** CSS layout box of the bubble at component zoom 1 (offsetWidth/offsetHeight). */
+export interface BubbleLayoutBox {
+  readonly width: number
+  readonly height: number
+}
+
+export interface BubblePlacementInput {
+  /** Visual centre the bubble wants to be centred on (the pet centre). */
+  readonly petCentreX: number
+  /** Top edge of the visible pet; the bubble's bottom edge sits above it. */
+  readonly petTop: number
+  /** Bubble layout size in CSS px, before the component transform. */
+  readonly layout: BubbleLayoutBox
+  /** Desired component zoom (--bubble-zoom resolved by desktop-shell.ts). */
+  readonly zoom: number
+  readonly viewport: { readonly width: number; readonly height: number }
+  /** Gap between the pet top and the bubble bottom edge (default 8px). */
+  readonly gap?: number
+  /** Space kept between the scaled bubble and the window edges. */
+  readonly margin?: number
+}
+
+export interface BubblePlacement {
+  /** Component zoom to apply (<= the desired zoom, fitted to the viewport). */
+  readonly zoom: number
+  /** Scaled visual size in CSS px (layout x fitted zoom). */
+  readonly width: number
+  readonly height: number
+  /**
+   * Visual centre in CSS px from the window's left edge. The bubble layout box
+   * is pinned at `left: 0` (so its shrink-to-fit width never depends on the
+   * anchor) and the transform carries this centre instead.
+   */
+  readonly centreX: number
+  /** Inline `bottom` in CSS px: the visual bottom edge above the window edge. */
+  readonly bottom: number
+}
+
+function positive(value: number, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : fallback
+}
+
+/**
+ * Fit the bubble component zoom so the scaled box fits the window.
+ *
+ * Reuses the character-image fit policy (fitScaleToViewport): the desired zoom
+ * is kept when the scaled box fits and reduced just enough otherwise. Because
+ * the bubble's font-size is a fixed panel base (pet.css) and the component zoom
+ * is applied ONCE as a container transform, the layout size does not depend on
+ * the fitted zoom, so a single measurement is enough.
+ */
+export function fitBubbleZoom(
+  desiredZoom: number,
+  layout: BubbleLayoutBox,
+  viewport: { readonly width: number; readonly height: number },
+  margin: number = BUBBLE_VIEWPORT_MARGIN,
+): number {
+  const safeMargin = Number.isFinite(margin) ? Math.max(0, margin) : BUBBLE_VIEWPORT_MARGIN
+  return fitScaleToViewport(desiredZoom, layout, viewport, { x: safeMargin, top: safeMargin, bottom: safeMargin })
+}
+
+/**
+ * Resolve the visual bubble box and its anchor from the scaled size.
+ *
+ * The desktop bubble uses `transform: translateX(calc(-50% + centreX))
+ * scale(z)` with `transform-origin: bottom center` (pet.css), so:
+ *  - the visual horizontal centre equals `centreX`, and
+ *  - the visual bottom edge equals the layout bottom edge, which is the inline
+ *    `bottom` distance above the viewport bottom.
+ * Every clamp below is computed from the *scaled* size (layout x zoom).
+ */
+export function resolveBubblePlacement(input: BubblePlacementInput): BubblePlacement {
+  const viewport = {
+    width: positive(input.viewport.width, 480),
+    height: positive(input.viewport.height, 336),
+  }
+  const margin = Number.isFinite(input.margin) ? Math.max(0, input.margin as number) : BUBBLE_VIEWPORT_MARGIN
+  const gap = Number.isFinite(input.gap) ? Math.max(0, input.gap as number) : BUBBLE_GAP
+  const layout = {
+    width: positive(input.layout.width, 0),
+    height: positive(input.layout.height, 0),
+  }
+  const zoom = fitBubbleZoom(input.zoom, layout, viewport, margin)
+  const width = layout.width * zoom
+  const height = layout.height * zoom
+
+  // Horizontal: clamp the scaled box inside the window; when even the window
+  // width cannot hold it (pathological zoom), keep it centred instead of
+  // pinning it to an edge.
+  const half = width / 2
+  const minCentreX = margin + half
+  const maxCentreX = viewport.width - margin - half
+  const petCentreX = Number.isFinite(input.petCentreX) ? input.petCentreX : viewport.width / 2
+  const centreX = minCentreX > maxCentreX
+    ? viewport.width / 2
+    : Math.min(maxCentreX, Math.max(minCentreX, petCentreX))
+
+  // Vertical: the visual bottom edge (== layout bottom edge) wants to sit just
+  // above the pet. Clamp it below the top margin using the scaled height, and
+  // above the bottom margin. The fit above guarantees minBottom <= maxBottom.
+  const desiredBottom = input.petTop - gap
+  const minBottom = margin + height
+  const maxBottom = viewport.height - margin
+  const bottomEdge = minBottom > maxBottom ? maxBottom : Math.min(maxBottom, Math.max(minBottom, desiredBottom))
+  return { zoom, width, height, centreX, bottom: viewport.height - bottomEdge }
+}
 
 function visiblePetRect(): DOMRect | null {
   const selectors = ['#hero-canvas', '#hero-stage', '.fold-pet', '#pet']
@@ -30,8 +161,8 @@ function visiblePetRect(): DOMRect | null {
 
 /**
  * Current bubble component zoom (advanced → 组件缩放 → 气泡). The bubble is
- * anchored by an inline translate, so the same scale must be composed here or
- * the visual width would drift from the measured anchor. Missing/invalid CSS
+ * anchored by an inline transform, so the same scale must be composed here or
+ * the visual size would drift from the measured anchor. Missing/invalid CSS
  * values fall back to 1 (the shipped look).
  */
 function bubbleZoom(): number {
@@ -44,8 +175,23 @@ function bubbleZoom(): number {
   }
 }
 
-function bubbleTransform(zoom: number): string {
-  return `translateX(-50%) scale(${zoom})`
+/** Trim to 3 decimals: the fitted zoom is not observable beyond that (same precision as the CSS vars). */
+function formatZoom(zoom: number): number {
+  return Math.round(zoom * 1000) / 1000
+}
+
+/**
+ * Anchor transform for the placed bubble. `translateX(-50%)` centres the box
+ * on its own layout position; the extra `centreX` puts that centre on the pet.
+ * The component zoom is applied ONCE here (the font stays at the fixed panel
+ * base), and `transform-origin: bottom center` keeps the visual bottom edge on
+ * the layout bottom edge so the anchor math in resolveBubblePlacement() is
+ * exact. The layout box is pinned at left: 0 so its shrink-to-fit width never
+ * depends on the anchor (a box with left: 300px would only get 180px of
+ * available width and wrap differently from the measured one).
+ */
+function bubbleTransform(zoom: number, centreX: number): string {
+  return `translateX(calc(-50% + ${Math.round(centreX)}px)) scale(${formatZoom(zoom)})`
 }
 
 function place(rect: DOMRect | null): void {
@@ -55,32 +201,41 @@ function place(rect: DOMRect | null): void {
   if (!bubble || !trigger) return
   const viewportWidth = window.innerWidth
   const viewportHeight = window.innerHeight
-  const zoom = bubbleZoom()
+  const desiredZoom = bubbleZoom()
   if (!rect) {
     bubble.style.left = '50%'
     bubble.style.bottom = '200px'
     bubble.style.top = 'auto'
-    bubble.style.transform = bubbleTransform(zoom)
+    bubble.style.transform = `translateX(-50%) scale(${formatZoom(desiredZoom)})`
     trigger.style.left = '50%'
     trigger.style.top = 'auto'
     trigger.style.bottom = `${TRIGGER_SIZE + 8}px`
     trigger.style.right = 'auto'
     return
   }
-  // Bubble: centred horizontally on the pet, bottom edge just above it.
-  const centreX = rect.left + rect.width / 2
-  bubble.style.top = 'auto'
   bubble.style.position = 'absolute'
-  bubble.style.bottom = `${Math.round(viewportHeight - rect.top + BUBBLE_GAP)}px`
-  bubble.style.transform = bubbleTransform(zoom)
+  // Pin the layout box at x=0: an absolutely-positioned box with a non-zero
+  // `left` only gets (containing width - left) of available width, so the
+  // bubble's wrap would depend on its own anchor. With left:0 the shrink-to-fit
+  // width is independent of the anchor and one measurement is exact. The
+  // transform below moves the visual centre onto the pet. offset* ignore
+  // transforms, so the measured size is the layout size at component zoom 1.
+  bubble.style.left = '0px'
+  const layout = {
+    width: positive(bubble.offsetWidth, 0),
+    height: positive(bubble.offsetHeight, 0),
+  }
+  const placement = resolveBubblePlacement({
+    petCentreX: rect.left + rect.width / 2,
+    petTop: rect.top,
+    layout,
+    zoom: desiredZoom,
+    viewport: { width: viewportWidth, height: viewportHeight },
+  })
+  bubble.style.top = 'auto'
+  bubble.style.bottom = `${Math.round(placement.bottom)}px`
+  bubble.style.transform = bubbleTransform(placement.zoom, placement.centreX)
   bubble.style.pointerEvents = 'none'
-  // Measure after the text/size settles, then clamp inside the viewport. The
-  // measured offsetWidth is layout px, so multiply by the composed zoom.
-  const half = (bubble.offsetWidth * zoom) / 2
-  const minLeft = half + 8
-  const maxLeft = viewportWidth - half - 8
-  const clampedLeft = minLeft > maxLeft ? viewportWidth / 2 : Math.min(Math.max(centreX, minLeft), maxLeft)
-  bubble.style.left = `${Math.round(clampedLeft)}px`
   // ⋯ trigger: pet lower-right corner, clamped into the window.
   const left = Math.min(Math.max(rect.right + TRIGGER_GAP, 4), viewportWidth - TRIGGER_SIZE - 4)
   const top = Math.min(Math.max(rect.bottom - TRIGGER_SIZE, 4), viewportHeight - TRIGGER_SIZE - 4)
