@@ -3335,6 +3335,16 @@ async function stopVoiceProcessing(): Promise<void> {
   } catch {}
 }
 
+async function exitAfterSave(): Promise<void> {
+  try {
+    if (canInteract()) await saveNow()
+  } catch (error) {
+    if (!(error instanceof RateLimitError)) reportFailure(saveBoundary, error)
+  } finally {
+    exitApplication()
+  }
+}
+
 function exitApplication(): void {
   try {
     if (HAS_TAURI) {
@@ -3429,6 +3439,8 @@ function initializeApp(): void {
       resetWindow: resetPetWindow,
       // The role & content center is above the body-level shell menu.
       isHigherModalOpen: () => contentRuntime?.hub?.isOpen() === true,
+      // Root 退出: best-effort save, then close; a hung IPC still exits.
+      onExit: () => { void exitAfterSave() },
     })
     wired.shell = true
   }

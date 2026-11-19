@@ -66,7 +66,7 @@ export const SETTINGS_ID = 'pet-settings'
 /** Menu levels: root (≤5 entries), 互动… and 更多… (both have 返回). */
 export type ShellMenuView = 'root' | 'interact' | 'more'
 /** Root entries in order; the IA test asserts this stays ≤5. */
-export const SHELL_MENU_ROOT_ACTIONS = ['compose', 'interact', 'content', 'settings', 'more'] as const
+export const SHELL_MENU_ROOT_ACTIONS = ['compose', 'interact', 'content', 'settings', 'more', 'quit'] as const
 /**
  * Renderer-menu storage keys. Keep in sync with `hero-runtime.ts`
  * (`HERO_STORAGE_KEY` / `HERO_CHARACTER_STORAGE_KEY`); duplicated here as
@@ -443,6 +443,8 @@ export interface DesktopShellOptions {
    * renderer rows are no longer rendered by this menu.
    */
   readonly openContentHub?: () => void
+  /** Quit from the root menu; main.ts saves first, then closes the pet window. */
+  readonly onExit?: () => void
   /**
    * Settings wiring supplied by main.ts. Every callback is optional: absent
    * handlers keep the control visible but inert (dev pages never fake them).
@@ -841,6 +843,9 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
       add('角色与内容中心…', () => { openContentHub?.() }, '', 'menu/U-MENU-08a_32x32.png')
       add('设置…', () => { openSettings() }, '', 'menu/U-MENU-07a_32x32.png')
       addSubmenu('更多', 'more')
+      // Quit stays at the root: with no persistent buttons, a nested-only exit
+      // is too hard to find when a user wants to stop the pet.
+      add('退出', () => { (options.onExit ?? (() => winRef.close()))() }, '', 'menu/U-MENU-10a_32x32.png')
     } else if (menuView === 'interact') {
       addBack('nav:interact')
       addHeading(heroActive() ? '互动 · 当前角色' : '互动 · 折纸')
