@@ -1,12 +1,19 @@
 # 覆盖率记录与质量门（E11 / MB-111）
 
-- 任务：task-97「覆盖率/质量门（E11）」；上游清单 MB-111（覆盖率口径/阈值），评审依据
+- 任务：task-97「覆盖率/质量门（E11）」、task-104「CI 接入」、**task-136「覆盖率转强制」**；
+  上游清单 MB-111（覆盖率口径/阈值），评审依据
   `docs/research/PROJECT-REVIEW-QA-2026-11-19.md` §2.2 与
   `docs/plan/REVIEW-TRIAGE-QUALITY-2026-11-19.md` QT-401。
-- 基线 commit：`47aeea3`（基线与本文数字生成时，工作树除本任务新增文件/文档外无 src 改动）。
-- 定位：**第一迭代只记录、不阻断**。阈值与 ratchet 默认 advisory；测试失败仍然退出 1。
-  2026-11-20 task-104 起，`coverage:check` 已作为 `advisory: true` 步骤接入 `npm run ci`，
-  CI 归档 `artifacts/qa/coverage.json`，仍然**绝不阻断发布**（见 §5/§9）。
+- 当前定位（2026-11-20 task-136 起）：**required（阻断门）**。
+  `scripts/coverage-key-modules.json` 的 `mode` 为 `enforce`：阈值或 ratchet
+  回归 exit 1，`coverage:check` 在 `npm run ci` 中是普通必需步骤，失败即 gate 失败；
+  测试失败始终 exit 1（见 §5、§11）。
+- 唯一例外是**显式 `entryModules` 豁免**：`src/pet/main.ts` / `src/pet/consent/setup-page.ts`
+  因 CSS side-effect import / 模块级 DOM boot 无法被 Node/tsx import。它们**仍被测量、仍按真实
+  0% 报告**，只是不参与强制阈值与 per-file ratchet（见 §3、§5、§11）。**不得把模块从
+  keyModules 删除或补数字来变绿**。
+- 历史：task-97 首版“只记录不阻断”；task-104 把 `coverage:check` 以 `advisory: true` 接入
+  `npm run ci`；task-136 升级为 required（基线在 HEAD `0a5bc0b` + 在途改动的工作树上重设）。
 - 非目标：不追覆盖率百分比、不做 mutation/property-based testing、不改业务代码、不替代
   `npm run ci`。
 
@@ -34,23 +41,23 @@ Node 内置 `--experimental-test-coverage`（零依赖）只报告**被测试加
 
 | 文件 | 作用 |
 | --- | --- |
-| `scripts/coverage.ts` | 覆盖率运行 + 解析 + 关键模块并入 + 基线/阈值比较 + 基线生成；纯 Node 内置依赖 |
-| `scripts/coverage-key-modules.json` | 关键模块清单（20 个）+ 阈值 + tolerance + `mode: advisory` |
-| `scripts/coverage-baseline.json` | 已提交基线快照（168 个被加载文件 + 20 个关键模块 + 运行事实） |
-| `tests/coverage-gate.test.ts` | 质量门自测：表格解析、关键模块分母、ratchet、配置/基线一致性 |
-| `tests/e11-coverage-gaps.test.ts` | 本次补的缺口行为测试：shell-layout / hit-regions / voice-system 等 |
+| `scripts/coverage.ts` | 覆盖率运行 + 解析 + 关键模块并入 + entry 豁免 + 基线/阈值比较（required 语义）+ 基线生成；纯 Node 内置依赖 |
+| `scripts/coverage-key-modules.json` | 关键模块清单（20 个=18 enforced + 2 `entryModules` 豁免）+ 阈值 + tolerance + `mode: enforce` |
+| `scripts/coverage-baseline.json` | 已提交基线快照（全部被加载文件 + 20 个关键模块 + enforced 指标 + 运行事实） |
+| `tests/coverage-gate.test.ts` | 质量门自测：表格解析、关键模块分母、entry 豁免不可隐藏模块、enforced 阈值/ratchet、配置/基线一致性 |
+| `tests/e11-coverage-gaps.test.ts` | task-97 补的缺口行为测试：shell-layout / hit-regions / voice-system 等 |
 | `package.json` | `test:coverage` / `coverage:check` / `coverage:baseline` 三个 npm script |
-| `scripts/ci.mjs` | `coverage:check` 以 `advisory: true` 进入 canonical gate（task-104；失败只记录，绝不阻断） |
-| `.github/workflows/ci.yml` | gate job 用 `if: always()` 归档 `artifacts/qa/coverage.json` / `coverage.log`（advisory artifact，不是 required check） |
-| `scripts/docs-check.mjs` | 硬检查：CI 必须含 `coverage:check`、必须保持 advisory、必须上传 coverage 记录 |
-| `tests/e11-coverage-ci.test.ts` | CI 接线自测：步骤顺序 / advisory 语义 / artifact 上传 / `DG_GIT_*` facts / main.ts 缺口文档 |
-| `docs/plan/E11-MAIN-TS-COVERAGE-2026-11-20.md` | main.ts 可达性/0% 覆盖缺口专文（不伪造行覆盖） |
+| `scripts/ci.mjs` | `coverage:check` 是 canonical gate 的**必需步骤**（task-136 起无 `advisory`；失败即 gate 失败） |
+| `.github/workflows/ci.yml` | gate job 用 `if: always()` 归档 required gate 的 `artifacts/qa/coverage.json` / `coverage.log`（失败也留证据） |
+| `scripts/docs-check.mjs` | 硬检查：CI 必须含 required `coverage:check`（不得退回 advisory）、config 必须 `mode: enforce` 且 entry 豁免合法、必须上传 coverage 记录 |
+| `tests/e11-coverage-ci.test.ts` | CI 接线自测：步骤顺序 / required 语义 / artifact 上传 / docs-check 断言 / `DG_GIT_*` facts / main.ts 缺口文档 |
+| `docs/plan/E11-MAIN-TS-COVERAGE-2026-11-20.md` | main.ts 可达性/0% 覆盖缺口专文（记录 entry 豁免，不伪造行覆盖） |
 
 ### 命令
 
 ```bash
-npm run test:coverage      # 记录 + advisory 比较（默认，不阻断）
-npm run coverage:check     # 同上，显式“质量门”语义；加 -- --enforce 才阻断
+npm run test:coverage      # 记录 + required gate 比较（阈值/ratchet 违规 exit 1）
+npm run coverage:check     # 同上，显式“质量门”语义（required）
 npm run coverage:baseline  # 重新生成基线（默认连跑 2 次取每个文件最小值）
 ```
 
@@ -59,7 +66,9 @@ npm run coverage:baseline  # 重新生成基线（默认连跑 2 次取每个文
 node --import tsx scripts/coverage.ts --from-log artifacts/qa/coverage.log
 ```
 
-退出码：`0` = 记录/advisory 通过；`1` = 测试失败或 `--enforce` 下违规；`2` = 参数/解析/IO 错误。
+退出码：`0` = required gate 通过；`1` = 测试失败或阈值/ratchet 违规（config `mode: enforce`
+或显式 `--enforce`）；`2` = 参数/解析/IO 错误。required 模式下**缺失基线也是阻断项**：
+没有基线就无法验证 ratchet，不能假装通过。
 
 ---
 
@@ -91,90 +100,108 @@ E10/E4/E8 的核心数据链。全部路径由 `tests/coverage-gate.test.ts` 断
 | `src/pet/scaling.ts` | 全局/组件缩放 clamp 与标签 |
 | `src/voice/system.ts` | 浏览器/WebView2 SpeechSynthesis 最后一步 |
 
+**20 = 18 enforced + 2 entry-exempt**：`src/pet/main.ts` 与
+`src/pet/consent/setup-page.ts` 列在 config 的 `entryModules`（带 `why`）。它们仍在
+`keyModules` 分母里、仍出现在 `artifacts/qa/coverage.json`（`loaded:false` / 0%），只是
+不参与 enforced loadedRatio / averageLines / per-file ratchet。豁免是白名单式的：
+`tests/coverage-gate.test.ts` 断言 (a) 豁免路径必须仍是 key module，(b) 该模块仍被报告为 0%，
+(c) config 不得把所有 key module 都豁免掉，(d) 若某个 entry 模块后来真的被测试加载，比较器会报
+`is declared entry-exempt but is now loaded` 的 threshold 失败——豁免必须随可 import 状态更新，
+不能永久保留。
+
 ---
 
-## 4. 已提交基线（实测，2026-11-20 task-104 重设）
+## 4. 已提交基线（task-136 实测重设）
 
-运行事实（`scripts/coverage-baseline.json`，`generatedAt=2026-11-19T19:01:48Z`）：
+运行事实（`scripts/coverage-baseline.json`，`generatedAt=2026-11-20T05:15:52Z`）：
 
-- node `v24.22.1`，platform `linux`（与 CI 的 ubuntu-latest 一致），commit `be69a71`，
-  dirty=`true`（基线在 HEAD `be69a71` + task-104 未提交脚本/测试/文档改动的导出里生成；
-  `src/` 与 HEAD 完全一致，未夹带其他任务的在途修改）。
-- 命令：`DG_GIT_COMMIT=<be69a71> DG_GIT_DIRTY=true node --import tsx scripts/coverage.ts
-  --update-baseline --repeat 2`（连跑 2 次逐文件取最小值；`DG_GIT_*` 是本次新增的
-  clean-checkout 契约，导出目录无 `.git` 也能记录真实 commit）。
-- 测试：**1529 tests / 1520 pass / 0 fail / 9 skipped**（导出无 `dist/` 时 9 skipped；
-  canonical `npm run ci` 先 build，实测 6 skipped——跳过项由测试自身的条件决定。单次 duration ≈ 30 s）。
-- 全集（172 个被加载的 `src/**/*.ts`）：**lines 92.27% / branches 79.03% / functions 88.33%**。
-- 关键模块：**18/20 loaded**；average lines **79.74%**（未加载按 0 计）；loaded-only **88.60%**。
+- node `v24.22.1`，platform `linux`（与 CI 的 ubuntu-latest 一致），commit `0a5bc0b`，
+  dirty=`true`（共享工作树 = HEAD `0a5bc0b` + 在途 startup/E2E/reclass 改动；基线只记录
+  `src/**/*.ts` 的真实测量值，未夹带手工数字）。
+- 命令：`COVERAGE_BASELINE_REGEN=1 npm run coverage:baseline`（默认 `--repeat 2`，逐文件取
+  最小值）。`COVERAGE_BASELINE_REGEN=1` 只用于**一次性结构升级**：旧基线还没有
+  `entryModules/enforced*` 字段时，baseline 自检会让“重设基线”的那次 run 变红；该变量只跳过
+  这一条自检，重设后必须立刻用普通 `npm run coverage:check` 复核（本次已做，见 §11）。
+- 测试：**1895 tests / 1894 pass / 0 fail / 1 skipped**（那 1 skipped 就是上述一次性自检；
+  正常 run 无 skip 时测试总数相同，不含该 skip）。
+- 全集（被加载的 `src/**/*.ts`）：**lines 92.56% / branches 78.96% / functions 87.86%**。
+- 关键模块：**18/20 loaded**；average lines **81.06%**（20 个全算、未加载按 0）；loaded-only
+  **90.06%**；**enforced 18/18 loaded、enforced average 90.06%**（2 个 entry 豁免不计入强制）。
 
-| 关键模块 | lines | branches | funcs |
-| --- | ---: | ---: | ---: |
-| `src/pet/main.ts` | **未加载 0** | — | — |
-| `src/pet/consent/setup-page.ts` | **未加载 0** | — | — |
-| `src/pet/consent/runtime.ts` | 16.93 | 100.00 | 2.00 |
-| `src/pet/consent/modal.ts` | 47.83 | 75.00 | 62.50 |
-| `src/pet/consent/gate.ts` | 98.95 | 88.78 | 90.00 |
-| `src/pet/safety/gate.ts` | 94.83 | 91.16 | 100.00 |
-| `src/pet/save-runtime.ts` | 98.95 | 87.79 | 81.25 |
-| `src/pet/content-hub.ts` | 90.20 | 62.33 | 87.78 |
-| `src/pet/content-market.ts` | 93.91 | 70.30 | 91.18 |
-| `src/pet/content-library.ts` | 94.82 | 78.96 | 98.31 |
-| `src/pet/character-packs.ts` | 92.61 | 70.00 | 95.77 |
-| `src/pet/desktop-shell.ts` | 95.01 | 75.59 | 74.75 |
-| `src/pet/shell-layout.ts` | 99.20 | 86.11 | 100.00 |
-| `src/pet/hit-regions.ts` | 96.96 | 85.14 | 63.64 |
-| `src/pet/content-window.ts` | 80.71 | 78.95 | 66.67 |
-| `src/pet/hero-runtime.ts` | 95.68 | 76.92 | 86.67 |
-| `src/pet/health-reminder.ts` | 99.40 | 79.21 | 88.24 |
-| `src/pet/low-disturb.ts` | 98.85 | 89.29 | 100.00 |
-| `src/pet/scaling.ts` | 100.00 | 87.65 | 100.00 |
-| `src/voice/system.ts` | 100.00 | 100.00 | 100.00 |
+| 关键模块 | lines | branches | funcs | 强制 |
+| --- | ---: | ---: | ---: | --- |
+| `src/pet/main.ts` | **未加载 0** | — | — | **entry 豁免** |
+| `src/pet/consent/setup-page.ts` | **未加载 0** | — | — | **entry 豁免** |
+| `src/pet/consent/runtime.ts` | 16.93 | 100.00 | 2.00 | enforced |
+| `src/pet/consent/modal.ts` | 47.83 | 75.00 | 62.50 | enforced |
+| `src/pet/consent/gate.ts` | 98.95 | 88.78 | 90.00 | enforced |
+| `src/pet/safety/gate.ts` | 94.83 | 91.16 | 100.00 | enforced |
+| `src/pet/save-runtime.ts` | 98.95 | 87.79 | 81.25 | enforced |
+| `src/pet/content-hub.ts` | 98.97 | 89.04 | 92.31 | enforced |
+| `src/pet/content-market.ts` | 94.21 | 70.13 | 90.48 | enforced |
+| `src/pet/content-library.ts` | 95.00 | 79.94 | 98.40 | enforced |
+| `src/pet/character-packs.ts` | 93.79 | 73.46 | 97.18 | enforced |
+| `src/pet/desktop-shell.ts` | 96.53 | 76.33 | 79.10 | enforced |
+| `src/pet/shell-layout.ts` | 99.64 | 79.17 | 100.00 | enforced |
+| `src/pet/hit-regions.ts` | 96.96 | 85.14 | 63.64 | enforced |
+| `src/pet/content-window.ts` | 93.93 | 72.55 | 66.67 | enforced |
+| `src/pet/hero-runtime.ts` | 96.34 | 77.01 | 86.67 | enforced |
+| `src/pet/health-reminder.ts` | 99.40 | 79.21 | 88.24 | enforced |
+| `src/pet/low-disturb.ts` | 98.85 | 89.29 | 100.00 | enforced |
+| `src/pet/scaling.ts` | 100.00 | 87.80 | 100.00 | enforced |
+| `src/voice/system.ts` | 100.00 | 100.00 | 100.00 | enforced |
 
 **读法**：`main.ts` / `setup-page.ts` 的 0 是真实事实（测试未 import），不是脚本漏算；
-按行数加权它们仍是最大缺口。`consent/runtime.ts`（16.93%）、`consent/modal.ts`（47.83%）、
-`content-window.ts`（80.71%）是接下来最值得补行为测试的加载模块。
+它们是**显式 entry 豁免**，不是“已覆盖”。`consent/runtime.ts`（16.93%）、
+`consent/modal.ts`（47.83%）、`content-window.ts`（93.93%）仍是低覆盖加载模块的补测候选。
 
-上一版基线（task-97：commit `47aeea3`、1486 tests、all files 92.44/79.33/88.38）已被本基线
-取代：HEAD 期间的任务（save-runtime 接线、content-hub 拆分/角色包安装 UI、动画计时单源、
-测试重构）改变了若干文件的加载面（`src/pet/anim/{bubbles,idle,interactions,prng}.ts` 与
-`src/pet/consent/cli.ts` 不再被测试 import），旧基线继续对比只会产生噪音 WARN，故在 task-104
-一次性重设；历史数字见 git history。此后任何有意的覆盖率变化都应按 §5 重设基线。
+上一版基线（task-104：commit `be69a71`、1529 tests、all files 92.27/79.03/88.33）已被本基线
+取代：task-135 把 boot 抽到 `src/pet/startup.ts`、HEAD 期间的内容/市场/动画/test 重构改变了
+加载面，旧基线与新工作树的 per-file 数字不再可比（例如 `content-assets.ts` functions 的
+基线差会立刻触发 WARN/FAIL）。故在 task-136 一次性重设；历史数字见 git history。
+此后任何有意的覆盖率变化都应按 §5 重设基线。
 
 ---
 
-## 5. 阈值 / ratchet / advisory 语义
+## 5. 阈值 / ratchet / required 语义
 
 - `scripts/coverage-key-modules.json`：
-  - `thresholds.allFiles`：lines 90 / branches 77 / functions 86（低于基线约 2pp，首轮“不过高”）；
-  - `thresholds.keyModules`：loadedRatio 0.8（当前 18/20=0.9）、averageLines 65（当前 79.74）；
+  - `thresholds.allFiles`：lines 90 / branches 77 / functions 86（低于基线约 2pp，避免阈值噪声）；
+  - `thresholds.keyModules`：loadedRatio 0.8、averageLines 65，**只对 enforced key modules 计算**
+    （当前 18/18 enforced loaded、enforced average ≈90）；
   - `tolerance`：lines 3.5 / branches 8 / functions 3（解释见下）；
-  - `mode: "advisory"`。
-- 默认 `npm run test:coverage` / `coverage:check`：任何阈值/回归只打印 `WARN ...`，退出 0。
-  `--enforce`（或把 config 改成 `mode: "enforce"`）才退出 1；测试失败始终退出 1。
+  - `mode: "enforce"`（task-136 起）；`entryModules` 只包含两个不可 import 的页面入口。
+- 默认 `npm run test:coverage` / `coverage:check`：阈值或 per-file ratchet 回归 → 打印
+  `FAIL ...` 并 exit 1；测试失败始终 exit 1。`--enforce` 仍可用于对单个 run 强制阻断
+  （config 已是 enforce 时无额外作用）；**没有“跳过 gate”的 CLI**。
+- **required 的边界**：强制的是 (a) `allFiles` 阈值（只统计被加载文件）、(b) 18 个可加载
+  key modules 的 loadedRatio / averageLines、(c) 基线里每个已加载文件的 per-file ratchet。
+  `main.ts` / `setup-page.ts` 的 0% **不参与强制**（否则永远没法 required），但它们仍被测量、
+  仍出现在 artifact/report 中，任何“它们已覆盖”的说法都是伪造。**豁免不是永久的**：若 entry
+  模块被测试加载，比较器会把它当 threshold 失败，要求移除豁免并开始强制。
 - **为什么 tolerance 较宽**：测试文件并行运行，`tests/dlc-import-safety.test.ts` 会临时
   写入/删除 `public/characters/<临时 id>`，而 `tests/fci-v03.test.ts` 会枚举
   `public/characters/*`。两者偶尔交错，导致 `src/pet/scene/validate.ts` 的错误分支
-  行覆盖在 89.84–92.97 间波动（本任务实测 3 次：92.97 / 89.84 / 92.97）。这是测试隔离
+  行覆盖在 89.84–92.97 间波动（task-97 实测 3 次：92.97 / 89.84 / 92.97）。这是测试隔离
   已知缺陷，不是业务波动；宽容差 + `coverage:baseline` 默认跑 2 次取每文件最小值，
   让 ratchet 只抓真实下降。修测试隔离需另立任务，不在本任务范围。
-- 基线重生成：`npm run coverage:baseline`（默认 `--repeat 2`，对每个文件的 lines/branches/functions
-  分别取多次运行的最小值，记录在 `generatedFrom.repeat`；单次运行不写 repeat 字段）。
-- **CI 接入（task-104，2026-11-20）**：`node --import tsx scripts/coverage.ts --check` 已作为
-  `scripts/ci.mjs` 的 `coverage:check` 步骤（放在 `test` 之后），并标记 `advisory: true`。
-  语义：该步骤即使退出 1 也只记录 `advisory`，**不改变 `npm run ci` 的退出码**；真正的测试失败
-  仍由前面的 `test` 步骤阻断。`.github/workflows/ci.yml` 在 gate job 用 `if: always()` 上传
-  `artifacts/qa/coverage.json` 与 `coverage.log`（artifact 名 `coverage-<os>`），不新增 required
-  check；`release.yml` 不运行 `npm run ci`，所以覆盖率不可能阻断发布。`scripts/docs-check.mjs`
-  已把“CI 必须含 coverage:check、保持 advisory、归档记录”变成硬检查。
-- 升级为阻断的建议路径（不变）：连续 2 个提交 `coverage:check` 无意外 WARN 后，把 config
-  `mode` 改 `enforce`，并在 `scripts/ci.mjs` 去掉该步骤的 `advisory: true`（或让 CI 用
-  `--enforce`），同时把 `docs-check` 的 `ci-coverage-advisory` 断言反转为 enforce 断言。
-  **无 remote 的事实不变**：`ci.yml` 仍未在 GitHub 上真实运行过，不得宣称 CI 全绿。
+- 基线重生成：`npm run coverage:baseline`（默认 `--repeat 2`，对每个文件的
+  lines/branches/functions 分别取多次运行的最小值，记录在 `generatedFrom.repeat`；
+  单次运行不写 repeat 字段）。**required 模式下缺失基线 = 阻断**：没有基线无法验证 ratchet。
+- **CI 接入（task-136，2026-11-20 起 required）**：`node --import tsx scripts/coverage.ts --check`
+  是 `scripts/ci.mjs` 的 `coverage:check` 必需步骤（放在 `test` 之后），**没有
+  `advisory: true`**；它 exit 1 就让 `npm run ci` 失败。`.github/workflows/ci.yml` 在 gate job
+  用 `if: always()` 上传 `artifacts/qa/coverage.json` 与 `coverage.log`（artifact 名
+  `coverage-<os>`），失败时也归档证据。`scripts/docs-check.mjs` 硬检查三件事：CI 必须含
+  required `coverage:check`（不得退回 advisory）、config 必须 `mode: enforce` 且 entry 豁免
+  合法、ci.yml 必须上传 coverage 记录。
+- **release.yml 仍不运行 `npm run ci`**：required gate 阻断的是 canonical gate/合并路径，
+  不是发布流水线；把 release 也接上 gate 属另一任务。**无 remote 的事实不变**：`ci.yml`
+  仍未在 GitHub 上真实运行过，不得宣称 CI 全绿。
 
 ---
 
-## 6. 本次补的缺口测试（MB-111）
+## 6. task-97 补的缺口测试（MB-111 历史记录）
 
 新增 `tests/e11-coverage-gaps.test.ts`（20 例，纯注入 DOM/窗口，无 jsdom、无新依赖）：
 
@@ -204,16 +231,18 @@ quiet 模式压制自动 ambient 行）。只改测试断言，未改插件/业�
 
 ## 7. 未闭环与边界
 
-1. **`main.ts` / `setup-page.ts` 仍是 0% 行覆盖**：本脚本把它们放进分母并显式记 0；
-   `tests/e11-main-data-chain.test.ts` 用 AST 提取声明执行的“行为覆盖”**不等于**行覆盖，
-   不得据此声称 main.ts 已被覆盖率覆盖。真正的提升依赖 E10 把数据链抽成可 import 模块。
+1. **`main.ts` / `setup-page.ts` 仍是 0% 行覆盖**：本脚本把它们放进分母并显式记 0，
+   task-136 起它们同时是 config `entryModules` 的**显式豁免**（不参与强制阈值/ratchet，
+   但仍被测量、仍报 0%）。`tests/e11-main-boot.test.ts` / `tests/e11-main-data-chain.test.ts`
+   的“行为覆盖”**不等于**行覆盖，不得据此声称 main.ts 已被覆盖率覆盖。真正的提升依赖
+   E10/MB-110 把入口重构成可 import 模块。
 2. **无 jsdom/Playwright**：DOM 页面（consent/runtime、modal、setup-page、main.ts）仍只能
    通过注入最小 DOM 或源码断言测；覆盖率会长期偏低，属于工具缺失而不是测试偷懒。
-3. **基线绑定的源码状态**：基线记录在 `generatedFrom`（commit `be69a71`、dirty=`true`、
-   platform linux、task-104 未提交脚本/测试/文档改动；`src/` 与 HEAD 一致）——此后任何
-   有意的覆盖率变化（E10 继续拆分、补行为测试、task-102/103/105 的在途改动）都应先看 WARN 再
-   `npm run coverage:baseline` 重设基线，不要直接删阈值/关键模块。
-4. **已接入 `npm run ci` / CI artifact（advisory）**：见 §5；真实 GitHub Actions 仍无 remote、
+3. **基线绑定的源码状态**：基线记录在 `generatedFrom`（commit `0a5bc0b`、dirty=`true`、
+   platform linux、当前共享工作树的在途改动）——此后任何有意的覆盖率变化都应先确认
+   **落在真实测量上**，再 `npm run coverage:baseline` 重设基线；不要直接删阈值/key module，
+   也不要把 0% 手改成通过值。
+4. **已接入 `npm run ci` / CI artifact（required）**：见 §5；真实 GitHub Actions 仍无 remote、
    未运行，不得宣称 CI 全绿。
 5. **本任务未改业务代码**、未 commit/push；`tests/` 之外未动 src。
 6. **跨任务测试断言修复**：见 §6 末段（`tests/parity-contract.test.ts` 一行，语义保持）。
@@ -224,9 +253,11 @@ quiet 模式压制自动 ambient 行）。只改测试断言，未改插件/业�
 
 ```bash
 cd /mnt/d/Projects/dsh/desktop-games
-npm run ci                                          # canonical gate；coverage:check 是 advisory 步骤
-node --import tsx scripts/coverage.ts --check        # 记录 + advisory
-node --import tsx scripts/coverage.ts --update-baseline --repeat 2   # 重生成基线
+npm run ci                                          # canonical gate；coverage:check 是 required 步骤
+npm run coverage:check                              # 单独跑 required 覆盖率门
+npm run coverage:baseline                           # 重生成基线（默认 repeat 2）
+# 仅当旧基线结构过期、baseline 自检会让重设 run 变红时：
+COVERAGE_BASELINE_REGEN=1 npm run coverage:baseline
 node --import tsx --test tests/coverage-gate.test.ts tests/e11-coverage-ci.test.ts
 npm run typecheck
 npm run docs:check
@@ -242,7 +273,7 @@ npm run docs:check
 
 ---
 
-## 9. main.ts 可达性/覆盖率缺口（task-104）
+## 9. main.ts 可达性/覆盖率缺口（task-104 历史；task-136 起为 entry 豁免）
 
 专文：`docs/plan/E11-MAIN-TS-COVERAGE-2026-11-20.md`。要点：
 
@@ -260,7 +291,7 @@ npm run docs:check
 
 ---
 
-## 10. task-104 CI 接入复跑（2026-11-20）
+## 10. task-104 CI 接入复跑（2026-11-20，历史记录；advisory 语义已被 task-136 取代）
 
 见下节实测记录；命令：
 
@@ -299,3 +330,66 @@ python3 -c "import json; d=json.load(open('artifacts/qa/coverage.json')); print(
   main.ts 缺口文档存在性。
 - **未在 GitHub Actions 上真实运行**（仓库仍无 remote），不得宣称 CI 全绿；以上是本地
   canonical gate 的真实执行结果。
+- ⚠️ 本节是 **task-104 当时的 advisory 历史**：task-136 已把该步骤升级为 required、把 config
+  改为 `mode: enforce`，并反转 `docs-check` 断言；当前语义以 §5/§11 为准。
+
+---
+
+## 11. task-136 覆盖率转强制（2026-11-20）
+
+> 本节所有数字来自**真实运行**：`npm run coverage:check` / `npm run ci` / 基线文件本身；
+> 数字以 `artifacts/qa/coverage.json` 与 `scripts/coverage-baseline.json` 为准。本任务
+> **未 commit/push**。
+
+### 11.1 改动
+
+- **config**：`scripts/coverage-key-modules.json` → `mode: "enforce"`；新增 `entryModules`
+  （`main.ts` / `setup-page.ts`，各带 `why`）。20 个关键模块 = **18 enforced + 2 entry-exempt**。
+- **脚本**：`scripts/coverage.ts` 增加 entry 豁免的 enforce 语义：
+  - enforced loadedRatio / averageLines 只算 18 个可加载模块；
+  - per-file ratchet 跳过 entry 路径，但 entry 仍逐文件报 0%；
+  - required 模式下**缺基线 = 阻断**（无法验证 ratchet）；
+  - 自测保证：entry 必须是 key module、必须仍报 0%、不能把所有模块都豁免。
+- **canonical gate**：`scripts/ci.mjs` 去掉 `coverage:check` 的 `advisory: true`，
+  label 改为 required；失败即 `npm run ci` 失败。
+- **CI 工作流**：`.github/workflows/ci.yml` 的 coverage artifact step 更名
+  `Upload coverage record (required gate evidence)`，仍 `if: always()` 归档
+  `artifacts/qa/coverage.json` / `coverage.log`（失败也有证据）。
+- **truth gate**：`scripts/docs-check.mjs` 的 `ci-coverage-advisory` 反转为
+  `ci-coverage-required`，并新增 `ci-coverage-enforce-config`（config 必须 enforce、
+  entry 豁免必须是 key module 且带 why）；老断言 `ci-coverage-advisory` 删除。
+- **测试**：`tests/coverage-gate.test.ts` 新增/更新 entry 豁免、enforced 阈值、ratchet、
+  `loadConfig` 拒绝非法豁免、config/baseline 一致性断言；`tests/e11-coverage-ci.test.ts`
+  更新 required step / classify / config / workflow / docs 断言。
+- **基线**：`scripts/coverage-baseline.json` 真实重设（见 §4），新增
+  `entryModules/enforcedTotal/enforcedLoaded/enforcedNotLoaded/enforcedAverageLines` 字段。
+
+### 11.2 真实证据（2026-11-20 本任务实测；工作树 = HEAD `0a5bc0b` + 在途改动）
+
+- 基线重设：`COVERAGE_BASELINE_REGEN=1 npm run coverage:baseline`（默认 2 runs）→
+  **1895 tests / 1894 pass / 0 fail / 1 skipped**（唯一 skip 是 baseline 自检的一次性 regen
+  hatch，见 §4）；写回 `scripts/coverage-baseline.json`：commit `0a5bc0b`、dirty=`true`、
+  `repeat: 2`、all files **92.56 / 78.96 / 87.86**、key modules 18/20、
+  **enforced 18/18、enforced average 90.06**。
+- required 门（普通 run，无 regen hatch）：`npm run coverage:check` → exit 0，
+  status **ok**、mode **enforce**、**0 warning**；`src` 覆盖 all files
+  **92.56 / 78.97 / 87.86**；key modules 18/20、**enforced 18/18、enforced average 90.06**；
+  2 个 entry 仍逐行打印 `NOT LOADED (0.00%) [entry-exempt, reported not enforced]`。
+  测试数随并发任务并入用例从 1895（基线时）→1903→1913→1927 增长，这不是覆盖率数字被改动；
+  `src` 覆盖保持稳定（本轮各次 92.55–92.56 / 78.9–79.0 / 87.86）。
+- canonical gate（最终，2026-11-20）：`npm run ci -- --summary-out artifacts/qa/ci-summary.json` →
+  **14/14 passed、0 advisory、0 skipped、99.5 s**；`artifacts/qa/ci-summary.json` 的
+  `coverage:check` step 内嵌 `mode=enforce`、`status=ok`、commit `0a5bc0b`、
+  allFiles **92.55 / 78.93 / 87.86**、key modules 18/20、average 81.05 / loaded-only 90.06、
+  **warnings=0**（required 步骤通过而不是被记为 advisory）；同一 run 的 `test` step 为
+  **1927/1927 pass**。注：中途有一次失败在 `build` 阶段（`dist/legal/* missing`），原因是
+  并发任务同时跑 Vite build 清空共享 `dist`，不是 gate 逻辑失败；隔离后重跑即 14/14 绿。
+- `npm run docs:check` → **PASS (27 checks)**，含新的 `ci-coverage-required` 与
+  `ci-coverage-enforce-config`；`node --import tsx --test tests/coverage-gate.test.ts
+  tests/e11-coverage-ci.test.ts` → **23/23 pass**；`npx tsc --noEmit` → 0 error；
+  `npm test` → **1903/1903 pass**。
+- **不伪造的机器证据**：`artifacts/qa/coverage.json` 与基线里 `main.ts` /
+  `setup-page.ts` 仍是 `loaded:false / lines 0`；日志明确 `18/18 enforced loaded`；
+  `tests/coverage-gate.test.ts` 断言 entry 仍被测量且不能通过删模块/补数字消掉。
+- **未 commit/push**；仓库仍无 remote，`ci.yml` 未在 GitHub Actions 真实运行过，
+  不得宣称 CI 全绿——以上是本地 canonical gate 的真实执行结果。

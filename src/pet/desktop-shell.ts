@@ -494,6 +494,11 @@ export interface DesktopShellOptions {
    * renderer rows are no longer rendered by this menu.
    */
   readonly openContentHub?: () => void
+  /**
+   * Content reporting / takedown / counter-notice entry (E12 MB-121). main.ts
+   * mounts the local template dialog; this row only routes the explicit click.
+   */
+  readonly onOpenContentReport?: () => void
   /** Quit from the root menu; main.ts saves first, then closes the pet window. */
   readonly onExit?: () => void
   /**
@@ -2279,6 +2284,10 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
       action('pet-settings-about', '关于与声明（完整 TOS/免责声明/数据控制）…', () => {
         closeSettings(false)
         openAboutPanel()
+      }),
+      action('pet-settings-content-report', '举报与下架…（人工处理/本地生成模板）', () => {
+        closeSettings(false)
+        options.onOpenContentReport?.()
       }),
       action('pet-settings-tts', 'TTS 声明与语音确认…', () => {
         closeSettings(false)

@@ -42,7 +42,7 @@
       "source": "docs/legal/TAKEDOWN-AND-REPORTING.md",
       "dest": "TAKEDOWN.md",
       "required": true,
-      "sha256": "68642978365a18a8f92e327441158df81fce508ef215d41c8400406e01f6400a"
+      "sha256": "bba61b2b57fddb4ab4b672f071710f09015d2e6d0d50bf04d8c37ff7c93833f3"
     },
     {
       "source": "SECURITY.md",
@@ -147,6 +147,12 @@
       "sha256": "25a7566511ede2a0a83ac5f8c92e7a32531ab3d33627a0604696e9c95c3a6803"
     },
     {
+      "source": "docs/legal/CONTENT-REPORTING.md",
+      "dest": "CONTENT-REPORTING.md",
+      "required": false,
+      "sha256": "25e0d98d246be4e061bae4ef8ab6c9d2f9beb30c2cf197532d91653626708d9e"
+    },
+    {
       "source": "docs/legal/CONTRIBUTOR-TERMS.md",
       "dest": "CONTRIBUTOR-TERMS.md",
       "required": false,
@@ -180,7 +186,7 @@
       "source": "docs/legal/README.md",
       "dest": "README.md",
       "required": false,
-      "sha256": "b9006620af2c2bbb40749b7ce824e5fddd20dbace231d4df76f5f1242a1d4aac"
+      "sha256": "5cfa060961f48cb40cdde66cbedcddfce8da3074c5d4721864ede79f0ce0bf8e"
     },
     {
       "source": "docs/legal/RELEASE-BLOCKERS.md",

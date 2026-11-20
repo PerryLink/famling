@@ -75,6 +75,7 @@ import {
   loadCharacterPackWithConsent,
 } from './consent/content.ts'
 import { CONSENT_OVERLAY_EVENT } from './consent/modal.ts'
+import { createStartupController } from './startup.ts'
 import {
   bootstrapConsent,
   canInteract,
@@ -115,6 +116,7 @@ import { type CharacterPackKind, type DialogueBehavior } from './content-library
 import { createContentRuntime } from './content-runtime.ts'
 import { CHARACTER_PACK_APPLY_EVENT, createHeroPage } from './hero-page.ts'
 import { createSettingsPage } from './settings-page.ts'
+import { createContentReportPanel, type ContentReportPanel } from './content-reporting.ts'
 import './pet.css'
 
 /**
@@ -325,98 +327,6 @@ function guardLocalAction(action: GuardedLocalAction): boolean {
   return decision.allowed
 }
 
-// ---------------------------------------------------------------------------
-// P1 startup-failure blocking screen (audit P1-4: no fail-open blank app)
-// ---------------------------------------------------------------------------
-export interface StartupFailureScreenOptions {
-  /** Sanitized short copy (from `toUserMessage`), never the raw error/path. */
-  readonly message: string
-  readonly onRetry: () => void
-  readonly onExit: () => void
-}
-
-export interface StartupFailureScreen {
-  hide(): void
-}
-
-/**
- * Visible blocking screen shown when `startConsentApp`/`bootPetOnce` throws.
- * The pet app is made inert/aria-hidden so a failed boot can never leave a
- * blank-but-interactive window; only retry/exit leave the screen. The copy is
- * the caller's sanitized `toUserMessage(error)`, never an error object/path.
- */
-export function createStartupFailureScreen(doc: Document, options: StartupFailureScreenOptions): StartupFailureScreen {
-  const root = doc.createElement('div')
-  root.id = 'startup-failure-screen'
-  // Share the blocking-overlay marker so `hasOpenConsentOverlay()` and the
-  // desktop-shell menu gating (both keyed on `.consent-root`) also treat a
-  // failed start as "no interaction": the shell menu lives outside `#pet-app`
-  // and must not open behind this screen.
-  root.className = 'startup-failure-screen consent-root'
-  root.setAttribute('role', 'alertdialog')
-  root.setAttribute('aria-modal', 'true')
-  root.setAttribute('aria-label', '启动失败')
-  root.setAttribute('tabindex', '-1')
-  root.style.cssText =
-    'position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;background:rgba(18,16,14,.94);color:#f2eadf;padding:24px;font-family:system-ui,sans-serif;'
-  const card = doc.createElement('div')
-  card.style.cssText = 'max-width:440px;line-height:1.7;font-size:14px;'
-  const title = doc.createElement('h2')
-  title.textContent = '启动没有完成'
-  const reason = doc.createElement('p')
-  reason.id = 'startup-failure-reason'
-  reason.textContent = options.message
-  const note = doc.createElement('p')
-  note.textContent = '为避免误操作，当前窗口不加载存档、不播放语音、不写入本机数据。可重试或退出。'
-  const actions = doc.createElement('div')
-  actions.style.cssText = 'display:flex;gap:8px;margin-top:14px;'
-  const retry = doc.createElement('button')
-  retry.id = 'startup-failure-retry'
-  retry.type = 'button'
-  retry.textContent = '重试'
-  retry.addEventListener('click', () => options.onRetry())
-  const exit = doc.createElement('button')
-  exit.id = 'startup-failure-exit'
-  exit.type = 'button'
-  exit.textContent = '退出应用'
-  exit.addEventListener('click', () => options.onExit())
-  actions.append(retry, exit)
-  card.append(title, reason, note, actions)
-  root.append(card)
-  doc.body.appendChild(root)
-  const app = doc.getElementById('pet-app')
-  app?.setAttribute('inert', '')
-  app?.setAttribute('aria-hidden', 'true')
-  try {
-    root.focus()
-  } catch {}
-  let hidden = false
-  return {
-    hide(): void {
-      if (hidden) return
-      hidden = true
-      root.remove()
-      app?.removeAttribute('inert')
-      app?.removeAttribute('aria-hidden')
-    },
-  }
-}
-
-/**
- * Best-effort fan-out of the shared consent-overlay event so the desktop shell
- * closes/inerts its body-level menu for the blocking failure screen too.
- */
-function notifyStartupOverlay(open: boolean): void {
-  try {
-    const view = (document as Document & { defaultView?: Window | null }).defaultView
-    const ctor = view?.CustomEvent ?? (typeof CustomEvent === 'function' ? CustomEvent : undefined)
-    if (!ctor) return
-    document.dispatchEvent(new ctor(CONSENT_OVERLAY_EVENT, { detail: { open, kind: 'startup-failure' } }))
-  } catch {
-    /* event fan-out is best effort; pet-app is inert and the screen is on top */
-  }
-}
-
 // Feature-flagged hero renderer (Phase 2). Default OFF: the existing folded-paper
 // DOM is the only renderer unless `?hero=1` or the persistent localStorage opt-in
 // is set; any load/pack/first-frame failure falls back to that DOM (one direction,
@@ -446,7 +356,7 @@ const heroPage = createHeroPage({
   hasTauri: HAS_TAURI,
   contentShell: CONTENT_SHELL,
   reportFailure,
-  storageBoundary,
+  storageBoundary, applyRemoteBuiltinRenderer: (choice) => contentRuntimeApi.applyBuiltinRendererLocally(choice),
   onPat: (actorId) => doPat(actorId),
   onRegionTouch: (actorId, reaction) => doHeroRegionTouch(actorId, reaction),
   onEnsureAudio: () => {
@@ -466,7 +376,7 @@ let mouthTimer: ReturnType<typeof setTimeout> | null = null
 // corrupt storage keeps the baked default instead of an invalid voice.
 let currentVoice: TtsVoiceId = readVoicePref()
 /** Provider/mode half of the TTS config signature; the voice is appended below. */
-let ttsProviderMode = '系统 TTS · AI 合成'
+let ttsProviderMode = '预生成/系统 TTS · AI 合成'
 
 let voice = new VoiceService({
   providers: [new SystemVoiceProvider(), new MockVoiceProvider()],
@@ -483,7 +393,7 @@ if (HAS_TAURI) {
       const { invoke } = await import('@tauri-apps/api/core')
       const status = await invoke<{ hasKey: boolean }>('voice_status')
       if (status.hasKey) {
-        ttsProviderMode = '云端 TTS（Rust 代理）+ 系统 TTS · AI 合成'
+        ttsProviderMode = '预生成 + 云端 TTS（Rust 代理） · AI 合成'
         renderVoiceMode()
         voice = new VoiceService({
           providers: [
@@ -895,7 +805,7 @@ const contentRuntimeApi = createContentRuntime({
   showBubble,
   getCurrentVoice: () => currentVoice,
   applyVoicePreference,
-  renderVoiceMode,
+  renderVoiceMode, switchBuiltinHeroCharacter: heroPage.switchBuiltinRenderer,
   setDialogueBehavior: (next) => {
     dialogueBehavior = next
   },
@@ -1958,6 +1868,13 @@ function initChatImport(): void {
   }, 1200)
 }
 
+/** Lazily mounted local-only report dialog (E12 MB-121); no boot cost/no network. */
+let contentReportPanel: ContentReportPanel | null = null
+function openContentReportPanel(): void {
+  if (!contentReportPanel) contentReportPanel = createContentReportPanel({ document })
+  contentReportPanel.open()
+}
+
 /** Set the visible About status line (aria-live); used for age rejections too. */
 function setAboutNote(text: string): void {
   const note = document.getElementById('about-note')
@@ -1979,6 +1896,9 @@ function initAboutPanel(): void {
   document.getElementById('about')?.addEventListener('click', () => openAboutPanel())
   document.getElementById('about-close')?.addEventListener('click', () => closeAboutPanel())
   document.getElementById('about-tos-view')?.addEventListener('click', () => openTosViewer())
+  // Local-only reporting/takedown entry (E12 MB-121): the dialog never uploads;
+  // opening the GitHub form is an explicit click inside the dialog.
+  document.getElementById('about-report')?.addEventListener('click', () => openContentReportPanel())
   document.getElementById('about-tts')?.addEventListener('click', () => void requestTtsConfirmation(currentTtsConfig()).catch((error) => reportFailure(ttsBoundary, error)))
   // ASR (microphone upload) has its own declaration/version/hash; TOS and TTS
   // consent never replace it. The About entry can pre-confirm the current config.
@@ -2133,29 +2053,6 @@ function exitApplication(): void {
   } catch {}
 }
 
-/** Content-window equivalent of startConsentApp: initialize -> consent -> panel. */
-async function startContentWindowApp(): Promise<void> {
-  try {
-    startupStage = 'init'
-    initializeApp()
-    startupStage = 'consent'
-    const mode = await bootstrapConsent()
-    startupStage = mode === 'accepted' ? 'boot' : 'idle'
-    if (mode === 'accepted') await bootContentWindowOnce()
-    startupStage = 'idle'
-  } catch (error) {
-    showStartupFailure(error)
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Boot orchestration (P1-4): initialize -> consent -> boot, never fail-open
-// ---------------------------------------------------------------------------
-type StartupStage = 'idle' | 'init' | 'consent' | 'boot'
-let startupStage: StartupStage = 'idle'
-let startupFailureScreen: StartupFailureScreen | null = null
-let startupRetryInFlight = false
-
 // One-time app wiring. Each step owns a flag so a retry after a failure resumes
 // the missing steps instead of double-wiring listeners that already work.
 const wired = {
@@ -2193,7 +2090,7 @@ function initializeApp(): void {
           }
           const hostConsent = await syncHostConsent(consentSnapshot())
           if (hostConsent?.launched) return
-          await runPetBoot()
+          await startup.runPetBoot()
         })()
       },
       exitApplication,
@@ -2229,6 +2126,8 @@ function initializeApp(): void {
       // Single consolidated content-center entry (replaces the four renderer
       // rows); main.ts opens the panel and re-checks the consent gate there.
       openContentHub: openContentHubFromMenu,
+      // E12 MB-121: settings → 关于 group entry for the same local-only report dialog.
+      onOpenContentReport: openContentReportPanel,
       // MB-062: the pet window's 设置… opens the independent settings window;
       // the content window reuses the SAME dialog and does not open a third.
       openSettingsWindow: CONTENT_SHELL ? undefined : openSettingsInContentWindow,
@@ -2352,146 +2251,32 @@ function initializeApp(): void {
 }
 
 /**
- * A failed start must never leave a blank-but-interactive pet window (P1-4):
- * show the visible blocking screen and keep the original error logged (through
- * reportFailure + the sanitized short copy only — no path/URL in the UI).
+ * Boot composition (E11 MB-110, task-135): the startup stage machine and the
+ * blocking failure screen now live in the importable `startup.ts` (no CSS
+ * import / no module-level DOM), so the consent -> boot path can be driven with
+ * a fake DOM in Node. This page supplies the live seams; `.start()` replaces
+ * the old inline content-window/pet branches with identical behaviour.
  */
-function hideStartupFailure(): void {
-  if (!startupFailureScreen) return
-  startupFailureScreen.hide()
-  startupFailureScreen = null
-  delete document.documentElement.dataset.startupFailure
-  notifyStartupOverlay(false)
-}
-
-function showStartupFailure(error: unknown): void {
-  reportFailure(uiBoundary, error)
-  try {
-    hideStartupFailure()
-    startupFailureScreen = createStartupFailureScreen(document, {
-      message: toUserMessage(error),
-      onRetry: () => {
-        void retryStartup()
-      },
-      onExit: () => exitApplication(),
-    })
-    // QA/E2E marker for the blocking state (the future browser E2E can assert it).
-    document.documentElement.dataset.startupFailure = '1'
-    notifyStartupOverlay(true)
-  } catch (renderError) {
-    // Last resort: the failure screen itself must not blank the window.
-    reportFailure(uiBoundary, renderError)
-    try {
-      const fallback = document.createElement('div')
-      fallback.id = 'startup-failure-fallback'
-      fallback.className = 'consent-root'
-      fallback.setAttribute('role', 'alert')
-      fallback.textContent = '启动没有完成。请重试或退出应用。'
-      document.body.appendChild(fallback)
-      document.getElementById('pet-app')?.setAttribute('inert', '')
-      document.documentElement.dataset.startupFailure = '1'
-      notifyStartupOverlay(true)
-    } catch {}
-  }
-}
-
-/**
- * Single boot path: initialize the consent runtime BEFORE any pet interaction,
- * then `bootstrapConsent()` runs the mandated D6 order (2026-11-20):
- *   1) first-run/upgrade key-facts layer + full TOS (explicit checkbox +
- *      button; no birth date is requested at first launch), and only then
- *   2) boots the pet. The age self-report is NOT part of bootstrap: it is
- *      requested only when the internal age-gated roleplay entry is used (or
- *      the user opts in from About), and declining it blocks only that entry.
- * A later acceptance from the read-only screen (or a retry) re-shows the
- * full TOS and boots the pet exactly once. There is no path that silently
- * skips the TOS into normal interaction.
- */
-async function startConsentApp(): Promise<void> {
-  try {
-    startupStage = 'init'
-    initializeApp()
-    startupStage = 'consent'
-    const mode = await bootstrapConsent()
-    // Mark the stage BEFORE the boot line so a throw inside bootPetOnce is
-    // retried as a boot (not as a fresh consent prompt). The literal call form
-    // is intentional: bootPetOnce runs only after the TOS gate resolves.
-    startupStage = mode === 'accepted' ? 'boot' : 'idle'
-    if (mode === 'accepted') await bootPetOnce()
-    startupStage = 'idle'
-  } catch (error) {
-    // Keep startupStage at the failed stage so retryStartup() resumes correctly.
-    showStartupFailure(error)
-  }
-}
-
-/** Boot the pet after an accepted first-run/upgrade TOS; failures block the UI. */
-async function runPetBoot(): Promise<void> {
-  startupStage = 'boot'
-  try {
-    await bootPetOnce()
-    startupStage = 'idle'
-  } catch (error) {
-    showStartupFailure(error)
-  }
-}
-
-/** Retry from the blocking screen, resuming the stage that actually failed. */
-async function retryStartup(): Promise<void> {
-  if (startupRetryInFlight) return
-  startupRetryInFlight = true
-  hideStartupFailure()
-  try {
-    if (startupStage === 'boot') {
-      // A failed boot may leave the "already booted" latch set; reset it so the
-      // retry can actually run, then boot again (idempotent wiring guards keep
-      // listeners from duplicating).
-      if (CONTENT_SHELL) await startContentWindowApp()
-      else {
-        booted = false
-        await runPetBoot()
-      }
-      return
-    }
-    if (startupStage === 'consent') {
-      const gate = getConsentGate()
-      if (gate && !canInteract()) {
-        // A failed bootstrap cached a rejected bootPromise; the gate's retry
-        // path clears it and re-shows the full TOS.
-        const mode = await gate.retryInitialConsent()
-        if (mode === 'accepted') {
-          if (CONTENT_SHELL) await bootContentWindowOnce()
-          else await runPetBoot()
-        } else startupStage = 'idle'
-        return
-      }
-    }
-    // Init failure (or an unexpected stage): re-run the start path; completed
-    // one-time wiring steps are skipped.
-    if (CONTENT_SHELL) await startContentWindowApp()
-    else {
-      booted = false
-      await startConsentApp()
-    }
-  } catch (error) {
-    showStartupFailure(error)
-  } finally {
-    startupRetryInFlight = false
-  }
-}
-
-if (CONTENT_SHELL) {
-  // Independent content/settings window: boot only the content center/settings
-  // surfaces, never the pet (no duplicate save loop, hero, Advisers or autosave).
-  void startContentWindowApp().catch((error) => {
-    showStartupFailure(error)
-  })
-} else {
-  void startConsentApp().catch((error) => {
-    // Last-resort net: startConsentApp handles its own failures, but a throw
-    // before its try block must still block visibly. showStartupFailure logs the
-    // original error once (reportFailure) and renders only the sanitized copy.
-    showStartupFailure(error)
-  })
-}
+const startup = createStartupController({
+  contentShell: CONTENT_SHELL,
+  document: typeof document === 'undefined' ? undefined : document,
+  reportFailure: (error) => reportFailure(uiBoundary, error),
+  toUserMessage,
+  initializeApp,
+  bootstrapConsent,
+  canInteract,
+  getConsentGate,
+  bootPet: bootPetOnce,
+  bootContentShell: bootContentWindowOnce,
+  exitApplication,
+  resetPetBoot: () => {
+    booted = false
+  },
+})
+void startup.start().catch((error) => {
+  // Last-resort net: start() handles its own failures, but a throw before its
+  // internal try block must still block visibly. showFailure logs the original
+  // error once (reportFailure) and renders only the sanitized copy.
+  startup.showFailure(error)
+})
 

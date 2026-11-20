@@ -1,0 +1,427 @@
+{
+  "contract": "famling.interactions/1",
+  "character": "human",
+  "behavior": {
+    "profile": "famling.behavior/0.1",
+    "version": "0.1.0",
+    "extends": "core:humanoid",
+    "defaults": {
+      "priority": 10,
+      "interrupt": "at-end",
+      "cooldownMs": 0
+    },
+    "abilities": {
+      "speech": "voice",
+      "reminder": true,
+      "care": {
+        "feed": true,
+        "play": true,
+        "sleep": true
+      },
+      "needs": false,
+      "death": false,
+      "multiObject": true
+    },
+    "ambientIntervalMs": [
+      4000,
+      10000
+    ],
+    "speech": {
+      "lines": {
+        "pat.1": "嗯，我在。",
+        "pat.2": "（理了理袖口，安静地站好）",
+        "pat_head.1": "（微微偏头，算是应了一声）",
+        "talk.1": "（翻开一页纸，等你继续说）",
+        "remind.1": "该做下一件事了。",
+        "ball_throw.1": "（把纸团轻轻抛出去）",
+        "ball_chase.1": "（小跑着去追纸团）",
+        "sleep.1": "（靠在书页边合上眼）"
+      }
+    }
+  },
+  "regions": {
+    "version": 1,
+    "canvas": [
+      96,
+      96
+    ],
+    "boxes": [
+      {
+        "id": "head",
+        "label": "头",
+        "rect": [
+          34,
+          8,
+          34,
+          38
+        ],
+        "priority": 30
+      },
+      {
+        "id": "tail",
+        "label": "尾/身后",
+        "rect": [
+          58,
+          60,
+          32,
+          24
+        ],
+        "priority": 20
+      },
+      {
+        "id": "body",
+        "label": "身体",
+        "rect": [
+          24,
+          44,
+          48,
+          44
+        ],
+        "priority": 10
+      }
+    ]
+  },
+  "states": [
+    {
+      "name": "idle",
+      "tag": "idle",
+      "loop": true,
+      "priority": 0,
+      "rules": [
+        {
+          "on": "wake",
+          "slot": false,
+          "priority": 20
+        }
+      ],
+      "slots": [
+        "idle"
+      ]
+    },
+    {
+      "name": "idle_blink",
+      "tag": "idle_blink",
+      "priority": 20,
+      "after": "idle",
+      "rules": [
+        {
+          "on": "idle_blink",
+          "priority": 15,
+          "cooldownMs": 500
+        }
+      ]
+    },
+    {
+      "name": "pat",
+      "tag": "pat_head",
+      "priority": 50,
+      "after": "idle",
+      "rules": [
+        {
+          "on": "pat",
+          "cooldownMs": 1200,
+          "probability": 1
+        }
+      ],
+      "says": [
+        "嗯。",
+        "在忙呢……",
+        "摸头就摸头。",
+        "头别碰，文件在。",
+        "在听。"
+      ],
+      "gesture": {
+        "region": "head",
+        "states": [
+          "idle",
+          "idle_blink"
+        ],
+        "gesture": "tap"
+      }
+    },
+    {
+      "name": "pat_head",
+      "tag": "pat_head",
+      "priority": 50,
+      "after": "idle",
+      "rules": [
+        {
+          "on": "pat_head",
+          "cooldownMs": 1200
+        }
+      ]
+    },
+    {
+      "name": "play",
+      "tag": "stand_wag",
+      "priority": 55,
+      "after": "idle",
+      "rules": [
+        {
+          "on": "feed"
+        },
+        {
+          "on": "play",
+          "priority": 60
+        }
+      ],
+      "says": [
+        "谢谢。",
+        "放桌上吧。",
+        "正好要用。",
+        "这张是空白的。",
+        "收到。"
+      ]
+    },
+    {
+      "name": "stand_wag",
+      "tag": "stand_wag",
+      "priority": 30,
+      "after": "idle",
+      "rules": [
+        {
+          "on": "stand_wag",
+          "priority": 20,
+          "cooldownMs": 800
+        }
+      ],
+      "says": [
+        "在忙，稍等。",
+        "别戳。",
+        "有事说事。",
+        "我站直了。",
+        "手放这里就好。"
+      ],
+      "gesture": {
+        "region": "body",
+        "states": [
+          "idle",
+          "idle_blink"
+        ],
+        "gesture": "tap"
+      }
+    },
+    {
+      "name": "talk",
+      "tag": "idle",
+      "loop": true,
+      "priority": 60,
+      "after": "idle",
+      "rules": [
+        {
+          "on": "talk",
+          "priority": 45
+        }
+      ],
+      "says": [
+        "今天也慢慢来。",
+        "有事说事。",
+        "我在听。",
+        "先做哪件？",
+        "说重点。"
+      ]
+    },
+    {
+      "name": "remind",
+      "tag": "idle",
+      "priority": 80,
+      "after": "idle",
+      "stateCooldownMs": 60000,
+      "rules": [
+        {
+          "on": "remind",
+          "requiresBrief": false
+        }
+      ]
+    },
+    {
+      "name": "drag",
+      "tag": "idle",
+      "loop": true,
+      "priority": 100,
+      "rules": [
+        {
+          "on": "drag.start",
+          "slot": "drag"
+        }
+      ]
+    },
+    {
+      "name": "land",
+      "tag": "idle",
+      "priority": 90,
+      "after": "idle",
+      "rules": [
+        {
+          "on": "land"
+        }
+      ]
+    },
+    {
+      "name": "sleep",
+      "tag": "idle",
+      "loop": true,
+      "priority": 10,
+      "rules": [
+        {
+          "on": "sleep"
+        }
+      ]
+    },
+    {
+      "name": "paw_face",
+      "tag": "paw_face",
+      "priority": 20,
+      "after": "idle",
+      "rules": [
+        {
+          "on": "paw_face",
+          "cooldownMs": 800
+        }
+      ],
+      "says": [
+        "领结歪了。",
+        "好了。",
+        "别盯着看。",
+        "这样就行。",
+        "头发有点乱。"
+      ]
+    },
+    {
+      "name": "scratch",
+      "tag": "scratch",
+      "priority": 20,
+      "after": "idle",
+      "rules": [
+        {
+          "on": "scratch",
+          "cooldownMs": 800
+        }
+      ]
+    },
+    {
+      "name": "chase_tail",
+      "tag": "chase_tail",
+      "priority": 20,
+      "after": "idle",
+      "rules": [
+        {
+          "on": "chase_tail",
+          "cooldownMs": 800
+        }
+      ],
+      "says": [
+        "看什么呢？",
+        "那是尾巴。",
+        "嗯，我在。",
+        "别拽。",
+        "身后没人。"
+      ],
+      "gesture": {
+        "region": "tail",
+        "states": [
+          "idle",
+          "idle_blink"
+        ],
+        "gesture": "tap"
+      }
+    },
+    {
+      "name": "ball_throw",
+      "tag": "ball_throw",
+      "priority": 40,
+      "after": "idle",
+      "rules": [
+        {
+          "on": "ball_throw",
+          "cooldownMs": 600
+        }
+      ]
+    },
+    {
+      "name": "ball_chase",
+      "tag": "ball_chase",
+      "priority": 45,
+      "after": "idle",
+      "rules": [
+        {
+          "on": "ball_chase",
+          "cooldownMs": 600
+        }
+      ]
+    },
+    {
+      "name": "run",
+      "tag": "run",
+      "priority": 45,
+      "timeoutMs": 2500,
+      "after": "idle",
+      "rules": [
+        {
+          "on": "run",
+          "cooldownMs": 2000
+        }
+      ]
+    }
+  ],
+  "ambient": [
+    {
+      "state": "idle",
+      "weight": 50
+    },
+    {
+      "state": "idle_blink",
+      "weight": 15
+    },
+    {
+      "state": "paw_face",
+      "weight": 10
+    },
+    {
+      "state": "scratch",
+      "weight": 8
+    },
+    {
+      "state": "stand_wag",
+      "weight": 12
+    },
+    {
+      "state": "chase_tail",
+      "weight": 5
+    }
+  ],
+  "actions": [
+    {
+      "id": "pat",
+      "label": "摸头",
+      "event": "pat"
+    },
+    {
+      "id": "feed",
+      "label": "递纸",
+      "event": "feed"
+    },
+    {
+      "id": "wave",
+      "label": "挥手",
+      "event": "stand_wag",
+      "says": [
+        "嗯，看到了。",
+        "在。",
+        "去吧。",
+        "回见。",
+        "我在这边。"
+      ]
+    },
+    {
+      "id": "tidy",
+      "label": "整理蝴蝶结",
+      "event": "paw_face"
+    },
+    {
+      "id": "talk",
+      "label": "聊两句",
+      "event": "talk"
+    }
+  ]
+}

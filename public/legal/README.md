@@ -24,7 +24,7 @@
 | L10 | 替换/改模 | 动作、声音、形象、行为、UI | 受各自素材许可 + 署名/AI 披露要求 | [ASSET-REPLACEMENT-AND-MODDING-POLICY](/legal/ASSET-REPLACEMENT-AND-MODDING-POLICY.md) |
 | L11 | 第三方素材 | 字体、依赖、参考图、SDK | 各自原许可；台账见 `THIRD-PARTY.md` | [THIRD-PARTY-AND-CREDITS-POLICY](/legal/THIRD-PARTY-AND-CREDITS-POLICY.md) |
 | L12 | 安全/隐私 | 存档、记忆、麦克风、遥测 | PIPL/隐私最小化；遥测默认关闭；**对外隐私政策仍为草案（未生效）；ASR 独立声明+单独同意、撤回同意、删除全部本地数据已实现（2026-11-17）；仍缺 ASR 独立常驻开关/日配额、TTS/ASR 第三方留存与跨境具体披露、卸载清理说明** | [SECURITY-AND-PRIVACY](/legal/SECURITY-AND-PRIVACY.md) · [PRIVACY](/legal/PRIVACY.md) |
-| L13 | 举报/下架 | 侵权、违规内容、恶意包 | 通知—初审—临时下架—申辩 | [TAKEDOWN-AND-REPORTING](/legal/TAKEDOWN.md) |
+| L13 | 举报/下架 | 侵权、违规内容、恶意包 | 应用内本地模板 + 人工受理/初审/临时下架/申辩；**非自动处理** | [CONTENT-REPORTING](/legal/CONTENT-REPORTING.md)（可用流程）· [TAKEDOWN-AND-REPORTING](/legal/TAKEDOWN.md)（法律背景 DRAFT） |
 
 ## 2. 优先级与冲突规则（待律师确认）
 
@@ -45,13 +45,13 @@
 | 插件/扩展 | 同上（当前仅第一方） | 构建期 allowlist 说明、About |
 | 二创（图/文/视频/直播/周边） | [FANWORK-POLICY](/legal/FANWORK-POLICY.md) + 模板 | 作品简介/置顶评论/视频简介 |
 | 动作/声音/形象替换 | [ASSET-REPLACEMENT-AND-MODDING-POLICY](/legal/ASSET-REPLACEMENT-AND-MODDING-POLICY.md) + 模板 | 包内声明、详情页、下载页 |
-| 举报/下架 | [TAKEDOWN-AND-REPORTING](/legal/TAKEDOWN.md) | 仓库根/官网 `TAKEDOWN` 入口 |
+| 举报/下架 | [CONTENT-REPORTING](/legal/CONTENT-REPORTING.md)（可用流程；人工、尽力而为）+ [TAKEDOWN-AND-REPORTING](/legal/TAKEDOWN.md)（法律背景 DRAFT） | 仓库根/官网 `TAKEDOWN` 入口、应用内设置/关于 → 举报与下架… |
 | 应用内声明（首启/About/2h/TTS/ASR/年龄/隐私/播放器/Mod/危机） | [APP-DISCLOSURE-TEXTS](/legal/APP-DISCLOSURE-TEXTS.md) + [LEGAL-BASELINE](/legal/LEGAL-BASELINE.md) §3 | 首启 1 屏、About、页脚、包加载确认、危机卡片 |
 | 隐私/数据请求 | [PRIVACY](/legal/PRIVACY.md)（对外草案）+ [SECURITY-AND-PRIVACY](/legal/SECURITY-AND-PRIVACY.md)（技术底稿） | 首启/About/商店页、数据请求入口 |
 | 发布前放行 | [RELEASE-BLOCKERS](/legal/RELEASE-BLOCKERS.md) + [APPROVALS](/legal/APPROVALS.md) | 发布清单、批准台账 |
 | 健康使用/roleplay | [CONTENT-POLICY](/legal/CONTENT-POLICY.md) §3A + 短文本 | 2 小时提醒、进入横幅、退出确认、求助资源 |
 
-## 4. 文件索引（26 个 md，含本索引；另 `DECLARATION-TEMPLATES/` 模板与 `review-2026-11-17/` 审查目录 8 份）
+## 4. 文件索引（27 个 md，含本索引；另 `DECLARATION-TEMPLATES/` 模板与 `review-2026-11-17/` 审查目录 8 份）
 
 > **历史快照声明**：`review-2026-11-17/` 与 `SIMULATED-REVIEW-2026-11-17.md` 是 2026-11-17 的审查/模拟演练记录，**不作为当前真值**（其中的 18 WAV、gate 16、全年龄口径等已被后续决定/代码取代）；引用现状请用本索引中的现行文件与 [LAWYER-REVIEW-CHECKLIST-2026-11-19](/legal/LAWYER-REVIEW-CHECKLIST-2026-11-19.md)。
 
@@ -75,7 +75,8 @@
 | [ASSET-REPLACEMENT-AND-MODDING-POLICY](/legal/ASSET-REPLACEMENT-AND-MODDING-POLICY.md) | 动作/声音/形象/行为/UI 替换规则 | **是** |
 | [AI-CONTENT-POLICY](/legal/AI-CONTENT-POLICY.md) | AI 生成/训练/语音披露、法域标识、模型条款 | **是** |
 | [TRADEMARK-AND-NAMING-POLICY](/legal/TRADEMARK-AND-NAMING-POLICY.md) | 名称分层、Orca 禁用、禁止抢注、域名/包名 | **是** |
-| [TAKEDOWN-AND-REPORTING](/legal/TAKEDOWN.md) | 举报流程、材料、时限、临时下架、反通知 | **是** |
+| [CONTENT-REPORTING](/legal/CONTENT-REPORTING.md) | **可用操作流程**：应用内入口、受理范围/证据、人工处理与 best-effort 时限、临时下架/反通知、不自动上传/不收集、公开表单与隐私边界 | 建议（流程可执行；法务文本仍待律师） |
+| [TAKEDOWN-AND-REPORTING](/legal/TAKEDOWN.md) | 举报/下架的法律背景草案：通知—反通知、材料、内部目标、临时措施 | **是**（DRAFT） |
 | [CONTRIBUTOR-TERMS](/legal/CONTRIBUTOR-TERMS.md) | DCO/CLA、代码/美术/音频入站、AI 贡献披露 | **是** |
 | [THIRD-PARTY-AND-CREDITS-POLICY](/legal/THIRD-PARTY-AND-CREDITS-POLICY.md) | 第三方台账、字体/TTS/参考图、发布 gate | 建议 |
 | [ADVISERS-EXTERNAL-PERSONA-2026-11-18](/legal/ADVISERS-EXTERNAL-PERSONA-2026-11-18.md) | **Advisers 外在人格法律风险研究**（冒充真人/专业建议/依赖/越权数据等；含拟新增条款草案，非生效条款） | **是**（研究稿） |
@@ -111,5 +112,6 @@
 | 2026-11-17 | 增 [PRIVACY](/legal/PRIVACY.md)/[AI-LABELING](/legal/AI-LABELING.md)/[CONSUMER-MINORS-HEALTH](/legal/CONSUMER-MINORS-HEALTH.md)/[APPROVALS](/legal/APPROVALS.md)/[RELEASE-BLOCKERS](/legal/RELEASE-BLOCKERS.md) 与 `review-2026-11-17/` 合并总表/修补计划；索引 17→22；修正 L5 标识状态、L12 隐私缺项；“标识未落地”不再笼统（显式已落但 8px 不达标，隐式未落） | draft；待用户 + 律师 |
 | 2026-11-19 | 增 [USE-RESTRICTIONS-2026-11-19](/legal/USE-RESTRICTIONS-2026-11-19.md)（统一使用限制 canonical + SHA-256）；补 TOS 抬头引用块、LEGAL-BASELINE §0、DECLARATIONS 与 public/legal 入口 | draft；待用户 + 律师 |
 | 2026-11-19 | **事实真值同步（代码为准）**：修正旧年龄口径（全年龄→一般功能全年龄 + roleplay 18+）、18→42 WAV、ASR“无告知/同意”与撤回/删除全部“未实现”旧句、D6 现状 vs 目标、gate 16→34（实测）、TOS 2026-11-17.5→.6、插件真实 LLM 与 famling 无自由 LLM 的两端边界、远程市场默认离线；增 [LAWYER-REVIEW-CHECKLIST-2026-11-19](/legal/LAWYER-REVIEW-CHECKLIST-2026-11-19.md) 并登记 public/legal 入口 | draft；待用户 + 律师 |
+| 2026-11-20 | 增 [CONTENT-REPORTING](/legal/CONTENT-REPORTING.md)：举报/下架/反通知**可用操作流程**（应用内入口、模板/JSON、人工处理、best-effort 时限、不自动上传/不收集）；L13/场景速查/文件索引同步，TAKEDOWN 保留法律背景 DRAFT | 可用流程（人工、尽力而为、非法律意见）；律师复核仍未完成 |
 
 > 本目录全部内容为草案，不是法律意见。

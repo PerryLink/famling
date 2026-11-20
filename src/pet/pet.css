@@ -1394,6 +1394,68 @@ html[data-reduce-motion="1"] *::after {
 .about-actions button:focus-visible { outline: 2px solid #e0b35a; outline-offset: 1px; }
 #tts-consent[hidden] { display: none; }
 
+/* Content reporting / takedown dialog (E12 MB-121): local-only template +
+   explicit GitHub/email exits. Built by src/pet/content-reporting.ts. */
+.content-report-card {
+  width: min(620px, calc((100vw - 20px) / var(--about-zoom, 1)));
+  color: #e8dccb;
+  font-size: 10px;
+}
+.content-report-card h1 { color: #f0d6a8; }
+.content-report-scope { margin: 6px 0; }
+.content-report-emergency {
+  padding: 6px 8px;
+  border: 2px solid #a63d35;
+  border-radius: 8px;
+  color: #ffd9d0;
+}
+.content-report-local { color: #9fd0a8; }
+.content-report-heading { margin: 10px 0 4px; font-size: 11px; color: #99c8ff; }
+.content-report-evidence {
+  margin: 0 0 6px;
+  padding-left: 16px;
+  color: #b9c6da;
+  line-height: 1.5;
+}
+.content-report-field { margin: 5px 0; }
+.content-report-label { display: block; margin-bottom: 2px; color: #d8c4a3; font-size: 10px; }
+.content-report-select,
+.content-report-input,
+.content-report-template {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #5a402b;
+  border-radius: 6px;
+  background: #12100ef5;
+  color: #f0e4d4;
+  font-family: inherit;
+  font-size: 10px;
+  padding: 4px 6px;
+}
+.content-report-template { resize: vertical; }
+.content-report-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 5px 0;
+  color: #e8dccb;
+  line-height: 1.4;
+}
+.content-report-counter {
+  margin: 8px 0;
+  padding: 6px 8px;
+  border: 1px solid #3a2e24;
+  border-radius: 8px;
+  background: #0e131c;
+  color: #b9c6da;
+}
+.content-report-counter summary { cursor: pointer; color: #e0b35a; }
+.content-report-counter-list { margin: 4px 0 0; padding-left: 16px; line-height: 1.5; }
+.content-report-status { min-height: 14px; color: #9fd0a8; }
+.content-report-channels { line-height: 1.6; }
+.content-report-channels a { color: #99c8ff; margin-left: 4px; }
+.content-report-actions { position: sticky; bottom: 0; padding-top: 4px; background: #12100ef5; }
+
 /* ==========================================================================
    Content center / theme market (src/pet/content-hub.ts, task-50).
    Full-screen dialog rendered into pet.html's #content-hub-root. z-index 150

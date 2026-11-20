@@ -1,12 +1,14 @@
 # main.ts 覆盖率缺口与可达性说明（E11 / MB-110 / MB-111）
 
-- 任务：task-104「覆盖率接入门禁（E11 MB-111）」的 main.ts 缺口文档部分。
-- 基线 commit：`be69a71`（本文数字实测于该 commit 的工作树；本任务未 commit/push）。
-- 相关：`docs/plan/COVERAGE-GATE-2026-11-20.md`（覆盖率脚本/基线/CI 接入）、
-  `tests/e11-main-data-chain.test.ts`（AST 行为缝）。
+- 任务：task-104「覆盖率接入门禁（E11 MB-111）」的 main.ts 缺口文档部分；
+  task-136 起扩展为 **required 门 + 入口豁免**的说明。
+- 基线 commit：`be69a71`（本文 §1/§2 的历史数字实测于该 commit 的工作树）；task-135/136
+  的现状见 §8/§9（HEAD `0a5bc0b` + 在途改动）。
+- 相关：`docs/plan/COVERAGE-GATE-2026-11-20.md`（覆盖率脚本/基线/required CI 接入）、
+  `tests/e11-main-data-chain.test.ts`（AST 行为缝）、`tests/e11-main-boot.test.ts`（boot 状态机行为测试）。
 - 结论：**`src/pet/main.ts` 的 0% 行覆盖是工具边界造成的真实事实，不是漏算**；
-  CI 已接入 `coverage:check`（advisory，绝不阻断发布），main.ts 缺口按“补测试/拆分”
-  两条路线记录，不在本任务里伪造行覆盖。
+  task-136 起 `coverage:check` 是 **required** 门，main.ts 以 config 的 **`entryModules` 显式豁免**
+  留在测量分母与报告里（仍报 0%），只是不参与强制阈值/ratchet。**没有把 0 改成任何数字**。
 
 ---
 
@@ -81,14 +83,21 @@
 
 ---
 
-## 6. 不阻断发布
+## 6. required 门与入口豁免（task-136，2026-11-20 起）
 
-- `npm run ci` 的 `coverage:check` 步骤是 `advisory: true`：阈值/ratchet 触发时只记录 WARN，
-  不改变门禁退出码；测试本身失败仍由前面的 `test` 步骤阻断。
-- `.github/workflows/ci.yml` 只在 `always()` 上传 `artifacts/qa/coverage.json` /
-  `coverage.log`，不新增 required check；`release.yml` 不运行 `npm run ci`，覆盖率不可能阻断发布。
-- 升级为硬门（`mode: "enforce"` / `--enforce`）需按
-  `docs/plan/COVERAGE-GATE-2026-11-20.md` §5 的路径另行决策。
+- `scripts/coverage-key-modules.json` 的 `mode` 为 `"enforce"`：阈值或 ratchet 违规 exit 1。
+  `scripts/ci.mjs` 的 `coverage:check` 是**必需步骤**（无 `advisory: true`），失败即
+  `npm run ci` 失败；`release.yml` 仍不运行 `npm run ci`（把 release 接上 gate 属另一任务）。
+- `main.ts` / `setup-page.ts` 列在该 config 的 `entryModules`：
+  - 仍在 `keyModules` 分母里，仍以 `loaded:false / 0%` 写入 `artifacts/qa/coverage.json`；
+  - 不参与 enforced loadedRatio / averageLines / per-file ratchet；
+  - 豁免必须带 `why`；`tests/coverage-gate.test.ts` 断言它们仍在 keyModules、仍报 0%，
+    且 config 不能把所有 key module 都豁免掉。
+- 因此 **“required 绿”只代表 18 个可加载 key modules + 全量被加载文件达标**；
+  **不代表 main.ts 有行覆盖**，不得据此宣称 boot 路径已被覆盖率覆盖。boot/数据链的行为证据是
+  `tests/e11-main-boot.test.ts` 与 `tests/e11-main-data-chain.test.ts`（行为测试 ≠ 行覆盖）。
+- 移除豁免的唯一路径是把入口重构成可 import 的模块（CSS 迁到 HTML `<link>`、boot 副作用移入
+  显式 `export async function boot()`，即 MB-110 收敛路径）；**不得删模块或改数字来变绿**。
 
 ---
 
@@ -96,7 +105,57 @@
 
 ```bash
 cd /mnt/d/Projects/dsh/desktop-games
-npm run coverage:check              # 记录 + advisory（不阻断）
+npm run coverage:check              # required（阈值/ratchet 违规 exit 1；entry 豁免见 §6）
 node --import tsx --test tests/e11-main-data-chain.test.ts tests/e11-coverage-ci.test.ts
 npm run docs:check
 ```
+
+---
+
+## 8. task-135 更新（2026-11-20，E11 MB-110 部分闭环）
+
+> 本节只记录 task-135 做的入口重构与可执行证据；§1 的 4,011 行等数字是 `be69a71` 的历史快照，不代表当前值。
+
+1. **boot 已可 import**：启动状态机/失败阻塞屏从 `src/pet/main.ts` 抽到 `src/pet/startup.ts`（334 行；无 CSS import、无模块级 DOM）。`main.ts` 只注入 live seams 并调用 `createStartupController(...).start()`；当前 `main.ts` 2,271 行（任务上限 ≤2,500）。失败屏 DOM/文案、D6 consent→boot 顺序、retry-by-stage 逻辑逐行迁移，行为不变。
+2. **行为测试（fake DOM，direct import）**：`tests/e11-main-boot.test.ts` 11 例，直接 import 生产模块并执行真实状态机：consent→boot 顺序 / 未同意不 boot（无反开）、boot/init/consent 失败的阻塞屏 + reportFailure + stage 保留、retry 按 stage 恢复、in-flight retry 去重、content-shell 只 boot 内容面、失败屏自身渲染失败时的 visible fallback。
+3. **减少源码断言**：`tests/p1-gates.test.ts` 的 `createStartupFailureScreen` 从 AST 抽取改为直接 import，原 main.ts 静态 boot 断言改为行为测试；`age-ui` / `consent-static` / `content-window` / `state-migrations` 中指向被迁移代码的文本断言改指向 `startup.ts`。**仍剩 34 个测试文件含 main.ts 源码读取**（MB-110 剩余，按模块逐步替换）。
+4. **可复核证据（2026-11-20 本轮实测）**：
+   - `npx tsc --noEmit` → exit 0；
+   - `npm test` → 1,887/1,887 pass（含新 11 例），exit 0；
+   - `npm run build` → exit 0；
+   - `npm run coverage:check`（task-135 当时为 advisory）→ exit 0，`src/pet/startup.ts` lines **100%** / branches **82.76%** / functions **100%**；`main.ts` 仍为入口 0%；
+   - `node scripts/gui-cdp-smoke.mjs` 在**重构后的 dist** 上真实 Chrome headless **5/5 PASS**（8.1s；首启 TOS→boot 作为前置、zero-button-menu、settings-zoom、content-window-760x560、role-one-click、save-quit），report: `artifacts/gui-smoke/mb110-boot/report.json`（`ok:true`、`pageDiagnostics:[]`）。
+5. **未做/不得宣称**：`main.ts` 自身行覆盖仍 0%（Node 无 CSS loader + 模块级 DOM 的入口形态）；未引入 jsdom/Playwright；未把 CDP smoke 接入 CI；未 commit/push。零按钮、consent 门禁、安全路径均未改动。
+
+---
+
+## 9. task-136 更新（2026-11-20，required 门 + entry 豁免落地）
+
+> 本节只记录覆盖率门升级的可执行证据；main.ts/setup-page.ts 仍为 0% 行覆盖，只是从
+> “全量分母里被强制”改为“显式 entry 豁免、仍被测量”。
+
+1. **config 升级**：`scripts/coverage-key-modules.json` → `mode: "enforce"`，新增
+   `entryModules`（`src/pet/main.ts` / `src/pet/consent/setup-page.ts`，各带 `why`）。
+   20 个关键模块 = **18 enforced + 2 entry-exempt**；`main.ts`/`setup-page.ts` 仍是
+   `loaded:false / 0%`，仍写进 `artifacts/qa/coverage.json`，但不参与 enforced
+   loadedRatio/averageLines 与 per-file ratchet。
+2. **CI required**：`scripts/ci.mjs` 的 `coverage:check` 去掉 `advisory`；失败即
+   `npm run ci` 失败。`.github/workflows/ci.yml` 仍 `if: always()` 上传
+   `artifacts/qa/coverage.json` / `coverage.log`（required gate evidence）。
+   `scripts/docs-check.mjs` 断言 `ci-coverage-required` + `ci-coverage-enforce-config`，
+   防止退回 advisory 或删掉 entry 豁免的审计字段。
+3. **基线真实重设**：`scripts/coverage-baseline.json`（commit `0a5bc0b`、dirty=`true`、
+   `repeat: 2`）：all files **92.56 / 78.96 / 87.86**；key modules 18/20；
+   **enforced 18/18 loaded、enforced average 90.06%**；entry 2 个仍记 0。
+4. **可复核证据（2026-11-20 本任务实测）**：
+   - `npm run coverage:check`（required）→ exit 0，status **ok**、0 warning；本任务实测
+     1913–1927/对应 tests pass（并发任务持续追加用例）；all files 92.55–92.56 / 78.9–79.0 / 87.86；
+     `main.ts` / `setup-page.ts` 仍 `NOT LOADED (0.00%) [entry-exempt, reported not enforced]`；
+   - `npm run ci`（最终）→ **14/14 passed、0 advisory、0 skipped、99.5s**，coverage step 内嵌
+     mode=enforce / status=ok / warnings=0，test step 1927/1927 pass；
+   - `npm run docs:check` → PASS (27 checks)；`npx tsc --noEmit` → 0 error；
+     coverage 自测 23/23 pass。
+5. **不得宣称**：main.ts 行覆盖提升 / boot 路径已被覆盖率覆盖（行为测试见 §8，行为≠行覆盖）；
+   “required 绿”只代表 18 个可加载 key modules + 全量被加载文件达标。未 commit/push；
+   无 remote，未在 GitHub Actions 运行。
+

@@ -1,6 +1,7 @@
 # 举报、侵权通知与下架流程 — 草案
 
-> **状态：DRAFT · 2026-11-15（2026-11-17 增补 §1A）· 非法律意见。** 待用户 + 律师确认。**本文不是法律承诺**：内部时限是工作目标（非合同义务），流程可能调整；法定程序（如平台规则、诉讼保全）优先于本文。法律基线见 [LEGAL-BASELINE](/legal/LEGAL-BASELINE.md)。
+> **状态：DRAFT · 2026-11-15（2026-11-17 增补 §1A；2026-11-20 可操作流程拆分）· 非法律意见。** 待用户 + 律师确认。**本文不是法律承诺**：内部时限是工作目标（非合同义务），流程可能调整；法定程序（如平台规则、诉讼保全）优先于本文。法律基线见 [LEGAL-BASELINE](/legal/LEGAL-BASELINE.md)。
+> **2026-11-20：应用内入口与人工处理流程已提升为 [CONTENT-REPORTING](/legal/CONTENT-REPORTING.md)（USABLE PROCESS；人工处理、尽力而为、非自动处理、非法律意见）。** 本文保留为法律背景/通知—反通知草案；两者冲突时，法律/监管/平台规则优先，其次以新流程的实际操作为准并回改本文。
 > 适用：本项目官方发布物、官方渠道（仓库/官网/商店/社媒）、随包分发的 DLC/角色包/替换包；以及“他人以本项目名义侵权/违规”的处置。
 > 关联：[CONTENT-POLICY](/legal/CONTENT-POLICY.md) · [DLC-AND-PLUGIN-TERMS](/legal/DLC-TERMS.md) · [FANWORK-POLICY](/legal/FANWORK-POLICY.md) · [SECURITY-AND-PRIVACY](/legal/SECURITY-AND-PRIVACY.md)。
 
@@ -95,5 +96,6 @@
 |---|---|---|
 | 2026-11-15 | 首版 | draft；待用户 + 律师 |
 | 2026-11-17 | 增 §1A：L1–L11 依据、12377/110/120/12356 紧急渠道、零容忍清单、AI 标识/克隆/冒充处置 | draft；待用户 + 律师 |
+| 2026-11-20 | 应用内入口/人工流程拆到 [CONTENT-REPORTING](/legal/CONTENT-REPORTING.md)（可用流程，人工、尽力而为）；本文保留法律背景草案，仍待律师 | draft；可用操作流程另见新文件 |
 
 > 草案，不是法律意见；时限为内部目标，不构成承诺。

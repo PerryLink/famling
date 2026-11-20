@@ -10,7 +10,9 @@
  *   (shared with the Python pack generators);
  * - ambient/random micro-actions, state priorities, cooldowns and the
  *   event -> state mapping: the character `behavior.json` profile, executed by
- *   `src/pet/scene/runtime.ts` (SceneRuntime) + `BehaviorRuntime`;
+ *   `src/pet/scene/runtime.ts` (SceneRuntime) + `BehaviorRuntime`; its authoring
+ *   source is `interactions/<character>.json` (MB-104), rendered by
+ *   `scripts/gen-character-interactions.mjs` into behavior.json + regions.json;
  * - speech vs. thought / TTS capability: `VOICE_CAPABILITIES`;
  * - clip reachability: `timing.json.specOnly` freezes `walk`/`attack` as
  *   spec-only (MB-047/E5-T7); manifests mirror it in `anim.specOnly`.

@@ -1,6 +1,6 @@
 # 共享内容语义单源与双端 Parity（E1-T1 / MB-030/031/033）
 
-> 状态：草案，待 lead 签字（E1-T1 验收要求）。创建：2026-11-19。
+> 状态：草案，待 lead 签字（E1-T1 验收要求）。创建：2026-11-19。修订：**2026-11-20**（MB-108/task-138 文档同步：§0 新增第 6 条、§2 第 14/15/16 行、§3 D6/D10、§4 证据、§6 状态表；同步 MB-032 已落地的 v3 合规字段，不改变任何共享值）。
 > 范围：famling（`/mnt/d/Projects/dsh/desktop-games`）与 dsh-famling 插件（`/mnt/d/Projects/dsh/plugins/dsh-famling`）**必须一致或显式声明差异**的共享语义。
 > 非目标：不统一 wire schema（见 triage 决策 C-03）；不改 UI/视觉；不做内容包安装器。
 
@@ -14,6 +14,7 @@
    - **F2 声明/合规锚缺失**：插件 `USAGE_DECLARATION` 只有 `researchOnly + 6 tokens`，缺 canonical 短句、`statementRef`、SHA-256；`license`/`aiProvenance` 没有机器可读锚点。已补齐 `SHARED_CONTENT_SEMANTICS`（schema/version/updatedAt/defaultRole/characterIdMap/statement/ref/sha/license/aiProvenance）并让 `USAGE_DECLARATION` 引用它。
 4. 两端各新增 12 条 parity 测试（famling `tests/parity-contract.test.ts`、插件 `test/parity-contract.test.js`）；兄弟仓缺失时对端 4 条测试 **skip 而非失败**。
 5. 其余 **10 处已裁定差异**逐条登记在 §3（一致 / 声明并测试固定 / 后续任务），不允许静默漂移。
+6. **2026-11-20 文档同步（MB-108）**：`MB-032`（round10 DONE）已把 `license`/`aiProvenance`（pack/entry 可选）与 pack-level `compatibility` 作为 **v3 追加可选字段**落地（schemaVersion 仍为 3，`{requireCompliance:true}` 时才强制），因此 §2 第 14/16 行与 D6 原“待定 / 暂无”的表述已过期，本版改为现状并冻结验证方式。D10 两项的现状：① 插件 `README.md` 的 origami 行已修正为 speech/tide + `available:false`（2026-11-20 复核 `README.md:159`）；② famling `public/content/README.md` §3.5 仍写 content-extension **v2**/0.9.1/0.1（滞后），不在 MB-108 写权限内，登记为 follow-up（以本文件与代码常量为准）。
 
 ## 1. 权威来源（改哪里算“改共享值”）
 
@@ -45,9 +46,9 @@
 | 11 | background id/值 | `transparent=transparent`、`paper=#f6f1e7`、`dark=#14161a` | `BACKGROUNDS` 同 id、同 widget-bg 值 | ✅ | parity：background 断言 |
 | 12 | font id/字体栈 | `system/serif/mono` 三套本地栈（无网络字体） | `FONTS` 三套完全同字符串；另有字号/行高 [11,12,14]/[1.4,1.5,1.8]（插件扩展，不共享） | ✅ | parity：font 断言 |
 | 13 | 用途声明 | `researchOnly=true` + canonical 短句 + `statementRef=docs/legal/USE-RESTRICTIONS-2026-11-19.md` + SHA-256 `0353…c743` + 6 禁止用途（顺序固定） | 原仅 researchOnly+6 tokens；已补 statement/ref/sha 并冻结到锚点 | 🔧 F2 ✅ | parity：declaration 双端（重算 SHA） |
-| 14 | 合规字段（license / aiProvenance / compatibility） | 每个 preset：`license{spdx=LicenseRef-PolyForm-Noncommercial-1.0.0, attribution}`、`aiProvenance{generated=false, disclosure, tools}`；v2 pack 还有 `compatibility` | 锚点冻结 license/aiProvenance；v3 pack 暂无 license/aiProvenance/compatibility 字段 | 🧊（client 层 ✅；wire 层见 D6/MB-032） | parity：compliance 双端 |
-| 15 | pack limits | 目录 `CONTENT_LIMITS`（22 项）+ 素材包 `CONTENT_PACK_V2_LIMITS`（17 项） | v3 `CONTENT_LIMITS`（19 项）：JSON 64KiB/entries 32/kind 16/files 32/path 160 等**总体更严**；asset 总字节 256MiB、name 64 字符为已声明例外（D6） | 🧊 双 schema 各自冻结 | parity：pack-limits 双端 |
-| 16 | pack wire schema | `famling.content-pack/0.2`（zip+license+aiProvenance+compatibility）；目录 `famling.content/0.2` | `content-extension` v3（schemaVersion 3，role/character/voice/dialogue/theme/background/font 七类，reserved、不加载） | 🧊 D6：保持独立，收敛由 MB-032/E1-T3 | parity：schema 断言 |
+| 14 | 合规字段（license / aiProvenance / compatibility） | 每个 preset：`license{spdx=LicenseRef-PolyForm-Noncommercial-1.0.0, attribution}`、`aiProvenance{generated=false, disclosure, tools}`；v2 pack 还有 `compatibility` | client 锚点冻结 license/aiProvenance；**v3（0.10.9 起）**：pack/entry 可带 `license`/`aiProvenance`，pack 可带 `compatibility{minPluginVersion, maxPluginVersion?}`；默认可选、存在即 fail-closed 校验，`{requireCompliance:true, pluginVersion}` 时 pack 三项必填并校验宿主版本 | ✅（2026-11-20 起：client 锚点 + v3 可选字段；双端锚点相等） | famling `parity-contract`（12）；插件 `content-extension-compliance` 10 + `parity-contract` 14（`CONTENT_LICENSE_TEMPLATE`/`CONTENT_AI_PROVENANCE_TEMPLATE` == FROZEN == famling preset） |
+| 15 | pack limits | 目录 `CONTENT_LIMITS`（22 项）+ 素材包 `CONTENT_PACK_V2_LIMITS`（17 项） | v3 `CONTENT_LIMITS`（19 项）：JSON 64KiB/entries 32/kind 16/files 32/path 160 等**总体更严**；asset 总字节 256MiB、name 64 字符为已声明例外（D6）；2026-11-20 复核上限未变（加 compliance 字段不改 limits） | 🧊 双 schema 各自冻结 | parity：pack-limits 双端 |
+| 16 | pack wire schema | `famling.content-pack/0.2`（zip+license+aiProvenance+compatibility）；目录 `famling.content/0.2` | `content-extension` v3（schemaVersion **3 不变**；role/character/voice/dialogue/theme/background/font 七类，reserved、不加载；**新增**可选 `pack.license/aiProvenance/compatibility` 与 entry 级可选合规字段） | 🧊 D6（2026-11-20 更新）：两套 schema 仍独立；v3 已补合规字段，未合并 v2 | 插件 `content-extension-compliance` 10；双端 parity schema/limits 断言 |
 | 17 | 存储键 / envelope | 六选择键 `desktop-games/pet/content/{character,voice,dialogue-pack,theme,background,font}` + `role-theme`；envelope `{v:1,data}`，单键 ≤2048B | `dsh-famling/{character,role,dialogue,theme,background,font,settings,menu,…}`；`first-run/v1`、`consent/v1` 带版本后缀；无统一 envelope | 🧊 D7：命名空间/版本策略不同，互不读取 | parity：storage 双端 |
 | 18 | TTS/consent 门 | TTS 需独立同意；TTS/ASR 声明版本+hash 生效，旧同意失效 | 浏览器 TTS 需独立 consent（`dsh-famling/consent/v1`，`{tts,asr}` bool）；切静音角色取消朗读 | ✅ 行为一致；版本化程度见 D8 | parity：TTS guard / terms 断言 |
 | 19 | terms/legal 版本 | `TOS 2026-11-17.6`、`TTS 2026-11-17.4`、`ASR 2026-11-17.3`、`ROLEPLAY 2026-11-17.4`；USE-RESTRICTIONS `v1 · 2026-11-19` + §1 短句 SHA | 插件 `package.json 0.10.4` + LEGAL-NOTICE 版本表；无 per-consent version/hash | 🧊 D8（E1-T5/MB-014 待做） | parity：terms 版本冻结（famling 侧导入 + 插件侧解析） |
@@ -73,11 +74,11 @@
 | D3 | high-contrast 主题：famling 有完整 variables；插件无实现 | **保留**：插件 `THEME_IDS` 无 high-contrast，origami bundle 显式映射 `night` 且 `available:false`（绝不静默错配）；`verify-anims.mjs` 锁定该字符串 | 两端 parity theme 断言 |
 | D4 | theme CSS payload：famling 用 `--famling-content-*` 完整主题；插件用 `--dsh-famling-*` widget 投影（panel 跟随 DSH alias、thought 虚线边框、paper/night 调色板微调） | **保留**（宿主嵌入视觉）；共享最小集：theme id/角色分配 + default 气泡 `#ffffff/#111111`；paper/night 插件值冻结在 parity 表，改需双端评审 | parity：frozen plugin palette + default 共享值 |
 | D5 | 声音来源：famling DeepSeek TTS `stella/tide`；插件浏览器 `speechSynthesis` | **保留**（不能互相覆盖）；共享“谁可以 TTS”（humanoid/origami 可以，cat/dog 永不）与独立同意门 | parity voice-policy；插件 TTS guard 测试 |
-| D6 | wire schema/limits：`content-pack/0.2` vs extension v3 | **保持独立**（triage C-03）：v2 是 zip+license+aiProvenance+compatibility；v3 是预留纯数据包。v3 多数上限更严；**已声明例外**：`maxAssetTotalBytes` 256MiB > v2 32MiB（v3 资产归档 reserved、永不打开）、`maxNameChars` 64 > 48（人类可读名）。license/aiProvenance/compatibility 进入 v3 由 MB-032/E6-T5 决定 | 两端 parity limits/schema 断言 |
+| D6 | wire schema/limits：`content-pack/0.2` vs extension v3 | **仍保持独立**（triage C-03）；**MB-032（0.10.9，2026-11-20 DONE）已决定**：schemaVersion 不升 v4，把 license/aiProvenance（pack/entry 可选）与 pack compatibility 作为 **v3 追加可选字段**，默认向后兼容、存在即 fail-closed 校验，host 传 `{requireCompliance:true, pluginVersion}` 时强制 pack 三项并校验宿主版本；**未合并** v2 zip schema。v3 多数上限更严；**已声明例外**：`maxAssetTotalBytes` 256MiB > v2 32MiB（v3 资产归档 reserved、永不打开）、`maxNameChars` 64 > 48（人类可读名），2026-11-20 复核未变 | 插件 `content-extension-compliance` 10 + 双端 parity limits/schema/anchors 断言 |
 | D7 | 存储：famling `desktop-games/pet/content/*` + versioned envelope v1；插件 `dsh-famling/*`，`first-run/v1`/`consent/v1` 后缀版本 | **保留**（不同产品存储域，禁止互读）；语义六键映射见 §9；插件清理入口只删 `dsh-famling/*` | 两端 parity storage 断言 |
 | D8 | consent 版本化：famling TOS/TTS/ASR/ROLEPLAY 版本+hash、旧同意失效；插件 consent 仍是 `{tts:boolean,asr:boolean}`（无版本/hash，无 withdraw 版本记录） | **已知缺口**，不在本任务扩权范围：E1-T5/MB-014 将升级为 `{version,hash,acceptedAt}` + withdraw；在此之前以“行为一致 + 文档如实”为限 | parity terms 版本冻结；插件 version-truth/consent 测试 |
 | D9 | 动画打包：famling 直接 serve `public/assets/pet/anim/*`；插件把 208 帧 base64 嵌入 3 个懒载 chunk | **保留**（插件离线自包含）；共享 12 clip/帧数/fps/manifest 语义；插件 header 的 208 与 famling manifest 一致 | 两端 parity frames 断言 |
-| D10 | 文档滞后（发现但本任务未改 UI/文档）：① 插件 `README.md` 角色 bundle 表把 origami 写成“thought，无 TTS”，与 `ROLE_BUNDLES.origami`（speech、canTts true）矛盾；② famling `public/content/README.md` §3.5 仍描述插件 `content-extension v2` 与共享 `content-pack/0.1`，实际已是 v3 / v2 | **待修文档**：本任务只新增 docs/plan 文档，不改产品 README（避免与 UI/发布文档并行冲突）；交 lead 决定是否由 MB-032/文档真值任务修复 | 本文件记录；parity 测试以代码常量为准 |
+| D10 | 文档滞后：① 插件 `README.md` 角色 bundle 表把 origami 写成“thought，无 TTS”（与 `ROLE_BUNDLES.origami` 的 speech/canTts true 矛盾）；② famling `public/content/README.md` §3.5 仍描述插件 `content-extension v2`/0.9.1 与共享 `content-pack/0.1`（实际 v3 / v2） | **2026-11-20 复核**：① **已修复**（插件 README:159 现为 speech + shared tide 策略 + `available:false`）；② **仍滞后**：该文件在 `public/content/`，不属于 MB-108 写权限（docs/plan/scripts/src/pet/tests），留作 follow-up；在此之前以本文件与代码常量为准，不得引用 §3.5 的旧 v2 描述 | 本文件 §4 复核命令；parity 测试以代码常量为准 |
 
 ### 3.1 本次修复对照
 
@@ -123,6 +124,26 @@ FAMLING_REPO_DIR=/nonexistent/famling node --test test/parity-contract.test.js
 - famling：`tests/parity-contract.test.ts`（读 `public/content/library.json` + 插件 `client.js`/`content-extension.mjs`；缺失则 skip）
 - plugin：`test/parity-contract.test.js`（读本仓 `client.js`/`content-extension.mjs` + famling `library.json`/源码/manifests；缺失则 skip）
 
+### 4.1 2026-11-20 复核（MB-108/task-138，本机 WSL2 + 插件工作树）
+
+> 只复核与 §2 第 14/16 行、D6/D10 相关的断言；不改共享值。插件工作树当前含其它任务的在途改动，数字只代表本次本机复跑。
+
+```bash
+# famling：双端 parity（12/12 pass）
+cd /mnt/d/Projects/dsh/desktop-games && node --import tsx --test tests/parity-contract.test.ts
+
+# 插件：v3 合规字段 + 双端 parity（10 + 14 = 24/24 pass）
+cd /mnt/d/Projects/dsh/plugins/dsh-famling
+node --test test/content-extension-compliance.test.js   # 10/10
+node --test test/parity-contract.test.js                # 14/14
+
+# 插件：i18n/locale 单一源门（MB-108 新增；10 checks PASS）
+node scripts/check-i18n.mjs
+```
+
+- 证据要点：插件 parity 断言 `CONTENT_LICENSE_TEMPLATE`/`CONTENT_AI_PROVENANCE_TEMPLATE` == 冻结锚点 == famling `rolePresets[0]` 的 `license`/`aiProvenance`；`CONTENT_EXTENSION_POINTS.compliance.packFields` == `['license','aiProvenance','compatibility']`，strict 选项名 `requireCompliance`，v3 limits 未放宽（§2 第 15 行）。
+- D10 ② 未修：`public/content/README.md` §3.5 属产品公开文档，不在 MB-108 写权限；本条只登记不修，避免与产品文档 owner 并行冲突。
+
 已知非本任务回归（2026-11-20 实测）：`npm run docs:check` 的 `status-commit` 仍红（`STATUS` 记录 b83b11e ≠ HEAD aae381f，需按发布流程重新生成 status；与共享语义无关）。
 
 ## 5. 变更流程（改共享值必须同步两端）
@@ -155,7 +176,9 @@ FAMLING_REPO_DIR=/nonexistent/famling node --test test/parity-contract.test.js
 | E1-T2 spec/face 快照 + LOCK | 🔭 | 生成器 `scripts/gen-face-spec.mjs`，本文件表即输入 |
 | E1-T3 由 spec 生成插件常量 | 🔭 | 生成后删除手写冻结、保留 parity 测试为生成物校验 |
 | E1-T5 consent fixture/版本化 | 🔭 | 插件 consent 升级 `{version,hash,acceptedAt}` + withdraw（D8） |
-| MB-107 library 单源生成插件常量 | 🔭 | 与 E1-T3 合并 |
+| MB-107 library 单源生成插件常量 | ✅ 2026-11-20（round10 DONE） | 插件 `gen-content-constants.mjs` 从 famling 单源生成 client.js 两个 @generated 块；**content-extension.mjs 全量 checkJs 已由 MB-108 补齐（2026-11-20，`npm run typecheck` = `checkJs ok`）** |
+| MB-032 v3 合规字段 | ✅ 2026-11-20（round10 DONE） | v3 追加可选 license/aiProvenance/compatibility；§2 第 14/16 行与 D6 已同步；§4.1 复核 24/24 |
+| MB-108 本文件文档同步 | ✅ 2026-11-20（本版） | §0 第 6 条新增，§2 第 14/15/16 行、D6/D10 更新，§4.1 证据；D10 ② 登记 follow-up |
 
 ## 7. 维护者检查清单（PR 模板可复制）
 

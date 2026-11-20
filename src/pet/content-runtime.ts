@@ -79,6 +79,8 @@ import {
   mergeCharacterThemes,
   mergeInstalledPacks,
   parseContentLibrary,
+  readContentSelection,
+  readRoleThemeSelection,
   resolveContentSelection,
   resolveDialogueBehavior,
   validateContentPack,
@@ -119,12 +121,14 @@ import {
   type ContentWindowRoute,
 } from './content-window.ts'
 import {
+  HERO_RENDERER_STORAGE,
   applyRendererChoice,
   closeDesktopSettingsDialog,
   openDesktopSettingsDialog,
   type PetRendererChoice,
 } from './desktop-shell.ts'
 import type { HeroCharacterId, HeroConfig } from './hero-runtime.ts'
+import { requestRemoteBuiltinRenderer } from './hero-page.ts'
 import { isTtsVoiceId, writeVoicePref } from './voice-prefs.ts'
 import type { TtsVoiceId } from '../voice/types.ts'
 import { canInteract } from './consent/runtime.ts'
@@ -174,6 +178,25 @@ export interface ContentRuntimeDeps {
    * only forwards it to the installed adapter. Absent = registration-only.
    */
   readonly characterPackRenderer?: CharacterPackRendererWiring
+  /**
+   * Live BUILT-IN renderer scene switch (E4 MB-041): the pet window applies the
+   * shipped dog/cat/humanoid bundle (or returns to the folded paper) on its hero
+   * scene without persisting or reloading. The independent content window has no
+   * hero canvas, so it forwards the request over the Tauri bridge to the pet
+   * window. Absent (Node tests/embeds) => the one-click role path honestly
+   * reports that the live renderer is not wired instead of persisting a lie and
+   * reloading.
+   */
+  readonly switchBuiltinHeroCharacter?: (
+    choice: PetRendererChoice,
+  ) => Promise<{ ok: true } | { ok: false; reason: string }>
+}
+
+/** Result of one live built-in renderer switch (E4 MB-041). */
+export interface BuiltinRendererApplyOutcome {
+  readonly ok: boolean
+  /** Visible reason when `ok` is false (never HTML; short user-facing copy). */
+  readonly message?: string
 }
 
 export interface ContentRuntimeApi {
@@ -202,6 +225,26 @@ export interface ContentRuntimeApi {
    * the saved appearance (or restore built-in when none is saved).
    */
   syncCharacterPackAppearance(): Promise<CharacterPackActionOutcome | null>
+  /**
+   * Pet-window side of the built-in role hot switch (E4 MB-041): re-read the
+   * persisted six-key selection written by the content window, re-apply the
+   * appearance/dialogue policy and report the persisted TTS voice so main.ts can
+   * run the existing voice/TTS-declaration lifecycle. Null when unavailable.
+   */
+  syncSavedRoleSelection(): Promise<SavedRoleSelectionSync | null>
+  /**
+   * Pet-window local half of the MB-041 hot switch: swap the live hero scene to
+   * a built-in renderer, re-read the persisted role, and run the existing
+   * voice/TTS declaration lifecycle. Never throws; never rolls back by itself.
+   */
+  applyBuiltinRendererLocally(choice: PetRendererChoice): Promise<BuiltinRendererApplyOutcome>
+}
+
+/** One persisted-role sync result (the voice feeds main.ts' existing lifecycle). */
+export interface SavedRoleSelectionSync {
+  readonly ok: boolean
+  /** Persisted TTS voice for the selected character (null = not a TTS character). */
+  readonly voice: TtsVoiceId | null
 }
 interface ContentPreviewTarget {
   readonly packId: string
@@ -272,6 +315,13 @@ export function createContentRuntime(deps: ContentRuntimeDeps): ContentRuntimeAp
   let contentRuntime: ContentRuntimeState | null = null
   let contentLoad: Promise<ContentRuntimeState | null> | null = null
   /**
+   * Renderer choice that is LIVE in this window's pet scene (E4 MB-041): the
+   * boot-time `heroConfig` is a snapshot and the independent content window has
+   * no hero scene at all, so every successful live switch updates this and a
+   * failed one rolls back to it. Null until the catalog boots.
+   */
+  let runtimeRendererChoice: PetRendererChoice | null = null
+  /**
    * Remote market source is intentionally NOT configured in this build: the UI
    * shows the honest "服务器未配置" state and nothing fetches. A future installer
    * can inject a verified RemoteMarketSource here without changing the panel.
@@ -301,11 +351,37 @@ export function createContentRuntime(deps: ContentRuntimeDeps): ContentRuntimeAp
     }
   }
 
-  /** Map the live renderer state to a catalog character id (runtime truth wins). */
-  function contentCharacterIdFromRenderer(): string {
+  /** Boot-time renderer snapshot (fallback when the persisted keys are unreadable). */
+  function rendererChoiceFromHeroConfig(): PetRendererChoice {
     if (!heroConfig.enabled) return 'origami'
-    if (heroConfig.character === 'tinglan') return 'humanoid'
-    return heroConfig.character
+    if (heroConfig.character === 'dog' || heroConfig.character === 'cat') return heroConfig.character
+    return 'humanoid'
+  }
+
+  /**
+   * Renderer that is LIVE in the pet window (E4 MB-041). The shared renderer
+   * keys are written by the renderer lifecycle itself; this window's boot-time
+   * `heroConfig` is only the fallback (the independent content window resolves
+   * the flag with no hero on its own page).
+   */
+  function readPersistedRendererChoice(): PetRendererChoice {
+    const fallback = rendererChoiceFromHeroConfig()
+    const store = contentStorage()
+    if (store === null) return fallback
+    try {
+      const heroFlag = store.getItem(HERO_RENDERER_STORAGE.hero)
+      if (heroFlag === null) return fallback
+      if (heroFlag !== '1') return 'origami'
+      const raw = store.getItem(HERO_RENDERER_STORAGE.character)?.trim().toLowerCase()
+      return raw === 'dog' || raw === 'cat' || raw === 'humanoid' ? raw : 'humanoid'
+    } catch {
+      return fallback
+    }
+  }
+
+  /** Renderer choice currently live here: the last successful switch wins. */
+  function liveRendererChoice(): PetRendererChoice {
+    return runtimeRendererChoice ?? readPersistedRendererChoice()
   }
 
   /**
@@ -465,7 +541,9 @@ export function createContentRuntime(deps: ContentRuntimeDeps): ContentRuntimeAp
         const themeMerged = mergeCharacterThemes(v1Library, storedThemes.packs)
         const library = themeMerged.library
         const plan = planStartupRoleTheme(library, contentStorage(), {
-          runtimeCharacter: contentCharacterIdFromRenderer(),
+          // MB-041: the persisted renderer keys are live truth even in the
+          // content window (whose own resolveHeroConfig has hero switched off).
+          runtimeCharacter: readPersistedRendererChoice(),
           ...(isTtsVoiceId(deps.getCurrentVoice()) ? { runtimeVoice: deps.getCurrentVoice() } : {}),
         })
         if (plan.writeRoleTheme && plan.roleThemeId !== null) {
@@ -493,6 +571,7 @@ export function createContentRuntime(deps: ContentRuntimeDeps): ContentRuntimeAp
           previewTargets: new Map<string, ContentPreviewTarget>(),
         }
         deps.setDialogueBehavior(runtime.dialogue)
+        runtimeRendererChoice = readPersistedRendererChoice()
         try {
           applyAppearance(document, runtime.library, runtime.selection)
         } catch (error) {
@@ -641,10 +720,94 @@ export function createContentRuntime(deps: ContentRuntimeDeps): ContentRuntimeAp
     }
   }
 
+  /** Pre-switch state captured for a two-phase live role switch (MB-041). */
+  interface RoleSwitchSnapshot {
+    readonly roleThemeId: string | null
+    readonly selection: ContentSelection
+    readonly renderer: PetRendererChoice
+    readonly voice: TtsVoiceId
+  }
+
+  function captureRoleSwitchSnapshot(runtime: ContentRuntimeState): RoleSwitchSnapshot {
+    return {
+      roleThemeId: runtime.roleThemeId,
+      selection: runtime.selection,
+      renderer: liveRendererChoice(),
+      voice: deps.getCurrentVoice(),
+    }
+  }
+
+  /**
+   * Best-effort restore of the persisted six keys/role-theme key + renderer keys
+   * after a failed live switch. Storage failures are swallowed: the live scene is
+   * already the fallback of record and a rollback write must never throw into
+   * the user-facing feedback path.
+   */
+  function restoreRoleSwitchSnapshot(runtime: ContentRuntimeState, snapshot: RoleSwitchSnapshot): void {
+    const storage = contentStorage()
+    try {
+      if (snapshot.roleThemeId !== null) {
+        writeRoleThemeSelection(runtime.library, snapshot.roleThemeId, storage)
+      } else {
+        clearRoleThemeSelection(storage)
+      }
+      writeContentSelection(runtime.library, snapshot.selection, storage)
+      writeVoicePref(snapshot.voice, storage)
+      applyRendererChoice(snapshot.renderer, { storage })
+    } catch {
+      /* best effort: the caller reports the visible failure */
+    }
+  }
+
+  /**
+   * Failed live built-in switch: put THIS window back on the previous role
+   * (persisted keys + in-memory appearance/dialogue/voice) and tell the user.
+   * The hero engine is atomic, so the previous scene never stopped rendering.
+   */
+  function rollbackBuiltinRoleSwitch(
+    runtime: ContentRuntimeState,
+    snapshot: RoleSwitchSnapshot,
+    reason: string,
+  ): void {
+    restoreRoleSwitchSnapshot(runtime, snapshot)
+    runtime.selection = snapshot.selection
+    runtime.roleThemeId = snapshot.roleThemeId
+    runtimeRendererChoice = snapshot.renderer
+    try {
+      applyAppearance(document, runtime.library, snapshot.selection)
+    } catch (error) {
+      deps.reportFailure(deps.uiBoundary, error)
+    }
+    runtime.dialogue = resolveDialogueBehavior(runtime.library, snapshot.selection)
+    deps.setDialogueBehavior(runtime.dialogue)
+    deps.applyVoicePreference(snapshot.voice)
+    deps.renderVoiceMode()
+    runtime.hub?.refresh()
+    deps.showBubble('切换内置渲染器失败（' + reason + '），已保留原角色。')
+  }
+
+  /**
+   * Window-specific live built-in renderer seam (E4 MB-041): the pet window
+   * applies the scene locally; the independent content window (no hero canvas)
+   * asks that pet window over Tauri. Undefined only for headless hosts/tests.
+   */
+  function resolveBuiltinRendererApply():
+    | ((choice: PetRendererChoice) => Promise<BuiltinRendererApplyOutcome>)
+    | undefined {
+    if (deps.switchBuiltinHeroCharacter === undefined) return undefined
+    return (choice) =>
+      contentShell
+        ? requestRemoteBuiltinRenderer(choice, { hasTauri, contentShell })
+        : applyBuiltinRendererLocally(choice)
+  }
+
   /**
    * One-click role application: resolve the role into a six-component selection,
    * persist six keys + role-theme key, then run the existing lifecycles:
-   *  - character differs -> applyRendererChoice() (persist + reload, TOS-gated);
+   *  - character differs -> LIVE built-in renderer hot switch (E4 MB-041): the
+   *    renderer keys are still persisted for the next boot, but the live pet
+   *    scene is swapped by hero-page, so there is NO page reload. A failed switch
+   *    rolls every persisted key back and keeps the previous role;
    *  - voice differs -> write the voice preference + applyVoicePreference()
    *    (re-prompts the separate TTS declaration, never auto-accepted);
    *  - appearance/dialogue -> apply immediately, no reload.
@@ -676,7 +839,14 @@ export function createContentRuntime(deps: ContentRuntimeDeps): ContentRuntimeAp
       return { ok: false, message: '角色主题引用的角色不在内容目录中，已保留原角色。' }
     }
     const targetRenderer = CONTENT_CHARACTER_PRODUCT_IDS[character.kind].famling as PetRendererChoice
-    const characterChanged = contentCharacterIdFromRenderer() !== application.selection.character
+    const characterChanged = liveRendererChoice() !== application.selection.character
+    const applyLiveRenderer = resolveBuiltinRendererApply()
+    // E4 MB-041: without the live-renderer seam the honest outcome is "not
+    // switched" — never a silent persist+reload (only embeds/tests lack it).
+    if (characterChanged && applyLiveRenderer === undefined) {
+      return { ok: false, message: '当前窗口没有接入实时渲染切换，角色未切换（原状态保持不变）。' }
+    }
+    const snapshot = captureRoleSwitchSnapshot(runtime)
     // Persist the whole role first: if storage is unavailable nothing changes.
     const stored = writeCharacterThemeSelection(runtime.library, roleThemeId, contentStorage())
     if (!stored.ok) return { ok: false, message: '本地存储不可用，角色主题未切换（原状态保持不变）。' }
@@ -688,25 +858,15 @@ export function createContentRuntime(deps: ContentRuntimeDeps): ContentRuntimeAp
       const savedVoice = writeVoicePref(themeVoiceId, contentStorage())
       if (savedVoice !== 'ok') voicePrefNote = '（音色偏好未能保存到本地存储）'
     }
+    // Renderer keys for the next boot; the live apply below decides success, so
+    // this write deliberately omits the legacy reload callback.
+    if (!applyRendererChoice(targetRenderer, { storage: contentStorage() })) {
+      restoreRoleSwitchSnapshot(runtime, snapshot)
+      return { ok: false, message: '本地存储不可用，无法切换角色（原状态保持不变）。' }
+    }
     runtime.selection = application.selection
     runtime.roleThemeId = roleThemeId
-    if (characterChanged) {
-      const applied = applyRendererChoice(targetRenderer, {
-        storage: contentStorage(),
-        reload: () => {
-          // The pet window is a different process window: tell it to save+reload
-          // so the new renderer actually appears there (it owns the pet loop).
-          requestPetWindowReload(true)
-          window.location.reload()
-        },
-      })
-      if (!applied) return { ok: false, message: '本地存储不可用，无法切换角色（未刷新，原角色保持不变）。' }
-      return {
-        ok: true,
-        message: '正在切换到「' + theme.name + '」…页面会按既有渲染器生命周期刷新。' + voicePrefNote,
-        close: true,
-      }
-    }
+    runtimeRendererChoice = targetRenderer
     try {
       applyAppearance(document, runtime.library, runtime.selection)
     } catch (error) {
@@ -714,21 +874,49 @@ export function createContentRuntime(deps: ContentRuntimeDeps): ContentRuntimeAp
     }
     runtime.dialogue = resolveDialogueBehavior(runtime.library, runtime.selection)
     deps.setDialogueBehavior(runtime.dialogue)
-    // Appearance/dialogue changed without a reload: flush the live pet window when
-    // the content window's hub closes (it re-reads the same persisted selection).
-    if (contentShell) contentWindowNeedsPetReload = true
     if (voiceChanged) deps.applyVoicePreference(themeVoiceId as TtsVoiceId)
     else deps.renderVoiceMode()
+    if (characterChanged && applyLiveRenderer !== undefined) {
+      // The hub result contract is synchronous; the async scene swap reports a
+      // failure by rolling the whole role back (and via the bubble below).
+      void applyLiveRenderer(targetRenderer)
+        .then((outcome) => {
+          if (outcome.ok) {
+            runtime.hub?.refresh()
+            return
+          }
+          rollbackBuiltinRoleSwitch(runtime, snapshot, outcome.message ?? '渲染器未切换')
+        })
+        .catch((error: unknown) => {
+          deps.reportFailure(deps.uiBoundary, error)
+          rollbackBuiltinRoleSwitch(runtime, snapshot, '切换时发生内部错误')
+        })
+      const prefix = verb === 'restore' ? '已恢复角色「' : '正在切换到角色「'
+      return {
+        ok: true,
+        message:
+          prefix +
+          theme.name +
+          '」：声音 / 对话 / 主题 / 背景 / 字体已同步，内置渲染器实时切换中（失败会自动保留原角色）。' +
+          (voiceChanged ? ' TTS 声明会按新的配置签名重新弹出确认。' : '') +
+          voicePrefNote,
+        close: true,
+      }
+    }
+    // Appearance/dialogue changed without a renderer switch: flush the live pet
+    // window when the content window's hub closes (it re-reads the same selection).
+    if (contentShell) contentWindowNeedsPetReload = true
     const prefix = verb === 'restore' ? '已恢复角色「' : '已应用角色「'
-  return {
-    ok: true,
-    message:
-      prefix +
-      theme.name +
-      '」：声音 / 对话 / 主题 / 背景 / 字体已同步。' +
-      (voiceChanged ? 'TTS 声明会按新的配置签名重新弹出确认。' : '') + voicePrefNote,
+    return {
+      ok: true,
+      message:
+        prefix +
+        theme.name +
+        '」：声音 / 对话 / 主题 / 背景 / 字体已同步。' +
+        (voiceChanged ? 'TTS 声明会按新的配置签名重新弹出确认。' : '') +
+        voicePrefNote,
+    }
   }
-}
 
 /** Restore the current role theme's six defaults (keeps the role key). */
 function restoreCurrentRoleDefaults(): ContentHubSelectResult {
@@ -1082,6 +1270,74 @@ async function bootContentWindowOnce(): Promise<void> {
       return null
     }
   }
+
+  /**
+   * Pet-window side of the built-in role hot switch (E4 MB-041): the content
+   * window already persisted the six keys + role-theme key; re-read them here and
+   * re-run the appearance/dialogue lifecycles WITHOUT a reload, then hand the
+   * persisted TTS voice back to main.ts so its existing voice-change lifecycle
+   * (badge + separate TTS declaration re-prompt) runs in the window that speaks.
+   */
+  async function syncSavedRoleSelection(): Promise<SavedRoleSelectionSync | null> {
+    const runtime = await ensureContentRuntime()
+    if (runtime === null) return null
+    const storage = contentStorage()
+    const selection = readContentSelection(runtime.library, storage)
+    const roleTheme = readRoleThemeSelection(runtime.library, storage)
+    runtime.selection = selection
+    runtime.roleThemeId = roleTheme.roleThemeId
+    runtimeRendererChoice = readPersistedRendererChoice()
+    const character = findContent(runtime.library, 'characters', selection.character) as
+      | ContentCharacterEntry
+      | undefined
+    const voice =
+      character !== undefined && character.voiceMode === 'tts' && isTtsVoiceId(selection.voice)
+        ? selection.voice
+        : null
+    try {
+      applyAppearance(document, runtime.library, selection)
+    } catch (error) {
+      deps.reportFailure(deps.uiBoundary, error)
+    }
+    runtime.dialogue = resolveDialogueBehavior(runtime.library, selection)
+    deps.setDialogueBehavior(runtime.dialogue)
+    deps.renderVoiceMode()
+    runtime.hub?.refresh()
+    return { ok: true, voice }
+  }
+
+  /**
+   * Pet-window local half of the MB-041 hot switch: swap the live hero scene,
+   * re-read the selection the content window persisted (appearance/dialogue) and
+   * run the existing voice-change lifecycle in the window that actually speaks.
+   * Never throws: the caller rolls the persisted role back when !ok.
+   */
+  async function applyBuiltinRendererLocally(choice: PetRendererChoice): Promise<BuiltinRendererApplyOutcome> {
+    const switchScene = deps.switchBuiltinHeroCharacter
+    if (switchScene === undefined) return { ok: false, message: '当前窗口没有接入实时渲染切换' }
+    let swapped: Awaited<ReturnType<typeof switchScene>>
+    try {
+      swapped = await switchScene(choice)
+    } catch (error) {
+      deps.reportFailure(deps.uiBoundary, error)
+      return { ok: false, message: '切换渲染器时发生内部错误' }
+    }
+    if (!swapped.ok) return { ok: false, message: swapped.reason }
+    try {
+      const synced = await syncSavedRoleSelection()
+      const persistedVoice = synced?.voice ?? null
+      if (persistedVoice !== null && persistedVoice !== deps.getCurrentVoice()) {
+        // Existing TTS lifecycle: re-prompts the separate declaration, never auto-accepted.
+        deps.applyVoicePreference(persistedVoice)
+      } else {
+        deps.renderVoiceMode()
+      }
+    } catch (error) {
+      deps.reportFailure(deps.uiBoundary, error)
+    }
+    return { ok: true, message: '已实时切换内置渲染器。' }
+  }
+
   return {
     ensureContentRuntime,
     openContentHubInWindow,
@@ -1097,5 +1353,7 @@ async function bootContentWindowOnce(): Promise<void> {
     closeContentHubPanel: () => contentRuntime?.hub?.close(false),
     restoreActiveCharacterPack,
     syncCharacterPackAppearance,
+    syncSavedRoleSelection,
+    applyBuiltinRendererLocally,
   }
 }

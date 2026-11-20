@@ -1,0 +1,447 @@
+{
+  "contract": "famling.interactions/1",
+  "character": "cat",
+  "behavior": {
+    "profile": "famling.behavior/0.1",
+    "version": "0.2.0",
+    "extends": "core:pet.cat",
+    "defaults": {
+      "priority": 10,
+      "interrupt": "at-end",
+      "cooldownMs": 0
+    },
+    "abilities": {
+      "speech": "sfx",
+      "reminder": true,
+      "care": {
+        "feed": true,
+        "play": true,
+        "sleep": true
+      },
+      "needs": true,
+      "death": false,
+      "multiObject": true
+    },
+    "needs": {
+      "hunger": {
+        "value": 50,
+        "max": 100,
+        "decayPerHour": 4,
+        "criticalAt": 15
+      },
+      "energy": {
+        "value": 60,
+        "max": 100,
+        "decayPerHour": 3,
+        "criticalAt": 15
+      },
+      "fun": {
+        "value": 50,
+        "max": 100,
+        "decayPerHour": 5,
+        "criticalAt": 15
+      }
+    },
+    "ambientIntervalMs": [
+      4000,
+      10000
+    ],
+    "speech": {
+      "lines": {
+        "meow.1": "喵。",
+        "meow.2": "（尾巴轻轻晃了晃）",
+        "rub.1": "（呼噜呼噜地蹭了蹭你）",
+        "pat_head.1": "（舒服地眯起眼睛）",
+        "nudge.1": "（用脑袋顶了顶你的手）",
+        "play.1": "（扑了一下你的指尖）",
+        "ball_throw.1": "（把小球拨到你脚边）",
+        "ball_chase.1": "（追着球跑了一圈）",
+        "sleep.1": "（蜷成一团睡着了）"
+      }
+    }
+  },
+  "regions": {
+    "version": 1,
+    "canvas": [
+      96,
+      96
+    ],
+    "boxes": [
+      {
+        "id": "head",
+        "label": "头",
+        "rect": [
+          34,
+          18,
+          32,
+          34
+        ],
+        "priority": 30
+      },
+      {
+        "id": "tail",
+        "label": "尾巴",
+        "rect": [
+          68,
+          52,
+          26,
+          34
+        ],
+        "priority": 20
+      },
+      {
+        "id": "body",
+        "label": "身体",
+        "rect": [
+          22,
+          50,
+          56,
+          38
+        ],
+        "priority": 10
+      }
+    ]
+  },
+  "states": [
+    {
+      "name": "idle",
+      "tag": "idle",
+      "loop": true,
+      "priority": 0,
+      "rules": [
+        {
+          "on": "wake",
+          "slot": false,
+          "priority": 20
+        }
+      ],
+      "slots": [
+        "idle"
+      ]
+    },
+    {
+      "name": "idle_blink",
+      "tag": "idle_blink",
+      "priority": 20,
+      "after": "idle",
+      "rules": [
+        {
+          "on": "idle_blink",
+          "priority": 15,
+          "cooldownMs": 500
+        }
+      ]
+    },
+    {
+      "name": "rub",
+      "tag": "pat_head",
+      "priority": 50,
+      "after": "idle",
+      "rules": [
+        {
+          "on": "pat",
+          "cooldownMs": 1200,
+          "probability": 1
+        }
+      ],
+      "says": [
+        "嗯……可以。",
+        "呼噜……再摸一下。",
+        "够了，手拿开。",
+        "一下就好。",
+        "（慢眨眼）"
+      ],
+      "gesture": {
+        "region": "head",
+        "states": [
+          "idle",
+          "idle_blink"
+        ],
+        "gesture": "tap"
+      }
+    },
+    {
+      "name": "pat_head",
+      "tag": "pat_head",
+      "priority": 50,
+      "after": "idle",
+      "rules": [
+        {
+          "on": "pat_head",
+          "cooldownMs": 1200
+        }
+      ]
+    },
+    {
+      "name": "play",
+      "tag": "stand_wag",
+      "priority": 55,
+      "after": "idle",
+      "rules": [
+        {
+          "on": "feed"
+        },
+        {
+          "on": "play",
+          "priority": 60
+        }
+      ]
+    },
+    {
+      "name": "stand_wag",
+      "tag": "stand_wag",
+      "priority": 30,
+      "after": "idle",
+      "rules": [
+        {
+          "on": "stand_wag",
+          "priority": 20,
+          "cooldownMs": 3300
+        }
+      ],
+      "says": [
+        "别碰肚子……伸个懒腰。",
+        "这里不行，尾巴可以。",
+        "嗯，就一下。",
+        "（前爪往前压了压）",
+        "别碰肚子。"
+      ],
+      "gesture": {
+        "region": "body",
+        "states": [
+          "idle",
+          "idle_blink"
+        ],
+        "gesture": "tap"
+      }
+    },
+    {
+      "name": "meow",
+      "tag": "idle",
+      "priority": 40,
+      "after": "idle",
+      "rules": [
+        {
+          "on": "talk",
+          "priority": 45
+        }
+      ]
+    },
+    {
+      "name": "nudge",
+      "tag": "idle",
+      "priority": 80,
+      "after": "idle",
+      "stateCooldownMs": 60000,
+      "rules": [
+        {
+          "on": "remind",
+          "requiresBrief": false
+        }
+      ]
+    },
+    {
+      "name": "drag",
+      "tag": "idle",
+      "loop": true,
+      "priority": 100,
+      "rules": [
+        {
+          "on": "drag.start",
+          "slot": "drag"
+        }
+      ]
+    },
+    {
+      "name": "land",
+      "tag": "idle",
+      "priority": 90,
+      "after": "idle",
+      "rules": [
+        {
+          "on": "land"
+        }
+      ]
+    },
+    {
+      "name": "sleep",
+      "tag": "idle",
+      "loop": true,
+      "priority": 10,
+      "rules": [
+        {
+          "on": "sleep"
+        }
+      ]
+    },
+    {
+      "name": "paw_face",
+      "tag": "paw_face",
+      "priority": 20,
+      "after": "idle",
+      "rules": [
+        {
+          "on": "paw_face",
+          "cooldownMs": 800
+        }
+      ],
+      "says": [
+        "洗脸时间。",
+        "毛要顺一点。",
+        "看什么看。",
+        "卷毛不好梳。",
+        "（舔了舔爪子）"
+      ]
+    },
+    {
+      "name": "scratch",
+      "tag": "scratch",
+      "priority": 20,
+      "after": "idle",
+      "rules": [
+        {
+          "on": "scratch",
+          "cooldownMs": 800
+        }
+      ]
+    },
+    {
+      "name": "chase_tail",
+      "tag": "chase_tail",
+      "priority": 20,
+      "after": "idle",
+      "rules": [
+        {
+          "on": "chase_tail",
+          "cooldownMs": 800
+        }
+      ],
+      "says": [
+        "尾巴……随它去。",
+        "别碰尾巴。",
+        "追到了……才怪。",
+        "尾尖自己动的。",
+        "（尾巴绕到前爪边）"
+      ],
+      "gesture": {
+        "region": "tail",
+        "states": [
+          "idle",
+          "idle_blink"
+        ],
+        "gesture": "tap"
+      }
+    },
+    {
+      "name": "ball_throw",
+      "tag": "ball_throw",
+      "priority": 40,
+      "after": "idle",
+      "rules": [
+        {
+          "on": "ball_throw",
+          "cooldownMs": 600
+        }
+      ]
+    },
+    {
+      "name": "ball_chase",
+      "tag": "ball_chase",
+      "priority": 45,
+      "after": "idle",
+      "rules": [
+        {
+          "on": "ball_chase",
+          "cooldownMs": 600
+        }
+      ]
+    },
+    {
+      "name": "run",
+      "tag": "run",
+      "priority": 45,
+      "timeoutMs": 2500,
+      "after": "idle",
+      "rules": [
+        {
+          "on": "run",
+          "cooldownMs": 2000
+        }
+      ],
+      "says": [
+        "跑一圈。",
+        "别追我。",
+        "……累。",
+        "地板有点滑。",
+        "就一圈。"
+      ]
+    }
+  ],
+  "ambient": [
+    {
+      "state": "idle",
+      "weight": 55
+    },
+    {
+      "state": "idle_blink",
+      "weight": 15
+    },
+    {
+      "state": "paw_face",
+      "weight": 12
+    },
+    {
+      "state": "scratch",
+      "weight": 8
+    },
+    {
+      "state": "stand_wag",
+      "weight": 5
+    },
+    {
+      "state": "chase_tail",
+      "weight": 5
+    }
+  ],
+  "actions": [
+    {
+      "id": "pat",
+      "label": "摸头",
+      "event": "pat"
+    },
+    {
+      "id": "stretch",
+      "label": "伸懒腰",
+      "event": "stand_wag",
+      "says": [
+        "伸个懒腰。",
+        "啊——好困。",
+        "别看了。",
+        "换个地方躺。",
+        "（弓起背）"
+      ]
+    },
+    {
+      "id": "wash",
+      "label": "洗脸",
+      "event": "paw_face"
+    },
+    {
+      "id": "tail",
+      "label": "追尾巴",
+      "event": "chase_tail",
+      "says": [
+        "尾巴……随它去。",
+        "别碰尾巴。",
+        "追到了，才怪。",
+        "尾尖自己动的。",
+        "（尾巴绕到前爪边）"
+      ]
+    },
+    {
+      "id": "run",
+      "label": "跑一跑",
+      "event": "run"
+    }
+  ]
+}

@@ -79,7 +79,7 @@ Scope: 只改 `package.json`、`scripts/`、`.github/workflows/ci.yml`、`README
 `scripts/ci-clean-checkout.mjs`：
 
 - 默认 `git archive --format=tar HEAD` 导出到 `%TEMP%`/`/tmp` 新目录（不含 `.git`/`node_modules`/`dist`/未跟踪文件）；`--worktree` 用 `git ls-files -z -co --exclude-standard` 导出**当前工作树**（提交前验证用，保留可执行位/符号链接）。
-- 在导出目录里 `npm ci`（**隔离 npm cache**，不依赖本机 npm 缓存；跳过 gate 不用的 Electron 二进制下载，可用 `--with-electron-binary` 关闭该优化），再 `npm run ci`。
+- 在导出目录里 `npm ci`（**隔离 npm cache**，不依赖本机 npm 缓存；2026-11-20 起 Electron 已移除，旧的 `--with-electron-binary` no-op 开关一并删除，见 MB-108），再 `npm run ci`。
 - 通过环境把父仓库 git 事实（commit/branch/remote/dirty=false）传入导出树；summary 带 `source: git-archive|worktree-export`。
 - 失败默认保留导出目录便于排查；成功删除临时目录；`--target` 指定的目录永不自动删；删除前断言绝对路径在 `tmpdir()` 下。
 

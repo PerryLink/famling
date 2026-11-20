@@ -21,6 +21,7 @@ import {
   loadHeroBundle,
   startHeroRuntime,
   type HeroCharacterBundle,
+  type HeroCharacterId,
   type HeroConfig,
   type HeroEmitOptions,
   type HeroEmitResult,
@@ -56,6 +57,111 @@ import type { ErrorBoundary } from './security/error-boundary.ts'
 
 /** Tauri event: content window asks the pet window (hero owner) to re-apply the saved pack. */
 export const CHARACTER_PACK_APPLY_EVENT = 'pet://character-pack-apply'
+
+/**
+ * Built-in renderer choice (E4 MB-041): the three shipped hero characters plus
+ * the folded-paper DOM. Mirrors `PetRendererChoice` in desktop-shell.ts; kept
+ * as a local union so hero-page stays import-light and Node-test friendly.
+ */
+export type BuiltinRendererChoice = 'dog' | 'cat' | 'humanoid' | 'origami'
+
+/**
+ * Cross-window built-in renderer bridge (E4 MB-041). The independent content
+ * window has no hero canvas: it persists the role, asks the pet window (the only
+ * hero owner) to hot-switch its scene, and waits for the apply result so a failed
+ * switch can be rolled back in both windows. Mirrors the installed-pack
+ * CHARACTER_PACK_APPLY_EVENT contract.
+ */
+export const BUILTIN_RENDERER_APPLY_EVENT = 'pet://builtin-renderer-apply'
+export const BUILTIN_RENDERER_APPLIED_EVENT = 'pet://builtin-renderer-applied'
+
+export interface BuiltinRendererApplyRequest {
+  readonly requestId: string
+  readonly choice: BuiltinRendererChoice
+}
+
+export interface BuiltinRendererApplyResult {
+  readonly requestId: string
+  readonly ok: boolean
+  /** Visible reason when `ok` is false (already sanitized by the pet window). */
+  readonly message?: string
+}
+
+/** Outcome of one live built-in renderer switch (no persist, no reload). */
+export type BuiltinRendererSwapResult =
+  | { readonly ok: true; readonly message: string }
+  | { readonly ok: false; readonly reason: string }
+
+/** Result of one live built-in renderer application (visible message only). */
+export interface BuiltinRendererApplyOutcome {
+  readonly ok: boolean
+  readonly message?: string
+}
+
+/** Timeout for one cross-window built-in renderer request (fail closed). */
+const BUILTIN_RENDERER_REQUEST_TIMEOUT_MS = 8_000
+/** The shipped choices; anything else must stay behind the per-load consent gate. */
+const BUILTIN_RENDERER_CHOICES: readonly BuiltinRendererChoice[] = ['dog', 'cat', 'humanoid', 'origami']
+let remoteBuiltinRendererRequestSeq = 0
+
+export function isBuiltinRendererChoice(value: unknown): value is BuiltinRendererChoice {
+  return typeof value === 'string' && (BUILTIN_RENDERER_CHOICES as readonly string[]).includes(value)
+}
+
+/**
+ * Content-window side of the MB-041 bridge (standalone so the content runtime can
+ * call it without importing the page singleton): ask the pet window, which owns
+ * the only hero canvas, to hot-switch a built-in renderer, and wait for its REAL
+ * apply result so a failed switch rolls the persisted role back in both windows.
+ */
+export function requestRemoteBuiltinRenderer(
+  choice: BuiltinRendererChoice,
+  options: { readonly hasTauri: boolean; readonly contentShell: boolean },
+): Promise<BuiltinRendererApplyOutcome> {
+  if (!options.hasTauri || !options.contentShell) {
+    return Promise.resolve({ ok: false, message: '当前窗口没有接入实时渲染切换' })
+  }
+  return new Promise((resolve) => {
+    let settled = false
+    let unlisten: (() => void) | null = null
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const finish = (result: BuiltinRendererApplyOutcome): void => {
+      if (settled) return
+      settled = true
+      if (timer !== null) clearTimeout(timer)
+      try {
+        unlisten?.()
+      } catch {
+        /* listener teardown is best effort */
+      }
+      resolve(result)
+    }
+    void import('@tauri-apps/api/event')
+      .then(async ({ emit, listen }) => {
+        remoteBuiltinRendererRequestSeq += 1
+        const requestId = 'builtin-' + Date.now().toString(36) + '-' + String(remoteBuiltinRendererRequestSeq)
+        unlisten = await listen<BuiltinRendererApplyResult>(BUILTIN_RENDERER_APPLIED_EVENT, (event) => {
+          const payload = event.payload
+          if (!payload || payload.requestId !== requestId) return
+          finish(
+            payload.ok
+              ? { ok: true, ...(payload.message !== undefined ? { message: payload.message } : {}) }
+              : { ok: false, message: payload.message ?? '桌宠窗口未能切换渲染器' },
+          )
+        })
+        timer = setTimeout(
+          () => finish({ ok: false, message: '桌宠窗口没有响应，渲染器未切换' }),
+          BUILTIN_RENDERER_REQUEST_TIMEOUT_MS,
+        )
+        const request: BuiltinRendererApplyRequest = { requestId, choice }
+        await emit(BUILTIN_RENDERER_APPLY_EVENT, request)
+      })
+      .catch((error: unknown) => {
+        console.warn('[pet] built-in renderer bridge unavailable', error)
+        finish({ ok: false, message: '跨窗口切换通道不可用，渲染器未切换' })
+      })
+  })
+}
 
 /** Identity of one installed character pack applied to the live hero scene. */
 export interface HeroCharacterPackIdentity {
@@ -145,6 +251,12 @@ export interface HeroPageDeps {
   onEnsureAudio(): void
   /** Re-apply the persisted pack appearance after the built-in hero booted. */
   restoreActiveCharacterPack(): Promise<CharacterPackActionOutcome | null>
+  /**
+   * Pet-window implementation for a REMOTE built-in renderer request (E4
+   * MB-041), supplied by main.ts (content-runtime hot swap + voice sync). When
+   * present the page installs the Tauri request/ack bridge once at construction.
+   */
+  readonly applyRemoteBuiltinRenderer?: (choice: BuiltinRendererChoice) => Promise<BuiltinRendererApplyOutcome>
   /** Storage override for the persisted window position (tests); default global. */
   readonly storage?: StorageLike | null
   // Testable seams: production omits them and gets the real page globals/modules.
@@ -188,6 +300,21 @@ export interface HeroPageApi {
   activePackIdentity(): { packId: string; version: string } | null
   activePackKind(): CharacterPackKind | null
   scene(): HeroPageScene
+  /**
+   * Hot-switch the live built-in renderer (E4 MB-041): a hero character loads its
+   * shipped bundle and atomically replaces the scene; `origami` returns to the
+   * folded-paper DOM. Never persists and never reloads. On failure the current
+   * scene keeps rendering (or the folded paper stays visible) and the result is
+   * `ok:false` with a stable reason.
+   */
+  switchBuiltinRenderer(choice: BuiltinRendererChoice): Promise<BuiltinRendererSwapResult>
+  /** Live built-in character backing the scene ('origami' when folded paper shows). */
+  builtinRenderer(): BuiltinRendererChoice
+  /**
+   * Content window side of the MB-041 bridge: ask the pet window to hot-switch
+   * and resolve with its real apply result (fails closed after a timeout).
+   */
+  requestRemoteBuiltinRenderer(choice: BuiltinRendererChoice): Promise<BuiltinRendererApplyOutcome>
   /** Pet-window placement listeners/timer (pet window only; idempotent wiring). */
   installWindowLayout(): void
   saveWindowPosition(): Promise<void>
@@ -283,17 +410,33 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
   let activeCharacterPackId: { packId: string; version: string } | null = null
   /** Pack kind currently rendered (drives silent-thought / locomotion semantics). */
   let activeCharacterPackKind: CharacterPackKind | null = null
+  /**
+   * Live built-in character backing the hero scene (E4 MB-041). Starts from the
+   * boot-time resolver and follows every live built-in hot switch; unlike
+   * HERO_CONFIG it is mutable, so voice/bubble/locomotion semantics never go
+   * stale after a switch (no reload re-runs resolveHeroConfig).
+   */
+  let liveBuiltinCharacter: HeroCharacterId = HERO_CONFIG.character
+  /** True once the hidden hero canvas got its pointer listeners (attach once). */
+  let heroPointerAttached = false
+  /** True once the document visibilitychange loop park/resume listener is wired. */
+  let heroVisibilityWired = false
+  /** True once the pet-window remote built-in renderer bridge is installed (MB-041). */
+  let remoteBuiltinBridgeInstalled = false
 
   /** Cat/dog personas are silent: their bubbles are thoughts and TTS is skipped. */
   function currentCharacterCanVoice(): boolean {
     if (activeCharacterPackKind !== null) return activeCharacterPackKind === 'humanoid'
-    return characterCanVoice(HERO_CONFIG.character, HERO_CONFIG.enabled)
+    // Folded paper (hero not drawing) is the shipped human presentation: voiced.
+    if (hero === null) return true
+    return characterCanVoice(liveBuiltinCharacter, true)
   }
 
   /** Visible bubble semantics for a custom pack: cat/dog = thought, humanoid = speech. */
   function currentCharacterBubbleSemantic(): 'speech' | 'thought' {
     if (activeCharacterPackKind !== null) return activeCharacterPackKind === 'humanoid' ? 'speech' : 'thought'
-    return characterBubbleSemantic(HERO_CONFIG.character, HERO_CONFIG.enabled)
+    if (hero === null) return 'speech'
+    return characterBubbleSemantic(liveBuiltinCharacter, true)
   }
   let hero: HeroRuntime | null = null
   let heroCanvasEl: HTMLCanvasElement | null = null
@@ -347,6 +490,13 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
     return hero === null ? 'folded-paper' : heroSceneBuiltin ? 'builtin-hero' : 'character-pack'
   }
 
+  /** Live built-in renderer truth (MB-041); folded paper reports 'origami'. */
+  function builtinRenderer(): BuiltinRendererChoice {
+    if (hero === null) return 'origami'
+    // The legacy non-final 'tinglan' character shares the humanoid presentation.
+    return liveBuiltinCharacter === 'tinglan' ? 'humanoid' : liveBuiltinCharacter
+  }
+
   /** Actions for the live hero character (regions.json), with a legacy fallback. */
   function liveRegionActions(): readonly HeroRegionAction[] {
     return hero?.actors[0]?.bundle.regions?.actions ?? []
@@ -384,6 +534,51 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
       .then(({ emit }) => emit(CHARACTER_PACK_APPLY_EVENT, {}))
       .catch((error: unknown) => {
         console.warn('[pet] character-pack cross-window bridge unavailable', error)
+      })
+  }
+
+  /**
+   * Pet-window side of the MB-041 built-in renderer bridge: listen for a remote
+   * request, run the injected local handler (content runtime switch + voice sync,
+   * so the whole role changes without a reload) and ack with the REAL result.
+   * Installed once; idempotent. The content window times out to a rollback.
+   */
+  function installRemoteBuiltinRendererBridge(
+    handler: (choice: BuiltinRendererChoice) => Promise<BuiltinRendererApplyOutcome>,
+  ): void {
+    if (!HAS_TAURI || CONTENT_SHELL || remoteBuiltinBridgeInstalled) return
+    remoteBuiltinBridgeInstalled = true
+    void import('@tauri-apps/api/event')
+      .then(async ({ emit, listen }) => {
+        await listen<BuiltinRendererApplyRequest>(BUILTIN_RENDERER_APPLY_EVENT, (event) => {
+          const payload = event.payload
+          if (!payload || !isBuiltinRendererChoice(payload.choice)) return
+          const requestId = typeof payload.requestId === 'string' ? payload.requestId : ''
+          void handler(payload.choice)
+            .then(async (result) => {
+              if (requestId === '') return
+              const ack: BuiltinRendererApplyResult = {
+                requestId,
+                ok: result.ok,
+                ...(result.message !== undefined ? { message: result.message } : {}),
+              }
+              await emit(BUILTIN_RENDERER_APPLIED_EVENT, ack)
+            })
+            .catch((error: unknown) => {
+              console.warn('[pet] built-in renderer apply failed', error)
+              if (requestId === '') return
+              void emit(BUILTIN_RENDERER_APPLIED_EVENT, {
+                requestId,
+                ok: false,
+                message: '桌宠窗口切换渲染器时发生错误',
+              } satisfies BuiltinRendererApplyResult).catch(() => {
+                /* best effort ack; the content window times out to a rollback anyway */
+              })
+            })
+        })
+      })
+      .catch((error: unknown) => {
+        console.warn('[pet] built-in renderer bridge unavailable', error)
       })
   }
 
@@ -790,10 +985,12 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
   function applyHeroLocomotion(dtMs: number): void {
     const canvas = heroCanvasEl
     if (!canvas || !hero) return
+    // Live built-in character (MB-041): a hot-switched dog/cat must still walk;
+    // HERO_CONFIG.character is only the boot-time snapshot.
     const canMove =
       activeCharacterPackKind !== null
         ? activeCharacterPackKind === 'cat' || activeCharacterPackKind === 'dog'
-        : HERO_CONFIG.character === 'cat' || HERO_CONFIG.character === 'dog'
+        : heroSceneBuiltin && (liveBuiltinCharacter === 'cat' || liveBuiltinCharacter === 'dog')
     const actorId = hero.actors[0]?.id
     const tag = actorId ? hero.actorFrame(actorId, heroSceneNow)?.tag : undefined
     const moving = canMove && (tag === 'run' || tag === 'ball_chase')
@@ -844,6 +1041,61 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
     return hero !== null && heroCanvasEl !== null && heroCtx !== null && heroStageSize !== null
   }
 
+  /**
+   * Attach the canvas pointer path + the visibility loop park/resume listener.
+   * Only called after a scene actually committed (a failed boot must leave the
+   * canvas without listeners, as the flag-off/fallback tests assert).
+   */
+  function ensureHeroInteractions(canvas: HTMLCanvasElement): void {
+    if (!heroPointerAttached) {
+      heroPointerAttached = true
+      attachHeroPointer(canvas)
+    }
+    if (!heroVisibilityWired) {
+      heroVisibilityWired = true
+      document.addEventListener('visibilitychange', () => {
+        if (!hero) return
+        if (document.visibilityState === 'hidden') stopHeroLoop()
+        else startHeroLoop()
+      })
+    }
+  }
+
+  /**
+   * Acquire the shared hero canvas/2D context/stage + DPR once (idempotent).
+   * Booted pages call it from startHeroPage; E4 MB-041 also calls it when a
+   * folded-paper page hot-switches to a hero character it never booted at load.
+   * It does NOT start a runtime or attach listeners (the first-frame gate and
+   * ensureHeroInteractions own those).
+   */
+  function mountHeroView():
+    | { readonly ok: true; readonly canvas: HTMLCanvasElement; readonly ctx: CanvasRenderingContext2D }
+    | { readonly ok: false; readonly reason: string } {
+    if (heroCanvasEl !== null && heroCtx !== null && heroStageSize !== null) {
+      return { ok: true, canvas: heroCanvasEl, ctx: heroCtx }
+    }
+    const stage = document.getElementById('hero-stage')
+    const canvas = document.getElementById('hero-canvas') as HTMLCanvasElement | null
+    if (!stage || !canvas) return { ok: false, reason: 'hero-stage/hero-canvas missing from pet.html' }
+    let ctx: CanvasRenderingContext2D | null = null
+    try {
+      ctx = canvas.getContext('2d')
+    } catch {
+      ctx = null
+    }
+    if (!ctx) return { ok: false, reason: 'hero canvas has no 2d context' }
+    const book = document.querySelector('.book')
+    const rect = book?.getBoundingClientRect()
+    heroStageSize = {
+      width: rect?.width ?? windowLike.innerWidth,
+      height: rect?.height ?? windowLike.innerHeight,
+    }
+    const dpr = clampHeroDevicePixelRatio(windowLike.devicePixelRatio)
+    heroDpr = dpr
+    heroCanvasEl = canvas
+    heroCtx = ctx
+    return { ok: true, canvas, ctx }
+  }
 
   /**
    * Hot-swap the live hero scene to one character-pack bundle (task-111), or to
@@ -859,6 +1111,13 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
   async function hotSwapHeroCharacterPack(
     bundle: HeroCharacterBundle,
     identity: HeroCharacterPackIdentity | null,
+    /**
+     * Built-in character to render when `identity` is null (E4 MB-041). Defaults
+     * to the live character: the public `hotSwap(bundle, null)` restore path and
+     * the existing tests keep their exact contract, while a live dog/cat/humanoid
+     * switch passes the requested character explicitly.
+     */
+    builtinCharacter?: HeroCharacterId,
   ): Promise<{ ok: true } | { ok: false; reason: string }> {
     const canvas = heroCanvasEl
     const ctx = heroCtx
@@ -866,6 +1125,7 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
     if (canvas === null || ctx === null || stage === null) {
       return { ok: false, reason: 'hero-renderer-not-running' }
     }
+    const targetBuiltin = builtinCharacter ?? liveBuiltinCharacter
     // Re-measure the book stage: the window may have been resized since boot.
     const book = document.querySelector('.book')
     const rect = book?.getBoundingClientRect()
@@ -873,9 +1133,10 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
       rect !== undefined && rect !== null && rect.width > 0 && rect.height > 0
         ? { width: rect.width, height: rect.height }
         : stage
-    // Idempotent: the requested pack (or the built-in scene) is already live.
+    // Idempotent: the requested pack (or the requested built-in character) is
+    // already live. A built-in hot switch to ANOTHER character must rebuild.
     if (identity === null) {
-      if (heroSceneBuiltin) return { ok: true }
+      if (heroSceneBuiltin && hero !== null && liveBuiltinCharacter === targetBuiltin) return { ok: true }
     } else if (
       !heroSceneBuiltin &&
       activeCharacterPackId !== null &&
@@ -908,11 +1169,12 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
         }
       }
     }
+    const configCharacter = identity === null ? targetBuiltin : HERO_CONFIG.character
     const config: HeroConfig = {
       enabled: true,
       reason: 'query-on',
-      character: HERO_CONFIG.character,
-      actors: [HERO_CONFIG.character],
+      character: configCharacter,
+      actors: [configCharacter],
       ...(HERO_CONFIG.scale !== undefined ? { scale: HERO_CONFIG.scale } : {}),
     }
     let result: Awaited<ReturnType<typeof startHeroRuntime>>
@@ -939,6 +1201,7 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
     // Commit only after the first-frame gate succeeded.
     hero = result.runtime
     heroSceneBuiltin = identity === null
+    if (identity === null) liveBuiltinCharacter = targetBuiltin
     activeCharacterPackId = identity === null ? null : { packId: identity.packId, version: identity.version }
     activeCharacterPackKind = identity === null ? null : identity.kind
     heroSceneNow = 0
@@ -977,6 +1240,7 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
       reason: identity === null ? 'builtin' : 'character-pack:' + identity.packId + '@' + identity.version,
     })
     setHeroPlaceholder(heroPlaceholderView('ready'))
+    ensureHeroInteractions(canvas)
     requestScaleRefit()
     startHeroLoop()
     return { ok: true }
@@ -1000,7 +1264,9 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
     }
     let bundle: HeroCharacterBundle
     try {
-      bundle = await loadBundle(HERO_CONFIG.character)
+      // Restore the LIVE built-in character (E4 MB-041): after a live built-in
+      // switch the shipped scene is no longer HERO_CONFIG.character.
+      bundle = await loadBundle(liveBuiltinCharacter)
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error)
       heroSceneBuiltin = true
@@ -1017,7 +1283,96 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
       fallbackHero('character-pack-restore-failed: ' + swapped.reason)
       return { ok: true, message: '已回退折叠纸内置外观（内置 hero 场景重建失败）。' }
     }
-    return { ok: true, message: '已恢复内置 hero 角色「' + HERO_CONFIG.character + '」。' }
+    return { ok: true, message: '已恢复内置 hero 角色「' + liveBuiltinCharacter + '」。' }
+  }
+
+  /**
+   * Live built-in renderer switch (E4 MB-041).
+   *
+   * `origami` returns to the folded-paper DOM; a hero character atomically
+   * replaces the scene with that character's SHIPPED bundle — even when the page
+   * booted in folded-paper mode (hero flag off) and never acquired the canvas.
+   * The engine's first-frame gate decides: on any failure the previous appearance
+   * keeps rendering and nothing is committed here (no storage write, no reload).
+   */
+  async function switchBuiltinRenderer(choice: BuiltinRendererChoice): Promise<BuiltinRendererSwapResult> {
+    if (choice === 'origami') return switchToFoldedPaper()
+    return switchToBuiltinCharacter(choice)
+  }
+
+  /** Return to the folded-paper DOM without persisting or reloading. */
+  function switchToFoldedPaper(): BuiltinRendererSwapResult {
+    if (hero === null) {
+      // Already folded paper: keep the DOM appearance honest and idempotent.
+      delete document.documentElement.dataset.petRender
+      setHeroPlaceholder(heroPlaceholderView('disabled'))
+      setHeroStatus({ enabled: false, ok: false, reason: 'origami' })
+      return { ok: true, message: '折纸内置外观已在显示。' }
+    }
+    stopHeroLoop()
+    try {
+      hero.dispose()
+    } catch {
+      // A leaked scene must not block returning to the built-in folded paper.
+    }
+    hero = null
+    const canvas = heroCanvasEl
+    if (canvas !== null) {
+      canvas.style.translate = ''
+      canvas.style.scale = ''
+      canvas.style.transform = ''
+      delete canvas.dataset.heroFlip
+      delete canvas.dataset.heroRenderKey
+      delete canvas.dataset.heroFrameKey
+      canvas.classList.remove('dragging')
+    }
+    heroMove.offset = 0
+    heroMove.active = false
+    heroSceneBuiltin = true
+    activeCharacterPackId = null
+    activeCharacterPackKind = null
+    const stage = document.getElementById('hero-stage')
+    if (stage) (stage as HTMLElement).hidden = true
+    delete document.documentElement.dataset.petRender
+    delete document.documentElement.dataset.characterPack
+    delete document.documentElement.dataset.heroCanvas
+    delete document.documentElement.dataset.heroScale
+    delete document.documentElement.dataset.heroDpr
+    setHeroPlaceholder(heroPlaceholderView('disabled'))
+    setHeroStatus({ enabled: false, ok: false, reason: 'origami' })
+    return { ok: true, message: '已切回折纸内置外观（无需刷新）。' }
+  }
+
+  /** Load + atomically hot-swap one SHIPPED hero character (no persistence). */
+  async function switchToBuiltinCharacter(character: HeroCharacterId): Promise<BuiltinRendererSwapResult> {
+    // Only the three shipped built-in characters are exempt from the per-load
+    // full-TOS gate (`isBuiltinCharacterId`); never let a forged/typed id turn
+    // this hot-swap path into a consent-free DLC loader.
+    if (!isBuiltinCharacterId(character) || character === 'tinglan') {
+      return { ok: false, reason: 'unsupported-builtin-character: ' + String(character) }
+    }
+    // Same LIVE built-in character: nothing to load or rebuild (idempotent click).
+    if (hero !== null && heroSceneBuiltin && activeCharacterPackId === null && liveBuiltinCharacter === character) {
+      return { ok: true, message: '内置 hero 角色「' + character + '」已在显示。' }
+    }
+    const mounted = mountHeroView()
+    if (!mounted.ok) return { ok: false, reason: 'hero-renderer-not-running: ' + mounted.reason }
+    let bundle: HeroCharacterBundle
+    try {
+      bundle = await loadBundle(character)
+    } catch (error) {
+      return {
+        ok: false,
+        reason: 'builtin-load-failed: ' + (error instanceof Error ? error.message : String(error)),
+      }
+    }
+    // A page that booted in folded paper never ran the night check; capture it
+    // here so the first live scene starts in the same day/night mood as boot.
+    const hour = new Date().getHours()
+    heroNight = hour >= 23 || hour < 6
+    const swapped = await hotSwapHeroCharacterPack(bundle, null, character)
+    if (!swapped.ok) return { ok: false, reason: swapped.reason }
+    return { ok: true, message: '已切换到内置 hero 角色「' + character + '」（无需刷新）。' }
   }
 
   /** Pointer → hero events. A real drag (>6 px) in the Tauri window starts the
@@ -1244,25 +1599,20 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
       setHeroPlaceholder(heroPlaceholderView('ready'))
       return
     }
-    const canvas = document.getElementById('hero-canvas') as HTMLCanvasElement | null
     try {
-      if (!stage || !canvas) throw new Error('hero-stage/hero-canvas missing from pet.html')
-      const ctx = canvas.getContext('2d')
-      if (!ctx) throw new Error('hero canvas has no 2d context')
-      const book = document.querySelector('.book')
-      const rect = book?.getBoundingClientRect()
+      // MB-041: the canvas/context/stage/DPR acquisition is shared with the live
+      // folded-paper → hero hot switch, so both paths cannot drift.
+      const mounted = mountHeroView()
+      if (!mounted.ok) throw new Error(mounted.reason)
+      const { canvas, ctx } = mounted
       const hour = new Date().getHours()
       const night = hour >= 23 || hour < 6
-      const stageSize = { width: rect?.width ?? windowLike.innerWidth, height: rect?.height ?? windowLike.innerHeight }
-      // DPR is clamped (1-3): a fake/very high DPR must not allocate a huge
-      // backing store. The same helper re-captures it on runtime DPI changes.
-      const dpr = clampHeroDevicePixelRatio(windowLike.devicePixelRatio)
       const runtimeOptions = {
         config: HERO_CONFIG,
         canvas,
         ctx,
-        stage: stageSize,
-        dpr,
+        stage: heroStageSize ?? { width: windowLike.innerWidth, height: windowLike.innerHeight },
+        dpr: heroDpr,
         sleeping: night,
       }
       // P1-4: a non-built-in hero character (e.g. ?character=tinglan, which is a
@@ -1293,11 +1643,8 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
         return
       }
       hero = result.runtime
-      heroCanvasEl = canvas
-      heroCtx = ctx
+      // heroCanvasEl/heroCtx/heroStageSize/heroDpr were captured by mountHeroView().
       heroNight = night
-      heroStageSize = stageSize
-      heroDpr = dpr
       runtimeViewportDirty = false
       // MB-046: start watching monitor/DPI changes now that a canvas exists.
       ensureRuntimeViewportWatch()
@@ -1306,10 +1653,11 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
       heroSceneBuiltin = true
       activeCharacterPackId = null
       activeCharacterPackKind = null
-      attachHeroPointer(canvas)
+      liveBuiltinCharacter = HERO_CONFIG.character
+      ensureHeroInteractions(canvas)
       // Atomic switch only after the first frame succeeded: unhide the stage,
       // then hide `#pet` via CSS (rect kept); the bubble/buttons keep working.
-      stage.hidden = false
+      if (stage) stage.hidden = false
       document.documentElement.dataset.petRender = 'hero'
       // MB-050: the desktop shell may have applied the hero fit before this
       // canvas had a layout size (the stage was hidden and the canvas CSS size
@@ -1325,11 +1673,6 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
       setHeroStatus(heroStatus(HERO_CONFIG, result))
       setHeroPlaceholder(heroPlaceholderView('ready'))
       heroSceneNow = 0
-      document.addEventListener('visibilitychange', () => {
-        if (!hero) return
-        if (document.visibilityState === 'hidden') stopHeroLoop()
-        else startHeroLoop()
-      })
       startHeroLoop()
       // task-111: re-apply the persisted character-pack appearance WITHOUT a page
       // reload. The content runtime may still be loading; the call awaits it, then
@@ -1352,6 +1695,11 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
   // Public API
   // -------------------------------------------------------------------------
 
+  // Pet window (MB-041): install the remote built-in renderer bridge once when
+  // main.ts wires the local handler (production). Tests/embeds omit the handler.
+  const remoteBuiltinApply = deps.applyRemoteBuiltinRenderer
+  if (remoteBuiltinApply !== undefined) installRemoteBuiltinRendererBridge(remoteBuiltinApply)
+
   return {
     startPage: startHeroPage,
     restoreBuiltin: restoreBuiltinHero,
@@ -1371,6 +1719,10 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
     activePackIdentity: () => activeCharacterPackId,
     activePackKind: () => activeCharacterPackKind,
     scene,
+    switchBuiltinRenderer,
+    builtinRenderer,
+    requestRemoteBuiltinRenderer: (choice: BuiltinRendererChoice) =>
+      requestRemoteBuiltinRenderer(choice, { hasTauri: HAS_TAURI, contentShell: CONTENT_SHELL }),
     installWindowLayout,
     saveWindowPosition,
     restoreWindowPosition,
