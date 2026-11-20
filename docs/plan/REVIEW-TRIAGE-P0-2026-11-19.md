@@ -291,7 +291,7 @@
 
 #### 10. QA-P0-1 GUI/E2E 无数据隔离，可删真实存档
 - **原文要求**：`DG_QA_DATA_DIR` override；`--reset-saves` 仅 QA env/仅 json 槽位；E2E 强制临时目录 + 真实 appdata 前后哈希断言；插件 GUI 临时 DSH_HOME；清理 941 个残留 profile。
-- **现状（A/B）**：**未变**：`app/tauri/src-tauri/src/main.rs:952-959` 对 `app_data_dir()/saves` 整目录 `read_dir` + 全部 `remove_file`；全仓 `DG_QA_DATA_DIR|app_directories_override` 只在文档命中（源码 0）；`scripts/cdp-launch.ps1:20` 只隔离 WebView2 profile，仍硬编码 `D:\...`；`scripts/e2e-tauri.ps1` 仍多处 `-ResetSaves`。11-19 09:55–09:58 已发生真实 `pet.json` 被探针改写且原内容不可还原（评审引用审计文档）。
+- **现状（A/B）**：**未变**：`app/tauri/src-tauri/src/main.rs:952-959` 对 `app_data_dir()/saves` 整目录 `read_dir` + 全部 `remove_file`；全仓 `DG_QA_DATA_DIR|app_directories_override` 只在文档命中（源码 0）；`scripts/cdp-launch.ps1:20` 只隔离 WebView2 profile，仍硬编码 `<private-path>`；`scripts/e2e-tauri.ps1` 仍多处 `-ResetSaves`。11-19 09:55–09:58 已发生真实 `pet.json` 被探针改写且原内容不可还原（评审引用审计文档）。
 - **裁定**：**P0**（唯一已实际发生的用户数据损失风险）。
 - **归并**：`E1-T1`。
 - **验收**：① `DG_QA_DATA_DIR` 生效（单测 + 启动日志打印 QA data dir 绝对路径；生产不设即零影响）；② 未设置该 env 时 `--reset-saves` **拒绝执行并报错**；③ 连续 3 次 E2E smoke 后真实 `%APPDATA%/com.perrylink.desktopgames` 文件清单 + 哈希不变（脚本内断言）；④ `--reset-saves` 只删 `*.json/*.json.tmp/*.json.bak`（复用已有 `delete_save` 精确实现）；⑤ 插件 GUI 用 `mkdtemp` 的 DSH_HOME；⑥ artifacts 941 个 profile 清理脚本 dry-run 先打印绝对路径。
@@ -593,7 +593,7 @@ E7-T5 托盘 + 单实例（P2，依赖 E5-T5 身份与 Windows CI）
 
 ```bash
 # 当前快照
-cd /mnt/d/Projects/dsh/desktop-games
+cd <private-path>
 git log -3 --format='%h %ad %s' --date=iso-strict
 git remote -v; git tag | wc -l
 
@@ -625,7 +625,7 @@ sed -n '2066,2087p' src/pet/main.ts
 sed -n '2451,2472p' src/pet/main.ts
 
 # 插件
-cd /mnt/d/Projects/dsh/plugins/dsh-famling
+cd <private-path>
 git rev-parse --show-toplevel 2>/dev/null || echo NOT_A_GIT_REPO
 ls .github 2>/dev/null || echo NO_CI
 grep -nE 'embed-anims|desktop-games' scripts/embed-anims.mjs | head

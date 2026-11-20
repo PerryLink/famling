@@ -44,11 +44,18 @@ import {
   type ScaleSettings,
 } from './scaling.ts'
 import {
+  AMBIENT_CADENCES,
+  AMBIENT_CADENCE_PLANS,
+  formatRemainingMinutes,
   isValidClockText,
+  normalizeAmbientCadence,
   normalizeQuietHours,
   quietHoursSummary,
+  readAmbientCadence,
   readQuietHours,
+  writeAmbientCadence,
   writeQuietHours,
+  type AmbientCadence,
   type QuietHoursSettings,
 } from './low-disturb.ts'
 import {
@@ -560,6 +567,22 @@ export interface DesktopShellOptions {
    * already persisted the normalized value when this fires.
    */
   readonly onQuietHoursChange?: (settings: QuietHoursSettings) => void
+  /**
+   * 待机节奏 (idle ambient cadence, C1 2026-11-21). main.ts supplies the live
+   * getter (so a cross-window change is reflected) and mirrors every persisted
+   * change back into the hero scene. Absent handlers keep the control visible
+   * but only persisted (dev pages never fake a live scene).
+   */
+  readonly getAmbientCadence?: () => AmbientCadence
+  readonly onAmbientCadenceChange?: (cadence: AmbientCadence) => void
+  /**
+   * 一起工作 focus session (C1): the current session (null when idle) plus the
+   * explicit start (25/50 min) and early-end entries. Session-scoped persistence
+   * and the completion timer live in main.ts; the shell only renders the menu.
+   */
+  readonly getWorkSession?: () => { readonly minutes: 25 | 50; readonly remainingMs: number } | null
+  readonly onWorkSessionStart?: (minutes: 25 | 50) => void
+  readonly onWorkSessionEnd?: () => void
 }
 
 /** Element handles for the #pet-settings dialog (built once per init). */
@@ -575,6 +598,8 @@ interface SettingsDom {
   readonly quietEnabled: HTMLInputElement
   readonly quietStart: HTMLInputElement
   readonly quietEnd: HTMLInputElement
+  /** 安静 → 待机节奏 three-level select (C1). */
+  readonly ambientCadence: HTMLSelectElement
   /** 常用 → 整体缩放 (all content together). */
   readonly globalScale: HTMLInputElement
   readonly globalValue: HTMLElement
@@ -1199,6 +1224,29 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
   }
   applyQuietHours(quietHours, false)
 
+  // ------------------------------------------------------------------
+  // 待机节奏 / idle ambient cadence (C1 2026-11-21)
+  // ------------------------------------------------------------------
+  // Persisted cross-restart. Quiet hours / 一起工作 / Advisers pose override it
+  // at runtime in main.ts (hero-page.ts applies the effective plan); this shell
+  // writes the preference and mirrors every change back to main.ts.
+  let ambientCadence = normalizeAmbientCadence(readAmbientCadence())
+  const currentAmbientCadence = (): AmbientCadence =>
+    normalizeAmbientCadence(options.getAmbientCadence?.() ?? ambientCadence)
+  const applyAmbientCadence = (next: unknown, persist = true): AmbientCadence => {
+    ambientCadence = persist ? writeAmbientCadence(next) : normalizeAmbientCadence(next)
+    if (persist) {
+      try {
+        options.onAmbientCadenceChange?.(ambientCadence)
+      } catch {
+        /* the preference is already saved; a listener failure must not undo it */
+      }
+      refreshSettings()
+    }
+    return ambientCadence
+  }
+  applyAmbientCadence(ambientCadence, false)
+
   // E6 MB-067: there is no dev/E2E entry in the product at all. ?shell=window is
   // an internal dev URL for the legacy full-page layout (it still works when a
   // developer types it) but no shipped surface links to it.
@@ -1440,6 +1488,18 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
       // group; this deep-link is the discoverable "更多" entry (the product
       // keeps zero always-on chrome around the character).
       add('夜间安静 / 健康提醒 / AI 标识…', () => { openSettingsSurface('pet-settings-quiet-enabled') }, '', 'menu/U-MENU-07a_32x32.png')
+      addHeading('一起工作 / 专注（可选）')
+      // C1 一起工作: a 25/50 min focus session only lowers the idle cadence. No
+      // streak days, no record, no penalty: ending early simply discards it and
+      // the 2h health reminder is independent (it keeps its own timer).
+      const session = options.getWorkSession?.() ?? null
+      if (session) {
+        addHeading('一起工作：剩余 ' + formatRemainingMinutes(session.remainingMs) + '（' + session.minutes + ' 分钟档）')
+        add('提前结束一起工作（不记录）', () => { options.onWorkSessionEnd?.() })
+      } else {
+        add('一起工作 25 分钟', () => { options.onWorkSessionStart?.(25) })
+        add('一起工作 50 分钟', () => { options.onWorkSessionStart?.(50) })
+      }
       addHeading('关于 / 声明 / 数据控制')
       add('关于与声明（完整 TOS/免责声明/数据控制）…', openAboutPanel, '', 'menu/U-MENU-09a_32x32.png')
       // 2026-11-17 user decision: roleplay is NOT a public gameplay/selling point
@@ -1787,6 +1847,7 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
     settingsDom.quietEnabled.checked = quietHours.enabled
     settingsDom.quietStart.value = quietHours.start
     settingsDom.quietEnd.value = quietHours.end
+    settingsDom.ambientCadence.value = currentAmbientCadence()
 
     // 常用 → 整体缩放 (all content together).
     settingsDom.globalScale.value = String(scaleSettings.global)
@@ -2179,9 +2240,35 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
       settingsStatus('安静结束时间已保存：' + quietHoursSummary(next) + '。')
     })
     quietTimes.append(quietStartLabel, quietStartInput, quietEndLabel, quietEndInput)
+    // 待机节奏 (C1): the three-level ambient cadence selector. Persisted here;
+    // main.ts applies it live to the hero scene (quiet hours/一起工作 downgrade).
+    const cadenceField = field('pet-settings-field pet-settings-quiet-field')
+    const cadenceLabel = makeElement(docRef, 'label', 'pet-settings-label', '待机节奏')
+    cadenceLabel.setAttribute('for', 'pet-settings-ambient-cadence')
+    const cadenceSelect = makeElement(docRef, 'select', 'pet-settings-select')
+    cadenceSelect.id = 'pet-settings-ambient-cadence'
+    for (const cadence of AMBIENT_CADENCES) {
+      const optionEl = docRef.createElement('option')
+      optionEl.value = cadence
+      optionEl.textContent = AMBIENT_CADENCE_PLANS[cadence].label
+      cadenceSelect.append(optionEl)
+    }
+    cadenceSelect.value = currentAmbientCadence()
+    cadenceSelect.addEventListener('change', () => {
+      const next = applyAmbientCadence(cadenceSelect.value)
+      cadenceSelect.value = next
+      const plan = AMBIENT_CADENCE_PLANS[next]
+      settingsStatus('待机节奏已保存：' + plan.label + '。' + plan.description + '夜间安静 / 一起工作期间会自动降档。')
+    })
+    cadenceField.append(
+      cadenceLabel,
+      cadenceSelect,
+      note('活泼约 4–10 秒、正常约 60–90 秒一个待机微动作；安静不做额外待机微动作，只保留呼吸循环与低频眨眼。夜间安静时段与「一起工作」期间会自动降档。'),
+    )
     calm.append(
       quietCheck.wrap,
       quietTimes,
+      cadenceField,
       note('安静时段当前：' + quietHoursSummary(quietHours) + '。与「安静」对话模式叠加生效。'),
       note('健康使用：连续使用每 2 小时提醒一次；提醒只有「休息一下（2 小时后仍会提醒）」和「10 分钟后再提醒」，不能永久关闭。页面隐藏/切到游戏窗口/重启都不清零。'),
       note('AI 标识：每次 AI 回复与语音播放时，气泡旁显示「AI 生成 · 不是真人」/「AI 语音 · 合成（不是真人）」，不只写在关于页。'),
@@ -2392,6 +2479,7 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
       quietEnabled: quietCheck.input,
       quietStart: quietStartInput,
       quietEnd: quietEndInput,
+      ambientCadence: cadenceSelect,
       globalScale: globalScaleRow.input,
       globalValue: globalScaleRow.value,
       resetScales: resetScalesButton,

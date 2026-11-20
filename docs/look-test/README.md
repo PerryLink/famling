@@ -21,7 +21,7 @@ The HTML looks for `pearl-hero-96.png` first; if missing, it shows the SVG place
 
 No server needed:
 
-1. Open `mock-480x272.html` directly in a browser (`file://...`).
+1. Open `mock-480x272.html` directly in a browser (`fil<private-path>`).
 2. Or serve this folder if your browser blocks local files:
 
 ```sh

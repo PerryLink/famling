@@ -42,7 +42,7 @@
 
 ## 2. Tauri 2.12 机制研究（本地 crate 源码 + 官方文档）
 
-本机依赖版本（`app/tauri/src-tauri/Cargo.lock`）：`tauri 2.12.5`、`tauri-build 2.7.4`、`tauri-utils 2.10.2`。源码证据取自 Windows 侧 Cargo registry（`C:/Users/zzhdz/.cargo/registry/src/index.crates.io-*/`，只读，未写入/未改凭据）。
+本机依赖版本（`app/tauri/src-tauri/Cargo.lock`）：`tauri 2.12.5`、`tauri-build 2.7.4`、`tauri-utils 2.10.2`。源码证据取自 Windows 侧 Cargo registry（`<private-path>/.cargo/registry/src/index.crates.io-*/`，只读，未写入/未改凭据）。
 
 ### 2.1 默认全开与 `AppManifest::commands`
 
@@ -221,7 +221,7 @@ task-43 在 `main.rs` 新增 4 个 `#[tauri::command]`：`record_host_consent`�
 
 ### 4.4 运行时窗口矩阵（Windows WebView2 + CDP 实测）
 
-探针（未入库，位于共享 scratch）：`D:/Projects/dsh/_scratch/tauri-acl-verify-2026-11-19/`
+探针（未入库，位于共享 scratch）：`<private-path>/tauri-acl-verify-2026-11-19/`
 
 - `probe-acl.mjs`：连 CDP `127.0.0.1:9333`，在页面上下文执行 `window.__TAURI_INTERNALS__.invoke(cmd, args)`；把「ok 或非 ACL 业务错误」判为 **allowed**（命令确实执行到了业务层），把 ACL 拒绝文案判为 **denied**。
 - `run-acl-probe.ps1`：逐个启动 release exe（每个模式独立 WebView2 profile + `--packs-dir`），等待 7 s 后跑探针，再 taskkill；结果写 `runtime-acl-results-final.json`。
@@ -306,8 +306,8 @@ npm run typecheck
 npm test
 
 # 4) 运行时窗口矩阵探针（需要 Windows WebView2；脚本在共享 scratch）
-powershell -NoProfile -ExecutionPolicy Bypass -File D:/Projects/dsh/_scratch/tauri-acl-verify-2026-11-19/run-acl-probe.ps1
-# 结果: D:/Projects/dsh/_scratch/tauri-acl-verify-2026-11-19/runtime-acl-results-final.json
+powershell -NoProfile -ExecutionPolicy Bypass -File <private-path>/tauri-acl-verify-2026-11-19/run-acl-probe.ps1
+# 结果: <private-path>/tauri-acl-verify-2026-11-19/runtime-acl-results-final.json
 ```
 
 ACL 生成物人工核对（任选）：
@@ -387,10 +387,10 @@ test('tauri.conf.json enables exactly the intended capabilities', () => {
 - `app/tauri/src-tauri/gen/schemas/acl-manifests.json`：`__app-acl__` 46 权限。
 - `app/tauri/src-tauri/gen/schemas/capabilities.json`：7 capability；grant 数 0/17/5/4/4/6/6。
 - 本机证据（未入库，共享 scratch，可复核）：
-  - `D:/Projects/dsh/_scratch/tauri-acl-verify-2026-11-19/cargo-check.log`（含两次负向实验的完整报错）
-  - `D:/Projects/dsh/_scratch/tauri-acl-verify-2026-11-19/probe-acl.mjs`、`run-acl-probe.ps1`
-  - `D:/Projects/dsh/_scratch/tauri-acl-verify-2026-11-19/runtime-acl-results-final.json`（7 模式 × 121 断言全部 pass）
-  - `D:/Projects/dsh/_scratch/tauri-acl-verify-2026-11-19/runtime-acl-results-run1-held-farm.json`（第一轮：farm 被 consent 门暂扣 + 缺 custom-protocol 的失败记录）
+  - `<private-path>/tauri-acl-verify-2026-11-19/cargo-check.log`（含两次负向实验的完整报错）
+  - `<private-path>/tauri-acl-verify-2026-11-19/probe-acl.mjs`、`run-acl-probe.ps1`
+  - `<private-path>/tauri-acl-verify-2026-11-19/runtime-acl-results-final.json`（7 模式 × 121 断言全部 pass）
+  - `<private-path>/tauri-acl-verify-2026-11-19/runtime-acl-results-run1-held-farm.json`（第一轮：farm 被 consent 门暂扣 + 缺 custom-protocol 的失败记录）
 
 ## 附录 C：关键文件 Sha256（2026-11-19 09:40 工作树）
 

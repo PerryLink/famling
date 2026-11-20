@@ -512,7 +512,7 @@
 ## 附录 B：复核命令（只读）
 
 ```sh
-cd /mnt/d/Projects/dsh/desktop-games
+cd <private-path>
 git rev-parse --short HEAD && git status --short
 grep -n 'SHELL_MENU_ROOT_ACTIONS' -A 3 src/pet/desktop-shell.ts
 grep -n 'resolveShowMenuButton\|SHOW_MENU_BUTTON_KEY' -A 6 src/pet/desktop-shell.ts
@@ -523,9 +523,9 @@ grep -n 'content-hub-panel\|content-hub-body\|content-hub-card-meta' -A 6 src/pe
 grep -n 'startHealthReminder\|visibilityState' src/pet/consent/runtime.ts
 grep -n 'role="alert"\|aria-live' src/pet/consent/modal.ts | head -10
 grep -n '12356' src/pet/safety/disclosure.ts
-grep -rn 'ctx.llm.stream' /mnt/d/Projects/dsh/plugins/dsh-famling/index.js
-grep -n 'aiNotice\|不提供自由' /mnt/d/Projects/dsh/plugins/dsh-famling/client.js
-grep -n '0.8.5' /mnt/d/Projects/dsh/plugins/dsh-famling/docs/LEGAL-NOTICE-2026-11-18.md
+grep -rn 'ctx.llm.stream' <private-path>
+grep -n 'aiNotice\|不提供自由' <private-path>
+grep -n '0.8.5' <private-path>
 ```
 
 ## 附录 C：与其它 triage 的分工（含并发产物的对齐）

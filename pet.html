@@ -1,5 +1,18 @@
 <!doctype html>
-<html lang="zh-CN">
+<!--
+  First-frame paint (perf P0, 2026-11-21): the installed Tauri pet window is a
+  480x336 transparent always-on-top surface, and pet.css paints the DESKTOP shell
+  (transparent html/body, folded pet only) only under html[data-pet-shell="desktop"].
+  The runtime module used to be the only writer of that attribute, so the built
+  page painted the dark full-page layout for the first frame(s) before the JS
+  bundle executed -> a dark flash in a transparent window on every launch.
+  The attribute therefore ships statically here. It is the installed window's
+  own mode (tauri.conf.json opens pet.html with no query): desktop-shell.ts still
+  overrides it to "window" for the internal ?shell=window dev/E2E layout (and the
+  content window flips to html[data-content-window="1"]), so no JS path loses its
+  mode - only the pre-JS frame stops being dark.
+-->
+<html lang="zh-CN" data-pet-shell="desktop">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />

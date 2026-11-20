@@ -2,7 +2,7 @@
 
 Status: **研究/内容设计稿（只写文档；未改代码、JSON、资产）**。
 
-- 服务对象：famling（`/mnt/d/Projects/dsh/desktop-games`）与 `dsh-famling` 插件（`/mnt/d/Projects/dsh/plugins/dsh-famling`）。
+- 服务对象：famling（`<private-path> `dsh-famling` 插件（`<private-path>
 - 目标：给出可直接落 `public/characters/{pet-dog,pet-cat,pet-tinglan-anim}/regions.json` 的 `actions` / `gestures.says` 中文文案，并给出待机微动作、冷却、出现频率、时段、情绪变化与防重复的**数据化节奏参数**；同时明确哪些字段现在能落、哪些必须先改运行时。
 - 约束：只使用现有 12 个 clip（idle、idle_blink、walk、run、pat_head、ball_throw、ball_chase、paw_face、scratch、stand_wag、chase_tail、attack）；不新增动画；猫狗永不 TTS；人形语音受既有语音闸门约束。
 - 基线：2026-11-18 23:30 前后工作区快照。**注意**：`dsh-famling-interactions` 等任务正在并发修改 `regions.json` / `behavior.json` / `client.js`，本文以 `src/pet/anim/regions.ts`、`src/pet/main.ts`、`src/pet/anim/bubbles.ts`、设计文档与 canon 为契约基准，涉及行号/权重时只作“当轮实测”，实现时以最新工作区为准。

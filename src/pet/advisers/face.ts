@@ -62,7 +62,7 @@ import {
   type PetBriefWarning,
 } from '../../presence/pet-brief.ts'
 import { PresenceProjector } from '../../presence/projector.ts'
-import type { PetDirective } from '../../presence/types.ts'
+import { DEFAULT_PRESENCE_POLICY, type PetDirective, type PresencePolicy } from '../../presence/types.ts'
 
 export type AdvisersFaceReason =
   | 'disabled'
@@ -229,6 +229,12 @@ export interface AdvisersFaceOptions {
    * `consent-required`. Defaults to true for pure controller unit tests.
    */
   isReadAllowed?: () => boolean
+  /**
+   * User quiet-hours predicate (C1 2026-11-21). main.ts injects the persisted
+   * setting; absent keeps the historical fixed 22:00–08:00 policy for unit tests
+   * and other callers.
+   */
+  quietHoursActive?: (at: Date) => boolean
 }
 
 /** Browser / non-Tauri mode. Kept as a named class so tests can classify it. */
@@ -475,7 +481,15 @@ export class AdvisersFaceController {
 
   constructor(options: AdvisersFaceOptions = {}) {
     this.options = options
-    this.projector = new PresenceProjector(options.now ?? (() => Date.now()))
+    // C1 2026-11-21: the built-in 22:00–08:00 presence policy is only the
+    // fallback. When the host supplies the user's persisted quiet-hours setting
+    // the projector uses that window (disabled / custom hours stay in sync with
+    // the character's low-disturb rules).
+    const policy: PresencePolicy =
+      options.quietHoursActive === undefined
+        ? DEFAULT_PRESENCE_POLICY
+        : { ...DEFAULT_PRESENCE_POLICY, quietAt: (at: number) => options.quietHoursActive!(new Date(at)) }
+    this.projector = new PresenceProjector(options.now ?? (() => Date.now()), policy)
   }
 
   private now(): number {

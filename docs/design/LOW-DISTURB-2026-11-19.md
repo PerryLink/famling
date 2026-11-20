@@ -4,7 +4,7 @@
 |---|---|
 | 任务 | task-84（E7 / MB-070 quiet hours、MB-071 reduce-motion、MB-072 2h 健康提醒、MB-076 AI 标识） |
 | 输入评审 | PSY-P0-1（残项）、PSY-P1-3（画布 reduced-motion）、PSY-P1-5（2h 提醒）、PSY-P1-7（情感文案/夜间）、PSY-P1-8（插件低打扰，插件侧不在本仓）；REVIEW-TRIAGE-UX 的 Q-01/Q-03/Q-04、C-11 |
-| 范围 | 仅 /mnt/d/Projects/dsh/desktop-games（famling 桌面壳 + pet 页 + aquarium/stall/town/world 游戏页）；不改 plugins/dsh-famling，不 commit/push |
+| 范围 | 仅 <private-path> 桌面壳 + pet 页 + aquarium/stall/town/world 游戏页）；不改 plugins/dsh-famling，不 commit/push |
 | 状态 | 已实现；npm test 1293 项（1288 pass / 5 skip / 0 fail）、npm run typecheck、npm run build 全绿（Windows Node 24.22 / 2026-11-19） |
 
 ## 1. 新增模块（纯逻辑 + 可注入 DOM/时钟，便于 Node 测试）

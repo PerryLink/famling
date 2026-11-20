@@ -7,10 +7,13 @@
  * (MB-103); `scripts/anim-timing-check.ts` + `validateClipTable()` fail when a
  * copy drifts.
  *
- * Art differences live in the placeholder frames, not in the timing: all three
- * characters share clip ids/frames/fps except the cat's 10-frame slow stretch
- * (`stand_wag` override in `timing.json`), so the scheduler and interaction
- * layer stay character-agnostic (only poses/bubbles differ).
+ * Art differences live in the placeholder frames; the only timing differences
+ * are explicit per-character overrides in `timing.json` (2026-11-21 idle/blink
+ * pass): cat `stand_wag` is a 10-frame slow stretch, cat/dog idle is 8 frames
+ * (human stays 6 for its standing loop), and the slow blink is 4 fps for the
+ * cat (750ms, 250ms closed), 8 fps for the dog (375ms) and 12 fps for the
+ * human. Everything else shares ids/frames/fps, so the scheduler and
+ * interaction layer stay character-agnostic (only poses/bubbles differ).
  *
  * Attack is the one shared non-uniform clip: charge frames are held long
  * (slow), the 2 hit poses get 1-2 fast frames, recovery is medium. Every local

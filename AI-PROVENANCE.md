@@ -160,18 +160,18 @@ note（脚本通用）  "AI draft for internal evaluation only; not final art; r
 ```json
 {
   "asset_id": "orca.oc.v3",
-  "file": "D:\\Orca\\oc-revisions\\orca-nostreak-v3-20261115-091849.png",
+  "file": "<private-path>\\oc-revisions\\orca-nostreak-v3-20261115-091849.png",
   "phase": "orca-nostreak-v3",
   "model": "openai/gpt-image-2.6-sunburst",
   "provider": "OpenRouter",
   "endpoint": "https://openrouter.ai/api/v1/images",
   "called_at": "2026-11-15T01:18:49.259Z",
   "params": { "aspect_ratio": "2:3", "quality": "high", "background": "transparent", "output_format": "png", "n": 1 },
-  "prompt_text_path": "D:\\Orca\\prompts\\orca-nostreak-v3.txt",
+  "prompt_text_path": "<private-path>\\prompts\\orca-nostreak-v3.txt",
   "prompt_sha256": "418cea769eed3d865e73d819c7243cf76f83e7b7cbb8c522f0f0720c508db2c1",
   "prompt_chars": 2815,
   "references": [
-    { "path": "D:\\Orca\\oc-revisions\\orca-nostreak-v2-20261115-091254.png", "sha256": "37b3f279fe49b2c010be7396152ae223039a51ffc059b94002a24b91d6acde7a" }
+    { "path": "<private-path>\\oc-revisions\\orca-nostreak-v2-20261115-091254.png", "sha256": "37b3f279fe49b2c010be7396152ae223039a51ffc059b94002a24b91d6acde7a" }
   ],
   "output_sha256": "13e0f8d8fba992e241837b08f6c8653a6f93fe7ef9fc5df45b4bd2b4d3152edf",
   "usage": { "cost_usd": 0.081594, "prompt_tokens": 5322, "image_tokens": 1372 },
@@ -199,17 +199,17 @@ note（脚本通用）  "AI draft for internal evaluation only; not final art; r
 
 ```bash
 # 输出 sha 与元数据核对
-sha256sum "D:/Orca/oc-revisions/orca-nostreak-v3-20261115-091849.png"
+sha256sum "<private-path>/oc-revisions/orca-nostreak-v3-20261115-091849.png"
 python3 - <<'PY'
 import json
-d=json.load(open('D:/Orca/oc-revisions/orca-nostreak-v3-20261115-091849.json'))
+d=json.load(open('<private-path>/oc-revisions/orca-nostreak-v3-20261115-091849.json'))
 print(d['response']['images'][0]['sha256'])
 PY
 
 # 全部 Orca 元数据一览（只读）
 python3 - <<'PY'
 import json,glob
-for j in glob.glob('D:/Orca/**/*.json',recursive=True):
+for j in glob.glob('<private-path>/**/*.json',recursive=True):
     d=json.load(open(j))
     if 'request' in d: print(d['phase'], d['called_at'], d['response']['cost_usd'])
 PY

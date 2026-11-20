@@ -167,6 +167,8 @@ export const FAMLING_STORAGE_KEYS: readonly FamlingStorageKeySpec[] = Object.fre
   Object.freeze({ key: 'desktop-games/pet/coach/menu', owner: 'preferences', encoding: 'flag', version: 0 }),
   Object.freeze({ key: 'desktop-games/pet/reduce-motion', owner: 'preferences', encoding: 'flag', version: 0 }),
   Object.freeze({ key: 'desktop-games/pet/quiet-hours', owner: 'health', encoding: 'json', version: 0, note: 'Quiet-hours window { enabled, start, end }.' }),
+  Object.freeze({ key: 'desktop-games/pet/ambient-cadence', owner: 'preferences', encoding: 'identifier', version: 0, note: 'Idle-rhythm level lively|normal|quiet (low-disturb.ts, C1 2026-11-21; applied to the live hero scene).' }),
+  Object.freeze({ key: 'desktop-games/pet/work-session', owner: 'window', encoding: 'json', version: 0, note: 'Session-scoped 一起工作 focus session { minutes, startedAtMs, endsAtMs } in sessionStorage only (survives a page reload, not an app restart); no history is ever recorded.' }),
   Object.freeze({ key: 'desktop-games/pet/health-reminder', owner: 'health', encoding: 'json', version: 0, note: 'Cross-window 2h health-reminder state.' }),
   // -- hero renderer ------------------------------------------------------
   Object.freeze({ key: 'desktop-games/pet/hero', owner: 'hero', encoding: 'flag', version: 0, note: 'Hero renderer opt-in flag.' }),

@@ -161,7 +161,7 @@ rename_a.wav 73004  rename_b.wav 128684 return_a.wav 142124
 
 ## 7. 调色板 / 颜色（无版权风险，但有品牌风险）
 
-- 仓库/`D:\Orca` 使用 `#151517 / #F5F6F7 / #3964FE / #99C8FF` 等色值；**颜色本身不是版权对象**，无需第三方许可。
+- 仓库/`<private-path>` 使用 `#151517 / #F5F6F7 / #3964FE / #99C8FF` 等色值；**颜色本身不是版权对象**，无需第三方许可。
 - 但对外不得称“DSH 蓝 / DeepSeek 蓝”，避免暗示官方关联；改称 **orca blue / ocean blue**（见 `NOTICE`）。
 - `art/_style/palettes/*.hex` 为项目自有；若采用第三方调色板，应按其许可登记（当前未发现）。
 

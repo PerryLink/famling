@@ -252,7 +252,7 @@ quiet 模式压制自动 ambient 行）。只改测试断言，未改插件/业�
 ## 8. 复跑命令（证据）
 
 ```bash
-cd /mnt/d/Projects/dsh/desktop-games
+cd <private-path>
 npm run ci                                          # canonical gate；coverage:check 是 required 步骤
 npm run coverage:check                              # 单独跑 required 覆盖率门
 npm run coverage:baseline                           # 重生成基线（默认 repeat 2）

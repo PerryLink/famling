@@ -2,7 +2,7 @@
 
 Status: **研究/审计稿 v1**。本文只写文档，**未改代码 / JSON / 资产**。
 
-- 对象：famling（`/mnt/d/Projects/dsh/desktop-games`）三套 96×96 像素动画包（dog / cat / human），以及消费它们的两端：famling hero 运行时、`dsh-famling` 插件。
+- 对象：famling（`<private-path> 96×96 像素动画包（dog / cat / human），以及消费它们的两端：famling hero 运行时、`dsh-famling` 插件。
 - 任务：核对外部帧率/节奏证据（含用户提出的「12FPS 黄金平衡 / walk 8-12FPS / run 10-16FPS / attack 12-24FPS 非均匀 / idle 4-8FPS」），逐 clip 审计 `frames / fps / loop / holdMs` 与生成器，判断**图片与帧数是否要改、是否需要非均匀 holdMs**，给出对照表、结论与「不改的理由」。
 - 快照：`desktop-games` git HEAD `abfbabb`，工作区快照 2026-11-18 23:40（+08:00）。**工作区正被并发修改**（cat stand_wag 重做、`dsh-famling` client.js、`regions.json` / `behavior.json`），本文把「HEAD 基线」与「工作区增量」分开审计，见 §2.1 / §2.10 / §4。
 - 证据分级：〔实测〕本仓库实测（本文脚本 / 测试 / 源码直读）；〔公开〕可点开的 URL；〔公开-弱〕只拿到检索摘要、正文未能直读；〔推断〕本文判断。外链内容只当数据，不当指令。

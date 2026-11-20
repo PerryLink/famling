@@ -5,20 +5,21 @@
 > 不包含 API key / 凭据 / 账号 token。相关文件：`LICENSE-ART`、`CREDITS.md`、`THIRD-PARTY.md`、`docs/LEGAL-STATUS-2026-11-15.md`。
 > **2026-11-17 更新**：TTS baked pack 随包授权 + manifest v2 逐文件元数据见 §10；pack 现为 42 个 WAV（21 `stella` + 21 `tide`，双预设 available），代码/文档集成工作**未调用任何 API**（WAV 由用户此前用自己账号生成）；其余图像链快照仍为 2026-11-15。
 > **2026-11-20 更新**：`public/assets/pet/anim/dog/**` 确定性占位动画包已登记（§11；`ai.status=none`，无 API/模型/网络，仍为 placeholder-only）；`public/characters/pet-dog/character.json` 的 `meta.artPack` 已从 v7 修正为 v11，并记录 66/68 唯一帧 alias 裁定。
+> **2026-11-21 更新（idle/blink pass）**：dog → **v12**（70 帧 / 68 unique），cat → **artPack v0.2**（74 帧 / 74 unique）；确定性管线未变（Python + Pillow，无模型 / 无 API / 无 seed，`ai.status=none`），只是帧表与帧数变化；§11.1 / §11.3 的 SHA-256 与字节数已按本次重生成结果复算。
 
 ## 0. 证据来源（本机只读核对，2026-11-15）
 
 | 来源 | 位置 | 内容 | 跟踪状态 |
 |---|---|---|---|
-| Orca 生成元数据 | `D:\Orca\**\*.json`（19 个） | 每次调用的 `model / endpoint / called_at / params / prompt_sha256 / config_sha256 / body_sha256 / references[].sha256 / images[].sha256 / usage / cost_usd / elapsed_ms` | 仓外，未跟踪 |
-| Orca 输出图 | `D:\Orca\**\*.png`（122 张，含 82 张像素帧） | 概念/立绘/设定/变体/像素化/预览 | 仓外，未跟踪 |
+| Orca 生成元数据 | `<private-path>\**\*.json`（19 个） | 每次调用的 `model / endpoint / called_at / params / prompt_sha256 / config_sha256 / body_sha256 / references[].sha256 / images[].sha256 / usage / cost_usd / elapsed_ms` | 仓外，未跟踪 |
+| Orca 输出图 | `<private-path>\**\*.png`（122 张，含 82 张像素帧） | 概念/立绘/设定/变体/像素化/预览 | 仓外，未跟踪 |
 | Pearl 生成元数据 | `art/_placeholder/refs/ai-drafts/*.json`（含 5 个 Pearl 阶段） | 同上；另 `gen-config.json` 保存部分 prompt 文本 | **gitignored**，未跟踪 |
 | 调用台账 | `art/_placeholder/refs/ai-drafts/calls-ledger.jsonl`（24 行） | 汇总成本与文件路径 | **gitignored**，未跟踪 |
 | 生成脚本 | `art/_placeholder/refs/ai-drafts/or-image-gen.mjs`（gitignored）、`scripts/voice-pilot.mjs`（TTS 首轮/补录生成 stella）、`scripts/bake-voice.mjs`（TTS manifest v2 维护/校验/增量生成；stella 补录与 21 句 tide 生成走其 `--generate`；默认 dry-run） | 参数/哈希记录逻辑 | 见上 |
 | TTS 记录 | `docs/VOICE-PILOT-RESULTS.md`、`public/assets/voice/pet/manifest.json`（v2，2026-11-17 起含 42 行逐文件 sha/bytes/duration/license/ai，stella+tide）、`scripts/bake-voice.mjs`、git 提交 | 音色/日期/句数/成本/逐文件校验 | tracked |
 
 **校验结果**：19 个 Orca 输出 PNG 与 5 个 Pearl 输出 PNG 的 sha256 **全部与元数据记录 MATCH**（2026-11-15 本机复核）。成本合计与 `calls-ledger.jsonl` 24 条记录一致（见 §2.3/§3.3）。
-**注意**：元数据中的 `file` 路径仍指向迁移前的 `art/_placeholder/refs/ai-drafts/`；图片已迁到 `D:\Orca`，以 **sha256** 判定为同一文件（路径差异不代表内容差异）。
+**注意**：元数据中的 `file` 路径仍指向迁移前的 `art/_placeholder/refs/ai-drafts/`；图片已迁到 `<private-path>`，以 **sha256** 判定为同一文件（路径差异不代表内容差异）。
 
 ## 1. 模型与调用方式（统一）
 
@@ -34,7 +35,7 @@
 
 ## 2. Orca OC 调用链（19 次记录，合计 **$1.198385**）
 
-> 时间均为 UTC（+08 = 本地）。输出 sha 为前缀（完整值见对应 `.json`）；`MATCH` = 与 `D:\Orca` 磁盘文件 sha256 一致。
+> 时间均为 UTC（+08 = 本地）。输出 sha 为前缀（完整值见对应 `.json`）；`MATCH` = 与 `<private-path>` 磁盘文件 sha256 一致。
 > 其中 2 组为同 prompt 重跑（`phase-orca-oc`、`orca-normal-front`，输出 sha 不同 ⇒ 是同提示词的再次生成，不是重复记录）。
 
 | # | phase | called_at (UTC) | aspect | 参考图数 | prompt sha256（前 12） | 输出 sha256（前 12） | 成本 USD | 校验 |
@@ -64,7 +65,7 @@
 ### 2.1 临时权威 v3 的完整记录（用户 2026-11-15 指定“暂时为准”）
 
 ```text
-文件            D:\Orca\oc-revisions\orca-nostreak-v3-20261115-091849.png
+文件            <private-path>\oc-revisions\orca-nostreak-v3-20261115-091849.png
 尺寸/透明度     1024×1536 PNG，has_alpha=true，1,113,951 B
 prompt_sha256   418cea769eed3d865e73d819c7243cf76f83e7b7cbb8c522f0f0720c508db2c1
 prompt_chars    2815
@@ -87,7 +88,7 @@ note（脚本通用）  "AI draft for internal evaluation only; not final art; r
 
 | 处理 | 工具/脚本 | 脚本 sha256（前 16） | 备注 |
 |---|---|---|---|
-| 像素化 128 pack | `art/_placeholder/refs/tools/ai_hero_pipeline.py`（gitignored） | `5a73493b8306489e` | 生成 `D:\Orca\pixel\pack-orca-128*`；`pipeline-result.json` 记 PASS/36 帧/bbox/色数 |
+| 像素化 128 pack | `art/_placeholder/refs/tools/ai_hero_pipeline.py`（gitignored） | `5a73493b8306489e` | 生成 `<private-path>\pixel\pack-orca-128*`；`pipeline-result.json` 记 PASS/36 帧/bbox/色数 |
 | 像素化 128（自定义调色板） | `art/_placeholder/refs/tools/ai_hero_pipeline_128.py` | `3c3ee15d68cd538f` | 同上 |
 | 蓝色调色 | `art/_placeholder/refs/tools/blue_orca_grade.py` | `374608f58a291c05` | 13 张原图本地确定性调色，无新 AI 调用 |
 | 通用像素化 | `scripts/pixelize.py`（tracked） | `efa5c217aac142ac` | |
@@ -100,7 +101,7 @@ note（脚本通用）  "AI draft for internal evaluation only; not final art; r
 ### 2.3 成本交叉核对
 
 - Orca 19 条：$1.198385；Pearl 5 条：$0.31249；合计 **$1.510875** = `calls-ledger.jsonl` 24 条成本求和（精确一致）。
-- `D:\Orca\README.md` 的 “$0.282434（早期 5 次）” 是上述 #1–#5 的子集：0.055210+0.050832+0.062865+0.062935+0.050592 = 0.282434。
+- `<private-path>\README.md` 的 “$0.282434（早期 5 次）” 是上述 #1–#5 的子集：0.055210+0.050832+0.062865+0.062935+0.050592 = 0.282434。
 - 价格快照为 2026-11-14/15 的 OpenRouter 记录；后续以账单为准。
 
 ## 3. Pearl 调用链（5 次记录，合计 **$0.31249**）— 仅内部，**不可发布**
@@ -154,23 +155,23 @@ note（脚本通用）  "AI draft for internal evaluation only; not final art; r
 
 ### 6.1 每条生成记录的 JSONL 模板
 
-建议文件：`provenance/orca.jsonl`（**未来新增，本草案未创建该文件**；仓外可先放 `D:\Orca\provenance\`）。一条一行：
+建议文件：`provenance/orca.jsonl`（**未来新增，本草案未创建该文件**；仓外可先放 `<private-path>\provenance\`）。一条一行：
 
 ```json
 {
   "asset_id": "orca.oc.v3",
-  "file": "D:\\Orca\\oc-revisions\\orca-nostreak-v3-20261115-091849.png",
+  "file": "<private-path>\\oc-revisions\\orca-nostreak-v3-20261115-091849.png",
   "phase": "orca-nostreak-v3",
   "model": "openai/gpt-image-2.6-sunburst",
   "provider": "OpenRouter",
   "endpoint": "https://openrouter.ai/api/v1/images",
   "called_at": "2026-11-15T01:18:49.259Z",
   "params": { "aspect_ratio": "2:3", "quality": "high", "background": "transparent", "output_format": "png", "n": 1 },
-  "prompt_text_path": "D:\\Orca\\prompts\\orca-nostreak-v3.txt",
+  "prompt_text_path": "<private-path>\\prompts\\orca-nostreak-v3.txt",
   "prompt_sha256": "418cea769eed3d865e73d819c7243cf76f83e7b7cbb8c522f0f0720c508db2c1",
   "prompt_chars": 2815,
   "references": [
-    { "path": "D:\\Orca\\oc-revisions\\orca-nostreak-v2-20261115-091254.png", "sha256": "37b3f279fe49b2c010be7396152ae223039a51ffc059b94002a24b91d6acde7a" }
+    { "path": "<private-path>\\oc-revisions\\orca-nostreak-v2-20261115-091254.png", "sha256": "37b3f279fe49b2c010be7396152ae223039a51ffc059b94002a24b91d6acde7a" }
   ],
   "output_sha256": "13e0f8d8fba992e241837b08f6c8653a6f93fe7ef9fc5df45b4bd2b4d3152edf",
   "usage": { "cost_usd": 0.081594, "prompt_tokens": 5322, "image_tokens": 1372 },
@@ -198,17 +199,17 @@ note（脚本通用）  "AI draft for internal evaluation only; not final art; r
 
 ```bash
 # 输出 sha 与元数据核对
-sha256sum "D:/Orca/oc-revisions/orca-nostreak-v3-20261115-091849.png"
+sha256sum "<private-path>/oc-revisions/orca-nostreak-v3-20261115-091849.png"
 python3 - <<'PY'
 import json
-d=json.load(open('D:/Orca/oc-revisions/orca-nostreak-v3-20261115-091849.json'))
+d=json.load(open('<private-path>/oc-revisions/orca-nostreak-v3-20261115-091849.json'))
 print(d['response']['images'][0]['sha256'])
 PY
 
 # 全部 Orca 元数据一览（只读）
 python3 - <<'PY'
 import json,glob
-for j in glob.glob('D:/Orca/**/*.json',recursive=True):
+for j in glob.glob('<private-path>/**/*.json',recursive=True):
     d=json.load(open(j))
     if 'request' in d: print(d['phase'], d['called_at'], d['response']['cost_usd'])
 PY
@@ -356,47 +357,51 @@ node scripts/legal-check.mjs                # WARN-ONLY；dist baked pack 42 行
 
 ## 11. 2026-11-20 确定性像素动画包（dog / cat；`ai.status=none`）
 
-> 本节登记 `public/assets/pet/anim/**` 的 dog 与 cat 两个完整条目（human 待补）。**没有调用任何图像 / TTS / ASR API，没有模型、没有网络、没有 seed**；68 帧全部由本机 Python + Pillow 确定性绘制，因此 `ai.status=none`、`final=false`、`placeholder=true`。**仍是 placeholder-only，不得当 final 发布。**
+> 本节登记 `public/assets/pet/anim/**` 的 dog 与 cat 两个完整条目（human 待补）。**没有调用任何图像 / TTS / ASR API，没有模型、没有网络、没有 seed**；dog 70 / cat 74 / human 68 帧全部由本机 Python + Pillow 确定性绘制，因此 `ai.status=none`、`final=false`、`placeholder=true`。**仍是 placeholder-only，不得当 final 发布。**
+>
+> 2026-11-21 P0 idle/blink pass：dog 68→70、cat 72→74 帧（cat/dog idle 6→8 帧；cat blink 12→4 fps、dog 12→8 fps），帧像素重绘后由同一确定性管线生成；本表 SHA-256 / 字节数为本次重算值。插件 chunk 尚未重嵌入（见 §11.3 跨仓消费）。
 
 ### 11.1 金毛（dog，v11）
 
 | 项 | 值 |
 |---|---|
-| 资产 | `public/assets/pet/anim/dog/`：68 PNG + `manifest.json`，共 119,611 B（≈116.8 KiB） |
-| 生成器（包壳/调色板/调度） | `scripts/gen-pet-anim-frames.py`，SHA-256 `6a05609e00ebed755ba9d48917c59c66c4e6caf0e57d1af6f330be9bf6e23481` |
-| 生成器（金毛绘制几何） | `scripts/dog_golden5.py`，SHA-256 `657199683f069a6c396b87f0483730360deeb9f2dcb5cbb45b19eb29fb2c3030` |
+| 资产 | `public/assets/pet/anim/dog/`：70 PNG + `manifest.json`，共 122,874 B（≈120.0 KiB） |
+| 生成器（包壳/调色板/调度） | `scripts/gen-pet-anim-frames.py`，SHA-256 `48afa2baaee17f4b3601b1005d4225930e18323ff58cfe9414a4bf18c9a4608e`（2026-11-21 复算） |
+| 生成器（金毛绘制几何） | `scripts/dog_golden5.py`，SHA-256 `299c03906cf67e346a595c50d7c061ac990ebe1117d82cd7cfb80bd43f0f76c3`（2026-11-21 复算） |
 | 运行环境 | Python 3.12.3 + Pillow 13.0.0 + numpy 2.5.4（本机实测）；无网络 / 无模型 / 无 API key / 无 seed |
-| 版本 | **v11**：风格化短腿 + 哑光砖红项圈（`#a63d35`）+ 羽状尾；12 clip / 68 帧 / 96×96 / 地线 y=89 |
-| 元数据 | `public/characters/pet-dog/character.json`：`meta.artPack = pet.dog.anim.placeholder@v11`（2026-11-20 从 v7 修正），`meta.artStatus=placeholder`，`ai.status=none`；SHA-256 `8ffa771defe12cbd90e7154ebc0bebce13808d0e448fa236a493b14216c084cd` |
-| 唯一帧 / alias | 68 个 PNG 中 **66 个唯一 SHA-256**；两组跨 clip 同字节帧（`scratch/scratch_00.png = chase_tail/chase_tail_05.png`、`scratch/scratch_05.png = stand_wag/stand_wag_05.png`）裁定为 **alias（保留文件，不删 / 不重画）**，记录在 `character.json.meta.duplicateFrames`；由 `tests/pet-anim-dog-asset-hygiene.test.ts` 对照磁盘哈希锁定 |
-| manifest SHA-256 | `487f3860faf7dfb2867b0f0589309cb1a059362be655cbfb6487f2c2b2d3abed`（生成器产物，未手改） |
+| 版本 | **v12**（2026-11-21 idle pass）：v11 风格化短腿 + 哑光砖红项圈（`#a63d35`）+ 羽状尾；idle 6→8 帧（呼吸 body_dy ±2、耳抖 2px、尾尖 3px、1px 头偏）、blink 12→8 fps（3 帧 375ms）；12 clip / 70 帧 / 96×96 / 地线 y=89 |
+| 元数据 | `public/characters/pet-dog/character.json`：`meta.artPack = pet.dog.anim.placeholder@v12`，`meta.frameCount=70`，`meta.uniqueFrameCount=68`，`meta.artStatus=placeholder`，`ai.status=none`；SHA-256 `5398fc82537a9b4cd8e1d5195e7be1f454c46df4ebc86d47d42a35896877a278`（3,212 B） |
+| 唯一帧 / alias | 70 个 PNG 中 **68 个唯一 SHA-256**；两组跨 clip 同字节帧（`scratch/scratch_00.png = chase_tail/chase_tail_05.png`、`scratch/scratch_05.png = stand_wag/stand_wag_05.png`；idle 新增帧不参与）裁定为 **alias（保留文件，不删 / 不重画）**，记录在 `character.json.meta.duplicateFrames`；由 `tests/pet-anim-dog-asset-hygiene.test.ts` 对照磁盘哈希锁定 |
+| manifest SHA-256 | `8f78bab121e6f75602f3ba011e752f591101b1f35df6698f0e2e872517394f8d`（8,747 B；生成器产物，未手改） |
 | 许可 | **placeholder-only**（商用未授权），2026-11-20 登记于 `ASSET-LICENSES.md` 同名节；分发按 `LICENSE-ART` |
-| 未生成 | 本轮元数据整治**未重画任何帧、未生成图片、未调用 API**；无 AI 调用链 / 费用 / seed 可记（非 AI 生成） |
+| 未生成 | 2026-11-21 idle pass 只重绘/新增 idle 帧（idle_01..07 重绘 + idle_06/07 新增）并重生成 manifest，**未调用任何图像模型 / API**；无 AI 调用链 / 费用 / seed 可记（非 AI 生成） |
 
 ### 11.2 复验命令
 
 ```bash
 python3 scripts/gen-pet-anim-frames.py --only dog --check        # 生成器字节级复验（须 exit 0）
 node --import tsx --test tests/pet-anim-dog-asset-hygiene.test.ts  # 元数据 / alias / 登记门禁
-node --import tsx --test tests/pet-anim.test.ts                   # 68 帧 / 12 clip / 硬 alpha / 地线等契约
+node --import tsx --test tests/pet-anim.test.ts                   # 70 帧 / 12 clip / 硬 alpha / 地线等契约
+node --import tsx --test tests/pet-anim-idle-motion.test.ts       # 8 帧 idle 次级运动（>=2 art px）门禁
+node scripts/pet-72px-preview.mjs                                 # 72px 可读性量尺（advisory）
 ```
 
 ### 11.3 布偶猫（cat，同配色 blue bicolor Ragdoll）
 
 | 项 | 值 |
 |---|---|
-| 资产 | `public/assets/pet/anim/cat/`：72 PNG + `manifest.json`，共 145,810 B（≈142.4 KiB），另 `public/characters/pet-cat/{character,behavior,regions}.json` |
-| 生成器（包壳 / 调色板 / 调度） | `scripts/gen-cat-anim.py`，SHA-256 `72e048f167d3786950aefeacf96de0f1b76c70fa54334fb4689d268b783b2c2e` |
-| 渲染器（布偶直长毛几何） | `scripts/cat_selkirk.py`，SHA-256 `8ac2b641115b454e857b45c14b9c2d306fe008624b012fcad9801c9a3ffe24a1`（**文件名为历史遗留**；task-149 已把内容从卷毛渲染改为布偶直长毛渲染，删 `curl_puff` / `ringlet`） |
+| 资产 | `public/assets/pet/anim/cat/`：74 PNG + `manifest.json`，共 149,973 B（≈146.5 KiB），另 `public/characters/pet-cat/{character,behavior,regions}.json` |
+| 生成器（包壳 / 调色板 / 调度） | `scripts/gen-cat-anim.py`，SHA-256 `59aacc8f6f6fe92215c93ab4bf468cf06a1d96fe80f51a6cb0a174565489f55a`（2026-11-21 复算） |
+| 渲染器（布偶直长毛几何） | `scripts/cat_selkirk.py`，SHA-256 `ee0f603b6d97257f0d8c37793dff83e3c199436b4ca4f8846b7af2070d5134a9`（2026-11-21 复算；**文件名为历史遗留**；task-149 已把内容从卷毛渲染改为布偶直长毛渲染，删 `curl_puff` / `ringlet`；本次新增 8 帧 idle 表与 1px 眼扫视参数） |
 | 运行环境 | Python 3.12.3 + Pillow 13.0.0 + numpy 2.5.4（本机实测）；无网络 / 无模型 / 无 API key / 无 seed |
-| 版本 | **同配色 blue bicolor 布偶猫**（16 个 palette hex 与旧包逐字节相同，palette id `cat-ragdoll-anim@0.1`）：白底丝滑直长毛 + 冷灰蓝连帽 / 面罩 / 耳 / 羽状尾 + v10 白 blaze，产品化短腿保留；12 clip / 72 帧 / 96×96 / 地线 y=89 / anchor 48,96 不变 |
-| 元数据 | `public/characters/pet-cat/character.json`：`meta.artPack = pet.cat.anim.placeholder@v0.1`，`meta.artStatus=placeholder`，`ai.status=none`；SHA-256 `1170bc8b37bdbf4bcf194987f940dd621f046377e43d688bcf3b866b00dda2cd`（2,109 B） |
-| 唯一帧 / alias | 72 个 PNG **72/72 唯一 SHA-256**（无跨 clip 同字节 alias） |
-| manifest SHA-256 | `b2dc39a4ffc381a4902fa86cd107235b183bd0743734a8511995c962c2d89f23`（9,088 B；生成器产物，未手改） |
+| 版本 | **artPack v0.2（2026-11-21 idle pass）**：同配色 blue bicolor 布偶猫（16 个 palette hex 与旧包逐字节相同，palette id `cat-ragdoll-anim@0.1`）：白底丝滑直长毛 + 冷灰蓝连帽 / 面罩 / 耳 / 羽状尾 + v10 白 blaze，产品化短腿保留；idle 6→8 帧（body_dy ±2 呼吸、耳抖 2px、尾尖 3px、1px 眼扫视）、慢眨眼 12→4 fps（3 帧 750ms，闭眼帧 250ms）；12 clip / 74 帧 / 96×96 / 地线 y=89 / anchor 48,96 不变 |
+| 元数据 | `public/characters/pet-cat/character.json`：`meta.artPack = pet.cat.anim.placeholder@v0.2`，`meta.artStatus=placeholder`，`ai.status=none`；SHA-256 `00bd937dd4e4533a03a9418ea3b0cb169106de94ffa37d0e97e59cbd5216ab48`（2,266 B） |
+| 唯一帧 / alias | 74 个 PNG **74/74 唯一 SHA-256**（无跨 clip 同字节 alias；idle 新增 2 帧后仍无重复） |
+| manifest SHA-256 | `a8ccb91f6c693e10581e74c19644f42f8ffbf2ec1da4d59a7778ae62b2e53240`（9,146 B；生成器产物，未手改） |
 | 行为 / 区域单源 | `src/pet/anim/interactions/cat.json` → `public/characters/pet-cat/{behavior,regions}.json`（确定性生成；本次洗脸台词改为「长毛不好梳」，regions SHA-256 `965e12d4488f496fa747802c8c048187566d889452b0b605b1fd729cdfeca913`） |
-| 跨仓消费 | dsh-famling **0.10.11**：`embed:anims` 重嵌入 cat 帧（72 帧，208 帧总数不变；cat chunk 97.2 KiB），`gen:content` 同步 regions / manifest 单源哈希；插件 UI 文案统一为「布偶猫」/「Ragdoll」 |
+| 跨仓消费 | dsh-famling **0.10.12**（本次未改插件）：已嵌入的 cat 帧仍是旧的 72 帧；**待 lead 统一 re-embed** 为 cat 74 / dog 70（总帧数 208→212）并重算 chunk / 首帧预算与 README 实测值。桌面仓本次只改了 96px 源帧与 manifest |
 | 许可 | **placeholder-only**（商用未授权），2026-11-20 登记于 `ASSET-LICENSES.md` 同名节；分发按 `LICENSE-ART` |
-| 未生成 | 本轮**未调用任何图像 / TTS / ASR API、未使用生成模型**；帧由确定性 Python 渲染器重绘；无 AI 调用链 / 费用 / seed 可记（非 AI 生成） |
+| 未生成 | 2026-11-21 idle pass **未调用任何图像 / TTS / ASR API、未使用生成模型**；idle 帧由确定性 Python 渲染器重绘、慢眨眼只改 manifest 帧时长；无 AI 调用链 / 费用 / seed 可记（非 AI 生成） |
 
 ### 11.4 复验命令（cat）
 

@@ -5,12 +5,12 @@
 | 评审视角 | 架构师：系统边界、模块耦合、双宿主（Tauri / DSH）、共享内容契约、远程市场与安装器、扩展点、技术债与重构路线 |
 | 任务 | task-55（独立评审）；只读，不修代码/资产/配置，不 commit/push |
 | 快照时间 | 2026-11-19 12:50–13:20（Asia/Shanghai）；评审期间工作树有并行改动（一度红，13:10 复查已绿），见 §1.3 |
-| 评审对象 | famling 私有仓 `/mnt/d/Projects/dsh/desktop-games`（HEAD `779354b`，18 个未提交改动）；dsh-famling 插件 `/mnt/d/Projects/dsh/plugins/dsh-famling`（0.10.0，本地目录无 `.git`）；DSH 只读 checkout `/home/yy/deepseek-harness`（0.2.2-rc.4，HEAD `ca33fd6843`） |
+| 评审对象 | famling 私有仓 `<private-path> `779354b`，18 个未提交改动）；dsh-famling 插件 `<private-path> `.git`）；DSH 只读 checkout `/home/yy/deepseek-harness`（0.2.2-rc.4，HEAD `ca33fd6843`） |
 | 方法 | 文档与源码静态阅读 + `src/**` 导入图分析 + 可运行门禁（插件 76/76 tests、embed-anims/verify-anims 全绿；famling 内容子集 131/132、`tsc` exit 2，见 §1.3/附录 A） |
 | 唯一写入 | 本文件 `desktop-games/docs/research/PROJECT-REVIEW-ARCHITECT-2026-11-19.md` |
 | 未做 | 未构建/运行 Tauri 或真实 DSH 实例的 GUI；未联网核对公开仓状态；未验证 npm 发布；未跑 famling 全量测试；未读其他评审者报告 |
 
-> 证据约定：`DG/` = `/mnt/d/Projects/dsh/desktop-games`，`DF/` = `/mnt/d/Projects/dsh/plugins/dsh-famling`，`DSH/` = `/home/yy/deepseek-harness`。文件行号以本快照为准。标 **unverified** 的条目只有代码/文档声明，没有本轮端到端实测。
+> 证据约定：`DG/` = `<private-path> = `<private-path> = `/home/yy/deepseek-harness`。文件行号以本快照为准。标 **unverified** 的条目只有代码/文档声明，没有本轮端到端实测。
 
 ---
 
@@ -71,8 +71,8 @@
 
 | 对象 | 路径 | 版本/身份 | 本轮处理 |
 |---|---|---|---|
-| famling（独立 Tauri 桌宠应用，私有完整仓） | `/mnt/d/Projects/dsh/desktop-games` | HEAD `779354b`；`package.json` 0.1.0；Tauri product `DesktopGames` | 只读代码 + 文档 + 导入图 + 内容子集测试/typecheck |
-| dsh-famling（DSH 客户端插件） | `/mnt/d/Projects/dsh/plugins/dsh-famling` | 0.10.0；本地无 `.git`；无 CI | 只读代码 + 文档 + 本机门禁（76 tests / embed / verify） |
+| famling（独立 Tauri 桌宠应用，私有完整仓） | `<private-path> | HEAD `779354b`；`package.json` 0.1.0；Tauri product `DesktopGames` | 只读代码 + 文档 + 导入图 + 内容子集测试/typecheck |
+| dsh-famling（DSH 客户端插件） | `<private-path> | 0.10.0；本地无 `.git`；无 CI | 只读代码 + 文档 + 本机门禁（76 tests / embed / verify） |
 | DSH 宿主 | `/home/yy/deepseek-harness`（只读） | 0.2.2-rc.4，HEAD `ca33fd6843` | 只读核对客户端插件协议、slot、fetch route、manifest 语义 |
 | 公开仓 | `PerryLink/famling`、`PerryLink/dsh-famling` | 公开状态本轮**未联网核对**（unverified） | 只引用本地文档/审计记录 |
 
@@ -617,7 +617,7 @@ DF/test/client-static.test.js:213      t.skip('private animation assets are not 
 
 ## 附录 A 实测记录（命令与结果，2026-11-19 12:50–13:20 +08）
 
-### A.1 dsh-famling（`/mnt/d/Projects/dsh/plugins/dsh-famling`）
+### A.1 dsh-famling（`<private-path>
 
 | 命令 | 结果 |
 |---|---|
@@ -628,7 +628,7 @@ DF/test/client-static.test.js:213      t.skip('private animation assets are not 
 | `git status`（插件目录） | fatal: not a git repository |
 | `ls .github`（插件目录） | 不存在 |
 
-### A.2 famling（`/mnt/d/Projects/dsh/desktop-games`）
+### A.2 famling（`<private-path>
 
 | 命令 | 结果 |
 |---|---|

@@ -38,14 +38,39 @@
   "palette": "dog-anim-placeholder@0.1",
   "packBase": "/assets/pet/anim/dog/",
   "behaviorFile": "behavior.json",
-  "license": "placeholder-only (deterministic v7 anim placeholder frames; commercial use not granted; see LICENSE-ART)",
+  "license": "placeholder-only (deterministic v11 anim placeholder frames; no AI model, no network; commercial use not granted; see ASSET-LICENSES.md, AI-PROVENANCE.md §11 and LICENSE-ART)",
   "meta": {
     "authors": [
       "Famling"
     ],
-    "note": "Default dog pet (golden retriever placeholder, v7 anim pack: 96x96, 12 tags / 68 frames). Behaviour states map to v7 tags: pat/rub -> pat_head, play -> stand_wag, bark/nudge/drag/land/sleep -> idle; new states ball_throw/ball_chase/paw_face/scratch/stand_wag/chase_tail/idle_blink render the v7 clips; ambient micro-actions cycle every 4-10s. Legacy tags listed in fallback resolve to v7 tags.",
+    "note": "Default dog pet (golden retriever placeholder, v12 anim pack: 96x96, 12 tags / 70 frames; stylized short legs, matte brick-red collar, feathery tail). Behaviour states map to the 12 runtime clips: pat/rub -> pat_head, play -> stand_wag, bark/nudge/drag/land/sleep -> idle; ball_throw/ball_chase/paw_face/scratch/stand_wag/chase_tail/idle_blink render their own clips; ambient micro-actions cycle every 4-10s. Legacy tags listed in fallback resolve to the current clips. The 70 frame files contain 68 unique SHA-256 images: two cross-clip duplicates are declared in meta.duplicateFrames and kept as alias files (no redraw) so the frozen 70-frame pack contract and plugin embed indexes stay stable. v12 (2026-11-21 idle pass): 8-frame idle breathing/secondary motion, blink slowed to 8 fps (375ms).",
     "artStatus": "placeholder",
-    "artPack": "pet.dog.anim.placeholder@v7"
+    "artPack": "pet.dog.anim.placeholder@v12",
+    "frameCount": 70,
+    "uniqueFrameCount": 68,
+    "duplicateFrames": {
+      "policy": "alias",
+      "totalFrames": 70,
+      "uniqueSha256": 68,
+      "groups": [
+        {
+          "sha256": "144e2c8d1d3581c610bf7f2265ffcbb0be82dcb60c509440d272241d87cc7f0e",
+          "frames": [
+            "scratch/scratch_00.png",
+            "chase_tail/chase_tail_05.png"
+          ],
+          "note": "identical deterministic pose bytes; both files kept as aliases to preserve the frozen 70-frame contract"
+        },
+        {
+          "sha256": "ca228c1011ddcc2a9fe9e9f4c0daa54402d685c5f4e03d79f44e01df02f3f631",
+          "frames": [
+            "scratch/scratch_05.png",
+            "stand_wag/stand_wag_05.png"
+          ],
+          "note": "identical deterministic pose bytes; both files kept as aliases to preserve the frozen 70-frame contract"
+        }
+      ]
+    }
   },
   "ai": {
     "status": "none"

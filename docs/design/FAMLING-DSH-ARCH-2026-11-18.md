@@ -9,7 +9,7 @@
 | 读者 | famling / dsh-famling 维护者；负责发布、法务（task-2）、动画（task-3）的并行任务；后续接手的 Agent/人。 |
 | 与既有文档关系 | 本文在 `docs/integration/FAMLING-DSH-NATIVE-ARCHITECTURE-2026-11-18.md`（产品分层）之上补“契约 + 同步机制 + 改造路线”；**不替代** `docs/integration/ADVISERS-CONTRACT.md`（Pet Brief 数据契约）与 `docs/integration/DSH-FAMLING-BRIDGE-2026-11-17.md`（桥接实现细节）。冲突时：数据契约以 ADVISERS-CONTRACT 为准，DSH 事实以 DSH 源码/实测为准。 |
 
-> **证据约定**：文中 `DG/` = `/mnt/d/Projects/dsh/desktop-games`（私有完整仓）；`PF/` = 公开仓 `PerryLink/famling` 工作克隆 `/mnt/d/Projects/dsh/_scratch/famling-cleanup-2026-11-18`；`DF/` = 本地插件 `/mnt/d/Projects/dsh/plugins/dsh-famling`（对应公开仓 `PerryLink/dsh-famling`）；`DSH/` = 只读 checkout `/home/yy/deepseek-harness`。
+> **证据约定**：文中 `DG/` = `<private-path> = 公开仓 `PerryLink/famling` 工作克隆 `<private-path> = 本地插件 `<private-path> `PerryLink/dsh-famling`）；`DSH/` = 只读 checkout `/home/yy/deepseek-harness`。
 > 标 **unverified** 的条目只有代码/文档声明，没有端到端实测。本文不复述凭据、不写 Key/token；涉及 DSH 启动日志的“已安装/已加载”状态只写可由文件结构核对的结论。
 
 ---
@@ -44,10 +44,10 @@
 | dsh-famling 本地 | `DF/` | `0.7.5`；**目录无 `.git`**（靠手工拷贝同步） | `package.json` + `ls -a` | `node --check index.js && node --check client.js` OK；`npm test` = **11 tests / 11 pass / 0 fail** |
 | dsh-famling 公开 | `PerryLink/dsh-famling` | `main` @ `29e3b82eb2f9af8530739446a261f42a0009daeb`（0.7.5） | `git ls-remote` + raw.githubusercontent 读 `package.json` | 公开仓 docs 有 `DETAIL.md`、`DSH-FAMLING-BRIDGE-2026-11-17.md`（20,302 B）、`FAMLING-DSH-NATIVE-ARCHITECTURE-2026-11-18.md`（8,150 B）；本地 docs 有 `DETAIL.md` + task-2 新增 `LEGAL-NOTICE-2026-11-18.md`（两个桥接/架构文档只在公开仓） |
 | DSH 运行实例 | `/home/yy/deepseek-harness`（源码直跑） | `0.2.2-rc.4`；HEAD `ca33fd6843`（2026-11-17） | `ps`：pid 416 `node --import tsx/esm apps/cli/src/bin.ts web --no-open --port 3081`，Node 24.22.1；启动时间 2026-11-18 12:13 | `engines.node >=24.9.0`；GUI `http://127.0.0.1:3081` |
-| DSH 已安装 CLI（Windows 侧） | `C:\Users\zzhdz\AppData\Roaming\npm\node_modules\@deepseek-ai\dsh` | `0.2.2-rc.4` | 读 `package.json` | 与运行实例版本一致，但**不是**当前 Web 的宿主进程 |
-| 运行 profile（WSL 侧） | `/home/yy/.dsh/profiles/web` | bundles = `[@deepseek-ai/dsh-base, @deepseek-ai/dsh-web-app, dsh-famling]`；deps 含 `dsh-famling: link:/mnt/d/Projects/dsh/plugins/dsh-famling` | 读 `package.json`（只读，未打印任何凭据） | 插件在 bundles 中；**unverified**：交接记录显示 13:00 前后插件刚从 profile 丢失并重新 add；12:13 启动的进程是否已加载当前 0.7.5 需刷新/重启后用 `plugin_manager list_plugins` 复核 |
-| 另一套 DSH home（Windows 侧） | `C:\Users\zzhdz\.dsh\profiles\web` | bundles 无 dsh-famling | 读 `package.json` | 说明本机存在“双 DSH home”；见 §6.1 风险 R7 |
-| Advisers 数据 | `/home/yy/.advisers/pet-brief.json` | 548 B，mtime 2026-11-18 10:43 (+08) | `stat`（**未读内容**） | 真实文件存在；`C:\Users\zzhdz\.advisers` 不存在 → 生产者在 WSL home，插件桥在 WSL 运行时才读得到；见 R3 |
+| DSH 已安装 CLI（Windows 侧） | `<private-path>\AppData\Roaming\npm\node_modules\@deepseek-ai\dsh` | `0.2.2-rc.4` | 读 `package.json` | 与运行实例版本一致，但**不是**当前 Web 的宿主进程 |
+| 运行 profile（WSL 侧） | `/home/yy/.dsh/profiles/web` | bundles = `[@deepseek-ai/dsh-base, @deepseek-ai/dsh-web-app, dsh-famling]`；deps 含 `dsh-famling: link:<private-path> | 读 `package.json`（只读，未打印任何凭据） | 插件在 bundles 中；**unverified**：交接记录显示 13:00 前后插件刚从 profile 丢失并重新 add；12:13 启动的进程是否已加载当前 0.7.5 需刷新/重启后用 `plugin_manager list_plugins` 复核 |
+| 另一套 DSH home（Windows 侧） | `<private-path>\.dsh\profiles\web` | bundles 无 dsh-famling | 读 `package.json` | 说明本机存在“双 DSH home”；见 §6.1 风险 R7 |
+| Advisers 数据 | `/home/yy/.advisers/pet-brief.json` | 548 B，mtime 2026-11-18 10:43 (+08) | `stat`（**未读内容**） | 真实文件存在；`<private-path>\.advisers` 不存在 → 生产者在 WSL home，插件桥在 WSL 运行时才读得到；见 R3 |
 | Advisers 契约 | `DG/docs/integration/ADVISERS-CONTRACT.md` | contract v0.2 / `schemaVersion 2` / `advisers@0.2.1` pin；TOS v2026.11.2 | 读文档（未独立跑 Advisers CLI） | 升级顺序 consumer-first；未来版本 fail-closed |
 | 同意文本版本（canon） | `DG/src/pet/consent/terms.ts` | TOS `2026-11-17.6`、TTS `2026-11-17.4`、ASR `2026-11-17.3`、ROLEPLAY `2026-11-17.4`（hash 运行时由 `sha256Hex` 派生） | 读源码常量 | 交接文档里 TOS 旧值 `.5` 已被 `.6` 取代；以源码为准 |
 
@@ -772,11 +772,11 @@ DF/
 **验收命令**：
 
 ```bash
-cd /mnt/d/Projects/dsh/desktop-games
+cd <private-path>
 node scripts/gen-face-spec.mjs --check           # exit 0；--diff 输出为空
 node scripts/export-public-pet.mjs --check       # exit 0；无私有路径/密钥/WAV
-cd /mnt/d/Projects/dsh/_scratch/famling-cleanup-2026-11-18 && npm run typecheck && npm run build
-cd /mnt/d/Projects/dsh/plugins/dsh-famling
+cd <private-path> && npm run typecheck && npm run build
+cd <private-path>
 node scripts/check-spec-lock.mjs && node --check index.js client.js && npm test
 ```
 
@@ -867,7 +867,7 @@ node scripts/check-spec-lock.mjs && node --check index.js client.js && npm test
 
 ### 5.7 P6 git/CI/发布（1-2 天，可与 P0 并行）
 
-**改动文件**：`DF/` 换成公开仓 clone（保留 `/mnt/d/Projects/dsh/plugins/dsh-famling` 路径）；`DF/.github/workflows/ci.yml`（Node 24：`node --check`、`npm test`、spec lock、capability coverage、engines）；`DF/docs/COMPAT.md`；`PF/.github/workflows/` 增加 spec 校验 job；README 修正（“预留 `window.__DSH_FAMLING_BRIDGE__`” 过期句、yaml 代码块未闭合、`0.2.2-rc.3` 过期表述）；`DF/package.json` `engines.dsh` 收紧（跑完矩阵后）。
+**改动文件**：`DF/` 换成公开仓 clone（保留 `<private-path> 路径）；`DF/.github/workflows/ci.yml`（Node 24：`node --check`、`npm test`、spec lock、capability coverage、engines）；`DF/docs/COMPAT.md`；`PF/.github/workflows/` 增加 spec 校验 job；README 修正（“预留 `window.__DSH_FAMLING_BRIDGE__`” 过期句、yaml 代码块未闭合、`0.2.2-rc.3` 过期表述）；`DF/package.json` `engines.dsh` 收紧（跑完矩阵后）。
 
 **验收标准**：新 clone → `npm ci`/`npm test` 全绿；`dsh plugin --profile web remove/add link:` 后 `list_plugins` 可见、刷新后出现汀岚；CI 在 PR 上阻断 spec/边界/能力问题。
 
@@ -895,7 +895,7 @@ node scripts/check-spec-lock.mjs && node --check index.js client.js && npm test
 |---|---|---|---|---|---|---|
 | R1 | DSH 0.2.x rc 期 API 漂移 | 上游在同 rc 周期内改过 `engines.dsh` 规则、`BundleInfo.updatable` 改 `update`、context-menu target、settings 插件页、client HMR 事件（`DSH/docs/upgrade-guide/**`） | 插件功能失效/加载失败 | 高 | 所有 host 调用收口 `src/host/dsh.js`；`HOST_BASELINE` + surface fixtures；`engines.dsh`；发布节奏跟 DSH；失败降级不崩 | `dsh-surface.test.js` + 真实 DSH 冒烟 + 上游 release notes 巡检 |
 | R2 | 插件安装态丢失 | 交接记录 09:12、13:00 两次从 profile bundles 消失；原因未定（疑 DSH 重装/升级流程重置 profile） | 用户侧“宠物突然不见” | 高 | 文档化恢复步骤；README 写明 `remove/add → 重启`；不自动改 profile；发版后在 `plugin_manager list_plugins` 复核 | 每次升级/重装后人工检查；用户反馈 |
-| R3 | 双 DSH home / 双 Advisers home | 运行实例是 WSL `/home/yy/.dsh` + `/home/yy/.advisers`；Windows 还有 `C:/Users/zzhdz/.dsh`（bundles 无插件）与不存在的 `C:/Users/zzhdz/.advisers` | brief 读不到/设置不跟/装错地方 | 高 | adapter 解析 home 时与 producer 对齐；新增 Config `advisersHome`/`dataHome` 覆盖；文档写清运行平台 | 启动日志/`hello` 返回解析出的 home（不回显敏感内容）；冒烟按平台各一次 |
+| R3 | 双 DSH home / 双 Advisers home | 运行实例是 WSL `/home/yy/.dsh` + `/home/yy/.advisers`；Windows 还有 `<private-path>/.dsh`（bundles 无插件）与不存在的 `<private-path>/.advisers` | brief 读不到/设置不跟/装错地方 | 高 | adapter 解析 home 时与 producer 对齐；新增 Config `advisersHome`/`dataHome` 覆盖；文档写清运行平台 | 启动日志/`hello` 返回解析出的 home（不回显敏感内容）；冒烟按平台各一次 |
 | R4 | Pet Brief 契约漂移（TTL/closed schema/displayPolicy/未来版本） | 插件当前弱校验（§1.5 G3）；Advisers 契约 v0.2、未来 0.3 | 展示过期数据/未知字段/隐私违规 | 中 | spec 共用 `validateBrief`；consumer-first；未来版本 fail-closed；displayPolicy none 丢弃 | 共用测试向量 + 真实 brief 冒烟 |
 | R5 | 无 Host TTS、ASR 实验性/需 bundle | DSH 无 TTS（已核）；voice-input 默认未启用 | 语音能力弱/不可用；桌面版与 DSH 版体验不一致 | 高 | 浏览器 TTS/ASR 兜底 + 独立同意；不宣称 Host TTS；可选 host ASR 仅作为增强 | 能力矩阵 + 真机测试 |
 | R6 | 许可/权利 | 42 WAV 服务商再分发许可 TBD（A-04 BLANK）；PolyForm NC + CC BY-NC-SA；Advisers 许可口径历史有变化 | 公开分发/商用风险 | 中高 | spec/插件不随包音频；公开导出扫描；LICENSE/NOTICE 同步；法务/权利人外部 blocked | `publicSafe` 扫描 + legal-check + 人工复核 |
@@ -950,7 +950,7 @@ node scripts/check-spec-lock.mjs && node --check index.js client.js && npm test
 
 ```bash
 # ---------- 私有仓 DG ----------
-cd /mnt/d/Projects/dsh/desktop-games
+cd <private-path>
 git log --oneline -1            # 81932d8 docs: record pet-attached bubble and menu-trigger verification
 git status --porcelain          # 3 个与本任务无关的既有改动（2 M + 1 ??），本次未触碰
 git remote -v                   # 空（无 remote）
@@ -961,7 +961,7 @@ git ls-files -z | xargs -0 stat -c %s | awk "{s+=\$1} END {printf \"%d bytes\n\"
 # ---------- 公开 famling PF ----------
 GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null git -c http.proxy= \
   ls-remote https://github.com/PerryLink/famling HEAD   # e7746466df4b67108e7fd54d2edf3d622c90a59f
-cd /mnt/d/Projects/dsh/_scratch/famling-cleanup-2026-11-18
+cd <private-path>
 git rev-parse HEAD              # e7746466df4b67108e7fd54d2edf3d622c90a59f
 git ls-files | wc -l            # 553
 git ls-files "*.wav" | wc -l    # 0
@@ -969,7 +969,7 @@ git ls-files -z | xargs -0 stat -c %s | awk "{s+=\$1} END {printf \"%d bytes\n\"
 node -e "const p=require('./package.json'); console.log(p.name, p.version)"   # famling-pet 0.1.0
 
 # ---------- 插件 DF ----------
-cd /mnt/d/Projects/dsh/plugins/dsh-famling
+cd <private-path>
 ls -a                           # 无 .git（靠拷贝同步）
 # package.json 用 read 读取：name=dsh-famling, version=0.7.5, engines.dsh=>=0.2.1-rc.5 <0.3.0
 node --check index.js           # exit 0
@@ -984,9 +984,9 @@ curl -sL https://api.github.com/repos/PerryLink/dsh-famling/contents/docs       
 curl -sL https://api.github.com/repos/PerryLink/dsh-famling/contents/test                   # host-bridge.test.js
 
 # ---------- 契约文档三处副本哈希（漂移证据）----------
-cd /mnt/d/Projects/dsh/desktop-games
+cd <private-path>
 sha256sum docs/integration/DSH-FAMLING-BRIDGE-2026-11-17.md | cut -c1-16            # ba775a5d...
-cd /mnt/d/Projects/dsh/_scratch/famling-cleanup-2026-11-18
+cd <private-path>
 sha256sum docs/integration/DSH-FAMLING-BRIDGE-2026-11-17.md | cut -c1-16            # f76205b4...（旧）
 curl -sL https://raw.githubusercontent.com/PerryLink/dsh-famling/main/docs/DSH-FAMLING-BRIDGE-2026-11-17.md | sha256sum | cut -c1-16   # ba775a5d...
 # NATIVE-ARCH / ADVISERS-CONTRACT 三处一致（b4b7042d... / 2e830979...）
@@ -995,7 +995,7 @@ curl -sL https://raw.githubusercontent.com/PerryLink/dsh-famling/main/docs/DSH-F
 # 用 node 正则统计（命令从略）：client.js 112,891 B；SPRITES 30 键；AI 声明 2 处；bridge fetch 3 处
 
 # ---------- 独立版关键事实 ----------
-cd /mnt/d/Projects/dsh/desktop-games
+cd <private-path>
 grep -nE "TOS_VERSION|TTS_VERSION|ASR_VERSION|ROLEPLAY_VERSION" src/pet/consent/terms.ts   # 2026-11-17.6 / .4 / .3 / .4
 grep -nE "PET_BRIEF_(MAX_BYTES|TTL_MS|SUPPORTED_SCHEMA_VERSIONS|FUTURE_SCHEMA_POLICY)" src/presence/pet-brief.ts   # 128 KiB / 5min / [1,2] / refuse
 ls public/assets/pet                               # cat/dog/pearl(36 PNG+manifest) + tinglan-256(49 PNG+manifest)

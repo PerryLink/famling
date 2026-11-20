@@ -5,7 +5,7 @@
 - 范围：`public/assets/pet/anim/cat/`（96×96、12 clips / 68 帧、anchor 48/96、footBox `[-36,-18,72,18]`、地线 y=89）由独立渲染器 `scripts/cat_ragdoll.py` + 独立生成器 `scripts/gen-cat-anim.py` 确定性生成；manifests/帧表/资源路径与 v7 金毛包同一 `famling.pet-anim/0.1` 契约。
 - 不改：`scripts/gen-pet-anim-frames.py`、`scripts/dog_golden5.py`、dog/human 动画包、`src/**`、`pet.html/pet.css/main.ts/hero-runtime.ts`；不 commit、不新增 npm 依赖。
 - 生成器：`scripts/gen-cat-anim.py`（PIL + numpy，纯整数图元，无随机/网络/模型）；渲染器：`scripts/cat_ragdoll.py`。
-- 预览：`/mnt/d/Projects/dsh/_scratch/pet-anim-cat-preview/`（1x/4x/dark 4x contact sheet、12 个 GIF、逐 clip 4x 图、本报告、`VERIFY-OUTPUT.txt`、参考照片）。
+- 预览：`<private-path> 4x contact sheet、12 个 GIF、逐 clip 4x 图、本报告、`VERIFY-OUTPUT.txt`、参考照片）。
 
 ## 1. 角色设定与画法
 
@@ -71,14 +71,14 @@
 ## 4. 生成 / 复验 / 预览命令
 
 ```bash
-cd /mnt/d/Projects/dsh/desktop-games
+cd <private-path>
 python3 scripts/gen-cat-anim.py                # 写 68 帧 + manifest
 python3 scripts/gen-cat-anim.py --check        # 逐字节复验（生成器 == 盘上资产）
 python3 scripts/gen-cat-anim.py --verify       # 帧数/色数/alpha/地线/唯一帧/轮廓/洞/内部黑线/bbox 边距
 python3 scripts/gen-cat-anim.py --sheet /tmp/cat.png   # 不写资产的 contact sheet
 node --import tsx --test tests/pet-anim-cat.test.ts
 npx tsc --noEmit
-cd /mnt/d/Projects/dsh/_scratch/pet-anim-cat-preview && python3 gen_previews.py
+cd <private-path> && python3 gen_previews.py
 ```
 
 ## 5. 实测结果（2026-11-18）

@@ -14,7 +14,10 @@
  *   2. Runtime       src/pet/character/validate.ts (data-only guard, ids/versions, ranges,
  *                    apiVersion MAJOR/MINOR negotiation, minRuntime, render.format registration)
  *   3. Behavior      state/rule/slot/ambient references, priority/probability/cooldown ranges,
- *                    fallback cycles and depth (<= 3), needs sanity, tag coverage;
+ *                    fallback cycles and depth (<= 3), needs sanity, tag coverage,
+ *                    capability gate: behaviour fields the shipping runtime cannot
+ *                    execute are BEHAVIOR_CAPABILITY_* warnings (errors with
+ *                    --strict-capabilities), never silently accepted;
  *                    0.3 adds state categories and rules[].voiceLineId/sfx/emote/
  *                    durationMs/requiresAny + when.mood/focus/energy
  *   4. Pack          packBase resolution (relative / absolute / /assets/... under public/),
@@ -109,6 +112,10 @@ Options:
   --strict         treat release-readiness problems as errors (license/ai required,
                    palette/naming/alpha-range mismatches, missing art tags, missing
                    explicit render.format on documents newer than 0.1)
+  --strict-capabilities
+                   treat behaviour capability gaps as errors (a rule field or
+                   runtimeCapabilities entry the shipping runtime cannot execute);
+                   default is a BEHAVIOR_CAPABILITY_* warning per gap
   --max-colors N   max distinct opaque colours per frame (default ${DEFAULT_MAX_COLORS})
   --schema PATH    force ONE JSON Schema for every target (default: auto-select by
                    apiVersion from content/schema/character-<apiVersion>.schema.json)
@@ -130,12 +137,13 @@ Examples:
   node --import tsx scripts/validate-character.mjs tests/fixtures/fci-v03/tinlan-v03 --json --strict
 `
 
-const VALIDATOR_VERSION = '0.3.0'
+const VALIDATOR_VERSION = '0.4.0'
 
 function parseArgs(argv) {
   const options = {
     json: false,
     strict: false,
+    strictCapabilities: false,
     help: false,
     version: false,
     maxColors: DEFAULT_MAX_COLORS,
@@ -148,6 +156,7 @@ function parseArgs(argv) {
     const arg = argv[i]
     if (arg === '--json') options.json = true
     else if (arg === '--strict') options.strict = true
+    else if (arg === '--strict-capabilities') options.strictCapabilities = true
     else if (arg === '--no-pixels') options.pixels = false
     else if (arg === '--help' || arg === '-h') options.help = true
     else if (arg === '--version' || arg === '-V') options.version = true
@@ -504,7 +513,7 @@ function resolvePackLocation(rawPackBase, characterDir) {
     return { kind: 'error', message: 'packBase must be a non-empty string' }
   }
   if (/^https?:\/\//i.test(rawPackBase)) return { kind: 'remote', raw: rawPackBase }
-  if (/^fil<private-path>)) {
+  if (/^file:\/\//i.test(rawPackBase)) {
     try {
       return { kind: 'local', path: fileURLToPath(rawPackBase), raw: rawPackBase }
     } catch (error) {
@@ -761,6 +770,24 @@ function checkPackAssets(pack, packDir, document, report, options) {
   }
   const paletteColours = loadPaletteColours(pack.palette)
   summary.palette.spec = paletteColours !== null
+  // Decoded-memory red line (P1 architecture review 2026-11-21): the renderer
+  // decodes and keeps every frame alive as RGBA8888, so the manifest answers
+  // "canvas area x total frames x 4 bytes"; over the 32 MiB budget is a hard
+  // error (fail closed) so a pack can never OOM the WebView through frame count.
+  const pixelRuntime = options.runtime
+  const totalFrames = Object.values(pack.tags).reduce((sum, meta) => sum + (Number.isInteger(meta.frames) ? meta.frames : 0), 0)
+  const decodeBudget = pixelRuntime.characterPackDecodeBudget(pack.canvas, totalFrames)
+  summary.decodeBudget = {
+    frames: decodeBudget.frames,
+    canvas: [...decodeBudget.canvas],
+    bytes: decodeBudget.bytes,
+    limitBytes: decodeBudget.limitBytes,
+    overBudget: decodeBudget.overBudget,
+    maxFrames: decodeBudget.maxFrames,
+  }
+  if (decodeBudget.overBudget) {
+    report.error('PACK_DECODE_BUDGET', 'packBase', pixelRuntime.decodeBudgetProblem(pack.canvas, totalFrames, 'pack "' + pack.id + '"'))
+  }
   const offPalette = new Set()
   const globalColours = new Set()
   let cursor = 0
@@ -1188,12 +1215,26 @@ function validateTarget(dirArg, context, duplicateIds) {
   } else {
     report.error('BEHAVIOR_MISSING', 'behavior', 'character document needs behavior or behaviorFile')
   }
+  // Inline behaviour is audited by the document validator below (it passes the
+  // warning sink); a behaviour FILE never reaches that validator, so its
+  // capability diagnostics are attached here.
+  const behaviorIsExternal = isRecord(behavior) && !isRecord(raw.behavior)
   if (isRecord(behavior)) {
     report.checks.behavior = checkBehaviourSemantics(behavior, report)
+    const capabilityWarnings = []
     try {
-      if (report.apiVersion === '0.3') runtime.validateBehaviorProfileV03(behavior)
-      else runtime.validateBehaviorProfile(behavior)
+      // Inline behaviour is validated again (with the warning sink) by the
+      // document validator below; only pass the strict flag here for a behavior
+      // FILE so a strict gap is reported once instead of twice.
+      const behaviorOptions = {
+        ...(behaviorIsExternal ? { warnings: capabilityWarnings } : {}),
+        ...(behaviorIsExternal && options.strictCapabilities ? { strictCapabilities: true } : {}),
+      }
+      if (report.apiVersion === '0.3') runtime.validateBehaviorProfileV03(behavior, behaviorOptions)
+      else runtime.validateBehaviorProfile(behavior, behaviorOptions)
       report.checks.behavior.runtime = 'ok'
+      report.checks.behavior.capabilities = runtime.capabilityAuditSummary(runtime.auditBehaviorCapabilities(behavior))
+      for (const warning of capabilityWarnings) report.warning(warning.code, warning.path, warning.message)
     } catch (error) {
       report.checks.behavior.runtime = 'failed'
       report.error('BEHAVIOR_INVALID', 'behavior', error.message)
@@ -1241,8 +1282,17 @@ function validateTarget(dirArg, context, duplicateIds) {
     try {
       validatedDocument =
         report.apiVersion === '0.3'
-          ? runtime.validateCharacterDocumentV03(raw, { warnings: validationWarnings, renderFormats: context.renderFormats, behavior: validBehavior })
-          : runtime.validateCharacterDocument(raw, { warnings: validationWarnings, renderFormats: context.renderFormats })
+          ? runtime.validateCharacterDocumentV03(raw, {
+              warnings: validationWarnings,
+              renderFormats: context.renderFormats,
+              behavior: validBehavior,
+              ...(options.strictCapabilities ? { strictCapabilities: true } : {}),
+            })
+          : runtime.validateCharacterDocument(raw, {
+              warnings: validationWarnings,
+              renderFormats: context.renderFormats,
+              ...(options.strictCapabilities ? { strictCapabilities: true } : {}),
+            })
       report.checks.runtime = 'ok'
       for (const warning of validationWarnings) {
         // RENDER_INFERRED is already surfaced as RENDER_MISSING above (warning/error per --strict).
@@ -1304,6 +1354,28 @@ function validateTarget(dirArg, context, duplicateIds) {
 
   // 5) Tags, pack and tag coverage.
   const documentTags = isRecord(raw.tags) ? raw.tags : {}
+  // Inline tag table decoded-memory red line (the packBase manifest branch is
+  // checked in checkPackAssets above): canvas area x total frames x 4 bytes.
+  if (isRecord(raw.tags) && Array.isArray(raw.canvas)) {
+    const inlineFrames = Object.values(raw.tags).reduce(
+      (sum, tag) => sum + (isRecord(tag) && isInteger(tag.frames) && tag.frames > 0 ? tag.frames : 0),
+      0,
+    )
+    if (inlineFrames > 0) {
+      const budget = runtime.characterPackDecodeBudget(raw.canvas, inlineFrames)
+      report.checks.decodeBudget = {
+        source: 'inline-tags',
+        frames: inlineFrames,
+        canvas: [...raw.canvas],
+        bytes: budget.bytes,
+        limitBytes: budget.limitBytes,
+        overBudget: budget.overBudget,
+      }
+      if (budget.overBudget) {
+        report.error('PACK_DECODE_BUDGET', 'tags', runtime.decodeBudgetProblem(raw.canvas, inlineFrames, 'inline tag table'))
+      }
+    }
+  }
   const location = typeof raw.packBase === 'string' ? resolvePackLocation(raw.packBase, characterDir) : null
   const packSummary = location
     ? inspectPack(location, raw.packBase, raw, report, { ...options, runtime })
@@ -1429,9 +1501,14 @@ async function main(argv) {
   try {
     const character = await import('../src/pet/character/index.ts')
     const hero = await import('../src/pet/hero.ts')
+    const pixelScale = await import('../src/pet/pixel-scale.ts')
     runtime = {
       validateCharacterDocument: character.validateCharacterDocument,
       validateBehaviorProfile: character.validateBehaviorProfile,
+      auditBehaviorCapabilities: character.auditBehaviorCapabilities,
+      capabilityAuditSummary: character.capabilityAuditSummary,
+      characterPackDecodeBudget: pixelScale.characterPackDecodeBudget,
+      decodeBudgetProblem: pixelScale.decodeBudgetProblem,
       resolveRenderFormat: character.resolveRenderFormat,
       renderFormats: () => [...character.KNOWN_RENDER_FORMATS],
       requiredTags: character.requiredTags,
@@ -1492,6 +1569,7 @@ async function main(argv) {
     const payload = {
       ok,
       strict: options.strict,
+      strictCapabilities: options.strictCapabilities,
       validator: VALIDATOR_VERSION,
       // Historical fields: the *shipping runtime* contract this validator
       // targets (frozen at 0.2). 0.3 is validated through the preview layer;

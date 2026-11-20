@@ -50,7 +50,7 @@
   `Famling · 汀岚`；Rust crate 改名 `famling-tauri`；产物样例
   `Famling_0.1.0_x64-setup.exe` / `Famling_0.1.0_x64_en-US.msi` / `famling-tauri.exe`。
 - 同文件 `:210-212`：公开仓 CI run `44222550110` 全绿；Windows 实机安装路径
-  `C:/Users/zzhdz/AppData/Local/Famling/famling-tauri.exe`（NSIS 默认安装目录 =
+  `<private-path>/AppData/Local/Famling/famling-tauri.exe`（NSIS 默认安装目录 =
   `%LOCALAPPDATA%\<productName>`），TOS 门与主界面通过。
 - 结论：`Famling` 作为产品名/包名/安装目录已经在真实 Windows 上被验证可用；本 ADR 不重复
   验证这些外部事实，只决定私有 C1 通道何时、按什么顺序对齐。

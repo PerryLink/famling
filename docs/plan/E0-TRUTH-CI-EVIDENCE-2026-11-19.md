@@ -118,7 +118,7 @@ files/*  --sha256-->  SHA256SUMS.txt  --sha256-->  RELEASE-MANIFEST.json  --sha2
 | 平台 | 命令 | 结果 | npm ci | gate | 测试（node:test） |
 | --- | --- | --- | --- | --- | --- |
 | Linux / WSL2（node v24.22.1） | `node scripts/ci-clean-checkout.mjs --worktree --keep --summary-out artifacts/qa/ci-clean-linux.json` | **ok=true，13/13 步通过** | 12.0s | 27.8s | 1211 tests / 1207 pass / **0 fail** / 4 skip |
-| Windows / win32（node v24.22.1） | 同一脚本（Windows node 调用，`D:\...` 路径） | **ok=true，13/13 步通过** | 19.0s | 42.2s | 1211 tests / 1204 pass / **0 fail** / 7 skip |
+| Windows / win32（node v24.22.1） | 同一脚本（Windows node 调用，`<private-path>` 路径） | **ok=true，13/13 步通过** | 19.0s | 42.2s | 1211 tests / 1204 pass / **0 fail** / 7 skip |
 
 - 导出树不含 `.git`/`node_modules`/`dist`；`npm ci` 使用导出目录内独立 npm cache；gate 的 `commit=7c5870a`、`dirty=false`（来自父仓库 git 事实），13 个步骤全部通过（含 typecheck/build/test/validate:content/verify:pack/art/FCI/legal/docs:check/evidence:self-test）。
 - `build` 在 `test` 之前：dist 依赖测试不再静默 skip。

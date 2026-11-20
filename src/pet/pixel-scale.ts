@@ -196,6 +196,131 @@ export function exactPixelScales(width: number, height: number): PixelScale[] {
   )
 }
 
+// ---------------------------------------------------------------------------
+// Decoded-memory policy (third-party pack red line)
+// ---------------------------------------------------------------------------
+
+/** Bytes one decoded RGBA8888 pixel occupies in the renderer/canvas backing store. */
+export const RGBA_BYTES_PER_PIXEL = 4
+
+/**
+ * Hard ceiling for the estimated decoded RGBA bytes of **one character pack**:
+ * every declared frame is decoded and kept alive by the shipping renderer
+ * (`hero.ts loadCharacterPack` loads all frames up front), so the pack's
+ * in-memory cost is `canvas area x total frames x 4 bytes`.
+ *
+ * 32 MiB = 8,388,608 pixels, matching the P1 architecture review's suggested
+ * "8M px / 32 MiB RGBA" line. To put that in context:
+ * - shipped 96x96x72 packs cost 2.5 MiB and stay ~8x under the line;
+ * - a 256x256 pack with 72 frames costs 18 MiB and still fits;
+ * - 1024x1024 frames at the 12-clip minimum would cost ~563 MiB, which is the
+ *   exact OOM this budget fails closed on.
+ *
+ * A host that later decodes per clip instead of all frames up front may budget
+ * the *peak* as `canvas area x framesPerClip x 4`; this module exposes
+ * `characterPackDecodePeak` for that future mode, but the enforced shipping
+ * budget stays the eager one because that is what the current renderer does.
+ */
+export const MAX_PACK_DECODED_RGBA_BYTES = 32 * 1024 * 1024
+
+/** Estimated decoded RGBA bytes for one canvas x total-frame-count pair. */
+export interface CharacterPackDecodeBudget {
+  /** Total frames across every clip of the pack. */
+  readonly frames: number
+  /** Canvas art pixels per side, [width, height]. */
+  readonly canvas: readonly [number, number]
+  /** `width * height` for one frame. */
+  readonly pixelsPerFrame: number
+  /** Total decoded pixels across every frame (`pixelsPerFrame * frames`). */
+  readonly pixels: number
+  /** Total decoded RGBA bytes (`pixels * RGBA_BYTES_PER_PIXEL`). */
+  readonly bytes: number
+  /** The enforced ceiling in bytes (`MAX_PACK_DECODED_RGBA_BYTES`). */
+  readonly limitBytes: number
+  /** True when `bytes > limitBytes` (the pack must fail closed). */
+  readonly overBudget: boolean
+  /** Largest total frame count this canvas may declare under the ceiling. */
+  readonly maxFrames: number
+  /** Largest square-ish canvas side that fits the ceiling at this frame count (diagnostic only). */
+  readonly maxSquareSide: number
+}
+
+/** Combine a canvas and a total frame count into the decoded-RGBA budget model. */
+export function characterPackDecodeBudget(
+  canvas: readonly [number, number],
+  frames: number,
+): CharacterPackDecodeBudget {
+  const width = Number.isFinite(canvas[0]) && canvas[0] > 0 ? Math.floor(canvas[0]) : 0
+  const height = Number.isFinite(canvas[1]) && canvas[1] > 0 ? Math.floor(canvas[1]) : 0
+  const safeFrames = Number.isFinite(frames) && frames > 0 ? Math.floor(frames) : 0
+  const pixelsPerFrame = width * height
+  const pixels = pixelsPerFrame * safeFrames
+  const bytes = pixels * RGBA_BYTES_PER_PIXEL
+  const maxFrames = pixelsPerFrame > 0 ? Math.floor(MAX_PACK_DECODED_RGBA_BYTES / (pixelsPerFrame * RGBA_BYTES_PER_PIXEL)) : 0
+  const maxSquareSide = safeFrames > 0 ? Math.floor(Math.sqrt(MAX_PACK_DECODED_RGBA_BYTES / (safeFrames * RGBA_BYTES_PER_PIXEL))) : 0
+  return {
+    frames: safeFrames,
+    canvas: [width, height],
+    pixelsPerFrame,
+    pixels,
+    bytes,
+    limitBytes: MAX_PACK_DECODED_RGBA_BYTES,
+    overBudget: bytes > MAX_PACK_DECODED_RGBA_BYTES,
+    maxFrames,
+    maxSquareSide,
+  }
+}
+
+/** Decoded-RGBA peak if only the largest single clip is decoded at once (future lazy mode). */
+export function characterPackDecodePeak(
+  canvas: readonly [number, number],
+  framesPerClip: number,
+): CharacterPackDecodeBudget {
+  return characterPackDecodeBudget(canvas, framesPerClip)
+}
+
+/** Human-readable size for messages (MiB with one decimal, KiB below 1 MiB). */
+function formatByteSize(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`
+  return `${(bytes / 1024).toFixed(1)} KiB`
+}
+
+/**
+ * Readable reason a pack's declared `canvas x total frames` exceeds the decoded
+ * memory red line, or `null` when it fits. Callers wrap this in their own error
+ * type (ContentIssue, CharacterInterfaceError, CLI diagnostic) so the wording
+ * and the numbers stay in one place.
+ */
+export function decodeBudgetProblem(
+  canvas: readonly [number, number],
+  frames: number,
+  what = 'character pack',
+): string | null {
+  const budget = characterPackDecodeBudget(canvas, frames)
+  if (!budget.overBudget) return null
+  return (
+    `${what} decodes ${budget.frames} frames x ${budget.canvas[0]}x${budget.canvas[1]} px = ` +
+    `${formatByteSize(budget.bytes)} RGBA, over the ${formatByteSize(budget.limitBytes)} decoded-memory limit ` +
+    `(all frames are decoded eagerly by the shipping renderer). At this canvas a pack may declare at most ` +
+    `${budget.maxFrames} frames, or reduce the canvas towards ${budget.maxSquareSide}x${budget.maxSquareSide} px at ` +
+    `${budget.frames} frames; see docs/plan/ADR-BEHAVIOR-CONTRACT-2026-11-21.md.`
+  )
+}
+
+/**
+ * Assert the decoded memory budget. Throws `RangeError` with the same readable
+ * message as `decodeBudgetProblem`; callers that need a typed error wrap it.
+ */
+export function assertCharacterPackDecodeBudget(
+  canvas: readonly [number, number],
+  frames: number,
+  what = 'character pack',
+): CharacterPackDecodeBudget {
+  const problem = decodeBudgetProblem(canvas, frames, what)
+  if (problem) throw new RangeError(problem)
+  return characterPackDecodeBudget(canvas, frames)
+}
+
 export interface PixelScaleFitInput {
   /** Content box that will be scaled (CSS px for the display scale). */
   readonly contentWidth: number

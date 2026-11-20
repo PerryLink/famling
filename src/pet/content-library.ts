@@ -57,11 +57,18 @@
  */
 
 import { canonicalJson } from '../pack/canonical.ts'
-import { CANVAS_SIZE_ALIGNMENT, CANVAS_SIZE_MAX, CANVAS_SIZE_MIN } from './pixel-scale.ts'
+import {
+  CANVAS_SIZE_ALIGNMENT,
+  CANVAS_SIZE_MAX,
+  CANVAS_SIZE_MIN,
+  MAX_PACK_DECODED_RGBA_BYTES,
+  RGBA_BYTES_PER_PIXEL,
+  characterPackDecodeBudget,
+} from './pixel-scale.ts'
 import { CLIP_IDS, type ClipCategory, type ClipId, type ClipLayer } from './anim/types.ts'
 import { parseHeroRegionConfig, type HeroRegionConfig } from './anim/regions.ts'
 import { validateBehaviorProfile } from './character/validate.ts'
-import type { BehaviorProfile } from './character/types.ts'
+import type { BehaviorProfile, CharacterValidationWarning } from './character/types.ts'
 import { countCodePoints, stripBidiControls, stripControlChars, SECURITY_LIMITS } from './security/limits.ts'
 import { checkRelativePath } from './security/path-safety.ts'
 import { toPlainText } from './security/html.ts'
@@ -480,6 +487,10 @@ export type ContentIssueCode =
   | 'invalid-behavior'
   | 'invalid-region'
   | 'missing-preview'
+  // pet-anim 0.2: behaviour capability gate + decoded-memory red line
+  | 'behavior-capability-unsupported'
+  | 'behavior-capability-undeclared'
+  | 'decoded-memory-exceeded'
 
 export interface ContentIssue {
   /** JSON-ish location, e.g. "$.themes[0].vars.bubbleBg". */
@@ -4982,6 +4993,14 @@ export const CHARACTER_PACK_V2_LIMITS = Object.freeze({
   maxFiles: 192,
   maxFramesPerClip: 16,
   maxTotalFrames: 144,
+  /**
+   * Decoded-memory red line (P1 architecture review 2026-11-21): every declared
+   * frame is decoded and kept alive as RGBA8888 by the shipping renderer, so
+   * `canvas area x total frames x 4 bytes` must stay under 32 MiB (~8.4 M px).
+   * Packs over it fail closed instead of risking a WebView OOM; the shipped
+   * 96x96x72 packs use 2.5 MiB and are comfortably inside.
+   */
+  maxDecodedRgbaBytes: MAX_PACK_DECODED_RGBA_BYTES,
   maxFps: 30,
   maxFrameBytes: 512 * 1024,
   maxPreviewBytes: 2 * 1024 * 1024,
@@ -5193,8 +5212,27 @@ export interface CharacterPackV2 {
 }
 
 export type CharacterPackV2Validation =
-  | { readonly ok: true; readonly pack: CharacterPackV2 }
-  | { readonly ok: false; readonly issues: readonly ContentIssue[] }
+  | {
+      readonly ok: true
+      readonly pack: CharacterPackV2
+      /**
+       * Non-fatal capability-gate diagnostics (behaviour fields the shipping
+       * runtime cannot execute). Backward-compatible default; installers should
+       * surface these before asking for consent. Omitted when empty.
+       */
+      readonly warnings?: readonly ContentIssue[]
+    }
+  | { readonly ok: false; readonly issues: readonly ContentIssue[]; readonly warnings?: readonly ContentIssue[] }
+
+/** Options for `validateCharacterPackV2`. */
+export interface CharacterPackValidationOptions {
+  /**
+   * Make behaviour capability gaps install-blocking instead of non-fatal
+   * warnings (new-pack / CI mode). Default `false` keeps pre-gate packs
+   * loadable and reports the gap as a warning.
+   */
+  readonly strictCapabilities?: boolean
+}
 
 // ---------------------------------------------------------------------------
 // pet-anim 0.2: installer interface (plan only; the host does the I/O)
@@ -5628,6 +5666,44 @@ function parseCharacterPackClips(
   return clips as Readonly<Record<ClipId, CharacterPackClipV2>>
 }
 
+/**
+ * Pet-anim 0.2 decoded-memory red line (P1 architecture review 2026-11-21).
+ *
+ * The renderer decodes and keeps every declared frame alive as RGBA8888, so the
+ * pack's worst-case decoded size is `canvas area x total frames x 4`. The
+ * declared caps (canvas <= 1024, <= 144 frames) still allow ~563 MiB, which is
+ * a WebView OOM; this check fails the pack closed at spec/install/load time with
+ * a readable number instead. See docs/plan/ADR-BEHAVIOR-CONTRACT-2026-11-21.md.
+ */
+const RGBA_MIB = 1024 * 1024
+
+/**
+ * Compact version of `decodeBudgetProblem()` for ContentIssue messages: pack
+ * diagnostics are capped at MAX_ISSUE_MESSAGE_CHARS, so the readable numbers are
+ * packed into one short sentence (the long-form message is used by the
+ * validator CLI, which has no cap).
+ */
+function decodeBudgetIssueMessage(canvas: readonly [number, number], frames: number): string {
+  const budget = characterPackDecodeBudget(canvas, frames)
+  const mib = (budget.bytes / RGBA_MIB).toFixed(1)
+  const limit = (budget.limitBytes / RGBA_MIB).toFixed(0)
+  return (
+    'canvas ' + canvas[0] + 'x' + canvas[1] + ' x ' + frames + ' frames decodes to ' + mib + ' MiB RGBA, over the ' + limit +
+    ' MiB memory limit (max ' + budget.maxFrames + ' frames, or <= ' + budget.maxSquareSide + 'px canvas at ' + frames + ' frames)'
+  )
+}
+
+function checkCharacterPackDecodedMemory(
+  canvas: readonly [number, number],
+  clips: Readonly<Record<ClipId, CharacterPackClipV2>>,
+  issues: ContentIssue[],
+): void {
+  const totalFrames = Object.values(clips).reduce((sum, clip) => sum + clip.frames, 0)
+  if (characterPackDecodeBudget(canvas, totalFrames).overBudget) {
+    addIssue(issues, '$.animations.clips', 'decoded-memory-exceeded', decodeBudgetIssueMessage(canvas, totalFrames))
+  }
+}
+
 function parseCharacterPackCharacter(
   raw: unknown,
   packKind: CharacterPackKind | undefined,
@@ -5876,20 +5952,44 @@ function parseCharacterPackAudio(
   return audio
 }
 
+const BEHAVIOR_CAPABILITY_ISSUE_CODES: Readonly<Record<string, ContentIssueCode>> = Object.freeze({
+  BEHAVIOR_CAPABILITY_UNSUPPORTED: 'behavior-capability-unsupported',
+  BEHAVIOR_CAPABILITY_UNDECLARED: 'behavior-capability-undeclared',
+})
+
+/**
+ * Map a runtime capability-gate warning into a pack-level diagnostic. The gate
+ * reports paths relative to the behaviour profile (`behavior.rules[3].guard`);
+ * pack diagnostics use JSON-ish paths rooted at `$.behavior`.
+ */
+function addBehaviorCapabilityWarning(warnings: ContentIssue[], warning: CharacterValidationWarning): void {
+  const suffix = warning.path.startsWith('behavior') ? warning.path.slice('behavior'.length) : '.' + warning.path
+  addIssue(warnings, '$.behavior' + suffix, BEHAVIOR_CAPABILITY_ISSUE_CODES[warning.code] ?? 'invalid-behavior', warning.message)
+}
+
 function parseCharacterPackBehavior(
   raw: unknown,
   kind: CharacterPackKind | undefined,
   clips: Readonly<Record<ClipId, CharacterPackClipV2>>,
   issues: ContentIssue[],
+  options: CharacterPackValidationOptions = {},
+  warnings: ContentIssue[] = [],
 ): BehaviorProfile | undefined {
   const path = '$.behavior'
   let behavior: BehaviorProfile
+  const capabilityWarnings: CharacterValidationWarning[] = []
   try {
-    behavior = validateBehaviorProfile(raw)
+    behavior = validateBehaviorProfile(raw, {
+      warnings: capabilityWarnings,
+      ...(options.strictCapabilities === true ? { strictCapabilities: true } : {}),
+    })
   } catch (error) {
     addIssue(issues, path, 'invalid-behavior', characterPackErrorMessage(error))
     return undefined
   }
+  // Backward-compatible default: capability gaps are warnings the installer can
+  // show; strictCapabilities (opt-in) makes them install-blocking errors instead.
+  for (const warning of capabilityWarnings) addBehaviorCapabilityWarning(warnings, warning)
   const stateNames = Object.keys(behavior.states)
   if (stateNames.length === 0 || stateNames.length > CHARACTER_PACK_V2_LIMITS.maxBehaviorStates) {
     addIssue(issues, path + '.states', 'invalid-behavior', 'states must have 1..' + CHARACTER_PACK_V2_LIMITS.maxBehaviorStates + ' entries')
@@ -6115,7 +6215,12 @@ function checkCharacterPackAssetReferences(input: CharacterPackReferenceInput, i
   }
 }
 
-function parseCharacterPackV2(input: unknown, issues: ContentIssue[]): CharacterPackV2 | undefined {
+function parseCharacterPackV2(
+  input: unknown,
+  issues: ContentIssue[],
+  warnings: ContentIssue[] = [],
+  options: CharacterPackValidationOptions = {},
+): CharacterPackV2 | undefined {
   if (!isRecord(input)) {
     addIssue(issues, '$', 'invalid-anim-pack', 'character pack must be an object')
     return undefined
@@ -6175,7 +6280,11 @@ function parseCharacterPackV2(input: unknown, issues: ContentIssue[]): Character
   const clips = parseCharacterPackClips(input.animations, issues)
   const voice = parseCharacterPackVoice(input.voice, kind, issues)
   const audio = input.audio === undefined ? undefined : parseCharacterPackAudio(input.audio, kind, issues)
-  const behavior = clips === undefined ? undefined : parseCharacterPackBehavior(input.behavior, kind, clips, issues)
+  // Decoded-memory red line: fail closed before any install/load can decode the
+  // declared frames. Uses the declared canvas/clip table (no bytes needed).
+  if (spec !== undefined && clips !== undefined) checkCharacterPackDecodedMemory(spec.canvas, clips, issues)
+  const behavior =
+    clips === undefined ? undefined : parseCharacterPackBehavior(input.behavior, kind, clips, issues, options, warnings)
   const regions = parseCharacterPackRegions(input.regions, behavior, spec, issues)
   const preview = parseCharacterPackPreview(input.preview, issues)
   let files: ContentPackFileV2[] = []
@@ -6294,16 +6403,141 @@ function parseCharacterPackV2(input: unknown, issues: ContentIssue[]): Character
  * preview / frames / sha256 or an unsigned remote origin are always rejected.
  * Pure: no bytes, no filesystem, no network, no script execution.
  */
-export function validateCharacterPackV2(input: unknown): CharacterPackV2Validation {
+export function validateCharacterPackV2(
+  input: unknown,
+  options: CharacterPackValidationOptions = {},
+): CharacterPackV2Validation {
   const issues: ContentIssue[] = []
-  const pack = parseCharacterPackV2(input, issues)
-  return issues.length === 0 && pack !== undefined ? { ok: true, pack } : { ok: false, issues }
+  const warnings: ContentIssue[] = []
+  const pack = parseCharacterPackV2(input, issues, warnings, options)
+  const frozenWarnings = warnings.length > 0 ? Object.freeze(warnings) : undefined
+  if (issues.length > 0 || pack === undefined) {
+    return frozenWarnings === undefined ? { ok: false, issues } : { ok: false, issues, warnings: frozenWarnings }
+  }
+  return frozenWarnings === undefined ? { ok: true, pack } : { ok: true, pack, warnings: frozenWarnings }
 }
 
 // ===========================================================================
 // pet-anim 0.2: zip layout validation (host unzips + hashes; module validates)
 // ===========================================================================
 
+
+/**
+ * Byte-level decoded-memory guard for hosts that already hold the frame bytes
+ * (bounded-unzip install staging / installed-pack load).
+ *
+ * The declared-canvas budget in `checkCharacterPackDecodedMemory()` is a
+ * policy check on honest pack.json data; a malicious pack could declare a 64x64
+ * canvas while shipping 1024x1024 PNGs. This helper reads each PNG IHDR (no
+ * pixel inflate, browser-safe) and fails closed on:
+ * - a frame whose real size differs from `spec.canvas` (lied metadata),
+ * - non-PNG frame bytes (the zip contract only allows PNG frames),
+ * - the aggregate real `width x height x 4` exceeding the 32 MiB red line.
+ *
+ * Wiring point (integration): `src/pet/character-packs.ts installLocked()` has
+ * `bundle.fileMap` right after `host.readZip()`; call this helper there and
+ * fail the install with `invalid-pack` + the returned issues. It is exported +
+ * tested here so the security boundary can be added without re-deriving it.
+ */
+export interface CharacterPackFrameBytes {
+  /** Pack-relative frame path (`assets/anim/<clip>/<clip>_NN.png`). */
+  readonly path: string
+  readonly bytes: Uint8Array
+}
+
+export interface CharacterPackFrameMemoryReport {
+  readonly ok: boolean
+  readonly frames: number
+  readonly decodedBytes: number
+  readonly limitBytes: number
+  readonly issues: readonly ContentIssue[]
+}
+
+const PNG_SIGNATURE_BYTES = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] as const
+
+function readUInt32BE(bytes: Uint8Array, offset: number): number {
+  return (
+    ((bytes[offset] ?? 0) << 24) |
+    ((bytes[offset + 1] ?? 0) << 16) |
+    ((bytes[offset + 2] ?? 0) << 8) |
+    (bytes[offset + 3] ?? 0)
+  ) >>> 0
+}
+
+/** Read a PNG's IHDR width/height without inflating pixels; null when not a PNG. */
+export function readPngDimensions(bytes: Uint8Array): { readonly width: number; readonly height: number } | null {
+  if (!(bytes instanceof Uint8Array) || bytes.length < 24) return null
+  for (const [index, expected] of PNG_SIGNATURE_BYTES.entries()) {
+    if (bytes[index] !== expected) return null
+  }
+  // First chunk must be IHDR: 4-byte length (13), 4-byte type, then width/height.
+  if (readUInt32BE(bytes, 8) !== 13) return null
+  if (bytes[12] !== 0x49 || bytes[13] !== 0x48 || bytes[14] !== 0x44 || bytes[15] !== 0x52) return null
+  const width = readUInt32BE(bytes, 16)
+  const height = readUInt32BE(bytes, 20)
+  if (width <= 0 || height <= 0) return null
+  return { width, height }
+}
+
+const FRAME_BYTES_MAX_FRAMES = CHARACTER_PACK_V2_LIMITS.maxTotalFrames
+
+export function inspectCharacterPackFrameMemory(
+  pack: CharacterPackV2,
+  frames: readonly CharacterPackFrameBytes[],
+): CharacterPackFrameMemoryReport {
+  const issues: ContentIssue[] = []
+  const expected = new Set(characterPackFramePaths(pack))
+  const [canvasWidth, canvasHeight] = pack.spec.canvas
+  let decodedBytes = 0
+  let decodedFrames = 0
+  if (frames.length > FRAME_BYTES_MAX_FRAMES) {
+    addIssue(issues, '$.files', 'too-many-files', 'frame inventory has ' + frames.length + ' files, max ' + FRAME_BYTES_MAX_FRAMES)
+  }
+  const seen = new Set<string>()
+  for (const [index, frame] of frames.entries()) {
+    const path = typeof frame.path === 'string' ? frame.path : ''
+    if (seen.has(path)) addIssue(issues, '$.files[' + index + '].path', 'duplicate-id', 'duplicate frame path: ' + path)
+    seen.add(path)
+    if (!expected.has(path)) {
+      addIssue(issues, '$.files[' + index + '].path', 'unlisted-file', 'frame is not part of the declared clip table: ' + path)
+      continue
+    }
+    const size = readPngDimensions(frame.bytes)
+    if (size === null) {
+      addIssue(issues, '$.files[' + index + ']', 'invalid-anim-pack', 'frame ' + path + ' is not a valid PNG (missing signature/IHDR)')
+      continue
+    }
+    // Count the *real* decoded bytes even when the metadata lies: the renderer
+    // draws the actual bitmap, so a mismatch must not hide memory cost.
+    decodedFrames += 1
+    decodedBytes += size.width * size.height * RGBA_BYTES_PER_PIXEL
+    if (size.width !== canvasWidth || size.height !== canvasHeight) {
+      addIssue(
+        issues,
+        '$.files[' + index + '].bytes',
+        'invalid-anim-spec',
+        'frame ' + path + ' is ' + size.width + 'x' + size.height + ' px but spec.canvas is ' + canvasWidth + 'x' + canvasHeight + '; the decoded-memory budget and the renderer both trust the canvas',
+      )
+    }
+  }
+  if (decodedBytes > MAX_PACK_DECODED_RGBA_BYTES) {
+    const mib = (decodedBytes / RGBA_MIB).toFixed(1)
+    const limitMib = (MAX_PACK_DECODED_RGBA_BYTES / RGBA_MIB).toFixed(0)
+    addIssue(
+      issues,
+      '$.files',
+      'decoded-memory-exceeded',
+      'real frame pixels decode to ' + mib + ' MiB RGBA over the ' + limitMib + ' MiB limit (' + decodedFrames + ' frames)',
+    )
+  }
+  return {
+    ok: issues.length === 0,
+    frames: decodedFrames,
+    decodedBytes,
+    limitBytes: MAX_PACK_DECODED_RGBA_BYTES,
+    issues: Object.freeze(issues),
+  }
+}
 /**
  * Validate an unzipped `famling.pet-anim/0.2` bundle inventory against its
  * manifest. The host bounded-unzips the .zip and computes sha256 for every

@@ -341,7 +341,7 @@ if (animActive) animTick = scheduler.tick(now)
 实测命令与结果：
 
 ```bash
-cd /mnt/d/Projects/dsh/desktop-games
+cd <private-path>
 npm run typecheck                                  # tsc --noEmit，通过（0 error）
 node --import tsx --test tests/pet-anim.test.ts    # 16 tests, 16 pass, 0 fail
 python3 scripts/gen-pet-anim-frames.py --check     # check ok: dog + cat + human animation packs match the generator

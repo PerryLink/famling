@@ -50,7 +50,7 @@
 ### 1.2 复现命令（只读）
 
 ```sh
-cd /mnt/d/Projects/dsh/plugins/advisers
+cd <private-path>
 git rev-parse v0.2.3                        # tag object a1d07250…
 git rev-parse 'v0.2.3^{commit}'             # 2a9a4a8…
 git show v0.2.3:packages/advisers/lib/pet-brief.js | sha256sum   # 877675c8…
@@ -254,17 +254,17 @@ git diff v0.2.2..v0.2.3 --stat -- packages/advisers/lib/pet-brief.js   # 24+/25-
 ### 6.1 Advisers producer
 
 ```sh
-cd /mnt/d/Projects/dsh/plugins/advisers/packages/advisers
+cd <private-path>
 node --experimental-strip-types --test test/pet-brief.test.js
 # => 28 tests / 28 pass / 0 fail（含 --out 原子写 0600、--check/--strict、--print-schema、legacy v0.1、display-policy）
-git -C /mnt/d/Projects/dsh/plugins/advisers diff --stat v0.2.2..v0.2.3 -- packages/advisers/lib/pet-brief.js
+git -C <private-path> diff --stat v0.2.2..v0.2.3 -- packages/advisers/lib/pet-brief.js
 # => 1 file changed, 24 insertions(+), 25 deletions(-)
 ```
 
 ### 6.2 desktop-games consumer（定向 6 个文件）
 
 ```sh
-cd /mnt/d/Projects/dsh/desktop-games
+cd <private-path>
 node --import tsx --test tests/advisers-020-compat.test.ts tests/pet-brief-consumer.test.ts tests/advisers-face.test.ts tests/advisers-harden.test.ts tests/advisers-source.test.ts tests/advisers-ui-privacy.test.ts
 # => tests 77 / pass 77 / fail 0
 # 分文件：020-compat 24/24、pet-brief-consumer 16/16、face 6/6、harden 11/11、source 3/3、ui-privacy 17/17
@@ -274,7 +274,7 @@ node --import tsx --test tests/advisers-020-compat.test.ts tests/pet-brief-consu
 
 ```sh
 TMPD=$(mktemp -d /tmp/adv-audit-023.XXXXXX)
-cd /mnt/d/Projects/dsh/plugins/advisers
+cd <private-path>
 ADVISERS_HOME=$TMPD ADVISERS_ACCEPT_TOS=1 node packages/advisers/bin/advisers.js --version
 # => 0.2.3
 ADVISERS_HOME=$TMPD ADVISERS_ACCEPT_TOS=1 node packages/advisers/bin/advisers.js pet-brief --print-schema > $TMPD/schema.json
@@ -308,7 +308,7 @@ rm -rf "$TMPD" "$TMPD2"   # 两个路径均在 /tmp/adv-audit-023* 下，删除�
 ### 6.5 dsh-famling
 
 ```sh
-cd /mnt/d/Projects/dsh/plugins/dsh-famling
+cd <private-path>
 node --test test/host-bridge.test.js   # => 14/14 pass（含 2 条 brief 用例）
 node --test test/*.test.js             # => 48 tests / 46 pass / 2 fail
 # 2 fail 与本审计无关，来自并行动画工作的嵌入数据过期：

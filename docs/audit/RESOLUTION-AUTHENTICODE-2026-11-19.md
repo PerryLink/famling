@@ -27,9 +27,9 @@
 ## 2. 复核事实（2026-11-19，本机）
 
 ```text
-PS> Get-AuthenticodeSignature D:\Projects\dsh\desktop-games\app\tauri\src-tauri\target\release\desktop-games-tauri.exe
+PS> Get-AuthenticodeSignature <private-path>\app\tauri\src-tauri\target\release\desktop-games-tauri.exe
 NotSigned
-PS> Get-AuthenticodeSignature D:\Projects\dsh\desktop-games\artifacts\DesktopGames_0.1.0_x64-setup.exe
+PS> Get-AuthenticodeSignature <private-path>\artifacts\DesktopGames_0.1.0_x64-setup.exe
 NotSigned
 PS> Get-AuthenticodeSignature C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
 Valid (TimeStamperCertificate present)
@@ -224,7 +224,7 @@ P2-7 最终关闭（需外部条件）：
 ## 8. 复现与验证命令
 
 ```sh
-cd /mnt/d/Projects/dsh/desktop-games
+cd <private-path>
 
 # 静态/策略
 node scripts/release-sign.mjs --plan --json

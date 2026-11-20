@@ -124,7 +124,7 @@
 
 ```sh
 # 消费端
-cd /mnt/d/Projects/dsh/desktop-games
+cd <private-path>
 node --import tsx --test tests/advisers-tos-reconsent.test.ts
 node --import tsx --test tests/advisers-020-compat.test.ts tests/advisers-030-compat.test.ts \
   tests/advisers-face.test.ts tests/advisers-harden.test.ts tests/advisers-source.test.ts \
@@ -132,7 +132,7 @@ node --import tsx --test tests/advisers-020-compat.test.ts tests/advisers-030-co
 npx tsc --noEmit && npm run build
 
 # 插件
-cd /mnt/d/Projects/dsh/plugins/dsh-famling
+cd <private-path>
 node --test test/pet-brief-compat.test.js test/host-bridge.test.js
 npm run lint && npm run typecheck && npm run check:package
 ```

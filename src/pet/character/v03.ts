@@ -1257,10 +1257,17 @@ function validateExtensionsSpec(extensions: unknown, extensionsRequired: unknown
 export interface BehaviorProfileV03Options {
   /** When the document declares `sfx`, rule sfx clip ids must resolve in it. */
   sfxClipIds?: ReadonlySet<string>
+  /** Sink forwarded to the core capability gate (default: warning-only). */
+  warnings?: CharacterValidationWarning[]
+  /** Forwarded to the core capability gate; see CharacterValidationOptions. */
+  strictCapabilities?: boolean
 }
 
 export function validateBehaviorProfileV03(raw: unknown, options: BehaviorProfileV03Options = {}): BehaviorProfileV03 {
-  const profile = validateBehaviorProfile(raw) as unknown as BehaviorProfile
+  const profile = validateBehaviorProfile(raw, {
+    ...(options.warnings !== undefined ? { warnings: options.warnings } : {}),
+    ...(options.strictCapabilities !== undefined ? { strictCapabilities: options.strictCapabilities } : {}),
+  }) as unknown as BehaviorProfile
   const rawRecord = raw as Record<string, unknown>
   for (const key of Object.keys(rawRecord)) {
     if (FORBIDDEN_KEYS.includes(key)) fail(`behavior.${key} is forbidden: character packs are data-only`)

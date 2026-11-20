@@ -457,7 +457,7 @@ fn dev_public_key_pem(_: Option<&Path>) -> String { String::new() }
 
 ## 11. 验证记录（实际执行，2026-11-19 09:20–09:45 UTC+8）
 
-环境：WSL2 Ubuntu on Windows；rustc 1.99.1 / cargo 1.99.1（$HOME/.cargo/bin）；node v24.22.1；仓库 /mnt/d/Projects/dsh/desktop-games。所有命令从仓库根执行；未 commit/push。
+环境：WSL2 Ubuntu on Windows；rustc 1.99.1 / cargo 1.99.1（$HOME/.cargo/bin）；node v24.22.1；仓库 <private-path> commit/push。
 
 ### 11.1 Rust 单测（debug + release）
 

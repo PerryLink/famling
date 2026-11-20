@@ -51,6 +51,7 @@ import {
   CHARACTER_PACK_V2_LIMITS,
   characterPackFramePaths,
   characterPackInstallLayoutFor,
+  inspectCharacterPackFrameMemory,
   planCharacterPackInstall,
   planCharacterPackUninstall,
   validateCharacterPackV2,
@@ -953,6 +954,17 @@ export class CharacterPackRuntime {
       return this.installFailure(gate.code, gate.message, false, validation.issues)
     }
     const pack = validation.pack
+    // Declared canvas metadata can lie; the IHDR bytes are the real decode cost.
+    const frameFiles = [...bundle.fileMap.entries()]
+      .filter(([path]) => path.startsWith('assets/anim/'))
+      .map(([path, bytes]) => ({ path, bytes }))
+    const frameMemory = inspectCharacterPackFrameMemory(pack, frameFiles)
+    // Only real decoded bytes are fatal here: a mismatched IHDR canvas is a
+    // metadata/renderer concern (legacy fixtures declare 96x96 with 1x1 PNGs),
+    // while the memory budget must always fail closed.
+    if (frameMemory.issues.some((issue) => issue.code === 'decoded-memory-exceeded')) {
+      return this.installFailure('invalid-pack', 'character pack frame pixels exceed the decode memory budget', false, frameMemory.issues)
+    }
     if (this.isProtectedPack(pack.id, pack.character.id)) {
       return this.installFailure('builtin-protected', 'built-in characters cannot be replaced by an installed pack', false)
     }

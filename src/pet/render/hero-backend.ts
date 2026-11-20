@@ -60,6 +60,78 @@ export type HeroPackFormat = (typeof HERO_PACK_FORMATS)[number]
  */
 const STAGE_SCALE: RenderScale = 1
 
+// ---------------------------------------------------------------------------
+// Progressive (idle-first) frame loading — additive host extension
+// ---------------------------------------------------------------------------
+
+/** Options for the idle-first pack load. */
+export interface FirstFrameLoadOptions {
+  /** Tags decoded before `loadFirst()` resolves; default: idle-first (`firstFrameTags`). */
+  readonly priorityTags?: readonly string[]
+}
+
+/** What is drawable after `loadFirst()`; the rest is queued for background decode. */
+export interface FirstFrameLoadResult {
+  readonly packId: string
+  /** Tags whose every frame is decoded (drawable now). */
+  readonly readyTags: readonly string[]
+  /** Frames still queued for the background decoder. */
+  readonly pendingFrames: number
+}
+
+/** One background decode batch (bounded so idle callbacks stay short). */
+export interface FrameDecodeBatchResult {
+  readonly decoded: number
+  readonly pendingFrames: number
+  readonly done: boolean
+}
+
+/**
+ * Optional progressive-load extension implemented by the first-party hero
+ * backend. It is an additive host-side extension, NOT part of the frozen
+ * `RenderBackend` contract: hosts duck-type it with
+ * `progressiveFrameLoaderOf()` and fall back to `load()` (eager) otherwise.
+ *
+ * Why: the first-frame gate only needs the idle clip (6–8 frames). Decoding all
+ * 68–144 frames before the gate would block boot for a built-in pack (~2.5 MiB
+ * RGBA at 96²) and can be catastrophic for third-party packs (144 × 1024² ≈
+ * 576 MiB). The gate decodes idle first, paints, and the host then feeds
+ * `decodeBatch()` from requestIdleCallback. A clip that becomes visible before
+ * it is decoded is prioritized (first play waits for its frames) and the
+ * renderer holds the last good pose, so the UI never flashes a wrong frame.
+ */
+export interface ProgressiveFrameLoader {
+  /** Decode only `priorityTags` (default: idle) and resolve; the rest stays queued. */
+  loadFirst(pack: RenderPackRef, options?: FirstFrameLoadOptions): Promise<FirstFrameLoadResult>
+  /** Decode up to `maxFrames` queued frames (one idle-batch worth). */
+  decodeBatch(maxFrames?: number): Promise<FrameDecodeBatchResult>
+  /** True when every frame of the tag is decoded (false for unknown pack/tag). */
+  isTagReady(packId: string, tag: string): boolean
+  /** Move a clip that is about to become visible to the front of the decode queue. */
+  prioritizeTag(packId: string, tag: string): boolean
+  /** Tags fully decoded for one pack (empty for unknown packs). */
+  readyTags(packId: string): readonly string[]
+  /** Frames still decoding (all packs, or one pack). */
+  pendingFrameCount(packId?: string): number
+  /** Monotonic counter bumped on every successful decode batch (QA/diagnostics). */
+  frameRevision(): number
+}
+
+/** Duck-type a backend for the optional progressive loader; null when unsupported. */
+export function progressiveFrameLoaderOf(backend: RenderBackend): ProgressiveFrameLoader | null {
+  const candidate = backend as Partial<ProgressiveFrameLoader>
+  if (
+    typeof candidate.loadFirst !== 'function' ||
+    typeof candidate.decodeBatch !== 'function' ||
+    typeof candidate.isTagReady !== 'function' ||
+    typeof candidate.prioritizeTag !== 'function' ||
+    typeof candidate.pendingFrameCount !== 'function'
+  ) {
+    return null
+  }
+  return candidate as ProgressiveFrameLoader
+}
+
 /** Options for tests/embedders; production uses the defaults. */
 export interface HeroRenderBackendOptions {
   /** Fetch used only when `pack.data` is absent (manifest fetch). Default: global fetch. */
@@ -83,10 +155,22 @@ interface HeroSlot {
   readonly renderer: CharacterRenderer
 }
 
-/** In-flight `load()` per pack id, so concurrent callers share one image load. */
+/** `load()` modes: eager (all frames) or idle-first (first frame, rest queued). */
+type PackLoadMode = 'full' | 'first'
+
+/** In-flight load per pack id, so concurrent callers share one install. */
 interface PendingLoad {
   readonly ref: RenderPackRef
-  readonly promise: Promise<void>
+  readonly mode: PackLoadMode
+  promise: Promise<void>
+  /** Set once a `loadFirst()` install committed its idle-first slot. */
+  firstFrame?: FirstFrameLoadResult
+}
+
+/** Result of building one slot (stage + renderer + first-frame info). */
+interface InstalledPack {
+  readonly slot: HeroSlot
+  readonly firstFrame: FirstFrameLoadResult | null
 }
 
 function messageOf(error: unknown): string {
@@ -120,7 +204,7 @@ function isHeroFormat(format: string): format is HeroPackFormat {
   return (HERO_PACK_FORMATS as readonly string[]).includes(format)
 }
 
-export class HeroRenderBackend implements RenderBackend {
+export class HeroRenderBackend implements RenderBackend, ProgressiveFrameLoader {
   readonly id = 'hero'
   /**
    * First-party backend is shipped with the host, so it declares the exact host
@@ -135,6 +219,8 @@ export class HeroRenderBackend implements RenderBackend {
   private readonly slots = new Map<string, HeroSlot>()
   /** Loads in flight, keyed by pack id (concurrent callers share one promise). */
   private readonly pending = new Map<string, PendingLoad>()
+  /** Monotonic background-decode counter (QA/diagnostics; never resets). */
+  private decodeRevision = 0
   private disposed = false
 
   constructor(options: HeroRenderBackendOptions = {}) {
@@ -153,38 +239,103 @@ export class HeroRenderBackend implements RenderBackend {
   }
 
   /**
-   * Load one pack: validate the ref (and optional pre-parsed data), then load
-   * the frame images through the existing hero loader. Idempotent for the same
-   * pack id; rejects a different locator/format reusing the same id so a stale
-   * slot can never silently render the wrong assets.
+   * Eager load: decode the whole pack before resolving (legacy path, kept for
+   * back-compat and direct backend users). Idempotent for the same pack id; a
+   * pack installed with `loadFirst()` is drained to completion here.
    */
   async load(pack: RenderPackRef): Promise<void> {
-    this.assertUsable('load')
-    const ref = assertRenderPackRef(pack)
-    if (!isHeroFormat(ref.format)) {
-      throw new RenderBackendError(
-        `hero backend cannot load format "${ref.format}" for pack "${ref.id}"; supported formats: [${HERO_PACK_FORMATS.join(', ')}]`,
-      )
-    }
+    const ref = this.assertLoadRef(pack)
     const existing = this.slots.get(ref.id)
     if (existing) {
       this.assertSameRef(existing.ref, ref, 'already loaded')
+      await this.settleSlot(existing)
       return
     }
     const pending = this.pending.get(ref.id)
     if (pending) {
       // A scene adding two actors of the same pack may call load() twice in
-      // parallel; share the in-flight image load instead of decoding twice.
+      // parallel; share the in-flight install instead of decoding twice.
       this.assertSameRef(pending.ref, ref, 'currently loading')
-      return pending.promise
+      await pending.promise
+      await this.settleSlot(this.requireSlot(ref))
+      return
     }
-    const promise = this.installPack(ref)
-    this.pending.set(ref.id, { ref, promise })
-    try {
-      await promise
-    } finally {
-      this.pending.delete(ref.id)
+    await this.startPending(ref, 'full').promise
+  }
+
+  /**
+   * Idle-first load for the first-frame gate: decode the boot clip (idle, 6–8
+   * frames) and resolve; every other frame stays queued for `decodeBatch()`.
+   * The slot is immediately renderable for `readyTags`, and `render()` holds
+   * the last good pose for a clip that is not decoded yet (never a wrong
+   * frame); `prioritizeTag()` makes the first play of that clip wait for
+   * exactly its frames.
+   */
+  async loadFirst(pack: RenderPackRef, options: FirstFrameLoadOptions = {}): Promise<FirstFrameLoadResult> {
+    const ref = this.assertLoadRef(pack)
+    const existing = this.slots.get(ref.id)
+    if (existing) {
+      this.assertSameRef(existing.ref, ref, 'already loaded')
+      return this.firstFrameInfoOf(existing)
     }
+    const pending = this.pending.get(ref.id)
+    if (pending) {
+      this.assertSameRef(pending.ref, ref, 'currently loading')
+      await pending.promise
+      return this.firstFrameInfoOf(this.requireSlot(ref))
+    }
+    const entry = this.startPending(ref, 'first', options)
+    await entry.promise
+    return entry.firstFrame ?? this.firstFrameInfoOf(this.requireSlot(ref))
+  }
+
+  /** Decode up to `maxFrames` queued frames across loaded packs (one idle batch). */
+  async decodeBatch(maxFrames = 2): Promise<FrameDecodeBatchResult> {
+    this.assertUsable('decode')
+    const limit = Number.isFinite(maxFrames) ? Math.max(1, Math.floor(maxFrames)) : 2
+    let decoded = 0
+    for (const slot of this.slots.values()) {
+      const remaining = limit - decoded
+      if (remaining <= 0) break
+      if (!slot.renderer.hasPendingFrames()) continue
+      const batch = await slot.renderer.decodeBatch(remaining)
+      decoded += batch.decoded
+    }
+    if (decoded > 0) this.decodeRevision += 1
+    const pendingFrames = this.pendingFrameCount()
+    return { decoded, pendingFrames, done: pendingFrames === 0 }
+  }
+
+  /** True when every frame of one tag is decoded (false for unknown pack/tag). */
+  isTagReady(packId: string, tag: string): boolean {
+    const slot = this.slots.get(packId)
+    if (!slot) return false
+    return slot.renderer.isTagReady(tag)
+  }
+
+  /** Move a clip that is about to become visible to the front of the queue. */
+  prioritizeTag(packId: string, tag: string): boolean {
+    const slot = this.slots.get(packId)
+    if (!slot) return false
+    return slot.renderer.prioritizeTag(tag)
+  }
+
+  /** Tags fully decoded for one pack (empty for unknown packs). */
+  readyTags(packId: string): readonly string[] {
+    return this.slots.get(packId)?.renderer.readyTags() ?? []
+  }
+
+  /** Frames still queued for the background decoder (all packs or one pack). */
+  pendingFrameCount(packId?: string): number {
+    if (packId !== undefined) return this.slots.get(packId)?.renderer.pendingFrameCount ?? 0
+    let total = 0
+    for (const slot of this.slots.values()) total += slot.renderer.pendingFrameCount
+    return total
+  }
+
+  /** Monotonic counter bumped on every successful background decode batch. */
+  frameRevision(): number {
+    return this.decodeRevision
   }
 
   /**
@@ -208,7 +359,12 @@ export class HeroRenderBackend implements RenderBackend {
     if (slot.renderer.getScale() !== scale) slot.renderer.setScale(scale)
     try {
       // Draws one still frame into the private stage at art-canvas * scale.
-      slot.renderer.renderStill(view.actor.tag, frame)
+      // A frame that is still decoding returns false: prioritize that clip and
+      // hold the last good pose (idle) instead of flashing an empty/wrong frame.
+      if (!slot.renderer.renderStill(view.actor.tag, frame)) {
+        slot.renderer.prioritizeTag(view.actor.tag)
+        if (!slot.renderer.renderHold()) return
+      }
     } catch (error) {
       throw new RenderBackendError(
         `hero backend: failed to render tag "${view.actor.tag}" for pack "${slot.pack.id}": ${messageOf(error)}`,
@@ -253,7 +409,12 @@ export class HeroRenderBackend implements RenderBackend {
     try {
       // Keep the shared stage in sync with this actor before sampling it: with
       // several actors per pack the stage's "current frame" is call-order based.
-      slot.renderer.renderStill(view.actor.tag, frame)
+      if (!slot.renderer.renderStill(view.actor.tag, frame)) {
+        // Frame still decoding: no trustworthy alpha mask yet, but ask for the
+        // clip now so the next pointer move/repaint can hit-test it.
+        slot.renderer.prioritizeTag(view.actor.tag)
+        return false
+      }
       return slot.renderer.hitTest(x, y)
     } catch (error) {
       throw new RenderBackendError(
@@ -277,15 +438,54 @@ export class HeroRenderBackend implements RenderBackend {
     this.slots.clear()
   }
 
-  /** Validate/load frames and install the slot. Shared by concurrent `load()`s. */
-  private async installPack(ref: RenderPackRef): Promise<void> {
+  /** Validate a pack ref before a load (eager or idle-first). */
+  private assertLoadRef(pack: RenderPackRef): RenderPackRef {
+    this.assertUsable('load')
+    const ref = assertRenderPackRef(pack)
+    if (!isHeroFormat(ref.format)) {
+      throw new RenderBackendError(
+        `hero backend cannot load format "${ref.format}" for pack "${ref.id}"; supported formats: [${HERO_PACK_FORMATS.join(', ')}]`,
+      )
+    }
+    return ref
+  }
+
+  /** Start (and track) one load; concurrent callers share this promise. */
+  private startPending(ref: RenderPackRef, mode: PackLoadMode, options: FirstFrameLoadOptions = {}): PendingLoad {
+    const entry: PendingLoad = { ref, mode, promise: Promise.resolve() }
+    entry.promise = (async () => {
+      const installed = await this.buildSlot(ref, mode, options)
+      this.slots.set(ref.id, installed.slot)
+      if (installed.firstFrame) entry.firstFrame = installed.firstFrame
+    })()
+    this.pending.set(ref.id, entry)
+    // Do not keep a failed/settled install in the de-dupe map; the original
+    // promise still rejects to every awaiter.
+    entry.promise
+      .finally(() => {
+        if (this.pending.get(ref.id) === entry) this.pending.delete(ref.id)
+      })
+      .catch(() => {})
+    return entry
+  }
+
+  /** Validate/fetch frames and build one (private stage + renderer) slot. */
+  private async buildSlot(ref: RenderPackRef, mode: PackLoadMode, options: FirstFrameLoadOptions): Promise<InstalledPack> {
     const loaded = await this.readPack(ref)
     let stage: HTMLCanvasElement
     let renderer: CharacterRenderer
+    let firstFrame: FirstFrameLoadResult | null = null
     try {
       stage = this.createCanvas()
       renderer = new CharacterRenderer(stage, { scale: STAGE_SCALE })
-      await renderer.load(loaded)
+      if (mode === 'first') {
+        const info = await renderer.loadFirst(loaded, {
+          ...(options.priorityTags !== undefined ? { priorityTags: options.priorityTags } : {}),
+        })
+        firstFrame = { packId: ref.id, readyTags: info.readyTags, pendingFrames: info.pendingFrames }
+      } else {
+        await renderer.load(loaded)
+      }
     } catch (error) {
       throw new RenderBackendError(
         `hero backend: failed to prepare stage/frames for pack "${ref.id}": ${messageOf(error)}`,
@@ -297,7 +497,28 @@ export class HeroRenderBackend implements RenderBackend {
       renderer.destroy()
       throw new RenderBackendError(`hero backend cannot load: already disposed`)
     }
-    this.slots.set(ref.id, { ref, pack: loaded, stage, renderer })
+    return { slot: { ref, pack: loaded, stage, renderer }, firstFrame }
+  }
+
+  /** Decode every queued frame of one slot (an eager `load()` after `loadFirst()`). */
+  private async settleSlot(slot: HeroSlot): Promise<void> {
+    let guard = 0
+    while (!this.disposed && slot.renderer.hasPendingFrames()) {
+      const batch = await slot.renderer.decodeBatch(8)
+      if (batch.decoded === 0) return
+      this.decodeRevision += 1
+      guard += 1
+      if (guard > 4096) return
+    }
+  }
+
+  /** First-frame summary of an already installed slot (idle-first re-entry). */
+  private firstFrameInfoOf(slot: HeroSlot): FirstFrameLoadResult {
+    return {
+      packId: slot.pack.id,
+      readyTags: slot.renderer.readyTags(),
+      pendingFrames: slot.renderer.pendingFrameCount,
+    }
   }
 
   /** Validate/fetch one pack into the renderer-agnostic runtime shape. */
@@ -376,7 +597,7 @@ export class HeroRenderBackend implements RenderBackend {
     }
   }
 
-  private assertUsable(action: 'load' | 'render' | 'hitTest'): void {
+  private assertUsable(action: 'load' | 'render' | 'hitTest' | 'decode'): void {
     if (this.disposed) throw new RenderBackendError(`hero backend cannot ${action}: already disposed`)
   }
 }

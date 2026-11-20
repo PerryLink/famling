@@ -172,7 +172,7 @@ tag 可被 force-move、可被账户/供应链攻击改写；SHA 不可变。代
 
 ### 8.1 npm prepack（MB-094 子项，未做）
 
-- 事实：`/mnt/d/Projects/dsh/plugins/dsh-famling/package.json`（版本 0.10.5）没有 `prepack`/`repository`；
+- 事实：`<private-path> 0.10.5）没有 `prepack`/`repository`；
   `npm pack --dry-run` 正常（18 文件）。根 `package.json` 是 `private: true`，**不存在误发 npm 风险**。
 - 未做原因：插件仓不在 task-93 授权写范围（仓外路径）；且“repository/prepack 该填什么”涉及 dsh-famling
   发布策略，需与插件维护线确认。

@@ -319,7 +319,7 @@ $ADV pet-brief --out /tmp/adv030-consumer/pet-brief-v0.3.0.json
 $ADV pet-brief --check --strict --in /tmp/adv030-consumer/pet-brief-v0.3.0.json   # ok:true
 sha256sum /tmp/adv030-consumer/pet-brief-v0.3.0.json   # 19306308…
 # C. consumer 验收
-cd /mnt/d/Projects/dsh/desktop-games
+cd <private-path>
 node --import tsx --test tests/advisers-030-compat.test.ts tests/pet-brief-consumer.test.ts
 node --import tsx --test tests/advisers-020-compat.test.ts tests/advisers-face.test.ts tests/advisers-harden.test.ts \
   tests/advisers-source.test.ts tests/advisers-ui-privacy.test.ts

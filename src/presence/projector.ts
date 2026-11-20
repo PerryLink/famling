@@ -107,6 +107,9 @@ export class PresenceProjector {
   }
 
   private isQuiet(at: number): boolean {
+    // C1 2026-11-21: the pet face injects the user's quiet-hours predicate so
+    // Advisers honours a moved/disabled window instead of a hardcoded 22–8.
+    if (this.policy.quietAt !== undefined) return this.policy.quietAt(at)
     const hour = new Date(at).getHours()
     const { quietStartHour: start, quietEndHour: end } = this.policy
     if (start === end) return false

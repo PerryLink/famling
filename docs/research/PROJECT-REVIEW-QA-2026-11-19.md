@@ -5,12 +5,12 @@
 | 评审视角 | 测试工程师：测试金字塔、回归覆盖、真实 GUI 数据隔离、CI 门禁、发布验收、故障注入 |
 | 任务 | task-59（独立评审）；只读，不修代码/资产/配置，不 commit/push |
 | 快照时间 | 2026-11-19 12:50–13:15（Asia/Shanghai）。工作树在评审期间仍被并行任务修改（见 §1.4），所有数字只对应该时刻 |
-| 评审对象 | famling 私有仓 `DG/`（`/mnt/d/Projects/dsh/desktop-games`，HEAD `779354b`，20 个未提交改动）；dsh-famling `DF/`（`/mnt/d/Projects/dsh/plugins/dsh-famling`，0.10.0，本地目录无 `.git`）；DSH 只读 checkout `/home/yy/deepseek-harness`（0.2.2-rc.4，HEAD `ca33fd6843`） |
+| 评审对象 | famling 私有仓 `DG/`（`<private-path> `779354b`，20 个未提交改动）；dsh-famling `DF/`（`<private-path> `.git`）；DSH 只读 checkout `/home/yy/deepseek-harness`（0.2.2-rc.4，HEAD `ca33fd6843`） |
 | 方法 | 读 README / FAMLING-DSH-HANDOFF-2026-11-18 / CONTENT-MARKET-2026-11-19 / 既有 QA、鲁棒性、ACL、签名审计；读 main、desktop-shell、content-library/hub、hit-regions、hero-runtime、插件 client/index、tauri.conf、CI；本机实测全量单测、typecheck、覆盖率、插件测试与动画门禁、发布脚本 smoke、repro-check、legal-check |
 | 唯一写入 | 本文件 `DG/docs/research/PROJECT-REVIEW-QA-2026-11-19.md` |
 | 未做 | 未启动 Tauri/GUI/Windows 实机；未跑 `e2e:tauri`、24h soak、NSIS 安装包、Authenticode 签名；未联网核对公开仓与 GitHub Actions；未读其他评审者报告 |
 
-> 证据约定：`DG/` = `/mnt/d/Projects/dsh/desktop-games`，`DF/` = `/mnt/d/Projects/dsh/plugins/dsh-famling`，`DSH/` = `/home/yy/deepseek-harness`。行号对应本快照；文档里的历史数字不当作现值。
+> 证据约定：`DG/` = `<private-path> = `<private-path> = `/home/yy/deepseek-harness`。行号对应本快照；文档里的历史数字不当作现值。
 >
 > 严重度口径（本报告）：**P0** = 会让用户本机数据受损、或让“无测试证据的版本”可以通过发布/回归进入用户侧；**P1** = 关键故障类型/关键路径存在系统性测试盲区，或质量门禁不可执行；**P2** = 卫生、效率、文档真值与可维护性问题。
 
@@ -33,7 +33,7 @@
 7. **发布验收没有可机器复核的产物**：`DG/artifacts/` 里没有 `SHA256SUMS.txt`、`RELEASE-MANIFEST.json`、`build-info.json`；`e2e-tauri.json` 仍是 **2026-11-14 14:44** 的旧产物、无 provenance；没有 `tauri-soak-24h.json`（只有 11-14 的 5 min soak）；最新的 Windows exe 哈希只写在 handoff 正文（`00-live/FAMLING-DSH-HANDOFF-2026-11-18.md` 的若干补充节），仓库内无对应归档。`repro-check --check-inputs` 本轮通过但报 5 个 warn：非 npmjs 镜像 112/112、工作树脏、HEAD 无 tag、runner 镜像浮动、SOURCE_DATE_EPOCH 未设。见 §6。
 8. **插件发布门可以绿着发布过期数据**：`DF/test/client-static.test.js:163-168,210-215` 在缺少私有资产时 `t.skip`；我把插件目录复制到 `/tmp` 模拟公开仓视角实跑：**76 tests / 74 pass / 2 skipped / 0 fail**。也就是说公开仓 CI 绿了，也不会校验嵌入动画/区域与资产源一致。`DF/package.json` **没有 prepack**，目录内无 CI 配置。见 §5.3。
 9. **本地门禁里确实有认真做的部分**：`version:check` 6 个版本镜像一致；`validate:content` 3 个文件、`verify:pack` 2 个包、`fci:validate`、`art:check-specs` 全部通过；插件 `check:anims`/`verify:anims` 全绿（首屏 66.1 KiB、首帧 127.9 KiB、全量 313.5 KiB）；`release-sign --plan` 与 `repro-check --check-inputs` smoke 退出 0；`legal-check` WARN-ONLY 34 条，但 `--strict` **BLOCKED 34 条**。这是工程习惯不差、但门禁没有接线的典型形态。
-10. **E2E/测试环境卫生差**：`DG/artifacts/` 实测 **12 GB**、残留 **941 个 `cdp-wv2-*` WebView2 profile**；`cdp-launch.ps1` 每个用例新建 profile 但永不清理；20 个 `cdp-*.mjs` 全部硬编码 `D:/Projects/...` 与 `C:/Program Files/nodejs/node.exe`，固定 `Start-Sleep 6`，端口固定 9333。见 §5.4、§7。
+10. **E2E/测试环境卫生差**：`DG/artifacts/` 实测 **12 GB**、残留 **941 个 `cdp-wv2-*` WebView2 profile**；`cdp-launch.ps1` 每个用例新建 profile 但永不清理；20 个 `cdp-*.mjs` 全部硬编码 `<private-path> 与 `C:/Program Files/nodejs/node.exe`，固定 `Start-Sleep 6`，端口固定 9333。见 §5.4、§7。
 
 ### 0.3 评分表（QA 维度，A 最好 / F 最差）
 
@@ -286,7 +286,7 @@ Tauri 的 `app_data_dir()` 走 Windows Known Folder（`SHGetKnownFolderPath`）�
 
 | 问题 | 证据 | 后果 |
 |---|---|---|
-| 硬编码 Windows 路径 | `cdp-launch.ps1:20,23,35`（`D:/Projects/...`、`C:/Program Files/nodejs/node.exe`）；`e2e-tauri.ps1:1` 根目录默认 `D:/...` | 换机器/CI 直接失败；WSL 只能经 `powershell.exe` 触发 |
+| 硬编码 Windows 路径 | `cdp-launch.ps1:20,23,35`（`<private-path>/Program Files/nodejs/node.exe`）；`e2e-tauri.ps1:1` 根目录默认 `<private-path>` | 换机器/CI 直接失败；WSL 只能经 `powershell.exe` 触发 |
 | 固定等待 | `cdp-launch.ps1:36` `Start-Sleep -Seconds 6`，每个用例一次 | 12 组 × 6 s 起，慢且 flaky；没有 `/json` 就绪轮询 |
 | 固定端口 | `cdp-launch.ps1:19` `--remote-debugging-port=9333` | 不能并行；残留进程会串台 |
 | profile 不清理 | 941 个 `artifacts/cdp-wv2-*`、`artifacts/` 12 GB | 磁盘与状态污染；无法证明每轮从干净状态开始 |
@@ -480,28 +480,28 @@ Tauri 的 `app_data_dir()` 走 Windows Known Folder（`SHGetKnownFolderPath`）�
 
 ~~~bash
 # 当前工作树（12:52 快照）
-cd /mnt/d/Projects/dsh/desktop-games
+cd <private-path>
 node --import tsx --test tests/*.test.ts        # 1094 tests / 1089 pass / 5 fail
 npm run typecheck                                # exit 2（并行 WIP）
 
 # HEAD 干净导出（可复现基线）
 rm -rf /tmp/qa-head && mkdir -p /tmp/qa-head
-cd /mnt/d/Projects/dsh/desktop-games && git archive HEAD | tar -x -C /tmp/qa-head
-ln -s /mnt/d/Projects/dsh/desktop-games/node_modules /tmp/qa-head/node_modules
+cd <private-path> && git archive HEAD | tar -x -C /tmp/qa-head
+ln -s <private-path> /tmp/qa-head/node_modules
 cd /tmp/qa-head && node --import tsx --test tests/*.test.ts
 # 1046 tests / 1037 pass / 4 fail / 5 skipped
 cd /tmp/qa-head && node --import tsx --experimental-test-coverage --test-coverage-include='src/**/*.ts' --test tests/*.test.ts
 # all files: 91.11 lines / 80.74 branches / 87.26 functions
 
 # 插件
-cd /mnt/d/Projects/dsh/plugins/dsh-famling
+cd <private-path>
 npm test && npm run check:anims && npm run verify:anims
 # 76/76; check/verify exit 0
 cp -r . /tmp/qa-plugin && cd /tmp/qa-plugin && node --test test/*.test.js
 # 74 pass / 2 skipped（无私有资产）
 
 # 门禁 smoke
-cd /mnt/d/Projects/dsh/desktop-games
+cd <private-path>
 npm run version:check
 node scripts/legal-check.mjs --strict
 node scripts/release-sign.mjs --plan --json

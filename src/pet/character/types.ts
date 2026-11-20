@@ -43,6 +43,50 @@ export type KnownRenderFormat = (typeof KNOWN_RENDER_FORMATS)[number]
 export const BEHAVIOR_PROFILE = 'famling.behavior/0.1' as const
 
 /**
+ * Behaviour runtime capability ids a pack may declare in
+ * `behavior.runtimeCapabilities` (FCI / `famling.behavior/0.1`).
+ *
+ * The declaration is an explicit author contract: "this behaviour only works on
+ * a host runtime that executes these capabilities". The validator compares it
+ * against the capabilities the *shipping* hero runtime composition
+ * (`BehaviorRuntime` + `SceneRuntime`) actually executes and reports every
+ * mismatch instead of silently accepting advanced fields:
+ *
+ * - `wired`            executed by the shipping runtime (rules/ambient/slots);
+ * - `context-missing`  implemented by `BehaviorRuntime` but never fed by
+ *                      `SceneRuntime` (guard needs a numeric stat feed; brief
+ *                      needs `briefAvailable`), so such rules never fire;
+ * - `not-implemented`  validated/accepted data with no shipping execution path
+ *                      (say/sfx/effects + reserved profile blocks).
+ *
+ * See `capabilities.ts` for the per-capability table + audit, and
+ * docs/plan/ADR-BEHAVIOR-CONTRACT-2026-11-21.md for the policy.
+ */
+export const BEHAVIOR_RUNTIME_CAPABILITIES = [
+  // Executed by the shipping BehaviourRuntime + SceneRuntime composition.
+  'rules',
+  'ambient',
+  'slots',
+  // Implemented by BehaviourRuntime, but the production SceneRuntime supplies no
+  // context for them yet (see capabilities.ts).
+  'guard',
+  'conditions',
+  'brief',
+  // Accepted by the FCI validator / preview layer; no shipping execution path.
+  'say',
+  'sfx',
+  'effects',
+  'needs',
+  'mood',
+  'speech',
+  'interactions',
+  'overrides',
+  'fallback',
+] as const
+/** One declared/required behaviour runtime capability id. */
+export type BehaviorRuntimeCapability = (typeof BEHAVIOR_RUNTIME_CAPABILITIES)[number]
+
+/**
  * Pack-side renderer selection (FCI 0.2).
  *
  * `format` is a coarse data-format family, not a plugin id: packs may only
@@ -79,6 +123,15 @@ export interface CharacterValidationOptions {
   renderFormats?: readonly string[]
   /** Sink for non-fatal warnings; callers that pass one observe RENDER_INFERRED etc. */
   warnings?: CharacterValidationWarning[]
+  /**
+   * Behaviour capability gate mode. Default `false` keeps the gate
+   * backward-compatible: advanced behaviour fields the shipping runtime cannot
+   * execute produce `BEHAVIOR_CAPABILITY_*` warnings. When `true`, declaring a
+   * non-executed capability or relying on a non-executed field is a hard
+   * `CharacterInterfaceError` (used by the validator CLI `--strict-capabilities`
+   * flag and by authors who want new packs to fail closed).
+   */
+  strictCapabilities?: boolean
 }
 
 /** Result of `validateCharacterDocumentDetailed` (document + collected warnings). */
@@ -145,6 +198,17 @@ export interface BehaviorProfile {
   profile: typeof BEHAVIOR_PROFILE
   version: string
   extends?: string
+  /**
+   * Runtime capabilities this behaviour requires (`BEHAVIOR_RUNTIME_CAPABILITIES`).
+   *
+   * Optional and additive: an absent list keeps the pre-gate behaviour (the
+   * validator still audits *usage* of advanced fields and warns about them).
+   * Declaring a capability the shipping runtime does not execute makes the
+   * mismatch visible as `BEHAVIOR_CAPABILITY_UNSUPPORTED`; with
+   * `strictCapabilities` it is a hard error instead. Unknown ids are always
+   * rejected so a typo cannot silently disable the gate.
+   */
+  runtimeCapabilities?: BehaviorRuntimeCapability[]
   defaults?: { priority?: number; interrupt?: InterruptMode; cooldownMs?: number }
   abilities: {
     speech: SpeechMode

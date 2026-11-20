@@ -1,7 +1,7 @@
 {
   "schema": "famling.pet-anim/0.2",
   "id": "example.cat-anim",
-  "name": "示例·塞尔凯克猫动画资产包",
+  "name": "示例·布偶猫动画资产包",
   "version": "0.1.0",
   "description": "cat 第三方动画资产包形状示例：12 clip 全帧清单 + 96×96 规格 + behavior/regions/voice/audio 声明。示例帧与 sha256 为占位值，不加载、不渲染；真实交付须按 DESIGN-REFERENCE 产出素材并重算哈希。",
   "author": "Example Author",
@@ -100,7 +100,7 @@
       "scale": 2,
       "pixelated": true
     },
-    "palette": "cat-selkirk-anim@0.1"
+    "palette": "cat-ragdoll-anim@0.1"
   },
   "animations": {
     "clips": {

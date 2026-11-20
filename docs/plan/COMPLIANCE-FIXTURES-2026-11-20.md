@@ -138,7 +138,7 @@
 **改 fixture 后**（在 famling 仓）：
 
 ```bash
-cd D:/Projects/dsh/desktop-games
+cd <private-path>
 node tests/update-compliance-fixture-manifest.mjs
 node tests/update-compliance-fixture-manifest.mjs --sync ../plugins/dsh-famling/test/fixtures/content-compliance
 ```
@@ -149,7 +149,7 @@ node tests/update-compliance-fixture-manifest.mjs --sync ../plugins/dsh-famling/
 # famling（Windows Node 24；本工作区 node_modules 是 win32 安装）
 node --import tsx --test tests/content-compliance-fixtures.test.ts
 # plugin（WSL/任意 Node 24）
-cd /mnt/d/Projects/dsh/plugins/dsh-famling && node --test test/content-compliance-fixtures.test.js
+cd <private-path> && node --test test/content-compliance-fixtures.test.js
 ```
 
 **新增 case**：优先复制一个 base pack 改成单点缺陷 → 在 `cases.json` 加一条（含 `ok`/`errorCount`/`warningCount`/子串）→ 按上面命令重算 manifest + 同步 → 跑两端测试。若 validator 的稳定消息片段变化，两端 fixture 期望要一起改（这正是共享 fixture 的作用：一处改、两端同时红/绿）。

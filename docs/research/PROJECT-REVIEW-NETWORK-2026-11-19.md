@@ -5,7 +5,7 @@
 | 文档 | `docs/research/PROJECT-REVIEW-NETWORK-2026-11-19.md` |
 | 日期 | 2026-11-19（Asia/Shanghai） |
 | 评审人 | review-network（子代理，task-57） |
-| 范围 | 私有仓 `/mnt/d/Projects/dsh/desktop-games`、插件 `/mnt/d/Projects/dsh/plugins/dsh-famling`、只读 DSH checkout `/home/yy/deepseek-harness` |
+| 范围 | 私有仓 `<private-path> `<private-path> DSH checkout `/home/yy/deepseek-harness` |
 | 形式 | **只读评审**：未改任何代码/资产/配置，只新增本文件；未 commit/push；未运行测试/构建；未联网下载；未访问/打印任何密钥材料 |
 | 依据 | 工作区代码与文档（working tree 快照 2026-11-19 12:50 左右）、既有审计与解决报告、团队任务板 |
 | 读者 | lead、网络/后端/发布方向后续执行者 |
@@ -505,7 +505,7 @@ IDLE -> FETCH_CATALOG -> VERIFIED_CATALOG -> USER_CONFIRM_USAGE
 
 ```bash
 # 出网/网络相关代码
-cd /mnt/d/Projects/dsh/desktop-games
+cd <private-path>
 grep -rn -E "fetch\(|https?://|WebSocket|XMLHttpRequest" src app/tauri/src-tauri/src | grep -v node_modules
 grep -n -E "fetch|http|market|remote" src/pet/content-library.ts | head
 
@@ -519,11 +519,11 @@ grep -n -A5 "verifyMarketCatalogSignature" src/pet/content-library.ts
 node --import tsx --test tests/content-pack-v2.test.ts   # 文档记录 29 项；本评审未复跑
 
 # 插件 bridge
-cd /mnt/d/Projects/dsh/plugins/dsh-famling
+cd <private-path>
 grep -n -E "BRIDGE_PATH|MAX_BODY|LLM_TIMEOUT|rate" index.js
 
 # 现状快照（本评审实测）
-cd /mnt/d/Projects/dsh/desktop-games && git status --porcelain | wc -l   # 18
+cd <private-path> && git status --porcelain | wc -l   # 18
 find public/assets/voice/pet -name "*.wav" | wc -l                        # 42
 du -sh public/assets/voice/pet                                            # 4.2M
 ls -la public/content/library.json                                        # 14,545 B

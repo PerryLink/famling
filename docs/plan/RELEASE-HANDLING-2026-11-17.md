@@ -36,7 +36,7 @@
 
 1. **清理/隔离 artifacts（不直接删）**：① 盘点 `artifacts/`（1000 条目：941 个 `cdp-*`、38 pilot WAV、旧 exe/zip/setup/soak/playtest-kit）；② 对旧 zip/setup/portable exe 计算 SHA256 并写隔离清单；③ 移入 `artifacts/_quarantine-2026-11-17/<name>/`（**mv 不 rm**，已有空目录可复用），记录原路径/哈希/日期；④ `playtest-kit` 从新构建重建（现内含旧 zip）；⑤ 旧哈希列入“禁止分发”清单并在新包核验 0 命中；⑥ 保留恢复方法，删除与否交 U（不在本轮）。
 2. **版本/CHANGELOG**：`npm run version:set -- 0.2.0-beta.1`（B 公开起 0.2.0；C 另定）；**人工**同步 `src/**` 的 `gameVersion`/Sentry release（`version:check` 的 STALE 清零）；CHANGELOG 把 `[Unreleased]` 移入新版本，写明“未签名/私域/非公开发布/已知限制”；tag 仅在用户明确授权且有 remote 时打。
-3. **HEAD 构建**：`legal-check --sync`（法务文本变更后）→ `npm run preflight` → `npm run build` → `scripts\build-tauri-win.bat` → `scripts\bundle-tauri-nsis-win.bat`（硬编码 `D:\Projects\dsh\desktop-games`，与本机一致；`npx @tauri-apps/cli@2` 未钉版本，发布前钉死）→ `release-win --all --strict` → `--verify`。本机已具备 VS2022 BuildTools、Windows node v24.22.1、cargo 1.99.1、WebView2 148.0.3967.83（见审计）。
+3. **HEAD 构建**：`legal-check --sync`（法务文本变更后）→ `npm run preflight` → `npm run build` → `scripts\build-tauri-win.bat` → `scripts\bundle-tauri-nsis-win.bat`（硬编码 `<private-path> @tauri-apps/cli@2` 未钉版本，发布前钉死）→ `release-win --all --strict` → `--verify`。本机已具备 VS2022 BuildTools、Windows node v24.22.1、cargo 1.99.1、WebView2 148.0.3967.83（见审计）。
 4. **licensePage/resources 实机验收**：安装器点开许可页（`bundle.licenseFile=public/legal/LICENSE.txt`）；`$INSTDIR` 含 `legal/` 17+ 文件与根许可/声明（8–9 份）；About 的 `/legal/...` 链接全部可达、0 个 `/docs/` 死链；卸载残留检查。
 5. **SHA256/证据**：`SHA256SUMS.txt` + `RELEASE-MANIFEST.json` + portable `BUILD-INFO.json`（commit、日期、`dirty:false`）；证据绑定 commit+exe sha+zip sha+构建机 OS/WebView2 版本，写入发布记录模板（RELEASE-BLOCKERS §13）。
 6. **法务**：APPROVALS 按格式逐行真实签字（ID/日期/姓名/身份/渠道/范围/依据/条件/撤销），模拟行只能作演练；TTS 42 WAV 走 RELEASE-BLOCKERS §6 决策树（先要 DeepSeek 书面结论；未取得则公开/收费前移除或替换）；AI 标识按 [AI-LABELING](../legal/AI-LABELING.md) §8 闭项；许可/隐私/消费者按 A-10/A-11/A-12/A-13/A-16。
@@ -76,7 +76,7 @@ npm run version:check && npx tsc --noEmit && npm test     # 当前 6/6 mirror、
 npm run fci:validate && npm run build                     # 构建内含 legal package guard
 node scripts/bake-voice.mjs --verify                      # 42/42 WAV bytes/sha/duration
 node scripts/embed-ai-labels.mjs --check                  # 49/49 PNG tEXt；pixelUnchanged=true
-# Windows（cmd.exe；构建脚本硬编码 D:\Projects\dsh\desktop-games）
+# Windows（cmd.exe；构建脚本硬编码 <private-path>
 cmd.exe /c scripts\build-tauri-win.bat && cmd.exe /c scripts\bundle-tauri-nsis-win.bat
 node scripts/release-win.mjs --all --strict && node scripts/release-win.mjs --verify
 python3 -m zipfile -l artifacts/DesktopGames-0.2.0-beta.1-portable.zip   # 含 legal/ + 根声明

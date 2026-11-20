@@ -21,6 +21,18 @@
  * plus the two legacy branches (direct `schema: 1` save and the old
  * `world` + optional `crc32` + optional `memoryEnc` envelope).
  *
+ * Autosave invariants (perf P0, 2026-11-21):
+ * - explicit saves always write; autosave ticks first diff the serialized state
+ *   against the last *durable* plaintext and skip encrypt + IPC + backup
+ *   rotation when nothing changed (`unchanged: true`);
+ * - a failed write never advances that baseline, so the retry writes the same
+ *   bytes instead of being skipped;
+ * - `autosaveTick('visibility-hidden')` always writes (last chance before the
+ *   window may be suspended), and deleting the slots clears the baseline;
+ * - when the page injects the visibility/interaction probes, a hidden page with
+ *   a 15 min idle user backs the effective cadence down to 5 min
+ *   (`throttled: true`); a visibility change or an explicit save bypasses it.
+ *
  * Recovery invariants (preserved from the hardened inline implementation):
  * 1. A load only clears the recovery flag on entry; it sets it again when the
  *    primary exists but cannot be parsed, or when only the backup parsed.
@@ -51,6 +63,14 @@ export const SAVE_ENVELOPE_VERSION = 2
 export const SAVE_GAME_ID = 'pet'
 /** Cadence of the background autosave timer in the pet window. */
 export const SAVE_AUTOSAVE_INTERVAL_MS = 30_000
+/**
+ * A hidden page whose user has been idle this long backs the *effective*
+ * autosave cadence down: an unchanged hidden pet must not encrypt + rotate the
+ * archive every 30 s for hours.
+ */
+export const SAVE_HIDDEN_BACKOFF_AFTER_MS = 15 * 60 * 1000
+/** Effective autosave cadence while the page stays hidden and the user idle. */
+export const SAVE_HIDDEN_BACKOFF_INTERVAL_MS = 5 * 60 * 1000
 
 /** Why an explicit save/delete did not commit. */
 export type SaveFailureReason =
@@ -96,6 +116,19 @@ export interface SaveSuccess {
    * to rotate the previous primary into `.bak` (recovery is still pending).
    */
   readonly backup: boolean
+  /**
+   * True when an autosave tick found the live state already persisted, so no
+   * encrypt or write happened. The tick still succeeded: `savedAtMs`/`bytes`/
+   * `backup` echo the last durable write.
+   */
+  readonly unchanged?: boolean
+  /**
+   * True when the hidden-idle backoff deferred this autosave tick. The state
+   * was not inspected; the next allowed attempt is at most
+   * `SAVE_HIDDEN_BACKOFF_INTERVAL_MS` away and a visibility change / explicit
+   * save always writes immediately.
+   */
+  readonly throttled?: true
 }
 
 export type SaveResult = SaveSuccess | SaveFailure
@@ -194,6 +227,19 @@ export interface SaveRuntimeOptions {
   readonly maxPlainBytes?: number
   /** Default autosave cadence; defaults to `SAVE_AUTOSAVE_INTERVAL_MS`. */
   readonly autosaveIntervalMs?: number
+  /**
+   * True while the page is hidden (`document.visibilityState === 'hidden'`).
+   * The runtime stays pure; the page injects this. Only the autosave backoff
+   * uses it: hidden + a stale `lastInteractionAt` lowers the effective cadence
+   * to `SAVE_HIDDEN_BACKOFF_INTERVAL_MS`. Omit it (or the interaction probe)
+   * to keep the historical fixed cadence.
+   */
+  readonly isPageHidden?: () => boolean
+  /**
+   * Wall-clock ms of the last user interaction (any input, any window). Used
+   * only with `isPageHidden` for the hidden-idle autosave backoff.
+   */
+  readonly lastInteractionAt?: () => number
   /** Report encryption being unavailable once per runtime (the page shows a bubble). */
   readonly onEncryptUnavailable?: (error: unknown) => void
   /** Notify a recovery-flag transition (bubble/UI hint). */
@@ -216,7 +262,11 @@ export interface SaveRuntime {
   deleteSave(): Promise<DeleteResult>
   /** Save, then purge the backup (migration/import commit path). */
   saveAndPurgeBackup(): Promise<SaveResult>
-  /** One autosave attempt, gated by consent and the recovery flag. */
+  /**
+   * One autosave attempt, gated by consent and the recovery flag. Interval
+   * ticks skip when the state is unchanged (and may be throttled while the page
+   * is hidden + idle); `visibility-hidden` always writes.
+   */
   autosaveTick(reason?: AutosaveReason): Promise<SaveResult>
   /** Start the injected interval timer (idempotent). */
   startAutosave(intervalMs?: number): void
@@ -283,6 +333,18 @@ export function createSaveRuntime(options: SaveRuntimeOptions): SaveRuntime {
   let autosaveHandle: unknown = null
   let autosaveMs = defaultAutosaveMs
   let encryptWarningShown = false
+  /**
+   * Dirty-check baseline: the exact plaintext of the last *successful* write.
+   * Compared byte-for-byte (no hash) so an unchanged autosave can never hide a
+   * real change; the extra string is the size of one serialized save and is
+   * cheaper than encrypt + IPC + backup rotation.
+   */
+  let lastSavedPlain: string | null = null
+  let lastSavedAtMs = 0
+  let lastSavedBytes = 0
+  let lastSavedBackup = false
+  /** Earliest wall-clock time at which the hidden-idle autosave may try again. */
+  let nextHiddenAutosaveAt = 0
 
   const timestamp = (): number => {
     const value = now()
@@ -356,14 +418,37 @@ export function createSaveRuntime(options: SaveRuntimeOptions): SaveRuntime {
     }
   }
 
-  /** One save attempt: serialize -> cap -> encrypt -> envelope -> host write. */
-  const writeSave = async (): Promise<SaveResult> => {
+  /** Echo of the last durable write (skip results never invent new stats). */
+  const noWriteResult = (extra: { unchanged?: true; throttled?: true }): SaveSuccess => ({
+    ok: true,
+    slot,
+    savedAtMs: lastSavedAtMs,
+    bytes: lastSavedBytes,
+    backup: lastSavedBackup,
+    ...extra,
+  })
+
+  /**
+   * One save attempt: serialize -> dirty check -> cap -> encrypt -> envelope ->
+   * host write.
+   *
+   * `force` is true for explicit saves (the user pressed 保存 and expects a
+   * durable write / recovery commit) and for the visibility-hidden hook (the
+   * last chance before the app may be suspended). Autosave ticks pass false, so
+   * an unchanged pet skips encrypt + IPC + backup rotation entirely. The dirty
+   * baseline is only advanced after the host accepted the write, so a failed
+   * write is retried with the same bytes instead of being mistaken for a skip.
+   */
+  const writeSave = async (force: boolean): Promise<SaveResult> => {
     if (!canInteract()) return { ok: false, reason: 'consent-required' }
     let plain: string
     try {
       plain = serializePet(readState())
     } catch (error) {
       return { ok: false, reason: 'serialize-failed', error }
+    }
+    if (!force && lastSavedPlain !== null && plain === lastSavedPlain) {
+      return noWriteResult({ unchanged: true })
     }
     const plainBytes = utf8ByteLength(plain)
     if (plainBytes > maxPlainBytes) {
@@ -397,20 +482,26 @@ export function createSaveRuntime(options: SaveRuntimeOptions): SaveRuntime {
     try {
       await host.write(slot, text, backup)
     } catch (error) {
-      // A failed write leaves recovery state untouched: the next attempt still
-      // must not overwrite a known-good backup.
+      // A failed write leaves recovery state AND the dirty baseline untouched:
+      // the next attempt retries the same bytes and still must not overwrite a
+      // known-good backup.
       return { ok: false, reason: 'write-failed', error }
     }
+    // The host accepted the write: this exact plaintext is now durable.
+    lastSavedPlain = plain
+    lastSavedAtMs = savedAtMs
+    lastSavedBytes = utf8ByteLength(text)
+    lastSavedBackup = backup
     setRecoveryNeeded(false)
-    return { ok: true, slot, savedAtMs, bytes: utf8ByteLength(text), backup }
+    return { ok: true, slot, savedAtMs, bytes: lastSavedBytes, backup }
   }
 
   /**
-   * Explicit save entry. Concurrent callers share one in-flight write (the old
-   * 30 s autosave + manual click race); the save token bucket is consumed only
-   * when a new write actually starts.
+   * Shared write entry for explicit saves and autosave ticks. Concurrent
+   * callers share one in-flight write (the old 30 s autosave + manual click
+   * race); the save token bucket is consumed only when a new write starts.
    */
-  const save = (): Promise<SaveResult> => {
+  const startWrite = (force: boolean): Promise<SaveResult> => {
     const current = inFlight
     if (current) return current
     const decision = rateLimit?.tryConsume()
@@ -421,7 +512,7 @@ export function createSaveRuntime(options: SaveRuntimeOptions): SaveRuntime {
         retryAfterMs: clampRetryAfter(decision.retryAfterMs),
       })
     }
-    const attempt = writeSave()
+    const attempt = writeSave(force)
     inFlight = attempt
     void attempt.then(
       () => { if (inFlight === attempt) inFlight = null },
@@ -429,6 +520,13 @@ export function createSaveRuntime(options: SaveRuntimeOptions): SaveRuntime {
     )
     return attempt
   }
+
+  /**
+   * Explicit save entry. Explicit saves always write (the user asked for a
+   * durable commit, and a recovery commit must clear the flag even when the
+   * persisted bytes look identical); only autosave ticks use the dirty check.
+   */
+  const save = (): Promise<SaveResult> => startWrite(true)
 
   /**
    * Save then purge the backup. Used by legacy migration and portable import.
@@ -511,14 +609,56 @@ export function createSaveRuntime(options: SaveRuntimeOptions): SaveRuntime {
     }
     // MB-011: once corrupt primary+backup are gone, autosave may resume.
     setRecoveryNeeded(false)
+    // The slots are empty now: forget the dirty baseline or the first autosave
+    // would treat the old plaintext as "already durable" and skip, leaving the
+    // user without an archive until the next state change.
+    lastSavedPlain = null
+    lastSavedAtMs = 0
+    lastSavedBytes = 0
+    lastSavedBackup = false
+    nextHiddenAutosaveAt = 0
     return { ok: true, slot }
   }
 
+  /**
+   * Hidden-idle backoff (only when the page injects both probes). Returns true
+   * when this interval tick must be deferred; the *effective* cadence becomes
+   * `SAVE_HIDDEN_BACKOFF_INTERVAL_MS` instead of the 30 s timer cadence while
+   * the page stays hidden and the user stays idle. The timer itself keeps its
+   * cheap cadence: a tick is two closure calls, not an encrypt + IPC write.
+   */
+  const hiddenBackoffSkips = (): boolean => {
+    if (!options.isPageHidden || !options.lastInteractionAt) return false
+    try {
+      if (options.isPageHidden() !== true) {
+        nextHiddenAutosaveAt = 0
+        return false
+      }
+      const lastAt = options.lastInteractionAt()
+      const at = timestamp()
+      if (typeof lastAt !== 'number' || !Number.isFinite(lastAt) || at - lastAt < SAVE_HIDDEN_BACKOFF_AFTER_MS) {
+        nextHiddenAutosaveAt = 0
+        return false
+      }
+      if (at < nextHiddenAutosaveAt) return true
+      nextHiddenAutosaveAt = at + SAVE_HIDDEN_BACKOFF_INTERVAL_MS
+      return false
+    } catch {
+      // A throwing probe must never pause saving.
+      nextHiddenAutosaveAt = 0
+      return false
+    }
+  }
+
   const autosaveTick = async (reason: AutosaveReason = 'interval'): Promise<SaveResult> => {
-    void reason
     if (!canInteract()) return { ok: false, reason: 'consent-required' }
     if (recoveryNeeded) return { ok: false, reason: 'recovery-pending' }
-    return save()
+    // The visibility-hidden hook is the last chance before the window/app is
+    // suspended: keep the historical "save immediately" semantics (no dirty
+    // skip, no backoff).
+    if (reason === 'visibility-hidden') return save()
+    if (lastSavedPlain !== null && hiddenBackoffSkips()) return noWriteResult({ throttled: true })
+    return startWrite(false)
   }
 
   const runAutosave = async (reason: AutosaveReason): Promise<void> => {

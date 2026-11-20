@@ -223,19 +223,25 @@
       "on": "idle_blink",
       "to": "idle_blink",
       "priority": 15,
-      "cooldownMs": 500
+      "cooldownMs": 1000
     },
     {
       "on": "run",
       "to": "run",
       "priority": 45,
       "cooldownMs": 2000
+    },
+    {
+      "on": "hover.dwell",
+      "to": "idle_blink",
+      "priority": 12,
+      "cooldownMs": 3000
     }
   ],
   "ambient": {
     "intervalMs": [
-      4000,
-      10000
+      60000,
+      90000
     ],
     "choices": [
       {

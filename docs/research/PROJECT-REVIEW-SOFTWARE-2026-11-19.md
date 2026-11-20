@@ -1,7 +1,7 @@
 # 软件工程师视角全项目评审（famling / dsh-famling · 2026-11-19）
 
 > 评审人：review-software（独立评审，非修改者）。
-> 对象：`/mnt/d/Projects/dsh/desktop-games`（famling，Tauri v2）+ `/mnt/d/Projects/dsh/plugins/dsh-famling`（DSH 插件）；DSH checkout `/home/yy/deepseek-harness` 仅作只读参照。
+> 对象：`<private-path> v2）+ `<private-path> 插件）；DSH checkout `/home/yy/deepseek-harness` 仅作只读参照。
 > 边界：只读评审；未改代码/资产/配置；未 commit/push；本文件是本轮唯一写入。
 > 快照：2026-11-19 12:50–13:10 +08:00，HEAD `779354b`。评审期间工作树含并行 task-54（内容模型 v2）的未提交改动：13 个文件修改 + 若干未跟踪条目（评审期间并行文档仍在增加），`git diff --stat` 约 +6079/−785 行。
 > 证据等级：**A** = 本轮命令实测；**B** = 本轮读源码/文档；**C** = 静态推断（未运行，文中会标明）。
@@ -62,16 +62,16 @@
 
 ### 1.1 对象与读取范围
 
-- 私有仓：`/mnt/d/Projects/dsh/desktop-games`（famling，Tauri v2 + Vite 多页 + 纯 TS 内核）。
-- 插件仓：`/mnt/d/Projects/dsh/plugins/dsh-famling`（DSH client 插件；本地目录**不是 git 仓**，`git log` 报 not a repository）。
-- 只读参考：`/home/yy/deepseek-harness`（DSH checkout）、`/mnt/d/Projects/dsh/deepseek-community-hub/00-live/FAMLING-DSH-HANDOFF-2026-11-18.md`、`docs/audit/*`、`docs/design/CONTENT-MARKET-2026-11-19.md`、`docs/research/QA-RELEASE-AUDIT.md`。
+- 私有仓：`<private-path> v2 + Vite 多页 + 纯 TS 内核）。
+- 插件仓：`<private-path> client 插件；本地目录**不是 git 仓**，`git log` 报 not a repository）。
+- 只读参考：`/home/yy/deepseek-harness`（DSH checkout）、`<private-path>
 - 重点代码：`src/pet/main.ts`、`desktop-shell.ts`、`content-hub.ts`、`content-library.ts`、`hit-regions.ts`、`hero*.ts`、`plugins/dsh-famling/{index.js,client.js,client.content.js,content-extension.mjs,scripts/*,test/*}`、`app/tauri/src-tauri/{tauri.conf.json,capabilities,build.rs,src/main.rs}`、`.github/workflows/*`。
 
 ### 1.2 本轮实际执行的命令（可复现，全部只读或写 `/tmp`）
 
 ```bash
 # 1) 当前工作树
-cd /mnt/d/Projects/dsh/desktop-games
+cd <private-path>
 npm run typecheck            # exit 0（13:00 快照）
 npm test                     # 1118 pass / 0 fail / 29.79s
 npm run version:check        # ok: 6 version mirrors match 0.1.0
@@ -79,14 +79,14 @@ npm run validate:content     # ok: 3 个 content.json
 npm run verify:pack          # ok
 npm run fci:validate         # ok
 npx vite build --outDir /tmp/dg-dist-build --emptyOutDir   # exit 0, 8.47s
-cd /mnt/d/Projects/dsh/plugins/dsh-famling
+cd <private-path>
 npm test                     # 76 pass / 0 fail / 3.37s
 npm run verify:anims         # OK；首屏 66.1 KiB / 首绘 127.9 KiB / 全量 313.5 KiB
 npm run check:anims          # check ok: client.js + 3 lazy chunks 与资产一致
 # 2) HEAD 干净导出（模拟 CI checkout）
 rm -rf /tmp/dg-baseline && mkdir -p /tmp/dg-baseline
 git archive HEAD | tar -x -C /tmp/dg-baseline
-ln -s /mnt/d/Projects/dsh/desktop-games/node_modules /tmp/dg-baseline/node_modules
+ln -s <private-path> /tmp/dg-baseline/node_modules
 cd /tmp/dg-baseline && npx tsc --noEmit        # exit 0
 cd /tmp/dg-baseline && npm test                # 1046 tests / 1037 pass / 4 fail / 28.05s
 ```
@@ -521,7 +521,7 @@ cd /tmp/dg-baseline && npm test                # 1046 tests / 1037 pass / 4 fail
 
 ```bash
 # 当前工作树
-cd /mnt/d/Projects/dsh/desktop-games
+cd <private-path>
 npm run typecheck
 npm test
 npm run version:check && npm run validate:content && npm run verify:pack && npm run fci:validate
@@ -530,12 +530,12 @@ npx vite build --outDir /tmp/dg-dist-build --emptyOutDir
 # HEAD 干净导出（CI 等价）
 rm -rf /tmp/dg-baseline && mkdir -p /tmp/dg-baseline
 git archive HEAD | tar -x -C /tmp/dg-baseline
-ln -s /mnt/d/Projects/dsh/desktop-games/node_modules /tmp/dg-baseline/node_modules
+ln -s <private-path> /tmp/dg-baseline/node_modules
 cd /tmp/dg-baseline && npx tsc --noEmit
 cd /tmp/dg-baseline && npm test
 
 # 插件
-cd /mnt/d/Projects/dsh/plugins/dsh-famling
+cd <private-path>
 npm test
 npm run verify:anims
 npm run check:anims

@@ -16,6 +16,7 @@ import {
   isPixelScale,
   legacyCanvasSizeProblem,
   scaledCanvasSize,
+  assertCharacterPackDecodeBudget,
   unsupportedScaleMessage,
   type PixelScale,
 } from './pixel-scale.ts'
@@ -250,6 +251,108 @@ export function frameIndexFor(meta: CharacterTag, elapsedMs: number, loop = meta
   return Math.min(frames - 1, offset)
 }
 
+/**
+ * Tags the renderer decodes before it commits the first frame.
+ *
+ * Shipped packs put the looping idle pose first (6–8 frames at 96²); the
+ * first-frame gate only needs that clip, not the 68–144 frames of the whole
+ * pack. `requested` lets the host prefer a specific tag (e.g. `sleep`), but
+ * `idle` always wins when present because it is the boot pose.
+ */
+export function firstFrameTags(
+  pack: Pick<CharacterPackData, 'tags'>,
+  requested: readonly string[] = [],
+): string[] {
+  const available = Object.keys(pack.tags)
+  const picked: string[] = []
+  const add = (tag: string | undefined): void => {
+    if (tag === undefined || !available.includes(tag)) return
+    if (!picked.includes(tag)) picked.push(tag)
+  }
+  add('idle')
+  for (const tag of requested) add(tag)
+  if (picked.length > 0) return picked
+  // Pack without an `idle` tag (concept/debug packs): first animated looping
+  // tag, else the first declared tag — the gate still needs one drawable pose.
+  const looping = available.find((tag) => {
+    const meta = pack.tags[tag]
+    return meta !== undefined && meta.loop && meta.fps > 0 && meta.frames > 1
+  })
+  add(looping ?? available[0])
+  return picked
+}
+
+/**
+ * Milliseconds from `elapsedMs` until the clip's next visible frame.
+ *
+ * Used by the on-demand frame scheduler: idle clips (6–14 fps) advertise their
+ * next frame boundary so the host can wake exactly then (or at its idle cap)
+ * instead of redrawing at 60 Hz. `Infinity` means "this tag cannot change on
+ * its own" (single frame, fps 0, or a clamped one-shot that is already over).
+ */
+export function msUntilNextFrame(meta: CharacterTag, elapsedMs: number, loop = meta.loop): number {
+  const frames = Math.max(1, meta.frames)
+  if (frames <= 1) return Infinity
+  const elapsed = Math.max(0, elapsedMs)
+  const holds = meta.holdMs && meta.holdMs.length === frames ? meta.holdMs : null
+  if (holds) {
+    const holdMs = holds.map((hold) => Math.max(0, hold))
+    const total = holdMs.reduce((sum, hold) => sum + hold, 0)
+    if (total <= 0) return Infinity
+    let cursor = loop ? elapsed % total : Math.min(elapsed, total)
+    if (!loop && cursor >= total) return Infinity
+    for (const hold of holdMs) {
+      if (cursor < hold) return hold - cursor
+      cursor -= hold
+    }
+    return Infinity
+  }
+  const fps = meta.fps
+  if (!Number.isFinite(fps) || fps <= 0) return Infinity
+  const period = 1000 / fps
+  if (!loop && elapsed >= period * (frames - 1)) return Infinity
+  const offset = Math.floor(elapsed / period)
+  const remaining = (offset + 1) * period - elapsed
+  return remaining > 0 ? remaining : period
+}
+
+/**
+ * One decoded-or-pending frame. `image` is null until the frame is decoded;
+ * `ready` is the single source of truth `isFrameReady()` reads.
+ */
+interface FrameSlot {
+  readonly url: string
+  image: HTMLImageElement | null
+  ready: boolean
+}
+
+/** Frame slots grouped by tag, in pack tag order. */
+interface TagFrameSlots {
+  readonly meta: CharacterTag
+  readonly frames: FrameSlot[]
+}
+
+/** Options for `CharacterRenderer.loadFirst()`. */
+export interface CharacterFirstFrameOptions {
+  /** Tags to decode before resolving; default: `firstFrameTags(pack)` (idle). */
+  readonly priorityTags?: readonly string[]
+}
+
+/** Result of the idle-first load: what is drawable now, what is still pending. */
+export interface CharacterFirstFrameInfo {
+  readonly readyTags: readonly string[]
+  readonly pendingTags: readonly string[]
+  readonly pendingFrames: number
+}
+
+/** One background decode batch (a few frames, bounded to keep callbacks short). */
+export interface CharacterDecodeBatchInfo {
+  readonly decoded: number
+  readonly readyTags: readonly string[]
+  readonly pendingFrames: number
+  readonly done: boolean
+}
+
 function loadImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image()
@@ -263,7 +366,17 @@ export class CharacterRenderer {
   private readonly canvas: HTMLCanvasElement
   private readonly ctx: CanvasRenderingContext2D
   private pack: LoadedCharacterPack | null = null
-  private imagesByTag: Map<string, HTMLImageElement[]> | null = null
+  /** Frame slots per tag (URLs known from the pack, images decoded lazily). */
+  private tagFrames: Map<string, TagFrameSlots> | null = null
+  /**
+   * Frames still waiting to be decoded, in decode order. `loadFirst()` fills
+   * this with every non-priority frame; `decodeBatch()` consumes a few per
+   * call (requestIdleCallback-friendly) and `prioritizeTag()` moves a clip that
+   * is about to become visible to the front.
+   */
+  private pendingFrames: Array<{ readonly tag: string; readonly index: number }> = []
+  /** Memoized "all frames of this tag decoded" answers; cleared on decode. */
+  private readonly tagReadyCache = new Map<string, boolean>()
   private currentTag: string | null = null
   private currentFrame = 0
   private loop = true
@@ -286,26 +399,147 @@ export class CharacterRenderer {
     canvas.style.imageRendering = 'pixelated'
   }
 
+  /**
+   * Load every frame of a pack (eager path, unchanged semantics). Resolves only
+   * when the whole pack is drawable, so `play(tag)` never hits an undecoded
+   * frame. First-party hosts use `loadFirst()` for the boot gate instead.
+   */
   async load(pack: LoadedCharacterPack): Promise<void> {
-    const images = await Promise.all(pack.assetUrls.map((url) => loadImage(url)))
-    const byTag = new Map<string, HTMLImageElement[]>()
-    let cursor = 0
-    for (const [tag, meta] of Object.entries(pack.tags)) {
-      byTag.set(tag, images.slice(cursor, cursor + meta.frames))
-      cursor += meta.frames
-    }
-    this.pack = pack
-    this.imagesByTag = byTag
+    this.prepare(pack)
+    assertCharacterPackDecodeBudget(pack.canvas, pack.assetUrls.length, 'character pack "' + pack.id + '"')
+    await this.decodeAllPending()
     this.currentTag = Object.keys(pack.tags)[0] ?? null
     this.currentFrame = 0
     this.resize()
     this.renderFrame(0)
   }
 
+  /**
+   * Idle-first load used by the first-frame gate: decode only the boot clip
+   * (6–8 `idle` frames) and paint its first frame, leaving every other clip
+   * queued. Resolving means "the first frame is drawable"; the caller feeds
+   * `decodeBatch()` from requestIdleCallback, so boot never waits for all
+   * 68–144 frames (a third-party 1024² pack is up to ~576 MiB RGBA).
+   *
+   * A tag that is not decoded yet must keep the previous (idle) pose instead of
+   * flashing a wrong frame: `isTagReady()`/`renderStill()` tell the caller what
+   * is drawable, `prioritizeTag()` moves the clip that is about to become
+   * visible to the front, and `decodeTag()` is the on-demand wait for the
+   * first play of a non-idle clip.
+   */
+  async loadFirst(
+    pack: LoadedCharacterPack,
+    options: CharacterFirstFrameOptions = {},
+  ): Promise<CharacterFirstFrameInfo> {
+    this.prepare(pack)
+    assertCharacterPackDecodeBudget(pack.canvas, pack.assetUrls.length, 'character pack "' + pack.id + '"')
+    const priority = firstFrameTags(pack, options.priorityTags ?? [])
+    if (priority.length === 0) throw new CharacterPackError('pack has no frames to decode')
+    await this.decodeEntries(priority.flatMap((tag) => this.pendingEntriesFor(tag)))
+    this.currentTag = priority[0]!
+    this.currentFrame = 0
+    this.resize()
+    this.renderFrame(0)
+    return this.firstFrameInfo()
+  }
+
+  /** Decode up to `maxFrames` queued frames (one idle-batch worth). */
+  async decodeBatch(maxFrames = 2): Promise<CharacterDecodeBatchInfo> {
+    this.assertLoaded('decodeBatch()')
+    const limit = Number.isFinite(maxFrames) ? Math.max(1, Math.floor(maxFrames)) : this.pendingFrames.length
+    const entries = this.pendingFrames.slice(0, limit)
+    if (entries.length > 0) await this.decodeEntries(entries)
+    return {
+      decoded: entries.length,
+      readyTags: this.readyTags(),
+      pendingFrames: this.pendingFrames.length,
+      done: this.pendingFrames.length === 0,
+    }
+  }
+
+  /** Decode every still-pending frame now (hosts that want an all-warm pack). */
+  async decodeAllPending(): Promise<void> {
+    if (this.pendingFrames.length === 0) return
+    await this.decodeEntries([...this.pendingFrames])
+  }
+
+  /** Decode one tag on demand (legacy `play()` waits for its clip this way). */
+  async decodeTag(tag: string): Promise<void> {
+    this.assertLoaded('decodeTag()')
+    if (this.isTagReady(tag)) return
+    await this.decodeEntries(this.pendingEntriesFor(tag))
+  }
+
+  /** Move a clip that is about to become visible to the front of the queue. */
+  prioritizeTag(tag: string): boolean {
+    if (!this.tagFrames || !this.tagFrames.has(tag)) return false
+    const entries = this.pendingEntriesFor(tag)
+    if (entries.length === 0) return false
+    if (this.pendingFrames[0]?.tag === tag) return false
+    const rest = this.pendingFrames.filter((entry) => entry.tag !== tag)
+    this.pendingFrames = [...entries, ...rest]
+    return true
+  }
+
+  /** Tags whose every frame is decoded (drawable without visual holds). */
+  readyTags(): string[] {
+    if (!this.tagFrames) return []
+    return [...this.tagFrames.keys()].filter((tag) => this.isTagReady(tag))
+  }
+
+  /** Frames still queued for decoding (0 = the whole pack is drawable). */
+  get pendingFrameCount(): number {
+    return this.pendingFrames.length
+  }
+
+  hasPendingFrames(): boolean {
+    return this.pendingFrames.length > 0
+  }
+
+  isFrameReady(tag: string, index: number): boolean {
+    const frame = this.tagFrames?.get(tag)?.frames[index]
+    return frame?.ready === true && frame.image !== null
+  }
+
+  /** True when every frame of the tag is decoded (safe to start the clip). */
+  isTagReady(tag: string): boolean {
+    const cached = this.tagReadyCache.get(tag)
+    if (cached !== undefined) return cached
+    const frames = this.tagFrames?.get(tag)?.frames
+    if (!frames) return false
+    const ready = frames.every((frame) => frame.ready && frame.image !== null)
+    this.tagReadyCache.set(tag, ready)
+    return ready
+  }
+
+  /**
+   * Redraw a last-good pose when the requested clip is not decoded yet:
+   * preferred tags first, then `idle`, then the current tag, then any ready
+   * frame. Returns false only when no frame is ready at all (impossible after
+   * the first-frame gate).
+   */
+  renderHold(preferredTags: readonly string[] = []): boolean {
+    if (!this.pack || !this.tagFrames) return false
+    const candidates = [...preferredTags, 'idle', this.currentTag ?? '', ...this.tagFrames.keys()]
+    for (const tag of candidates) {
+      if (!tag || !this.tagFrames.has(tag) || !this.isFrameReady(tag, 0)) continue
+      this.currentTag = tag
+      this.currentFrame = 0
+      this.resize()
+      return this.renderFrame(0)
+    }
+    return false
+  }
+
   async play(tag: string, options: { loop?: boolean; speed?: number } = {}): Promise<void> {
-    if (!this.pack || !this.imagesByTag) throw new CharacterPackError('load(pack) before play(tag)')
+    if (!this.pack) throw new CharacterPackError('load(pack) before play(tag)')
     const meta = resolveTag(this.pack, tag)
-    if (!this.imagesByTag.has(tag)) throw new CharacterPackError(`tag has no frames: ${tag}`)
+    if (!this.tagFrames?.has(tag)) throw new CharacterPackError(`tag has no frames: ${tag}`)
+    // On-demand wait: a partially decoded pack starts a non-idle clip only once
+    // all of its frames are decoded, so playback can never show a held frame.
+    if (!this.isTagReady(tag)) await this.decodeTag(tag)
+    if (!this.pack || !this.tagFrames) throw new CharacterPackError('renderer destroyed while decoding')
+    if (!this.isTagReady(tag)) throw new CharacterPackError(`tag is not decodable: ${tag}`)
     this.currentTag = tag
     this.loop = options.loop ?? meta.loop
     this.speed = options.speed ?? 1
@@ -330,22 +564,30 @@ export class CharacterRenderer {
     this.raf = requestAnimationFrame(tick)
   }
 
-  /** Draw one still frame without starting the animation loop (Look Test/QA). */
-  renderStill(tag: string, frame = 0): void {
-    if (!this.pack || !this.imagesByTag) throw new CharacterPackError('load(pack) before renderStill(tag)')
+  /**
+   * Draw one still frame without starting the animation loop (Look Test/QA).
+   * Returns false when that frame is not decoded yet: the canvas keeps the
+   * previous pose instead of clearing or drawing a different frame.
+   */
+  renderStill(tag: string, frame = 0): boolean {
+    if (!this.pack) throw new CharacterPackError('load(pack) before renderStill(tag)')
     const meta = resolveTag(this.pack, tag)
-    if (!this.imagesByTag.has(tag)) throw new CharacterPackError(`tag has no frames: ${tag}`)
+    if (!this.tagFrames?.has(tag)) throw new CharacterPackError(`tag has no frames: ${tag}`)
     this.currentTag = tag
     this.currentFrame = Math.max(0, Math.min(meta.frames - 1, Math.floor(frame)))
     this.resize()
-    this.renderFrame(this.currentFrame)
+    return this.renderFrame(this.currentFrame)
   }
 
   setScale(scale: PixelScale): void {
     assertIntegerScale(scale)
     this.scale = scale
-    if (this.pack) this.resize()
-    this.renderFrame(this.currentFrame)
+    if (this.pack) {
+      this.resize()
+      // A reallocated backing store is blank; redraw the current frame, or the
+      // last good pose while the pack is still decoding.
+      if (!this.renderFrame(this.currentFrame)) this.renderHold()
+    }
   }
 
   getScale(): PixelScale {
@@ -374,9 +616,9 @@ export class CharacterRenderer {
 
   /** Alpha hit test in CSS pixels relative to the canvas top-left. */
   hitTest(x: number, y: number): boolean {
-    if (!this.imagesByTag || !this.currentTag) return false
-    const frames = this.imagesByTag.get(this.currentTag)
-    const image = frames?.[this.currentFrame]
+    if (!this.tagFrames || !this.currentTag) return false
+    const frame = this.tagFrames.get(this.currentTag)?.frames[this.currentFrame]
+    const image = frame?.image ?? null
     if (!image) return false
     // Canvas-local CSS px → art px. Works for upscales (1/2/4) and integer
     // reciprocal downscales (1/2, 1/4, 1/8): a 1024px canvas at 1/4 maps a
@@ -403,10 +645,70 @@ export class CharacterRenderer {
 
   destroy(): void {
     this.stop()
-    this.imagesByTag = null
+    this.tagFrames = null
     this.pack = null
+    this.pendingFrames = []
+    this.tagReadyCache.clear()
     this.canvas.width = 0
     this.canvas.height = 0
+  }
+
+  /** Install the pack and build one frame slot per asset (no decode yet). */
+  private prepare(pack: LoadedCharacterPack): void {
+    const tagFrames = new Map<string, TagFrameSlots>()
+    const pending: Array<{ readonly tag: string; readonly index: number }> = []
+    for (const [tag, meta] of Object.entries(pack.tags)) {
+      const urls = pack.framesByTag[tag]
+      if (!urls || urls.length !== meta.frames) {
+        throw new CharacterPackError(`pack has no frame list for tag: ${tag}`)
+      }
+      const frames: FrameSlot[] = urls.map((url) => ({ url, image: null, ready: false }))
+      tagFrames.set(tag, { meta, frames })
+      for (let index = 0; index < frames.length; index += 1) pending.push({ tag, index })
+    }
+    this.pack = pack
+    this.tagFrames = tagFrames
+    this.pendingFrames = pending
+    this.tagReadyCache.clear()
+    this.currentTag = null
+    this.currentFrame = 0
+  }
+
+  private assertLoaded(action: string): void {
+    if (!this.pack || !this.tagFrames) throw new CharacterPackError(`load(pack) before ${action}`)
+  }
+
+  private pendingEntriesFor(tag: string): Array<{ readonly tag: string; readonly index: number }> {
+    return this.pendingFrames.filter((entry) => entry.tag === tag)
+  }
+
+  private firstFrameInfo(): CharacterFirstFrameInfo {
+    return {
+      readyTags: this.readyTags(),
+      pendingTags: [...new Set(this.pendingFrames.map((entry) => entry.tag))],
+      pendingFrames: this.pendingFrames.length,
+    }
+  }
+
+  /**
+   * Decode one batch of frame entries. Entries are claimed (removed from the
+   * queue) synchronously before the first await, so two overlapping batches can
+   * never decode the same frame twice.
+   */
+  private async decodeEntries(entries: Array<{ readonly tag: string; readonly index: number }>): Promise<void> {
+    if (entries.length === 0) return
+    const claimed = new Set(entries.map((entry) => `${entry.tag}#${entry.index}`))
+    this.pendingFrames = this.pendingFrames.filter((entry) => !claimed.has(`${entry.tag}#${entry.index}`))
+    await Promise.all(
+      entries.map(async (entry) => {
+        const slot = this.tagFrames?.get(entry.tag)?.frames[entry.index]
+        if (!slot) throw new CharacterPackError(`missing frame slot: ${entry.tag}[${entry.index}]`)
+        if (slot.ready) return
+        slot.image = await loadImage(slot.url)
+        slot.ready = true
+      }),
+    )
+    this.tagReadyCache.clear()
   }
 
   private ensureSampleCanvas(): HTMLCanvasElement {
@@ -435,12 +737,15 @@ export class CharacterRenderer {
     this.ctx.imageSmoothingEnabled = false
   }
 
-  private renderFrame(index: number): void {
-    if (!this.pack || !this.currentTag || !this.imagesByTag) return
-    const frame = this.imagesByTag.get(this.currentTag)?.[index]
-    if (!frame) return
+  /** Draw one frame; false when that frame is not decoded yet (canvas held). */
+  private renderFrame(index: number): boolean {
+    if (!this.pack || !this.currentTag || !this.tagFrames) return false
+    const frame = this.tagFrames.get(this.currentTag)?.frames[index]
+    const image = frame?.image ?? null
+    if (!frame?.ready || image === null) return false
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
     this.ctx.imageSmoothingEnabled = false
-    this.ctx.drawImage(frame, 0, 0, this.canvas.width, this.canvas.height)
+    this.ctx.drawImage(image, 0, 0, this.canvas.width, this.canvas.height)
+    return true
   }
 }

@@ -848,6 +848,31 @@
           "minLength": 1,
           "maxLength": 120
         },
+        "runtimeCapabilities": {
+          "description": "Behaviour runtime capabilities this profile requires (FCI capability gate, 2026-11-21). Optional and additive: the runtime validator audits advanced-field usage and warns (default) or fails (strictCapabilities) when the shipping runtime cannot execute a declared capability. Unknown ids are rejected.",
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "rules",
+              "ambient",
+              "slots",
+              "guard",
+              "conditions",
+              "brief",
+              "say",
+              "sfx",
+              "effects",
+              "needs",
+              "mood",
+              "speech",
+              "interactions",
+              "overrides",
+              "fallback"
+            ]
+          }
+        },
         "defaults": {
           "type": "object",
           "additionalProperties": false,

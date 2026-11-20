@@ -439,7 +439,7 @@ data 属性（data-content-*，由 dataset 写入）：
 ### 5.6 测试与运行注意
 
 - 本任务测试：'node --import tsx --test tests/content-library.test.ts'（Windows Node 24.22.1）。
-- **WSL 注意事项**：仓内 'node_modules' 是 Windows 安装（esbuild win32-x64），在 WSL 直接 'node --import tsx' 会报 "esbuild for another platform"。本任务在 WSL 下用 'powershell.exe -NoProfile -Command 'cd "D:\\Projects\\dsh\\desktop-games"; node --import tsx --test tests/content-library.test.ts'' 运行；'npx tsc --noEmit' 在 WSL 可跑（TypeScript 纯 JS）。
+- **WSL 注意事项**：仓内 'node_modules' 是 Windows 安装（esbuild win32-x64），在 WSL 直接 'node --import tsx' 会报 "esbuild for another platform"。本任务在 WSL 下用 'powershell.exe -NoProfile -Command 'cd "<private-path>"; node --import tsx --test tests/content-library.test.ts'' 运行；'npx tsc --noEmit' 在 WSL 可跑（TypeScript 纯 JS）。
 - 新增 UI 测试不要依赖真实 localStorage/DOM；注入 fake StorageLike/DocumentLike（见 'tests/content-library.test.ts' 的 fakeStorage/fakeDoc）。
 - 回归要求：'npx tsc --noEmit' + 本测试文件 + 既有 shell/hero 测试；UI 接入后补 desktop-shell/content-center 测试。
 

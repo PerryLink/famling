@@ -828,7 +828,7 @@ Avoid: no text, no letters, no numbers, no signature, no watermark, no logo, no 
 
 **T-D 96（当前发布路径）**
 ```bash
-cd /mnt/d/Projects/dsh/desktop-games
+cd <private-path>
 python3 scripts/gen-human-anim.py --check          # 生成器=盘上资产（本轮实测 PASS）
 node --import tsx --test tests/pet-anim-human.test.ts
 node --import tsx --test tests/pet-anim.test.ts
@@ -838,7 +838,7 @@ npx tsc --noEmit
 
 **T-C 256（keyart/参考；不再排 final 化）**
 ```bash
-cd /mnt/d/Projects/dsh/desktop-games
+cd <private-path>
 node --import tsx --test tests/tinglan-256-pack.test.ts
 node --import tsx --test tests/pet-anim.test.ts
 # 资产侧：manifest placeholder/final、49 assets、256 canvas、anchor/footBox、packBase

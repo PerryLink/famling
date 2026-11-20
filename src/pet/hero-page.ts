@@ -231,6 +231,19 @@ export interface HeroRenderStateInput {
   readonly night: boolean
 }
 
+/**
+ * Live idle-rhythm plan for the hero scene (C1 2026-11-21; see
+ * src/pet/low-disturb.ts). The effective level is resolved by main.ts from the
+ * persisted cadence, quiet hours, a 一起工作 session and the Advisers pose flag;
+ * this page only applies the resulting plan to the live scene.
+ */
+export interface HeroAmbientRhythm {
+  /** Interval drawn for each remaining ambient state while idle. */
+  readonly intervalMs: readonly [number, number]
+  /** Ambient states allowed; null = keep the character's authored pool. */
+  readonly states: readonly string[] | null
+}
+
 export interface HeroPageDeps {
   /** Page document (hero stage/canvas, placeholder, shell header, QA dataset). */
   readonly document: Document
@@ -249,6 +262,11 @@ export interface HeroPageDeps {
   onRegionTouch(actorId: string, reaction: HeroRegionReaction): void
   /** Resume/reuse the pet-page AudioContext on a hero pointer press. */
   onEnsureAudio(): void
+  /**
+   * Live idle-rhythm resolver (待机节奏). Absent on dev/other pages, which keeps
+   * the authored behavior.json ambient window untouched.
+   */
+  readonly resolveAmbientRhythm?: () => HeroAmbientRhythm | null
   /** Re-apply the persisted pack appearance after the built-in hero booted. */
   restoreActiveCharacterPack(): Promise<CharacterPackActionOutcome | null>
   /**
@@ -264,6 +282,8 @@ export interface HeroPageDeps {
   readonly requestFrame?: (callback: FrameRequestCallback) => number
   readonly cancelFrame?: (handle: number) => void
   readonly scheduleTimeout?: (callback: () => void, timeoutMs?: number) => unknown
+  /** Cancel a pending idle wake-up timer (test seam; default global clearTimeout). */
+  readonly cancelTimeout?: (handle: unknown) => void
   readonly loadTauriWindow?: () => Promise<TauriWindowModule>
   readonly startWindowDrag?: HeroWindowDrag
   /** Test seam for the desktop-shell late-layout refit; default global hook. */
@@ -339,6 +359,7 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
   const requestFrame = deps.requestFrame ?? ((callback: FrameRequestCallback): number => requestAnimationFrame(callback))
   const cancelFrame = deps.cancelFrame ?? ((handle: number): void => cancelAnimationFrame(handle))
   const setTimeoutFn = deps.scheduleTimeout ?? ((callback: () => void, timeoutMs?: number): unknown => setTimeout(callback, timeoutMs))
+  const clearTimeoutFn = deps.cancelTimeout ?? ((handle: unknown): void => clearTimeout(handle as ReturnType<typeof setTimeout>))
   const loadTauriWindow =
     deps.loadTauriWindow ??
     ((): Promise<TauriWindowModule> => import('@tauri-apps/api/window') as unknown as Promise<TauriWindowModule>)
@@ -354,6 +375,7 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
   const onPat = deps.onPat
   const onRegionTouch = deps.onRegionTouch
   const onEnsureAudio = deps.onEnsureAudio
+  const resolveAmbientRhythm = deps.resolveAmbientRhythm
   const reportFailure = deps.reportFailure
   const storageBoundary = deps.storageBoundary
   const pageLocation = windowLike.location ?? null
@@ -442,12 +464,27 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
   let heroCanvasEl: HTMLCanvasElement | null = null
   let heroCtx: CanvasRenderingContext2D | null = null
   let heroRaf: number | null = null
+  /** 按需帧率 (P1): pending idle wake-up timer; heroRaf is null while it is set. */
+  let heroIdleTimer: unknown = null
   let heroSceneNow = 0
   let heroLastFrameMs = 0
   let heroNight = false
+  /** Idle-rhythm sync cadence: the plan is re-read at most once a second. */
+  const HERO_IDLE_RHYTHM_SYNC_MS = 1000
+  /** Key of the plan currently applied to the live scene (null = none yet). */
+  let idleRhythmAppliedKey: string | null = null
+  /** Scene-clock timestamp of the last plan read (throttle; -Inf = first frame). */
+  let idleRhythmSyncedAt = Number.NEGATIVE_INFINITY
+  /** Authored ambient pool saved before a filtered plan replaced it (per profile). */
+  const authoredAmbient = new WeakMap<
+    object,
+    { intervalMs: [number, number]; choices: Array<{ state: string; weight: number }> }
+  >()
   /** Cat/dog run locomotion: CSS translate/scale on the canvas, reset on idle. */
   const heroMove = { offset: 0, dir: 1 as 1 | -1, active: false }
 
+  /** Pointer hover dwell before the hover.dwell reaction fires (C1). */
+  const HERO_HOVER_DWELL_MS = 800
   /** Pointer interaction cadence (head/body/tail taps). */
   const HERO_TOUCH_COOLDOWN_MS = 1200
   const HERO_REGION_COOLDOWN_MS = 2500
@@ -480,6 +517,81 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
       heroNight = input.night
       runtime.setNight(input.night)
     }
+  }
+
+  // -------------------------------------------------------------------------
+  // Idle rhythm / 待机节奏 (C1 2026-11-21)
+  // -------------------------------------------------------------------------
+
+  /** Stable key of one plan (apply only when the effective level changes). */
+  function idleRhythmKey(plan: HeroAmbientRhythm): string {
+    const states = plan.states === null ? '*' : plan.states.join(',')
+    return plan.intervalMs[0] + '-' + plan.intervalMs[1] + ':' + states
+  }
+
+  /**
+   * Apply one plan to every actor's ambient pool. The authored pool is captured
+   * once per profile (WeakMap) so switching back from 安静 restores it exactly;
+   * `choices = []` disables ambient scheduling for a character whose pack has
+   * no allowed state (third-party / future packs). `nextAmbientAtMs = null`
+   * makes SceneRuntime re-draw the interval on its next idle behaviour step, so
+   * a live level change takes effect without a reload.
+   */
+  function applyIdleRhythm(plan: HeroAmbientRhythm): boolean {
+    const runtime = hero
+    if (!runtime) return false
+    const scene = runtime.scene
+    if (!scene || typeof scene.get !== 'function') return false
+    for (const actor of runtime.actors) {
+      let sceneActor: ReturnType<typeof scene.get>
+      try {
+        sceneActor = scene.get(actor.id)
+      } catch {
+        continue
+      }
+      const ambient = sceneActor?.profile?.ambient
+      if (!ambient) continue
+      let authored = authoredAmbient.get(ambient)
+      if (authored === undefined) {
+        authored = {
+          intervalMs: [ambient.intervalMs[0], ambient.intervalMs[1]],
+          choices: ambient.choices.map((choice) => ({ state: choice.state, weight: choice.weight })),
+        }
+        authoredAmbient.set(ambient, authored)
+      }
+      const allowed =
+        plan.states === null
+          ? authored.choices
+          : authored.choices.filter((choice) => plan.states !== null && plan.states.includes(choice.state))
+      ambient.choices = allowed.map((choice) => ({ state: choice.state, weight: choice.weight }))
+      ambient.intervalMs = allowed.length > 0 ? [plan.intervalMs[0], plan.intervalMs[1]] : [0, 0]
+      sceneActor.nextAmbientAtMs = null
+    }
+    return true
+  }
+
+  /** Throttled frame-loop hook: read the effective plan and apply it on change. */
+  function syncIdleRhythm(sceneNowMs: number): void {
+    if (resolveAmbientRhythm === undefined) return
+    if (sceneNowMs - idleRhythmSyncedAt < HERO_IDLE_RHYTHM_SYNC_MS) return
+    idleRhythmSyncedAt = sceneNowMs
+    if (!hero) return
+    let plan: HeroAmbientRhythm | null = null
+    try {
+      plan = resolveAmbientRhythm()
+    } catch {
+      return
+    }
+    if (!plan) return
+    const key = idleRhythmKey(plan)
+    if (key === idleRhythmAppliedKey) return
+    if (applyIdleRhythm(plan)) idleRhythmAppliedKey = key
+  }
+
+  /** New scene committed/removed: the next frame re-applies the live plan. */
+  function resetIdleRhythm(): void {
+    idleRhythmAppliedKey = null
+    idleRhythmSyncedAt = Number.NEGATIVE_INFINITY
   }
 
   function snapshot(): HeroSnapshot | null {
@@ -874,6 +986,10 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
       cancelFrame(heroRaf)
       heroRaf = null
     }
+    if (heroIdleTimer !== null) {
+      clearTimeoutFn(heroIdleTimer)
+      heroIdleTimer = null
+    }
   }
 
   /**
@@ -908,6 +1024,7 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
     hero?.dispose()
     hero = null
     heroCtx = null
+    resetIdleRhythm()
     // The DOM fallback is the shipped built-in appearance: no character pack.
     heroSceneBuiltin = true
     activeCharacterPackId = null
@@ -954,6 +1071,9 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
     const reducedMotion = document.documentElement.dataset.reduceMotion === '1'
     if (!reducedMotion) heroSceneNow += dt
     try {
+      // 待机节奏 (C1): apply the effective ambient plan before the behaviour tick
+      // so a level change is visible on this frame's scheduling, not one draw late.
+      if (!reducedMotion) syncIdleRhythm(heroSceneNow)
       if (!reducedMotion) hero.tick(heroSceneNow)
       // 6-14 fps art on a 60 Hz host: redraw only when a frame actually changed.
       const renderKey = hero.renderKey(heroSceneNow)
@@ -974,7 +1094,25 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
       fallbackHero(`render-failed: ${error instanceof Error ? error.message : String(error)}`, error)
       return
     }
-    heroRaf = requestFrame(heroFrame)
+    // 按需帧率 (P1 2026-11-21): 6-14 fps art + 4 Hz behaviour do not need 60 Hz.
+    // framePlan() keeps the rAF loop for locomotion / one-shot / action / speech
+    // / still-decoding clips, and returns a bounded delay only when the idle
+    // scene can only change on the next clip frame boundary. Locomotion easing
+    // (heroMove) must stay at 60 Hz. typeof guard: the page-level test runtime
+    // may be a minimal fake without the scheduler.
+    const schedule =
+      typeof (hero as { framePlan?: unknown }).framePlan === 'function'
+        ? hero.framePlan(heroSceneNow, { reducedMotion })
+        : null
+    if (heroMove.active || heroMove.offset !== 0 || schedule === null || schedule.delayMs <= 0) {
+      heroRaf = requestFrame(heroFrame)
+    } else {
+      const handle = setTimeoutFn(() => {
+        heroIdleTimer = null
+        heroFrame(now())
+      }, schedule.delayMs)
+      heroIdleTimer = handle === undefined ? null : handle
+    }
   }
 
   /**
@@ -1031,7 +1169,7 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
   }
 
   function startHeroLoop(): void {
-    if (!hero || heroRaf !== null || document.visibilityState === 'hidden') return
+    if (!hero || heroRaf !== null || heroIdleTimer !== null || document.visibilityState === 'hidden') return
     heroLastFrameMs = now()
     heroRaf = requestFrame(heroFrame)
   }
@@ -1200,6 +1338,7 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
     }
     // Commit only after the first-frame gate succeeded.
     hero = result.runtime
+    resetIdleRhythm()
     heroSceneBuiltin = identity === null
     if (identity === null) liveBuiltinCharacter = targetBuiltin
     activeCharacterPackId = identity === null ? null : { packId: identity.packId, version: identity.version }
@@ -1431,6 +1570,7 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
 
     canvas.addEventListener('pointerdown', (event) => {
       if (!hero || event.button !== 0) return
+      cancelHoverDwell()
       onEnsureAudio()
       activePointer = event.pointerId
       startX = event.clientX
@@ -1541,10 +1681,31 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
     })
 
     canvas.addEventListener('pointercancel', (event) => endPointer(event))
+    // Hover dwell (C1 2026-11-21): hovering for 800 ms emits `hover.dwell`, which
+    // behavior.json maps to the existing idle_blink reaction (no new clip/frame).
+    // A sequence counter invalidates the pending timer on leave/press instead of
+    // introducing a second injected timer-cancel seam.
+    let hoverSeq = 0
+    const cancelHoverDwell = (): void => {
+      hoverSeq += 1
+    }
+    const scheduleHoverDwell = (): void => {
+      const seq = ++hoverSeq
+      setTimeoutFn(() => {
+        if (seq !== hoverSeq) return
+        if (document.visibilityState === 'hidden') return
+        // Firing invalidates the sequence: one reaction per continuous hover.
+        hoverSeq += 1
+        hero?.emit('hover.dwell')
+      }, HERO_HOVER_DWELL_MS)
+    }
     canvas.addEventListener('pointerenter', () => {
-      if (activePointer === null) hero?.emit('hover')
+      if (activePointer !== null) return
+      hero?.emit('hover')
+      scheduleHoverDwell()
     })
     canvas.addEventListener('pointerleave', () => {
+      cancelHoverDwell()
       if (activePointer === null) hero?.emit('leave')
     })
   }
@@ -1643,6 +1804,7 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
         return
       }
       hero = result.runtime
+      resetIdleRhythm()
       // heroCanvasEl/heroCtx/heroStageSize/heroDpr were captured by mountHeroView().
       heroNight = night
       runtimeViewportDirty = false

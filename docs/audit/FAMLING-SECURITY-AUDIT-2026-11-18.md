@@ -1,7 +1,7 @@
 # famling 安全审计 — Tauri v2 / IPC / 内容包 / 隐私 / 供应链
 
 - **日期**：2026-11-18（Asia/Shanghai；执行窗口 2026-11-18 23:58 – 2026-11-19 00:3x）
-- **审计对象**：`/mnt/d/Projects/dsh/desktop-games`（famling / Pagefold 桌宠 + Tauri v2 壳 + DLC/pack 链），关联只读参考 `/mnt/d/Projects/dsh/plugins/advisers`（仅读契约，未审计其代码）
+- **审计对象**：`<private-path> / Pagefold 桌宠 + Tauri v2 壳 + DLC/pack 链），关联只读参考 `<private-path>
 - **代码基线**：`git rev-parse HEAD` = **a3ac3c3**（`feat(pet): species interactions, random replies, white bubbles, real locomotion, alpha hit regions and slow cat stretch`）
 - **工作树状态（重要）**：审计开始时工作树有 9 个已修改文件 + 1 个未跟踪文档（并行 agent 的未提交改动）；**审计期间并行 agent 继续改代码**（报告写入时已扩至 16 个文件，含 `src/pet/main.ts`、`src/pet/hero-runtime.ts`、`app/tauri/src-tauri/src/main.rs` 等），因此工作树内容/行号会持续漂移。**本文所有 `文件:行号` 一律以 HEAD a3ac3c3 为准**（用 `git show HEAD:<file>` 核对，方法见附录 A）；工作树差异是并行任务所为、非本次审计，且不改变本报告对 HEAD 的安全结论。
 - **审计方式**：**只读静态审计** + 少量不修改仓库的可复现实测（见 §8 证据命令）。未启动 Tauri/WebView2 GUI，未跑浏览器 E2E，未调用任何云 API（未使用 API key），未做 fuzz/渗透。**凡未实测处均标注「静态」**。
@@ -183,7 +183,7 @@
 ### P2-3 DLC 验签器路径/大小/schema 硬化不足（signed-only 风险）
 
 - **位置**：`native/dlc-verify/src/lib.rs:39-112`；调用方 `app/tauri/src-tauri/src/main.rs:289-307`。
-  - `lib.rs:83`：文件路径只检查 `rel.contains("..") || rel.starts_with('/')` —— **未拒绝** Windows 盘符路径（`C:\...`）、UNC（`\\srv\share`）、ADS（`a.b:stream`）、保留设备名（`CON`）、尾点/尾空格。Rust `PathBuf::join` 在遇到绝对路径时会**替换**前缀（Windows），所以签名 manifest 若写 `C:\Windows\...` 会读到 pack 目录外（仍需签名+哈希匹配，故先决条件是签名私钥）。
+  - `lib.rs:83`：文件路径只检查 `rel.contains("..") || rel.starts_with('/')` —— **未拒绝** Windows 盘符路径（`<private-path>`）、UNC（`\\srv\share`）、ADS（`a.b:stream`）、保留设备名（`CON`）、尾点/尾空格。Rust `PathBuf::join` 在遇到绝对路径时会**替换**前缀（Windows），所以签名 manifest 若写 `C:\Windows\...` 会读到 pack 目录外（仍需签名+哈希匹配，故先决条件是签名私钥）。
   - `lib.rs:99`：`content` 路径在签名后直接 `dir.join(content_path)` 读取，同样没有路径约束（JS 侧 `manifest.ts:48` 只挡 `..`）。
   - `lib.rs:40-42,65-75`：manifest 在验签前整文件读取/解析；无大小上限。`:78-97` 无 pack 总大小/文件数上限。
   - `main.rs:297-300`：`dir = root.join(pack_id)` 后 `dir.starts_with(root)`，但 root 未 canonicalize（`pack_dir` 由 `--packs-dir`/资源目录提供），也没有对 pack 目录内 symlink 的处理。
@@ -362,7 +362,7 @@
 
 ## 8. 可复现证据与命令（实测记录）
 
-> 环境：WSL2 Ubuntu on Windows，工作目录 `/mnt/d/Projects/dsh/desktop-games`；`node v24.22.1`、`npm 11.19.1`；`python3`；Rust 工具链可用（`native/dlc-verify/target/release/dlc-verify` 已存在）；`powershell.exe` 可调用（Authenticode 实测）。时间：2026-11-19 00:00–00:30（UTC+8）。
+> 环境：WSL2 Ubuntu on Windows，工作目录 `<private-path> v24.22.1`、`npm 11.19.1`；`python3`；Rust 工具链可用（`native/dlc-verify/target/release/dlc-verify` 已存在）；`powershell.exe` 可调用（Authenticode 实测）。时间：2026-11-19 00:00–00:30（UTC+8）。
 
 ### 8.1 代码基线
 
@@ -465,16 +465,16 @@ $ git check-ignore -v .keys/dev-private.pem
 .gitignore:6:.keys/	.keys/dev-private.pem
 $ ls -la .keys/dev-private.pem
 -rwxrwxrwx ... 119 .keys/dev-private.pem     # WSL/DrvFs 视图 777；Windows ACL 未实测（建议 icacls）
-$ tar -tzf /mnt/d/backups/2026-11-15/desktop-games-worktree-2026-11-15-sanitized.tar.gz | grep -cE '(^|/)\.keys/'
+$ tar -tzf <private-path> | grep -cE '(^|/)\.keys/'
 0          # 当前备份 tar 已脱敏，不含 .keys/
-$ ls /mnt/d/backups/keys
+$ ls <private-path>
 desktop-games-updater.key  desktop-games-updater.key.pub  desktop-games-updater.password   # 仅列名；未读取内容；WSL 视图 777
 ```
 
 ### 8.6 发布物/签名核对
 
 ```powershell
-PS> Get-ChildItem 'D:\Projects\dsh\desktop-games\app\tauri\src-tauri\target\release\*.exe' | % { $_.Name + ' ' + (Get-AuthenticodeSignature $_.FullName).Status }
+PS> Get-ChildItem '<private-path>\app\tauri\src-tauri\target\release\*.exe' | % { $_.Name + ' ' + (Get-AuthenticodeSignature $_.FullName).Status }
 desktop-games-tauri.exe NotSigned
 PS> Get-ChildItem '...\bundle\nsis\*.exe' | % { $_.Name + ' ' + (Get-AuthenticodeSignature $_.FullName).Status }
 DesktopGames_0.1.0_x64-setup.exe NotSigned

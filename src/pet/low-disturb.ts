@@ -1,7 +1,7 @@
 /**
  * Low-disturbance controls (E7 / MB-070 + MB-075).
  *
- * Two concerns live here, both pure (no DOM):
+ * Three concerns live here, all pure (no DOM):
  *
  * 1. Quiet hours / 夜间安静 — a persisted local wall-clock window
  *    (default 22:00–08:00, enabled by default, user can change or disable it).
@@ -11,7 +11,15 @@
  *    the product-wide 安静 semantic (C-11 / Q-01): 安静 = 关闭自动/环境输出，
  *    交互回应仍可用.
  *
- * 2. Soft emotional copy guard — waiting / leaving-the-light-on / guilt hints
+ * 2. Idle rhythm / 待机节奏 (C1 2026-11-21) — the desktop ambient micro-action
+ *    rate is a persisted three-level preference (活泼 4–10 s / 正常 60–90 s /
+ *    安静 blink-only). Quiet hours force the quiet level for the duration of the
+ *    window; a running 一起工作 focus session (25/50 min) downgrades one level;
+ *    an Advisers pose (working/waiting, no matching clip) degrades to the same
+ *    non-animating quiet flag. The pure resolver + the session-scoped focus
+ *    session live here so main.ts/hero-page.ts only wire clocks and menus.
+ *
+ * 3. Soft emotional copy guard — waiting / leaving-the-light-on / guilt hints
  *    (等你, 留灯, 别走, 一直停在这里) are exactly the low-key dependency cues
  *    the psychology review (PSY-P1-7 / Q-04) asks us to stop adding.
  *    findSoftTone() is the runtime filter used for proactive lines, and the
@@ -176,6 +184,306 @@ export function pickNeutralAmbientLine(random: () => number = Math.random): stri
   const index = Math.floor(random() * NEUTRAL_AMBIENT_LINES.length)
   const bounded = Math.max(0, Math.min(NEUTRAL_AMBIENT_LINES.length - 1, index))
   return NEUTRAL_AMBIENT_LINES[bounded] ?? '嗯。'
+}
+
+// ---------------------------------------------------------------------------
+// Idle rhythm / 待机节奏 (C1 2026-11-21)
+// ---------------------------------------------------------------------------
+
+/**
+ * Persisted idle-rhythm level (single short enum string, cross-restart).
+ *
+ * The authored behavior.json default is 60–90 s (C1 2026-11-21: the old 4–10 s
+ * window made a visible micro-action appear roughly every 15 s because ~45% of
+ * the draws hit a non-idle state). The same 60–90 s cadence is what the
+ * dsh-famling sidebar pet already uses. 活泼 overrides the live scene back to
+ * the old 4–10 s window, 安静 drops the random pool to the blink only. The live
+ * hero scene applies the level at runtime (one place: hero-page.ts), so the
+ * generated behavior.json keeps a single authored default instead of three
+ * generated variants.
+ */
+export const AMBIENT_CADENCE_KEY = 'desktop-games/pet/ambient-cadence'
+
+/** Three user-selectable idle-rhythm levels. */
+export type AmbientCadence = 'lively' | 'normal' | 'quiet'
+
+/** Canonical level order for the settings control. */
+export const AMBIENT_CADENCES: readonly AmbientCadence[] = Object.freeze(['lively', 'normal', 'quiet'])
+
+/** Shipped default: 60–90 s, same as the dsh-famling sidebar pet. */
+export const DEFAULT_AMBIENT_CADENCE: AmbientCadence = 'normal'
+
+export interface AmbientCadencePlan {
+  /** Label shown in 设置 → 安静 / 健康 / AI 标识. */
+  readonly label: string
+  /** One-line description shown next to the control (fixed product copy). */
+  readonly description: string
+  /**
+   * Interval drawn for each remaining ambient state while idle. For `quiet`
+   * this is the blink interval (the only remaining ambient state).
+   */
+  readonly intervalMs: readonly [number, number]
+  /**
+   * Ambient states this level allows; `null` = the character's authored pool.
+   * `quiet` keeps only `idle_blink`: no extra micro-actions, the idle breathing
+   * loop and a low-frequency blink remain visible.
+   */
+  readonly states: readonly string[] | null
+}
+
+/**
+ * The three shipped plans. `normal` matches the plugin's 60–90 s automatic
+ * micro-action timer; `quiet` is the "0 extra micro-actions" level (the only
+ * scheduled ambient state is the blink overlay, so the pet still breathes and
+ * blinks instead of freezing).
+ */
+export const AMBIENT_CADENCE_PLANS: Readonly<Record<AmbientCadence, AmbientCadencePlan>> = Object.freeze({
+  lively: Object.freeze({
+    label: '活泼',
+    description: '约每 4–10 秒一个待机微动作（眨眼/舔爪/摇尾…）。',
+    intervalMs: [4000, 10000] as readonly [number, number],
+    states: null,
+  }),
+  normal: Object.freeze({
+    label: '正常（默认）',
+    description: '约每 60–90 秒一个待机微动作，与侧栏插件节奏一致。',
+    intervalMs: [60000, 90000] as readonly [number, number],
+    states: null,
+  }),
+  quiet: Object.freeze({
+    label: '安静',
+    description: '不做额外待机微动作，只保留呼吸循环与低频眨眼。',
+    intervalMs: [4000, 10000] as readonly [number, number],
+    states: ['idle_blink'] as readonly string[],
+  }),
+})
+
+export function isAmbientCadence(value: unknown): value is AmbientCadence {
+  return typeof value === 'string' && (AMBIENT_CADENCES as readonly string[]).includes(value)
+}
+
+/** Normalise stored/user data; anything unknown falls back to the default. */
+export function normalizeAmbientCadence(raw: unknown): AmbientCadence {
+  return isAmbientCadence(raw) ? raw : DEFAULT_AMBIENT_CADENCE
+}
+
+/** Plan for one level (unknown input = default, never throws). */
+export function ambientCadencePlan(cadence: unknown): AmbientCadencePlan {
+  return AMBIENT_CADENCE_PLANS[normalizeAmbientCadence(cadence)]
+}
+
+/** Read + normalise the persisted level; never throws, never writes. */
+export function readAmbientCadence(storage?: StorageLike | null): AmbientCadence {
+  try {
+    const store = resolveStorage(storage)
+    if (!store) return DEFAULT_AMBIENT_CADENCE
+    return normalizeAmbientCadence(store.getItem(AMBIENT_CADENCE_KEY))
+  } catch {
+    return DEFAULT_AMBIENT_CADENCE
+  }
+}
+
+/** Persist the normalised level; storage-denied is a silent no-op. */
+export function writeAmbientCadence(cadence: unknown, storage?: StorageLike | null): AmbientCadence {
+  const normalized = normalizeAmbientCadence(cadence)
+  try {
+    resolveStorage(storage)?.setItem(AMBIENT_CADENCE_KEY, normalized)
+  } catch {
+    /* storage blocked/full: the in-memory setting still applies for this session */
+  }
+  return normalized
+}
+
+/** Why the effective level differs from the user's persisted choice. */
+export type AmbientRhythmReason = 'user-cadence' | 'quiet-hours' | 'work-session' | 'advisers-pose'
+
+export interface AmbientRhythmInput {
+  /** User's persisted level. */
+  readonly cadence: AmbientCadence
+  /** True while the quiet-hours window is active (owner evaluates the clock). */
+  readonly quietHoursActive?: boolean
+  /** True while a 一起工作 session is running. */
+  readonly workSessionActive?: boolean
+  /** True while Advisers reported working/waiting (no matching clip → quiet). */
+  readonly advisersQuiet?: boolean
+}
+
+export interface AmbientRhythm {
+  /** The level the user chose. */
+  readonly requested: AmbientCadence
+  /** The level actually applied after quiet hours / work session / pose. */
+  readonly cadence: AmbientCadence
+  readonly reason: AmbientRhythmReason
+  readonly plan: AmbientCadencePlan
+}
+
+/** One step calmer: 活泼→正常, 正常→安静, 安静→安静. */
+export function downgradeAmbientCadence(cadence: AmbientCadence): AmbientCadence {
+  return cadence === 'lively' ? 'normal' : 'quiet'
+}
+
+/**
+ * Effective idle rhythm. Order of precedence (calmest wins):
+ * - Advisers working/waiting pose → quiet (there is no pose clip; the flag only
+ *   stops proactive micro-actions, it never drives animation);
+ * - quiet hours → quiet;
+ * - 一起工作 focus session → one level calmer;
+ * - otherwise the user's persisted level.
+ */
+export function resolveAmbientRhythm(input: AmbientRhythmInput): AmbientRhythm {
+  const requested = normalizeAmbientCadence(input.cadence)
+  if (input.advisersQuiet === true) {
+    return { requested, cadence: 'quiet', reason: 'advisers-pose', plan: AMBIENT_CADENCE_PLANS.quiet }
+  }
+  if (input.quietHoursActive === true) {
+    return { requested, cadence: 'quiet', reason: 'quiet-hours', plan: AMBIENT_CADENCE_PLANS.quiet }
+  }
+  if (input.workSessionActive === true) {
+    const cadence = downgradeAmbientCadence(requested)
+    return { requested, cadence, reason: 'work-session', plan: AMBIENT_CADENCE_PLANS[cadence] }
+  }
+  return { requested, cadence: requested, reason: 'user-cadence', plan: AMBIENT_CADENCE_PLANS[requested] }
+}
+
+// ---------------------------------------------------------------------------
+// 一起工作 focus session (C1 2026-11-21)
+// ---------------------------------------------------------------------------
+//
+// Persistence strategy (deliberate, no streak/record/penalty):
+// - the *duration* lives in sessionStorage, so a page reload inside the same
+//   app window keeps the remaining time; closing/restarting the app clears it;
+// - nothing is written to the save archive or localStorage: there is no
+//   history, no streak days, no "you missed a session" reminder, and an early
+//   end is simply discarded;
+// - the 2h health reminder is independent and unchanged.
+
+/** Session-scoped key; survives a page reload, not an app restart. */
+export const WORK_SESSION_KEY = 'desktop-games/pet/work-session'
+
+/** Product-locked session lengths (minutes). */
+export const WORK_SESSION_MINUTES: readonly [25, 50] = [25, 50]
+
+export type WorkSessionMinutes = 25 | 50
+
+export interface WorkSession {
+  readonly minutes: WorkSessionMinutes
+  readonly startedAtMs: number
+  readonly endsAtMs: number
+}
+
+const MINUTE_MS = 60_000
+/** Tolerated clock skew when validating a restored session. */
+const WORK_SESSION_SKEW_MS = 1_000
+
+export function isWorkSessionMinutes(value: unknown): value is WorkSessionMinutes {
+  return value === 25 || value === 50
+}
+
+/** Start a session at `nowMs` (pure; persistence is the caller's choice). */
+export function startWorkSession(minutes: WorkSessionMinutes, nowMs: number): WorkSession {
+  if (!isWorkSessionMinutes(minutes)) throw new Error('unsupported work-session length: ' + String(minutes))
+  const startedAtMs = Number.isFinite(nowMs) ? Math.round(nowMs) : Date.now()
+  return Object.freeze({ minutes, startedAtMs, endsAtMs: startedAtMs + minutes * MINUTE_MS })
+}
+
+/** Validate a stored session; unknown/tampered shapes restore nothing. */
+export function normalizeWorkSession(raw: unknown): WorkSession | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const record = raw as Record<string, unknown>
+  if (!isWorkSessionMinutes(record.minutes)) return null
+  const startedAtMs = Number(record.startedAtMs)
+  const endsAtMs = Number(record.endsAtMs)
+  if (!Number.isFinite(startedAtMs) || !Number.isFinite(endsAtMs)) return null
+  if (endsAtMs <= startedAtMs) return null
+  if (endsAtMs - startedAtMs > record.minutes * MINUTE_MS + WORK_SESSION_SKEW_MS) return null
+  return Object.freeze({ minutes: record.minutes, startedAtMs: Math.round(startedAtMs), endsAtMs: Math.round(endsAtMs) })
+}
+
+export function workSessionRemainingMs(session: WorkSession | null, nowMs: number): number {
+  if (!session || !Number.isFinite(nowMs)) return 0
+  return Math.max(0, session.endsAtMs - nowMs)
+}
+
+export function isWorkSessionActive(session: WorkSession | null, nowMs: number): boolean {
+  return session !== null && Number.isFinite(nowMs) && nowMs < session.endsAtMs
+}
+
+/** "18 分钟" (ceil so a started session never shows 0 minutes early). */
+export function formatRemainingMinutes(remainingMs: number): string {
+  const safe = Number.isFinite(remainingMs) ? Math.max(0, remainingMs) : 0
+  return Math.max(0, Math.ceil(safe / MINUTE_MS)) + ' 分钟'
+}
+
+/** Session-scoped storage (`sessionStorage`), resolved defensively. */
+function resolveSessionStorage(storage?: StorageLike | null): StorageLike | null {
+  if (storage !== undefined) return storage
+  try {
+    if (typeof sessionStorage === 'undefined' || !sessionStorage) return null
+    return sessionStorage
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Restore a still-running session (after a page reload). Expired or invalid
+ * entries are removed instead of being reported as active.
+ */
+export function readWorkSession(storage?: StorageLike | null, nowMs: number = Date.now()): WorkSession | null {
+  try {
+    const store = resolveSessionStorage(storage)
+    if (!store) return null
+    const raw = store.getItem(WORK_SESSION_KEY)
+    if (raw === null) return null
+    const session = normalizeWorkSession(JSON.parse(raw) as unknown)
+    if (!session || !isWorkSessionActive(session, nowMs)) {
+      try {
+        store.removeItem(WORK_SESSION_KEY)
+      } catch {
+        /* ignored: a stale entry is harmless, it is re-validated on next read */
+      }
+      return null
+    }
+    return session
+  } catch {
+    return null
+  }
+}
+
+/** Persist the active session (best effort; in-memory state still works). */
+export function writeWorkSession(session: WorkSession, storage?: StorageLike | null): boolean {
+  try {
+    const store = resolveSessionStorage(storage)
+    if (!store) return false
+    store.setItem(WORK_SESSION_KEY, JSON.stringify(session))
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** Remove the session entry (early end, completion, data wipe). */
+export function clearWorkSession(storage?: StorageLike | null): void {
+  try {
+    resolveSessionStorage(storage)?.removeItem(WORK_SESSION_KEY)
+  } catch {
+    /* storage blocked: the entry expires on its own */
+  }
+}
+
+/** Neutral start copy; no companionship/dependency framing. */
+export function workSessionStartLine(minutes: WorkSessionMinutes): string {
+  return '好，一起工作 ' + String(minutes) + ' 分钟。'
+}
+
+/** Natural completion copy (neutral rest nudge, no reward/streak language). */
+export const WORK_SESSION_DONE_LINE = '这一节到时间了，起来走走吧。'
+/** Early-end copy; ending early is not recorded anywhere. */
+export const WORK_SESSION_CUT_LINE = '好，先到这儿。'
+
+/** Menu/status line, e.g. 一起工作：剩余 18 分钟（50 分钟档）. */
+export function workSessionStatusText(session: WorkSession, nowMs: number = Date.now()): string {
+  return '一起工作：剩余 ' + formatRemainingMinutes(workSessionRemainingMs(session, nowMs)) + '（' + String(session.minutes) + ' 分钟档）'
 }
 
 // ---------------------------------------------------------------------------

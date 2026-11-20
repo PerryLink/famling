@@ -2,8 +2,10 @@ import {
   CharacterInterfaceError,
   type BehaviorProfile,
   type CharacterDocument,
+  type CharacterValidationWarning,
 } from './types.ts'
 import { legacyManifestToCharacter, validateBehaviorProfile, validateCharacterDocument } from './validate.ts'
+import { decodeBudgetProblem } from '../pixel-scale.ts'
 import {
   validateBehaviorProfileV03,
   validateCharacterDocumentV03,
@@ -19,6 +21,12 @@ export interface LoadedCharacter {
   behavior: BehaviorProfile
   /** Where the pack's frames live (for hero.ts / CharacterRenderer). */
   packBase?: string
+  /**
+   * Non-fatal load diagnostics (e.g. `BEHAVIOR_CAPABILITY_*`: the pack declares
+   * behaviour fields the shipping runtime cannot execute). Present only when
+   * non-empty; hosts should log/surface them instead of dropping them.
+   */
+  diagnostics?: CharacterValidationWarning[]
 }
 
 export class CharacterRegistry {
@@ -83,7 +91,10 @@ export async function loadCharacter(
   const charUrl = new URL('character.json', new URL(base, 'file:///')).toString().replace(/^file:\/\//, '')
   const res = await fetcher(charUrl)
   if (!res.ok) throw new CharacterInterfaceError(`failed to fetch ${charUrl}: HTTP ${res.status}`)
-  const document = validateCharacterDocument(await res.json())
+  const diagnostics: CharacterValidationWarning[] = []
+  // Pass the warning sink so capability-gate diagnostics (BEHAVIOR_CAPABILITY_*)
+  // are returned to the host instead of being dropped at load time.
+  const document = validateCharacterDocument(await res.json(), { warnings: diagnostics })
 
   let behavior: BehaviorProfile
   if (document.behavior) {
@@ -92,15 +103,39 @@ export async function loadCharacter(
     const behaviorUrl = new URL(document.behaviorFile, new URL(charUrl, 'file:///')).toString().replace(/^file:\/\//, '')
     const bres = await fetcher(behaviorUrl)
     if (!bres.ok) throw new CharacterInterfaceError(`failed to fetch ${behaviorUrl}: HTTP ${bres.status}`)
-    behavior = validateBehaviorProfile(await bres.json())
+    behavior = validateBehaviorProfile(await bres.json(), { warnings: diagnostics })
   } else {
     throw new CharacterInterfaceError('character has no behavior or behaviorFile')
   }
 
+  // Decoded-memory red line for the inline-tag path (packBase manifests carry
+  // their own tag table and are guarded by the pack/CLI validators; a document
+  // that inlines tags can be checked right here before any renderer decodes it).
+  assertInlineTagDecodeBudget(document, 'character document "' + document.id + '"')
+
   const resolvedPack = document.packBase
     ? new URL(document.packBase, new URL(base, 'file:///')).toString().replace(/^file:\/\//, '')
     : undefined
-  return { document, behavior, ...(resolvedPack ? { packBase: resolvedPack } : {}) }
+  return { document, behavior, ...(resolvedPack ? { packBase: resolvedPack } : {}), ...(diagnostics.length > 0 ? { diagnostics } : {}) }
+}
+
+/**
+ * Fail closed when an inline FCI tag table would decode over the pack memory red
+ * line (canvas area x total frames x 4 bytes > 32 MiB). Whole-frame images are
+ * eagerly decoded by the shipping renderer; this keeps a behaviour-only or
+ * inline-tag document from turning into a WebView OOM without needing the
+ * renderer to change.
+ */
+function assertInlineTagDecodeBudget(document: CharacterDocument, what: string): void {
+  const tags = document.tags
+  if (!tags) return
+  let totalFrames = 0
+  for (const tag of Object.values(tags)) {
+    if (Number.isInteger(tag.frames) && tag.frames > 0) totalFrames += tag.frames
+  }
+  if (totalFrames === 0) return
+  const problem = decodeBudgetProblem(document.canvas, totalFrames, what)
+  if (problem) throw new CharacterInterfaceError(problem)
 }
 
 /** Register a legacy hero.ts manifest as an object-type legacy character. */
@@ -135,6 +170,8 @@ export interface LoadedCharacterV03 {
   behavior: BehaviorProfileV03
   voiceLines?: VoiceLineLibrary
   packBase?: string
+  /** Non-fatal capability-gate diagnostics (see LoadedCharacter.diagnostics). */
+  diagnostics?: CharacterValidationWarning[]
 }
 
 /**
@@ -153,18 +190,19 @@ export async function loadCharacterV03(
   const res = await fetcher(charUrl)
   if (!res.ok) throw new CharacterInterfaceError(`failed to fetch ${charUrl}: HTTP ${res.status}`)
   const rawDoc = (await res.json()) as unknown
+  const diagnostics: CharacterValidationWarning[] = []
   const rawBehavior = (rawDoc as { behavior?: unknown }).behavior
   const behavior = rawBehavior
-    ? validateBehaviorProfileV03(rawBehavior)
+    ? validateBehaviorProfileV03(rawBehavior, { warnings: diagnostics })
     : await (async () => {
         const file = (rawDoc as { behaviorFile?: string }).behaviorFile
         if (!file) throw new CharacterInterfaceError('character has no behavior/behaviorFile')
         const url = new URL(file, new URL(charUrl, 'file:///')).toString().replace(/^file:\/\//, '')
         const bres = await fetcher(url)
         if (!bres.ok) throw new CharacterInterfaceError(`failed to fetch ${url}: HTTP ${bres.status}`)
-        return validateBehaviorProfileV03(await bres.json())
+        return validateBehaviorProfileV03(await bres.json(), { warnings: diagnostics })
       })()
-  const document = validateCharacterDocumentV03(rawDoc, { behavior })
+  const document = validateCharacterDocumentV03(rawDoc, { behavior, warnings: diagnostics })
 
   let voiceLines: VoiceLineLibrary | undefined
   const linesFile = document.voice?.lines
@@ -177,5 +215,16 @@ export async function loadCharacterV03(
   const resolvedPack = document.packBase
     ? new URL(document.packBase, new URL(base, 'file:///')).toString().replace(/^file:\/\//, '')
     : undefined
-  return { document, behavior, ...(voiceLines ? { voiceLines } : {}), ...(resolvedPack ? { packBase: resolvedPack } : {}) }
+  // An inline 0.3 behaviour is validated twice (profile + document); collapse
+  // the duplicate code/path diagnostics so the host does not double-report.
+  const uniqueDiagnostics = diagnostics.filter(
+    (warning, index) => diagnostics.findIndex((entry) => entry.code === warning.code && entry.path === warning.path) === index,
+  )
+  return {
+    document,
+    behavior,
+    ...(voiceLines ? { voiceLines } : {}),
+    ...(resolvedPack ? { packBase: resolvedPack } : {}),
+    ...(uniqueDiagnostics.length > 0 ? { diagnostics: uniqueDiagnostics } : {}),
+  }
 }

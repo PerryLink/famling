@@ -5,7 +5,7 @@
 | 文档 | `docs/research/PROJECT-REVIEW-GAME-2026-11-19.md`（私有仓 `desktop-games`，本评审唯一写入物） |
 | 日期 | 2026-11-19（Asia/Shanghai，快照约 12:50–13:05） |
 | 评审人 | review-game（子代理，task-58） |
-| 范围 | `DG/` = `/mnt/d/Projects/dsh/desktop-games`；`DF/` = `/mnt/d/Projects/dsh/plugins/dsh-famling`；DSH checkout `/home/yy/deepseek-harness` 只读 |
+| 范围 | `DG/` = `<private-path> = `<private-path> checkout `/home/yy/deepseek-harness` 只读 |
 | 形式 | **只读评审**：未改任何代码/资产/配置；只新增本文件；未 commit/push；未联网；未读取或打印任何凭据 |
 | 快照 | `desktop-games` branch `master`，HEAD `779354b`（2026-11-19），工作树 **20 项未提交**（内容中心 v2/角色主题 UI 正在并行落地）；插件本地 0.10.0 |
 | 读者 | lead；动画/内容/DLC/游戏基座方向的后续执行者 |
@@ -548,7 +548,7 @@ aquarium 默认 1 s/tick；town `msPerTick:1000` + `minutesPerTick:5`（`town/ma
 ### 10.2 本次实测输出（节选，可复现）
 
 ```text
-$ cd /mnt/d/Projects/dsh/desktop-games && npm test
+$ cd <private-path> && npm test
 tests 1118 / pass 1118 / fail 0 / duration_ms 28154.271489
 
 $ npx tsc --noEmit
@@ -561,7 +561,7 @@ human: delegating to scripts/gen-human-anim.py --check
 check ok: human animation pack matches the generator (68 frames, 68 unique, max 19 colours, ground y=89)
 check ok: dog + cat (delegated) + human (delegated) animation packs verified
 
-$ cd /mnt/d/Projects/dsh/plugins/dsh-famling && npm test
+$ cd <private-path> && npm test
 tests 76 / pass 76 / fail 0
 
 $ node scripts/embed-anims.mjs --check

@@ -26,7 +26,7 @@
 
 | 项 | 值 |
 |---|---|
-| 工作区 | `/mnt/d/Projects/dsh/desktop-games`（famling 应用）与 `/mnt/d/Projects/dsh/plugins/dsh-famling`（DSH 插件） |
+| 工作区 | `<private-path> 应用）与 `<private-path> 插件） |
 | HEAD | `779354b`（2026-11-19 10:57 +0800，docs: content catalog mapping） |
 | 快照时间 | 2026-11-19T12:59:44+0800 |
 | 工作树 | **脏**：19 个变更/未跟踪项；`desktop-shell.ts`、`main.ts`、`content-hub.ts`、`content-library.ts`、`pet.css` 正被并发内容中心 v2 工作修改（评审期间菜单文案刚从「内容中心（角色/声音/主题/对话）…」改为「角色与内容中心…」） |
@@ -467,7 +467,7 @@ sidebar.footer.action（账号信息下方）
 ## 附录 B：评审中使用的主要命令（只读）
 
 ```sh
-cd /mnt/d/Projects/dsh/desktop-games
+cd <private-path>
 git rev-parse --short HEAD && git status --short && git diff --stat
 md5sum src/pet/{desktop-shell,main,content-hub,hit-regions}.ts src/pet/pet.css
 wc -l src/pet/{main,desktop-shell,content-hub}.ts
@@ -476,7 +476,7 @@ grep -n "max-height|font-size: calc|aside.panel" src/pet/pet.css
 grep -n "TrayIcon|tray|global_shortcut" app/tauri/src-tauri/src/*.rs app/tauri/src-tauri/Cargo.toml
 grep -rn "window.open" src/pet/main.ts src/pet/desktop-shell.ts
 grep -n "saveRecoveryNeeded|beforeunload|is_fullscreen|setAlwaysOnTop" src/pet/main.ts src/pet/desktop-shell.ts
-cd /mnt/d/Projects/dsh/plugins/dsh-famling && grep -n "menu|面板|role=|window.innerWidth" client.js
+cd <private-path> && grep -n "menu|面板|role=|window.innerWidth" client.js
 ```
 
 未运行：`npm test`、`npm run typecheck`、`npm run build`、Tauri 构建、浏览器 E2E、真人测试（均为只读评审的边界；见 §10）。

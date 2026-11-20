@@ -120,7 +120,7 @@ Status: **占位交付稿（placeholder-only）**。68 帧 + manifest 已由脚�
 
     python3 scripts/gen-human-anim.py
     python3 scripts/gen-human-anim.py --check
-    python3 scripts/gen-human-anim.py --preview /mnt/d/Projects/dsh/_scratch/pet-anim-human-preview
+    python3 scripts/gen-human-anim.py --preview <private-path>
     node --import tsx --test tests/pet-anim-human.test.ts
     npx tsc --noEmit
 

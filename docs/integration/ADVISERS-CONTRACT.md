@@ -160,7 +160,7 @@ if (policy === 'none') return skip('display_none')                // 不保留/�
    Tauri 错误字符串/未来结构化错误都映射到稳定 code。
 5. **验收**：
    ```sh
-   cd /mnt/d/Projects/dsh/desktop-games
+   cd <private-path>
    node --import tsx --test tests/advisers-020-compat.test.ts tests/advisers-030-compat.test.ts \
      tests/pet-brief-consumer.test.ts tests/advisers-face.test.ts tests/advisers-harden.test.ts \
      tests/advisers-source.test.ts tests/advisers-ui-privacy.test.ts

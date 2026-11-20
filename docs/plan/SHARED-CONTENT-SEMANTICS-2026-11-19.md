@@ -1,7 +1,7 @@
 # 共享内容语义单源与双端 Parity（E1-T1 / MB-030/031/033）
 
 > 状态：草案，待 lead 签字（E1-T1 验收要求）。创建：2026-11-19。修订：**2026-11-20**（MB-108/task-138 文档同步：§0 新增第 6 条、§2 第 14/15/16 行、§3 D6/D10、§4 证据、§6 状态表；同步 MB-032 已落地的 v3 合规字段，不改变任何共享值）。
-> 范围：famling（`/mnt/d/Projects/dsh/desktop-games`）与 dsh-famling 插件（`/mnt/d/Projects/dsh/plugins/dsh-famling`）**必须一致或显式声明差异**的共享语义。
+> 范围：famling（`<private-path> dsh-famling 插件（`<private-path>
 > 非目标：不统一 wire schema（见 triage 决策 C-03）；不改 UI/视觉；不做内容包安装器。
 
 ## 0. 结论（TL;DR）
@@ -93,7 +93,7 @@
 
 ```powershell
 # famling：新 parity 测试（12 tests，含 4 条跨插件；实测 12/12 pass）
-cd D:\Projects\dsh\desktop-games
+cd <private-path>
 node --import tsx --test tests/parity-contract.test.ts
 
 # famling：类型检查（实测 exit 0）
@@ -112,7 +112,7 @@ npm test
 
 ```bash
 # plugin：全量测试（实测 146/146 pass，含新 parity 12 条）
-cd /mnt/d/Projects/dsh/plugins/dsh-famling
+cd <private-path>
 npm test
 # plugin：动画/size/契约门（实测 OK；client.js 93.2→94.9 KiB = 97,228 B，96 KiB 预算余量 1,076 B；audit 阈值 97,576 B 余量 348 B——后续再加首屏常量需同步评估）
 npm run verify:anims
@@ -130,10 +130,10 @@ FAMLING_REPO_DIR=/nonexistent/famling node --test test/parity-contract.test.js
 
 ```bash
 # famling：双端 parity（12/12 pass）
-cd /mnt/d/Projects/dsh/desktop-games && node --import tsx --test tests/parity-contract.test.ts
+cd <private-path> && node --import tsx --test tests/parity-contract.test.ts
 
 # 插件：v3 合规字段 + 双端 parity（10 + 14 = 24/24 pass）
-cd /mnt/d/Projects/dsh/plugins/dsh-famling
+cd <private-path>
 node --test test/content-extension-compliance.test.js   # 10/10
 node --test test/parity-contract.test.js                # 14/14
 

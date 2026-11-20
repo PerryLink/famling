@@ -514,13 +514,13 @@ Wave 3（C3 gate）
 | CI/供应链 | `.github/workflows/{ci,release,_windows-build}.yml`（`@v4` 未 pin、`npx --yes @tauri-apps/cli@2.12.6`、`continue-on-error: true`） |
 | 发布证据/旧产物 | `scripts/release-win.mjs:470-520`（SHA256SUMS 无外层签名）；`ls artifacts`（11-14 旧包、无 SHA/Manifest） |
 | 法务/隐私漂移 | `docs/legal/PRIVACY.md:36,52,74-75,96`；`README.md:11,243,254`；`docs/legal/RELEASE-BLOCKERS.md:4`；`docs/RELEASE-CHECKLIST.md:5`；`docs/RELEASE-RUNBOOK.md:194-195` |
-| 插件发布 | `/mnt/d/Projects/dsh/plugins/dsh-famling/package.json`（0.10.2、无 `repository`/`prepack`）；`npm view dsh-famling version`→0.0.1；目录无 `.git` |
+| 插件发布 | `<private-path> `repository`/`prepack`）；`npm view dsh-famling version`→0.0.1；目录无 `.git` |
 | 既有 resolution | `docs/audit/RESOLUTION-{DLC-SIGNING,AUTHENTICODE,CONSENT-GATE,TAURI-ACL,INNERHTML}-2026-11-19.md`；`docs/RELEASE-SIGNING.md:256-280`；`docs/UPDATER-KEYS-2026-11-15.md` |
 
 ## 附录 B 验收命令速查（只读；带当前预期）
 
 ```bash
-cd /mnt/d/Projects/dsh/desktop-games
+cd <private-path>
 # 当前预期：3 error（无 active key + 两个 legacy pack）
 node scripts/verify-dlc-trust.mjs --report-only --json
 # 当前预期：BLOCKED 34 blockers / 34 warnings

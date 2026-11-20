@@ -54,6 +54,11 @@ export {
   HeroRenderBackend,
   createHeroRendererPlugin,
   heroRendererPlugin,
+  progressiveFrameLoaderOf,
+  type FirstFrameLoadOptions,
+  type FirstFrameLoadResult,
+  type FrameDecodeBatchResult,
   type HeroPackFormat,
   type HeroRenderBackendOptions,
+  type ProgressiveFrameLoader,
 } from './hero-backend.ts'

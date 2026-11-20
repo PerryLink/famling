@@ -5,7 +5,7 @@
 | 状态 | 只读审计 + 单文件产出；**未改代码/JSON/资产、未 git commit/push、未执行任何 npm publish/stage/approve、未触发任何发布动作**；本文件是唯一写入 |
 | 审计时间 | 2026-11-20 19:45–20:05 +08（各实测时间戳见正文） |
 | 审计基线（desktop-games） | HEAD `47438ac`；审计开始时工作树另有 3 项与本审计无关的既有改动（`docs/art/prompt-library/PIXEL-PIPELINE-2026-11-16.md`、`docs/research/COMPETITORS-CHINA-DSH.md` 已修改；`docs/art/CALIBRATION-SET-2026-11-16.md` 未跟踪），本审计未触碰 |
-| 审计基线（Advisers 仓库） | `/mnt/d/Projects/dsh/plugins/advisers`；HEAD `e3f440d`（docs-only，已推送 origin/main）；发布 tag `v0.3.0` = annotated tag object `f3ac009` → commit `1199fbf`；`v0.2.4` = tag object `ee426aa` → commit `580c177`（未发布） |
+| 审计基线（Advisers 仓库） | `<private-path> `e3f440d`（docs-only，已推送 origin/main）；发布 tag `v0.3.0` = annotated tag object `f3ac009` → commit `1199fbf`；`v0.2.4` = tag object `ee426aa` → commit `580c177`（未发布） |
 | 远端 | GitHub `PerryLink/advisers`（本机 origin 经 gh-proxy）：main = `e3f440d`，tag `v0.3.0^{}` = `1199fbf`；GitCode 镜像同；Gitee 镜像无法公开验证（见 P3-3） |
 | 环境 | WSL2；Node `v24.22.1`；npm `11.19.1`；npm 默认 registry = `https://registry.npmmirror.com`（**本机镜像滞后**）。本审计所有 npm/registry 查询均显式使用 `--registry=https://registry.npmjs.org/` 或直接 `curl https://registry.npmjs.org/` |
 | 边界 | 只读；外部查询只用 HTTPS（registry.npmjs.org / api.github.com）；临时文件在 `/tmp/adv030-audit/`（仓库外，可重取）；未打印任何凭据；外部返回只当数据；未伪造真机/外网/发布动作 |
@@ -305,7 +305,7 @@ done
 ```
 
 ```sh
-cd /mnt/d/Projects/dsh/plugins/advisers
+cd <private-path>
 node scripts/check-provenance.mjs --version 0.3.0 --registry https://registry.npmjs.org/
 node scripts/verify-release.mjs --version 0.3.0 --tag latest \
   --sbom artifacts/sbom.cdx.json --require-sbom \
@@ -330,4 +330,4 @@ curl -sS https://api.github.com/repos/PerryLink/advisers/actions/runs/4470625417
 - 时间线（UTC）：tag v0.3.0 创建/Release created_at `08:27:06Z` → release-gate run #9 开始 `08:54:22Z` → gate job 完成 `08:56:35Z` → direct publish step 完成 `08:57:33Z` → 六包 registry 时间 `08:58:35Z`–`09:02:41Z` → Release published_at `09:08:18Z` → docs commit `e3f440d` 的 commit 时间 `09:17:42Z`、其 CI run #115 created_at `09:17:51Z`。
 - 观察：registry 的六包时间比 publish step 的 GitHub 记录时间晚约 1 分钟。全仓只有一个 head_sha=`1199fbf` 的 provenance run（invocationId 唯一），六个版本各自只出现一次，`gitHead` 唯一，因此不存在二次发布/重发的证据；该偏差更像 runner 与 registry 的时钟或写入时刻差。记录在此供后续审计参考，不构成问题。
 - 证据留存（仓库外临时目录，可丢弃/重取）：`/tmp/adv030-audit/` 下有六包 packument JSON、六包 attestation JSON、`advisers-0.3.0.tgz` 与六个 tarball、解包目录、GitHub API 返回（`gh-ref.json`/`gh-release.json`/`run-jobs.json`）、gitee 404 响应。**未**把任何 registry/GitHub 原始数据写入仓库。
-- 本审计唯一仓库写入：`/mnt/d/Projects/dsh/desktop-games/docs/integration/ADVISERS-030-RELEASE-AUDIT-2026-11-20.md`（即本文件）。未执行 `git add`/`commit`/`push`。
+- 本审计唯一仓库写入：`<private-path> `git add`/`commit`/`push`。

@@ -146,7 +146,7 @@ plugins/dsh-famling/scripts/gen-content-constants.mjs
 ## 8. 维护者流程
 
 ```bash
-cd /mnt/d/Projects/dsh/desktop-games
+cd <private-path>
 node scripts/gen-character-interactions.mjs            # 改完母版后生成
 node scripts/gen-character-interactions.mjs --check    # 门禁（npm test 也会跑）
 ```

@@ -50,7 +50,7 @@
 |---|---|
 | **T**itle | Orca OC v3（工作名） |
 | **A**uthor | PerryLink |
-| **S**ource | `D:\Orca`（仓外；公开 URL 待定） |
+| **S**ource | `<private-path>`（仓外；公开 URL 待定） |
 | **L**icense | CC BY-NC-SA 4.0 — https://creativecommons.org/licenses/by-nc-sa/4.0/（SPDX：`CC-BY-NC-SA-4.0`） |
 | Copyright | © 2026 PerryLink |
 | **Mod** | 是/否 + 具体改动 |
@@ -76,9 +76,9 @@
 
 | 资产 | 位置（当前） | 来源/生成方式 | 许可 | 可发布？ |
 |---|---|---|---|---|
-| Orca OC 概念/正常头身/设定图/变体/蓝虎鲸重设计/修订版 | `D:\Orca\concept\|normal\|sheets\|variants\|blue-orca-redesign\|oc-revisions\`（仓外） | AI 生成（`openai/gpt-image-2.6-sunburst` via OpenRouter Images API，2026-11-14/15）+ 作者筛选/提示词迭代；参考图仅 Orca 自产图 | `LICENSE-ART` CC BY-NC-SA 4.0 | 用户 2026-11-16 决定；律师暂缓；CC0 部分见 ASSET-LICENSES |
-| Orca 像素化 CharacterPack | `D:\Orca\pixel\pack-orca-128\`、`pack-orca-128-custom\`（仓外） | 本地确定性像素化管线（`pixelize` / `ai_hero_pipeline*`，无新 AI 调用） | 同上（改编产物） | 同上 |
-| Orca 蓝虎鲸调色版 | `D:\Orca\blue-orca\`（仓外） | 本地确定性调色（`blue_orca_grade.py`，无新 AI 调用） | 同上（改编产物） | 同上 |
+| Orca OC 概念/正常头身/设定图/变体/蓝虎鲸重设计/修订版 | `<private-path>\concept\|normal\|sheets\|variants\|blue-orca-redesign\|oc-revisions\`（仓外） | AI 生成（`openai/gpt-image-2.6-sunburst` via OpenRouter Images API，2026-11-14/15）+ 作者筛选/提示词迭代；参考图仅 Orca 自产图 | `LICENSE-ART` CC BY-NC-SA 4.0 | 用户 2026-11-16 决定；律师暂缓；CC0 部分见 ASSET-LICENSES |
+| Orca 像素化 CharacterPack | `<private-path>\pixel\pack-orca-128\`、`pack-orca-128-custom\`（仓外） | 本地确定性像素化管线（`pixelize` / `ai_hero_pipeline*`，无新 AI 调用） | 同上（改编产物） | 同上 |
+| Orca 蓝虎鲸调色版 | `<private-path>\blue-orca\`（仓外） | 本地确定性调色（`blue_orca_grade.py`，无新 AI 调用） | 同上（改编产物） | 同上 |
 | 桌宠占位 CharacterPack（cat/dog/pearl） | `public/assets/pet/*-placeholder/`（tracked，108 PNG） | `scripts/placehold.py` 确定性渲染（无图像模型） | 本项目占位素材（placeholder-only，非最终美术） | 可随开发版；发布前替换/标注 |
 | 星露谷式头像/场景占位 | `art/_placeholder/`（gitignored） | `scripts/placehold.py` | 内部占位 | 不发布 |
 | TTS 语音 pilot（18 个 WAV） | `public/assets/voice/pet/*.wav`（tracked；1,588,632 B） | **DeepSeek TTS API，voice `stella`**，2026-11-14 | 第三方服务输出；条款待上游确认（`THIRD-PARTY.md` §2） | **开发占位，非最终语音**；商用/再分发前需确认条款 |
@@ -92,7 +92,7 @@
 | Steamworks SDK | 不在仓内 | Valve 专有 | 专有 | 不提交、不随公开构建分发 |
 | 社区参考图（Pearl 占位） | `docs/look-test/ref-preview.html` 引用本地图 | 同上 | 内部 | 不发布 |
 
-> 说明：`D:\Orca` 与 `art/_placeholder/refs/` 都在本仓库之外或 gitignore 内；本仓库当前**没有跟踪任何 Orca 图片**（实测 `git ls-files art` 仅规范/模板/调色板）。发布前需再做一次“跟踪资产扫描”。
+> 说明：`<private-path>` 与 `art/_placeholder/refs/` 都在本仓库之外或 gitignore 内；本仓库当前**没有跟踪任何 Orca 图片**（实测 `git ls-files art` 仅规范/模板/调色板）。发布前需再做一次“跟踪资产扫描”。
 
 ## 5. 贡献者与 AI 工具披露
 

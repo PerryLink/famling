@@ -1,6 +1,7 @@
 /**
  * Pet Brief consumer — validates the Advisers → Pearl read-only brief
- * (contract v0.1 and v0.2, `docs/contracts/pet-brief/`), enforces freshness,
+ * (contract v0.1 and v0.2, `docs/contracts/pet-brief/`; current producer
+ * release `advisers@0.3.0` still emits contract v0.2), enforces freshness,
  * redaction and the claims guard, then maps it to the existing presence
  * directive types.
  *
@@ -46,7 +47,11 @@ export const PET_BRIEF_MAX_SCHEMA_VERSION = PET_BRIEF_SCHEMA_VERSION
 /**
  * Human-readable contract version implemented by this consumer. It is
  * decoupled from the `advisers` package version: pin the package release
- * (`advisers@0.2.3`) but negotiate the contract through `schemaVersion`.
+ * (`advisers@0.3.0`) but negotiate the contract through `schemaVersion`.
+ * Advisers 0.3.0 (2026-11-20) still emits contract v0.2 (`schemaVersion: 2`):
+ * a package release is not a contract release. A future contract major needs
+ * its own `schema-v0.3.json` snapshot + producer tag before this consumer
+ * changes its allow-list.
  */
 export const PET_BRIEF_CONTRACT_VERSION = 'v0.2'
 /**

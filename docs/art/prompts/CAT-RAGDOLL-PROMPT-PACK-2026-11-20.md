@@ -764,7 +764,7 @@ ginger tabby cat with green eyes and red collar with golden bell, old cat placeh
 ### 9.3 插件/消费方 re-embed（命令与期望）
 
 ```bash
-cd /mnt/d/Projects/dsh/plugins/dsh-famling
+cd <private-path>
 npm run embed:anims       # 由 private 资产重新生成 client.anims.*.js + scripts/spec/anim-spec.json LOCK
 npm run check:anims       # client/chunk/spec 与资产一致
 npm run verify:anims      # 期望 208 帧 = dog 68 + cat 72 + human 68（cat 仍 72）

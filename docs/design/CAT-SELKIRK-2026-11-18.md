@@ -2,7 +2,7 @@
 
 - 范围：`public/assets/pet/anim/cat/`（96×96、12 clips / 68 帧、anchor 48/96、footBox `[-36,-18,72,18]`、地线 y=89）由独立渲染器 `scripts/cat_selkirk.py` + 独立生成器 `scripts/gen-cat-anim.py` 确定性生成；manifest 契约与 v7 金毛包一致（`famling.pet-anim/0.1`、`pet.cat.anim.placeholder`）。
 - 设定变更：cat 角色由布偶猫（Ragdoll）改为**塞尔凯克卷毛猫（Selkirk Rex）**，只保留**灰色 + 白色/米色**；去掉全部橙色/棕色/粉红毛色。
-- 用户参考图（只读、不随包分发）：`/mnt/d/Projects/dsh/_scratch/pet-refs-user-2026-11-18/selkirk-user.png`。参考里的橙色斑块在本实现中全部改为灰色斑块。
+- 用户参考图（只读、不随包分发）：`<private-path>
 - 不改：dog/human 动画包、`scripts/gen-pet-anim-frames.py`、hero-runtime/desktop-shell/menu；不 commit、不改插件仓、不新增 npm 依赖。
 - **历史版本**：2026-11-20 已改回同配色蓝重点双色布偶猫（Ragdoll），当前有效设计见 `docs/design/CAT-RAGDOLL-2026-11-20.md`；旧文档 `docs/design/CAT-RAGDOLL-2026-11-18.md` 亦为历史版本。
 
@@ -64,14 +64,14 @@
 ## 6. 生成 / 验证
 
 ```bash
-cd /mnt/d/Projects/dsh/desktop-games
+cd <private-path>
 python3 scripts/gen-cat-anim.py                 # 写 68 帧 + manifest
 python3 scripts/gen-cat-anim.py --check         # 逐字节复验
 python3 scripts/gen-cat-anim.py --verify        # 技术指标
 node --import tsx --test tests/pet-anim-cat.test.ts
 python3 scripts/gen-pet-anim-frames.py --check  # 委托 cat/human 生成器，全包门禁
 npx tsc --noEmit
-cd /mnt/d/Projects/dsh/_scratch/pet-anim-cat-selkirk-preview && python3 gen_previews.py
+cd <private-path> && python3 gen_previews.py
 ```
 
 ### 6.1 实测（2026-11-18）
@@ -89,7 +89,7 @@ cd /mnt/d/Projects/dsh/_scratch/pet-anim-cat-selkirk-preview && python3 gen_prev
 
 ## 7. 预览
 
-`/mnt/d/Projects/dsh/_scratch/pet-anim-cat-selkirk-preview/`：
+`<private-path>
 
 | 文件 | 内容 |
 |---|---|

@@ -95,6 +95,7 @@ export const KNOWN_PET_STORAGE_KEYS = [
   'desktop-games/pet/setup-ack-v1',
   'desktop-games/pet/advisers-mode',
   'desktop-games/pet/window',
+  'desktop-games/pet/ambient-cadence',
   'desktop-games/consent/storage-probe-v1',
   ACCEPTANCE_STORAGE_KEY,
   AUDIT_STORAGE_KEY,

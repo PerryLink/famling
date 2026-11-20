@@ -92,7 +92,7 @@
 复跑方式：
 
 ```bash
-cd D:/Projects/dsh/desktop-games
+cd <private-path>
 node node_modules/typescript/bin/tsc --noEmit
 node --import tsx --test tests/consent-host-gate.test.ts
 node --import tsx --test tests/*.test.ts

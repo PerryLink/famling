@@ -3,7 +3,7 @@
 > **审计时点：2026-11-20 00:45 +08（UTC 约 2026-11-19T16:45Z），HEAD `08534a4`——此时尚未做最终的 STATUS 提交。** 本文件写入后由 lead 随“docs + F2 脚本修复”提交；最终提交后的只读复核结果在会话报告中给出（按 lead 要求不回写本文件）。
 > 审计角色：exec-release-audit（只读核验 + 允许修复测试/脚本/文档导致的门禁失败；不改业务逻辑；不 commit / 不 push）。
 
-Date: 2026-11-20 (Asia/Shanghai) · 仓库: `/mnt/d/Projects/dsh/desktop-games`（Windows `D:\Projects\dsh\desktop-games`，私有，无 remote）
+Date: 2026-11-20 (Asia/Shanghai) · 仓库: `<private-path> `<private-path> remote）
 
 ## 0. 结论摘要
 
@@ -46,7 +46,7 @@ Date: 2026-11-20 (Asia/Shanghai) · 仓库: `/mnt/d/Projects/dsh/desktop-games`�
 命令：
 
 ```bash
-cd /mnt/d/Projects/dsh/desktop-games
+cd <private-path>
 npm run ci -- --summary-out artifacts/audit-release/ci-worktree-fixed.json
 ```
 
@@ -127,7 +127,7 @@ node scripts/ci-clean-checkout.mjs --worktree --summary-out artifacts/audit-rele
 ```bat
 call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
 set "PATH=%USERPROFILE%\.cargo\bin;%PATH%"
-cd /d D:\Projects\dsh\desktop-games\app\tauri\src-tauri
+cd /d <private-path>\app\tauri\src-tauri
 cargo test --no-fail-fast
 ```
 
@@ -306,7 +306,7 @@ lead 计划命令：`DG_GIT_COMMIT=$(git rev-parse HEAD) node scripts/gen-status
 
 ```bash
 # Linux（WSL2）
-cd /mnt/d/Projects/dsh/desktop-games
+cd <private-path>
 npm ci                                        # Linux 依赖（环境态；不影响 HEAD 逻辑）
 npm run status                                # 重生成 docs/STATUS.md（修复 F1）
 npm run ci -- --summary-out artifacts/audit-release/ci-worktree-fixed.json        # ① 13/13

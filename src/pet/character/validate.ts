@@ -20,6 +20,7 @@ import {
   isPixelScale,
   legacyCanvasSizeProblem,
 } from '../pixel-scale.js'
+import { applyBehaviorCapabilityGate, type BehaviorCapabilityGateOptions } from './capabilities.ts'
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -243,7 +244,10 @@ function guardDataOnly(value: unknown, path = 'document'): void {
   }
 }
 
-export function validateBehaviorProfile(raw: unknown): BehaviorProfile {
+/** Options for `validateBehaviorProfile` (capability gate policy). */
+export type BehaviorProfileValidationOptions = BehaviorCapabilityGateOptions
+
+export function validateBehaviorProfile(raw: unknown, options: BehaviorProfileValidationOptions = {}): BehaviorProfile {
   if (!isRecord(raw)) throw new CharacterInterfaceError('behavior must be an object')
   guardDataOnly(raw, 'behavior')
   const profile = str(raw.profile, 'behavior.profile')
@@ -302,10 +306,32 @@ export function validateBehaviorProfile(raw: unknown): BehaviorProfile {
     }
   }
 
-  const allowed = new Set(['profile', 'version', 'extends', 'defaults', 'abilities', 'slots', 'states', 'rules', 'ambient', 'needs', 'mood', 'speech', 'brief', 'fallback', 'interactions', 'overrides'])
+  const allowed = new Set([
+    'profile',
+    'version',
+    'extends',
+    'runtimeCapabilities',
+    'defaults',
+    'abilities',
+    'slots',
+    'states',
+    'rules',
+    'ambient',
+    'needs',
+    'mood',
+    'speech',
+    'brief',
+    'fallback',
+    'interactions',
+    'overrides',
+  ])
   for (const key of Object.keys(raw)) {
     if (!allowed.has(key)) throw new CharacterInterfaceError(`behavior.${key} is not part of famling.behavior/0.1`)
   }
+  // Capability gate: validates the runtimeCapabilities declaration (unknown ids
+  // always throw) and reports/warns about advanced fields the shipping runtime
+  // cannot execute. Default = backward-compatible warnings; strict = throw.
+  applyBehaviorCapabilityGate(raw, options)
   return raw as unknown as BehaviorProfile
 }
 
@@ -431,7 +457,12 @@ export function validateCharacterDocument(raw: unknown, options: CharacterValida
     }
   }
 
-  if (raw.behavior !== undefined) validateBehaviorProfile(raw.behavior)
+  if (raw.behavior !== undefined) {
+    validateBehaviorProfile(raw.behavior, {
+      ...(options.warnings !== undefined ? { warnings: options.warnings } : {}),
+      ...(options.strictCapabilities !== undefined ? { strictCapabilities: options.strictCapabilities } : {}),
+    })
+  }
   if (raw.behaviorFile !== undefined) str(raw.behaviorFile, 'behaviorFile')
   if (raw.behavior === undefined && raw.behaviorFile === undefined) {
     throw new CharacterInterfaceError('behavior or behaviorFile is required for famling.character (0.1 and 0.2)')

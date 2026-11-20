@@ -9,7 +9,9 @@
  *   layout      `planHeroLayout()`    — fit display scale (1×/2×/4× up, 1/2, 1/4,
  *                                        1/8 down) for 64..1024px canvases + slots
  *   runtime     `HeroRuntime`         — SceneRuntime actors + RenderBackend draw
- *   bootstrap   `startHeroRuntime()`  — load → backend.load → first frame gate
+ *                                      + on-demand frame plan (idle → clip fps)
+ *   bootstrap   `startHeroRuntime()`  — load → idle-first backend load → first
+ *                                      frame gate → background frame decode
  *
  * Design rules (do not violate when extending):
  * - The feature flag defaults to OFF and nothing here creates a canvas, rAF
@@ -37,7 +39,7 @@ import {
   type CharacterDocument,
   type LoadedCharacter,
 } from './character/index.ts'
-import { frameIndexFor, validateCharacterPack, type CharacterPackData, type CharacterTag } from './hero.ts'
+import { frameIndexFor, msUntilNextFrame, validateCharacterPack, type CharacterPackData, type CharacterTag } from './hero.ts'
 import { heroRegionHitAt, parseHeroRegionConfig, type HeroRegionConfig, type HeroRegionHit } from './anim/regions.ts'
 import {
   CANVAS_SIZE_ALIGNMENT,
@@ -58,6 +60,8 @@ import {
   RendererRegistry,
   actorView,
   heroRendererPlugin,
+  progressiveFrameLoaderOf,
+  type ProgressiveFrameLoader,
   type RenderBackend,
   type RenderPackRef,
   type RenderableActor,
@@ -303,6 +307,88 @@ export function heroStatus(
 }
 
 // ---------------------------------------------------------------------------
+// On-demand frame scheduling (host 60 Hz loop → clip-deadline wake-ups)
+// ---------------------------------------------------------------------------
+
+/**
+ * Clips that translate the hero canvas (`applyHeroLocomotion` in hero-page):
+ * they need the host's full-rate loop while they play.
+ */
+export const HERO_LOCOMOTION_TAGS: readonly string[] = ['walk', 'run', 'ball_chase']
+
+/** Behaviour states that are ambient; every other state is an action (60 Hz). */
+export const HERO_AMBIENT_STATES: readonly string[] = ['idle', 'sleep']
+
+/**
+ * Upper bound for an idle wake-up: ~15 Hz. The host sleeps until the next clip
+ * frame boundary when that is sooner, so an idle 6 fps pet redraws ~6–15×/s
+ * instead of 60×/s. Interaction calls change `renderKey` and are picked up on
+ * the next wake-up — the bound is what keeps that latency low.
+ */
+export const HERO_IDLE_FRAME_MAX_MS = 66
+
+/** Why the host should render now (or may wait). */
+export type HeroFrameScheduleReason =
+  | 'locomotion'
+  | 'one-shot'
+  | 'waiting-frames'
+  | 'action'
+  | 'pending-cue'
+  | 'speech'
+  | 'idle-frame'
+  | 'idle-static'
+  | 'reduced-motion'
+
+/** On-demand frame plan for one host tick. */
+export interface HeroFramePlan {
+  /** Ms to wait before the next host render; 0 = next animation frame (60 Hz). */
+  readonly delayMs: number
+  /** True when the full 60 Hz loop must continue (locomotion/action/…). */
+  readonly active: boolean
+  readonly reason: HeroFrameScheduleReason
+  /** Scene-clock deadline of the next known visual change (null = idle cap). */
+  readonly nextFrameMs: number | null
+}
+
+/** Knobs for `HeroRuntime.framePlan()`; hosts pass their reduced-motion state. */
+export interface HeroFrameScheduleOptions {
+  /** Reduced motion freezes the scene clock; only renderKey changes repaint. */
+  readonly reducedMotion?: boolean
+  /** Idle wake-up cap in ms (default `HERO_IDLE_FRAME_MAX_MS` = ~15 Hz). */
+  readonly idleMaxDelayMs?: number
+}
+
+/** Scheduler abstraction for deferred frame decoding (tests inject a manual one). */
+export interface FrameDecodeScheduler {
+  /** Schedule `callback` for idle time; return a handle for `cancel`. */
+  request(callback: () => void): unknown
+  /** Cancel a pending callback (best effort). */
+  cancel?(handle: unknown): void
+}
+
+/**
+ * requestIdleCallback when available, else a 0 ms timer (Node tests / older
+ * WebViews). Each batch decodes only a few frames, so an idle callback never
+ * blocks the host main thread for long.
+ */
+export function defaultFrameDecodeScheduler(): FrameDecodeScheduler {
+  const globals = globalThis as typeof globalThis & {
+    requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number
+    cancelIdleCallback?: (handle: number) => void
+  }
+  if (typeof globals.requestIdleCallback === 'function') {
+    return {
+      request: (callback) => globals.requestIdleCallback!(callback, { timeout: 1000 }),
+      cancel: (handle) => globals.cancelIdleCallback?.(handle as number),
+    }
+  }
+  return {
+    request: (callback) => setTimeout(callback, 0),
+    cancel: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Character + pack loading
 // ---------------------------------------------------------------------------
 
@@ -358,6 +444,12 @@ export interface LoadHeroOptions {
 
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
+}
+
+/** Clamp an idle wake-up cap: positive finite ms, else the ~15 Hz default. */
+function normalizeIdleMax(value: number | undefined): number {
+  if (value === undefined || !Number.isFinite(value) || value <= 0) return HERO_IDLE_FRAME_MAX_MS
+  return Math.max(1, Math.min(1000, Math.floor(value)))
 }
 
 function currentPageBase(): string {
@@ -720,7 +812,11 @@ export interface HeroRuntimeDeps {
  * One hero scene: N actors on one host canvas, driven by SceneRuntime.
  *
  * The host (main.ts) owns the canvas + requestAnimationFrame and calls
- * `tick()` then `render()` once per frame; this class never starts a loop.
+ * `tick()` then `render()` once per frame; this class never starts a render
+ * loop. `framePlan()`/`nextFrameDelayMs()` tell the host when the next frame
+ * can actually change (idle: clip fps / ~15 Hz cap; locomotion, one-shot and
+ * interactions: 60 Hz), and `startFrameDecode()` is an idle-scheduled I/O pump
+ * for the frames the first-frame gate deliberately left undecoded.
  * Pointer/kernel/voice side effects stay in main.ts — `emit()`/`speak()` only
  * forward events and record QA state.
  */
@@ -741,6 +837,14 @@ export class HeroRuntime {
   private mouthTicks = 0
   private lastKnownMs = 0
   private disposed = false
+  /** Optional idle-first loader; null = eager/third-party backend (all frames ready). */
+  private readonly frameLoader: ProgressiveFrameLoader | null
+  private decodeScheduler: FrameDecodeScheduler | null = null
+  private decodeHandle: unknown = null
+  private decodeBatchFrames = 2
+  private decodeRunning = false
+  /** Last drawable tag used to hold the pose while a requested clip decodes. */
+  private readonly holdTagByActor = new Map<string, string>()
 
   constructor(deps: HeroRuntimeDeps) {
     if (deps.bundles.length === 0) throw new HeroRuntimeError('hero runtime needs at least one character bundle')
@@ -750,6 +854,7 @@ export class HeroRuntime {
     this.scene = deps.scene
     this.backend = deps.backend
     this.layout = deps.layout
+    this.frameLoader = progressiveFrameLoaderOf(deps.backend)
     this.night = deps.sleeping === true
 
     const entries: HeroActorRuntime[] = []
@@ -786,6 +891,129 @@ export class HeroRuntime {
       this.cueState.set(id, { tag: this.scene.get(id).tag, sinceMs: 0 })
     }
     this.actors = entries
+  }
+
+  /** True when the backend decodes the pack progressively (idle-first). */
+  get progressiveFrameLoading(): boolean {
+    return this.frameLoader !== null
+  }
+
+  /** Frames still queued for background decode (0 for eager backends). */
+  get pendingFrameCount(): number {
+    return this.frameLoader?.pendingFrameCount() ?? 0
+  }
+
+  /** True while a deferred decode batch is running. */
+  get decodingFrames(): boolean {
+    return this.decodeRunning
+  }
+
+  /**
+   * Start the background decode pump: one small frame batch per idle callback
+   * until every pack is fully decoded (no-op for eager/third-party backends).
+   *
+   * MUST be called only after the first-frame gate has rendered (startHeroRuntime
+   * does this), so deferred frames can never delay the page flip. `dispose()`
+   * cancels the pump.
+   */
+  startFrameDecode(scheduler: FrameDecodeScheduler = defaultFrameDecodeScheduler(), batchFrames = 2): void {
+    if (this.disposed || this.frameLoader === null) return
+    if (this.frameLoader.pendingFrameCount() === 0) return
+    this.decodeScheduler = scheduler
+    this.decodeBatchFrames = Number.isFinite(batchFrames) ? Math.max(1, Math.floor(batchFrames)) : 2
+    if (this.decodeHandle !== null || this.decodeRunning) return
+    this.scheduleDecodeStep()
+  }
+
+  /** Stop scheduling further decode batches (an in-flight batch still finishes). */
+  stopFrameDecode(): void {
+    if (this.decodeHandle !== null) {
+      this.decodeScheduler?.cancel?.(this.decodeHandle)
+      this.decodeHandle = null
+    }
+    this.decodeScheduler = null
+  }
+
+  /**
+   * Decode every queued frame immediately (tests/QA, or a host that wants a
+   * fully warm pack). Returns the frame count still pending (0 = all warmed).
+   */
+  async whenFramesDecoded(batchFrames = 8): Promise<number> {
+    const loader = this.frameLoader
+    if (loader === null) return 0
+    const limit = Number.isFinite(batchFrames) ? Math.max(1, Math.floor(batchFrames)) : 8
+    let guard = 0
+    while (!this.disposed && loader.pendingFrameCount() > 0) {
+      const batch = await loader.decodeBatch(limit)
+      if (batch.decoded === 0) break
+      guard += 1
+      if (guard > 4096) break
+    }
+    return loader.pendingFrameCount()
+  }
+
+  /**
+   * On-demand frame plan. The host calls this after drawing a frame, then either
+   * keeps its 60 Hz loop (delayMs 0) or sleeps `delayMs` before rendering again:
+   *
+   * - locomotion (`walk`/`run`/`ball_chase`), one-shot action clips, non-ambient
+   *   behaviour states, pending at-end cues, speech, and requested clips that
+   *   are still decoding → 0 (full-rate loop; reactions stay responsive).
+   * - idle/ambient → the next clip frame boundary (6–14 fps), capped at
+   *   `HERO_IDLE_FRAME_MAX_MS` (~15 Hz) instead of 60 empty rAF ticks.
+   * - reduced motion → idle cap only; the host freezes the scene clock, so only
+   *   renderKey changes (emit/speak) repaint, on that bounded wake-up.
+   */
+  framePlan(nowMs = this.lastKnownMs, options: HeroFrameScheduleOptions = {}): HeroFramePlan {
+    this.assertUsable()
+    const idleCap = normalizeIdleMax(options.idleMaxDelayMs)
+    const active = (reason: HeroFrameScheduleReason): HeroFramePlan => ({
+      delayMs: 0,
+      active: true,
+      reason,
+      nextFrameMs: null,
+    })
+    if (options.reducedMotion === true) {
+      return { delayMs: idleCap, active: false, reason: 'reduced-motion', nextFrameMs: null }
+    }
+    // Clip-level reasons win (a running/one-shot/waiting clip must stay smooth),
+    // then cue/speech, then any non-ambient behaviour state.
+    let action = false
+    for (const entry of this.actors) {
+      const resolved = this.renderableTag(entry)
+      const visible = this.visibleTag(entry)
+      if (visible !== resolved) return active('waiting-frames')
+      if (HERO_LOCOMOTION_TAGS.includes(visible)) return active('locomotion')
+      const meta = entry.bundle.tags[visible]
+      if (meta !== undefined && meta.loop === false) return active('one-shot')
+      if (!HERO_AMBIENT_STATES.includes(this.scene.get(entry.id).behavior.state)) action = true
+    }
+    if (this.pending.length > 0) return active('pending-cue')
+    if (this.speechActive(nowMs)) return active('speech')
+    if (action) return active('action')
+
+    let next = Number.POSITIVE_INFINITY
+    for (const entry of this.actors) {
+      const visible = this.visibleTag(entry)
+      const meta = entry.bundle.tags[visible]
+      if (meta === undefined) continue
+      const elapsed = Math.max(0, nowMs - this.cueSince(entry, nowMs))
+      next = Math.min(next, msUntilNextFrame(meta, elapsed))
+    }
+    if (!Number.isFinite(next)) {
+      return { delayMs: idleCap, active: false, reason: 'idle-static', nextFrameMs: null }
+    }
+    return {
+      delayMs: Math.max(1, Math.ceil(Math.min(next, idleCap))),
+      active: false,
+      reason: 'idle-frame',
+      nextFrameMs: nowMs + next,
+    }
+  }
+
+  /** Convenience wrapper: `0` = keep the 60 Hz loop, `>0` = sleep that long. */
+  nextFrameDelayMs(nowMs = this.lastKnownMs, options: HeroFrameScheduleOptions = {}): number {
+    return this.framePlan(nowMs, options).delayMs
   }
 
   get canvasSize(): { readonly width: number; readonly height: number } {
@@ -857,7 +1085,7 @@ export class HeroRuntime {
     ctx.clearRect(0, 0, width, height)
     for (const entry of this.sortedEntries()) {
       const sceneActor = this.scene.get(entry.id)
-      const tag = this.renderableTag(entry)
+      const tag = this.visibleTag(entry)
       const since = this.cueSince(entry, nowMs)
       const renderable: RenderableActor = {
         id: entry.id,
@@ -892,7 +1120,7 @@ export class HeroRuntime {
   actorFrame(actorId: string, nowMs = this.lastKnownMs): HeroFrameInfo | null {
     const entry = this.entryById.get(actorId)
     if (!entry) return null
-    const tag = this.renderableTag(entry)
+    const tag = this.visibleTag(entry)
     const meta = entry.bundle.tags[tag]
     if (!meta) return null
     const elapsedMs = Math.max(0, nowMs - this.cueSince(entry, nowMs))
@@ -1002,7 +1230,7 @@ export class HeroRuntime {
           id: entry.id,
           key: entry.key,
           state: sceneActor.behavior.state,
-          tag: this.renderableTag(entry),
+          tag: this.visibleTag(entry),
           x: entry.x,
           y: entry.y,
           scale: entry.scale,
@@ -1023,6 +1251,7 @@ export class HeroRuntime {
   dispose(): void {
     if (this.disposed) return
     this.disposed = true
+    this.stopFrameDecode()
     this.pending.length = 0
     try {
       this.backend.dispose()
@@ -1032,6 +1261,79 @@ export class HeroRuntime {
   }
 
   // -- internals ----------------------------------------------------------
+
+  /** Schedule one idle-time decode batch (never runs inside the host frame). */
+  private scheduleDecodeStep(): void {
+    const scheduler = this.decodeScheduler
+    if (!scheduler || this.disposed) return
+    this.decodeHandle = scheduler.request(() => {
+      this.decodeHandle = null
+      void this.runDecodeStep()
+    })
+  }
+
+  /** Decode exactly one small batch, then re-schedule; stops on error/dispose. */
+  private async runDecodeStep(): Promise<void> {
+    const loader = this.frameLoader
+    if (this.disposed || loader === null || this.decodeRunning) return
+    this.decodeRunning = true
+    try {
+      await loader.decodeBatch(this.decodeBatchFrames)
+    } catch {
+      // A corrupt frame must never break the live scene: keep the last good
+      // pose and stop prefetching instead of flashing/looping on the error.
+      this.stopFrameDecode()
+      return
+    } finally {
+      this.decodeRunning = false
+    }
+    if (this.disposed || this.decodeScheduler === null) return
+    if (loader.pendingFrameCount() > 0) this.scheduleDecodeStep()
+    else this.stopFrameDecode()
+  }
+
+  /**
+   * Tag the renderer can safely draw right now. While a requested clip is still
+   * decoding, hold the last ready pose (idle) and prioritize that clip: the
+   * first play waits for exactly its frames and the visible tag only flips
+   * (renderKey changes) once the clip is fully decoded — never a wrong frame.
+   */
+  private visibleTag(entry: HeroActorRuntime): string {
+    const resolved = this.renderableTag(entry)
+    const loader = this.frameLoader
+    if (loader === null) return resolved
+    const packId = entry.bundle.pack.id
+    if (loader.isTagReady(packId, resolved)) {
+      this.holdTagByActor.delete(entry.id)
+      return resolved
+    }
+    loader.prioritizeTag(packId, resolved)
+    return this.holdTag(entry, packId)
+  }
+
+  /** Last drawable tag for this actor (idle first, then any fully decoded tag). */
+  private holdTag(entry: HeroActorRuntime, packId: string): string {
+    const cached = this.holdTagByActor.get(entry.id)
+    if (cached !== undefined && this.frameLoader?.isTagReady(packId, cached)) return cached
+    const candidates = ['idle', ...Object.keys(entry.bundle.tags)]
+    for (const tag of candidates) {
+      if (!(tag in entry.bundle.tags)) continue
+      if (this.frameLoader?.isTagReady(packId, tag)) {
+        this.holdTagByActor.set(entry.id, tag)
+        return tag
+      }
+    }
+    // No drawable tag yet (should be impossible after the first-frame gate):
+    // fall back to idle and let the backend hold its stage.
+    return 'idle'
+  }
+
+  /** True while the deterministic mouth envelope still animates renderKey. */
+  private speechActive(nowMs: number): boolean {
+    if (this.mouthDurationMs <= 0) return false
+    const elapsed = nowMs - this.mouthStartMs
+    return elapsed >= 0 && elapsed <= this.mouthDurationMs
+  }
 
   private assertUsable(): void {
     if (this.disposed) throw new HeroRuntimeError('hero runtime already disposed')
@@ -1164,10 +1466,27 @@ export interface StartHeroRuntimeOptions {
   readonly seed?: number
   readonly sleeping?: boolean
   readonly actorIds?: readonly string[]
+  /**
+   * Test/embedder hook: schedule deferred frame decode batches. Defaults to
+   * requestIdleCallback (fallback: 0 ms timer).
+   */
+  readonly frameScheduler?: FrameDecodeScheduler
+  /** Frames decoded per deferred idle batch (default 2). */
+  readonly frameDecodeBatch?: number
+}
+
+/** Idle-first boot summary: what was drawable at the first-frame gate. */
+export interface HeroFirstFrameSummary {
+  /** Distinct packs booted with the idle-first loader. */
+  readonly packs: number
+  /** Tags fully decoded when the gate committed (normally just `idle`). */
+  readonly readyTags: readonly string[]
+  /** Frames handed to the background decoder after the page flip. */
+  readonly pendingFrames: number
 }
 
 export type HeroStartResult =
-  | { readonly ok: true; readonly runtime: HeroRuntime }
+  | { readonly ok: true; readonly runtime: HeroRuntime; readonly firstFrame?: HeroFirstFrameSummary }
   | { readonly ok: false; readonly reason: string; readonly error?: unknown }
 
 /**
@@ -1218,15 +1537,32 @@ export async function startHeroRuntime(options: StartHeroRuntimeOptions): Promis
   options.ctx.imageSmoothingEnabled = false
 
   let backend: RenderBackend | null = null
+  let firstFrame: HeroFirstFrameSummary | null = null
   try {
     const first = bundles[0]!.pack
     const registry = options.registry ?? new RendererRegistry([heroRendererPlugin])
     backend = options.createBackend ? options.createBackend(first) : registry.create(first)
+    const frameLoader = progressiveFrameLoaderOf(backend)
     const loaded = new Set<string>()
+    const readyTags = new Set<string>()
+    let pendingFrames = 0
     for (const bundle of bundles) {
       if (loaded.has(bundle.pack.id)) continue
-      await backend.load(bundle.pack)
+      if (frameLoader !== null) {
+        // Idle-first first frame: decode the 6–8 frame idle clip and resolve.
+        // Every other clip stays queued for the post-gate background pump, so
+        // boot latency no longer scales with 68–144 decoded frames.
+        const result = await frameLoader.loadFirst(bundle.pack)
+        for (const tag of result.readyTags) readyTags.add(tag)
+        pendingFrames += result.pendingFrames
+      } else {
+        // Eager/third-party backend: unchanged all-frames load.
+        await backend.load(bundle.pack)
+      }
       loaded.add(bundle.pack.id)
+    }
+    if (frameLoader !== null) {
+      firstFrame = { packs: loaded.size, readyTags: [...readyTags], pendingFrames }
     }
   } catch (error) {
     try {
@@ -1244,9 +1580,13 @@ export async function startHeroRuntime(options: StartHeroRuntimeOptions): Promis
       ...(options.actorIds !== undefined ? { actorIds: options.actorIds } : {}),
       ...(options.sleeping === true ? { sleeping: true } : {}),
     })
-    // First-frame gate: only switch the page to hero mode after this succeeds.
+    // First-frame gate: idle is decoded, so this renders the correct boot pose;
+    // only after it succeeds does the page switch to hero mode.
     runtime.render(options.ctx, 0)
-    return { ok: true, runtime }
+    // Deferred decode starts AFTER the gate: it can never delay the page flip,
+    // and the first interaction waits on demand if its clip is still queued.
+    runtime.startFrameDecode(options.frameScheduler, options.frameDecodeBatch ?? 2)
+    return { ok: true, runtime, ...(firstFrame !== null ? { firstFrame } : {}) }
   } catch (error) {
     try {
       backend.dispose()

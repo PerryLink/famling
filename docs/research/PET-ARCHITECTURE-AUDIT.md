@@ -2,7 +2,7 @@
 
 - **日期/时点**：2026-11-14 20:52–21:20（+08）
 - **角色**：只读代码架构审计（未改代码、未调 API、未做 git、未启动 dev server/Tauri 窗口）
-- **仓库**：`/mnt/d/Projects/dsh/desktop-games`
+- **仓库**：`<private-path>
 - **方法**：通读 + 实测命令：`npm test` → **133/133 pass**（36 个 test 文件，1.0s）；`node --import tsx --test tests/hero.test.ts tests/pet.test.ts` → **7/7 pass**。其余为静态阅读，标注「实测/推断」。
 - **交付**：本文件（唯一写入）；摘要见文末 §14。
 

@@ -67,7 +67,7 @@
 前置：Windows 原生 Node 24（`C:\Program Files\nodejs\node.exe`）、Rust/cargo、WebView2；WSL2 + interop（本机形态）。
 
 ~~~powershell
-cd D:\Projects\dsh\desktop-games
+cd <private-path>
 # demo 页面集（E2E 现有 11 用例依赖 demo 路由）
 npm run build:demo
 # debug 二进制（嵌入 dist；custom-protocol 才能在 WebView2 内加载打包资源）

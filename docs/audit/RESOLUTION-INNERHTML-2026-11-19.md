@@ -134,7 +134,7 @@ SRC CLEAN          # 0 处（全 src 树；原先 grep 命中 20 行，其中 14
 环境：WSL2 Linux / Node v24.22.1 / tsc 5.9.3（依赖树中有并发任务安装的 linux-x64 esbuild，故使用仓库自带 `tsx` 跑测试）。
 
 ```
-$ cd /mnt/d/Projects/dsh/desktop-games
+$ cd <private-path>
 $ npm run typecheck
 > tsc --noEmit        # exit 0
 
@@ -178,7 +178,7 @@ $ npm run build       # vite 生产构建
 
 - 截至本任务完成时点核对：并发中的 task-41 正在大改 `native/dlc-verify`（签名信任根/轮换），但**内容字段级 schema 校验仍没有**（`verify_pack*` 只做 contentApi==1 等少量检查），也没有 manifest 绝对路径/UNC/ADS 拒绝；
 - entitlement 未在 Tauri 路径校验（Steam 仍是 stub；Rust `dlc_verify` 不返回 ownership）——需要 Steam 接入后由 Rust 或浏览器侧补齐；
-- 浏览器侧 `validateManifest` 仍允许 `C:/...` 形式（审计 P1-3 探针），但该路径在 Rust 读文件阶段已被 `dir.join` 使用、且签名/哈希已通过，浏览器层无文件 IO，因此本任务未扩大无文件读取面。
+- 浏览器侧 `validateManifest` 仍允许 `<private-path>` 形式（审计 P1-3 探针），但该路径在 Rust 读文件阶段已被 `dir.join` 使用、且签名/哈希已通过，浏览器层无文件 IO，因此本任务未扩大无文件读取面。
 
 ### 6.2 无真实浏览器/WebView E2E（仍开放）
 
@@ -215,7 +215,7 @@ $ npm run build       # vite 生产构建
 ## 8. 复现（给 lead/后续审计）
 
 ```bash
-cd /mnt/d/Projects/dsh/desktop-games
+cd <private-path>
 # 1) 静态：全 src 无 markup sink
 grep -rnE '\.(inner|outer)HTML\s*=|insertAdjacentHTML|document\.write\(' src --include='*.ts' || echo CLEAN
 # 2) typecheck

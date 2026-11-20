@@ -80,6 +80,7 @@ import {
 } from './terms.ts'
 import {
   HEALTH_BANNER_CLAIM_MS,
+  HEALTH_TICK_MS,
   acknowledgeHealthRest,
   claimHealthBanner,
   defaultHealthTiming,
@@ -91,7 +92,12 @@ import {
   refreshHealthState,
   writeHealthState,
 } from '../health-reminder.ts'
-import { isQuietHoursActive, readQuietHours } from '../low-disturb.ts'
+import {
+  isQuietHoursActive,
+  parseClockMinutes,
+  readQuietHours,
+  type QuietHoursSettings,
+} from '../low-disturb.ts'
 
 export interface ConsentRuntime {
   readonly gate: ConsentGate
@@ -121,6 +127,8 @@ let runtime: ConsentRuntime | null = null
 let blockedOverlay: BlockedOverlay | null = null
 let healthBanner: { hide(): void } | null = null
 let healthTimer: ReturnType<typeof setInterval> | null = null
+/** One-shot wake at the end of the quiet-hours window (see scheduleQuietBoundary). */
+let healthBoundaryTimer: ReturnType<typeof setTimeout> | null = null
 /** Interaction/visibility listeners installed by startHealthReminder (removed by stop). */
 const healthListeners: Array<{ target: EventTarget; type: string; listener: (event: Event) => void }> = []
 let aboutReturnFocus: HTMLElement | null = null
@@ -988,7 +996,35 @@ function wireAboutPanel(doc: Document): void {
 
 export interface HealthReminderOptions {
   readonly afterMs?: number
+  /** Poll override (tests); production uses HEALTH_TICK_MS (15 s). */
   readonly tickMs?: number
+}
+
+/**
+ * Delay from `now` to the next end of the quiet-hours window, or null when the
+ * window is disabled/invalid/inactive. Overnight windows (start > end, the
+ * 22:00-08:00 default) point at the next morning. Pure, so the boundary maths is
+ * testable without a DOM or a real timer.
+ */
+export function healthQuietHoursEndDelayMs(now: Date, settings: QuietHoursSettings): number | null {
+  if (!settings.enabled) return null
+  const start = parseClockMinutes(settings.start)
+  const end = parseClockMinutes(settings.end)
+  // start === end is "no quiet window" (same rule as isQuietHoursActive).
+  if (start === null || end === null || start === end) return null
+  if (!isQuietHoursActive(now, settings)) return null
+  const elapsedMs =
+    ((now.getHours() * 60 + now.getMinutes()) * 60 + now.getSeconds()) * 1000 + now.getMilliseconds()
+  let delay = end * 60_000 - elapsedMs
+  if (delay <= 0) delay += 24 * 60 * 60 * 1000
+  return delay
+}
+
+/** Clear the one-shot quiet-hours boundary wake (start/stop share this). */
+function clearHealthQuietBoundary(): void {
+  if (healthBoundaryTimer === null) return
+  clearTimeout(healthBoundaryTimer)
+  healthBoundaryTimer = null
 }
 
 /**
@@ -1001,16 +1037,44 @@ export interface HealthReminderOptions {
  *   whether the banner may be painted (it appears when the window is visible);
  * - a no-interaction gap longer than the shared idle window starts a fresh
  *   continuous-use session instead of counting "app left open" as use;
- * - quiet hours defer the banner to the first tick after the window ends;
+ * - quiet hours defer the banner; a one-shot timeout at the window end (plus the
+ *   health-reminder tick as fallback) paints it as soon as quiet hours end;
  * - the banner offers only "休息一下（2 小时后仍会提醒）" and
  *   "10 分钟后再提醒" -- there is no permanent dismiss.
+ *
+ * Perf P0 (2026-11-21): the poll moved from 1 s to HEALTH_TICK_MS (15 s); every
+ * tick reads + JSON-parses + merges the shared record, and wall-clock maths means
+ * a throttled hidden-window timer loses nothing.
  */
 export function startHealthReminder(options: HealthReminderOptions = {}): void {
   if (healthTimer !== null) return
   const doc = requireRuntime().document
   const timing = defaultHealthTiming({ afterMs: options.afterMs ?? HEALTH_REMINDER_MS })
-  const tickMs = options.tickMs ?? 1_000
+  const tickMs =
+    typeof options.tickMs === 'number' && Number.isFinite(options.tickMs) && options.tickMs > 0
+      ? options.tickMs
+      : HEALTH_TICK_MS
   let state = refreshHealthState(readHealthState(undefined, Date.now()), Date.now(), timing)
+
+  /**
+   * One-shot wake at the end of the active quiet-hours window. Quiet hours are
+   * the common deferral path (22:00-08:00 default), so the deferred banner must
+   * not wait for up to one 15 s poll: one timer is armed only while the reminder
+   * is due but suppressed, and tick() re-arms it on demand.
+   */
+  const scheduleQuietBoundary = (nowMs: number, quiet: QuietHoursSettings): void => {
+    clearHealthQuietBoundary()
+    try {
+      const delay = healthQuietHoursEndDelayMs(new Date(nowMs), quiet)
+      if (delay === null) return
+      healthBoundaryTimer = setTimeout(() => {
+        healthBoundaryTimer = null
+        tick()
+      }, delay + 250)
+    } catch {
+      clearHealthQuietBoundary()
+    }
+  }
 
   const persist = (): void => {
     writeHealthState(state)
@@ -1049,8 +1113,18 @@ export function startHealthReminder(options: HealthReminderOptions = {}): void {
       // visibility listener below runs tick() again when the window returns.
       if (doc.visibilityState === 'hidden') return
       // Quiet hours (MB-070): defer, never drop. The persisted start time stays
-      // untouched, so the banner appears after the quiet window ends.
-      if (isQuietHoursActive(new Date(nowMs), readQuietHours())) return
+      // untouched, so the banner appears after the quiet window ends; the
+      // one-shot boundary wake paints it immediately at the window end instead
+      // of waiting for the next 15 s poll.
+      const quiet = readQuietHours()
+      if (isQuietHoursActive(new Date(nowMs), quiet)) {
+        // Arm only once: a 15 s poll must not clear/re-create the same timer.
+        if (healthBoundaryTimer === null) scheduleQuietBoundary(nowMs, quiet)
+        return
+      }
+      // Quiet hours ended (or were disabled): drop any pending boundary wake
+      // before claiming the banner.
+      clearHealthQuietBoundary()
       // Cross-window dedupe: another same-origin window may have just claimed it
       // (state.lastShownAt already includes the merged stored value).
       const claimedAt = state.lastShownAt
@@ -1098,6 +1172,8 @@ export function startHealthReminder(options: HealthReminderOptions = {}): void {
     if (doc.visibilityState === 'visible') tick()
   })
   tick()
+  // 15 s poll (HEALTH_TICK_MS, the shared default) instead of the old 1 s one:
+  // 4 record reads/min instead of 60, with the quiet-hours boundary wake above.
   healthTimer = setInterval(tick, tickMs)
 }
 
@@ -1109,6 +1185,7 @@ function gateRefAvailable(): boolean {
 export function stopHealthReminder(): void {
   if (healthTimer !== null) clearInterval(healthTimer)
   healthTimer = null
+  clearHealthQuietBoundary()
   healthBanner?.hide()
   healthBanner = null
   for (const entry of healthListeners) {

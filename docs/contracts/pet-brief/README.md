@@ -65,7 +65,7 @@ baked voice/字幕层使用（本仓尚未接入）。
 ## 2. 测试
 
 ```sh
-cd /mnt/d/Projects/dsh/desktop-games
+cd <private-path>
 node --import tsx --test tests/pet-brief-consumer.test.ts   # 12/12 pass
 npm test                                                   # 全仓 244/244 pass, exit 0（2026-11-15 实测；新增 12 条）
 npx tsc --noEmit                                           # 通过
@@ -94,7 +94,7 @@ Advisers 侧 Pet Brief 生产者契约已升级到 **v0.2**（`schemaVersion: 2`
 `displayPolicy: public | private | none`，默认 `private`；v0.1 兼容）。v0.2 增量 canonical 见公开仓
 `PerryLink/advisers` 的 `docs/pet-brief/`（`schema-v0.2.json` / `example-v0.2.json` /
 `testcases-v0.2.json`）与 `docs/PET-BRIEF-CONSUMERS.md` §2；本机只读 checkout 为
-`/mnt/d/Projects/dsh/plugins/advisers/docs/pet-brief/`。本目录 7 个 v0.1 快照文件**保持原样**
+`<private-path> 7 个 v0.1 快照文件**保持原样**
 （v0.1 canonical 仍是私有 `PerryLink/famling` 仓），v0.2 增量不复制进来。
 
 消费端 `src/presence/pet-brief.ts` 已按 `PET-BRIEF-CONSUMERS.md` §2 迁移顺序第 1 步升级：
@@ -115,7 +115,7 @@ Advisers 侧 Pet Brief 生产者契约已升级到 **v0.2**（`schemaVersion: 2`
 测试（2026-11-17 实测）：
 
 ```sh
-cd /mnt/d/Projects/dsh/desktop-games
+cd <private-path>
 node --import tsx --test tests/pet-brief-consumer.test.ts   # 16/16 pass（原 12 条 + 4 条 v0.2/legacy）
 npx tsc --noEmit                                           # 通过
 ```

@@ -17,13 +17,18 @@
   "clips": {
     "idle": {
       "label": "待机呼吸（蹲坐看你）",
-      "frames": 6,
+      "frames": 8,
       "fps": 6,
       "loop": true,
       "layer": "base",
       "category": "idle",
       "priority": 0,
-      "phase": "1a"
+      "phase": "1a",
+      "overrides": {
+        "human": {
+          "frames": 6
+        }
+      }
     },
     "idle_blink": {
       "label": "眨眼（叠层/替换）",
@@ -33,7 +38,15 @@
       "layer": "overlay",
       "category": "idle",
       "priority": 10,
-      "phase": "1a"
+      "phase": "1a",
+      "overrides": {
+        "dog": {
+          "fps": 8
+        },
+        "cat": {
+          "fps": 4
+        }
+      }
     },
     "walk": {
       "label": "走（小步前进）",

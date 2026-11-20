@@ -50,6 +50,13 @@ export interface PresencePolicy {
   textMaxSecrecy: Secrecy
   /** Secrecy >= this produces no directive at all. */
   silentMinSecrecy: Secrecy
+  /**
+   * Optional wall-clock quiet override (C1 2026-11-21): when present it replaces
+   * the fixed quietStartHour/quietEndHour pair. The desktop pet face injects the
+   * USER's quiet-hours setting (which can be disabled or moved to another window)
+   * so Advisers and the character never disagree about what 安静 means.
+   */
+  quietAt?: (at: number) => boolean
 }
 
 export const DEFAULT_PRESENCE_POLICY: PresencePolicy = {

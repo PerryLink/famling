@@ -45,8 +45,8 @@
 
 ### 1.1 评审对象
 
-- famling（桌宠/游戏基座，仓 /mnt/d/Projects/dsh/desktop-games）：pet 页面、desktop-shell、consent 子系统、content-library/content-hub、hero 渲染、hit-regions、Tauri 壳、CI、法务/研究文档。
-- dsh-famling（DSH 侧栏插件，仓 /mnt/d/Projects/dsh/plugins/dsh-famling）：client.js、client.content.js、index.js（Host bridge）、content-extension.mjs、LEGAL-NOTICE/DETAIL/README。
+- famling（桌宠/游戏基座，仓 <private-path> 页面、desktop-shell、consent 子系统、content-library/content-hub、hero 渲染、hit-regions、Tauri 壳、CI、法务/研究文档。
+- dsh-famling（DSH 侧栏插件，仓 <private-path> bridge）、content-extension.mjs、LEGAL-NOTICE/DETAIL/README。
 - 不做：代码修复、资产/配置修改、构建、E2E、真机测试、法务审核、市场/安全/性能复审（分别见其他评审与既有审计）。
 
 ### 1.2 方法与限制
@@ -589,7 +589,7 @@ B) 重新开放入口：按现有门禁接回 About/菜单，并同步文案/测
 
 ## 附录 A：只读复现命令（不改任何文件）
 
-以下命令在 /mnt/d/Projects/dsh/desktop-games 或插件仓执行；输出用于复核本文关键断言：
+以下命令在 <private-path> 或插件仓执行；输出用于复核本文关键断言：
 
     1) 控制面/动画：
     grep -n "aside.panel" src/pet/pet.css          # 352: display:none

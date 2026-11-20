@@ -234,6 +234,9 @@ export interface PetSaveServiceOptions {
   readonly now?: () => number
   readonly timers?: SaveRuntimeTimers
   readonly autosaveIntervalMs?: number
+  /** Page probes for hidden-idle autosave backoff (main.ts wires them; tests omit). */
+  readonly isPageHidden?: () => boolean
+  readonly lastInteractionAt?: () => number
   /** Plaintext byte cap before encryption (runtime default: SECURITY_LIMITS.savePlainBytes). */
   readonly maxPlainBytes?: number
   /** Browser-host seams (storage/crypto) for tests; production uses defaults. */
@@ -286,6 +289,8 @@ export function createPetSaveService(options: PetSaveServiceOptions): PetSaveSer
     now: options.now,
     timers: options.timers,
     autosaveIntervalMs: options.autosaveIntervalMs,
+    isPageHidden: options.isPageHidden,
+    lastInteractionAt: options.lastInteractionAt,
     maxPlainBytes: options.maxPlainBytes,
     onEncryptUnavailable: options.onEncryptUnavailable,
     onRecoveryNeededChange: options.onRecoveryNeededChange,

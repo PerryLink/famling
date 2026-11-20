@@ -7,7 +7,7 @@
 ## 1. 怎么看到金毛
 
 ```bash
-cd /mnt/d/Projects/dsh/desktop-games
+cd <private-path>
 npm run dev        # http://127.0.0.1:5173/pet.html
 ```
 
@@ -65,7 +65,7 @@ npm run dev        # http://127.0.0.1:5173/pet.html
 ## 4. 验证（本机实测）
 
 ```bash
-cd /mnt/d/Projects/dsh/desktop-games
+cd <private-path>
 node -e "JSON.parse(require('fs').readFileSync('public/characters/pet-dog/character.json'));JSON.parse(require('fs').readFileSync('public/characters/pet-dog/behavior.json'));console.log('json ok')"
 node --import tsx --test tests/hero-dog-integration.test.ts
 npm test              # 870/870 pass（2026-11-18 实测）

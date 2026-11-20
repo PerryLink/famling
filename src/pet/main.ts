@@ -109,7 +109,26 @@ import { grantHostVoiceConsent, revokeHostConsent, syncHostConsent } from './con
 import { asrConfigSignature } from './consent/asr.ts'
 import { ttsConfigSignature } from './consent/tts.ts'
 import { formatVoiceModeLabel, isTtsVoiceId, readVoicePref, VOICE_PREF_STORAGE_KEY } from './voice-prefs.ts'
-import { filterProactiveLine } from './low-disturb.ts'
+import {
+  AMBIENT_CADENCE_KEY,
+  DEFAULT_AMBIENT_CADENCE,
+  clearWorkSession,
+  filterProactiveLine,
+  isWorkSessionActive,
+  readAmbientCadence,
+  readWorkSession,
+  resolveAmbientRhythm,
+  startWorkSession,
+  workSessionRemainingMs,
+  workSessionStartLine,
+  writeWorkSession,
+  WORK_SESSION_CUT_LINE,
+  WORK_SESSION_DONE_LINE,
+  type AmbientCadence,
+  type WorkSession,
+} from './low-disturb.ts'
+import type { PetPose } from '../presence/types.ts'
+
 import { AI_REPLY_LABEL, installBubbleAiLabel } from './ai-label.ts'
 import { roleplayTemplateReply } from './consent/roleplay.ts'
 import { decideDialogueLine, type DialogueLineKind } from './content-hub.ts'
@@ -364,6 +383,9 @@ const heroPage = createHeroPage({
     ensureAudio()
     void audioContext?.resume()
   },
+  // C1 待机节奏: the live plan is resolved below (persisted cadence + quiet hours
+  // + 一起工作 + Advisers pose) and re-applied by hero-page once a second.
+  resolveAmbientRhythm: () => currentIdleRhythm(),
   restoreActiveCharacterPack: () => contentRuntimeApi.restoreActiveCharacterPack(),
 })
 const now = (): number => Date.now()
@@ -371,6 +393,22 @@ const now = (): number => Date.now()
 let state: PetState = createPet(now())
 let bubbleTimer: ReturnType<typeof setTimeout> | null = null
 let mouthTimer: ReturnType<typeof setTimeout> | null = null
+
+// ---------------------------------------------------------------------------
+// 待机节奏 / 一起工作 live state (C1 2026-11-21)
+// ---------------------------------------------------------------------------
+// ambientCadence is a persisted cross-restart preference (localStorage);
+// workSession is session-scoped (sessionStorage: survives a page reload, ends
+// with the app window) and is never written to the save archive — no history,
+// no streak days, no penalty. The Advisers pose flag is memory-only and
+// self-expires (pose events are deduped per day, so an idle event may never
+// arrive to clear it).
+let ambientCadence: AmbientCadence = readAmbientCadence()
+let workSession: WorkSession | null = readWorkSession()
+let workSessionTimer: ReturnType<typeof setTimeout> | null = null
+/** working/waiting have no matching clip, so a pose only lowers the cadence. */
+const ADVISERS_POSE_QUIET_MS = 5 * 60_000
+let advisersQuietUntilMs = 0
 
 // Pet TTS voice preference (default `stella`; setup page writes
 // `desktop-games/pet/voice`). Read through safe-storage, so missing/blocked/
@@ -1110,6 +1148,27 @@ async function invokeTimed<T>(command: string, args: Record<string, unknown> = {
  */
 const PET_SAVE_GAME_VERSION = '0.1.0'
 
+/**
+ * Last user-input timestamp for the hidden-idle autosave backoff (P0 2026-11-21).
+ * The save runtime only throttles its interval tick when both probes say the
+ * page is hidden and has been idle for 15 minutes; visibility-hidden saves and
+ * explicit saves still write immediately.
+ */
+let lastPageInteractionAtMs = Date.now()
+let pageInteractionProbesWired = false
+
+function lastPageInteractionAt(): number {
+  if (!pageInteractionProbesWired) {
+    pageInteractionProbesWired = true
+    for (const type of ['pointerdown', 'keydown', 'wheel', 'touchstart'] as const) {
+      document.addEventListener(type, () => {
+        lastPageInteractionAtMs = Date.now()
+      }, { passive: true })
+    }
+  }
+  return lastPageInteractionAtMs
+}
+
 function createPageSaveService(): PetSaveService {
   return createPetSaveService({
     slot: SAVE_SLOT,
@@ -1122,6 +1181,8 @@ function createPageSaveService(): PetSaveService {
     },
     canInteract,
     rateLimit: limits.save,
+    isPageHidden: () => document.visibilityState === 'hidden',
+    lastInteractionAt: lastPageInteractionAt,
     // The runtime reports an unavailable cipher at most once per instance and
     // never writes plaintext or a partial save (old saveWarningShown bubble).
     onEncryptUnavailable: () => showBubble('存档加密不可用，这次没有保存。'),
@@ -1253,6 +1314,103 @@ const settingsPage = createSettingsPage({
   clearSavedWindowPosition: () => heroPage.clearSavedWindowPosition(),
 })
 settingsPage.bind()
+
+// ---------------------------------------------------------------------------
+// 待机节奏 / 一起工作 wiring (C1 2026-11-21)
+// ---------------------------------------------------------------------------
+
+/**
+ * Effective idle-rhythm plan for the live hero scene: persisted level, then
+ * quiet hours / a running 一起工作 session / the Advisers pose quiet flag (the
+ * calmest wins — see resolveAmbientRhythm in low-disturb.ts).
+ */
+function currentIdleRhythm(): { readonly intervalMs: readonly [number, number]; readonly states: readonly string[] | null } {
+  const nowMs = Date.now()
+  const rhythm = resolveAmbientRhythm({
+    cadence: ambientCadence,
+    quietHoursActive: quietHoursActive(),
+    workSessionActive: isWorkSessionActive(workSession, nowMs),
+    advisersQuiet: nowMs < advisersQuietUntilMs,
+  })
+  return { intervalMs: rhythm.plan.intervalMs, states: rhythm.plan.states }
+}
+
+/**
+ * Advisers pose → quiet flag (no animation). There is no working/waiting clip
+ * in the 12-clip set, so the degrade path is explicitly non-animating: it only
+ * stops proactive micro-actions for a bounded window (pose events are deduped
+ * per day, so waiting for pose=idle could otherwise quiet the pet forever).
+ */
+function applyAdvisersPose(pose: PetPose): void {
+  if (pose === 'idle') {
+    advisersQuietUntilMs = 0
+    return
+  }
+  advisersQuietUntilMs = Date.now() + ADVISERS_POSE_QUIET_MS
+}
+
+function clearWorkSessionTimer(): void {
+  if (workSessionTimer === null) return
+  clearTimeout(workSessionTimer)
+  workSessionTimer = null
+}
+
+/** Re-arm the completion timer for the current session (reload resume path). */
+function scheduleWorkSessionCompletion(): void {
+  clearWorkSessionTimer()
+  const session = workSession
+  if (!session) return
+  const remaining = workSessionRemainingMs(session, Date.now())
+  workSessionTimer = setTimeout(() => {
+    workSessionTimer = null
+    if (!workSession || workSession.endsAtMs !== session.endsAtMs) return
+    if (Date.now() < workSession.endsAtMs) {
+      scheduleWorkSessionCompletion()
+      return
+    }
+    finishWorkSession(false)
+  }, Math.max(250, remaining))
+}
+
+/** Menu entry: start a 25/50 min session (session-scoped, no record). */
+function startWorkTogether(minutes: 25 | 50): void {
+  workSession = startWorkSession(minutes, Date.now())
+  writeWorkSession(workSession)
+  scheduleWorkSessionCompletion()
+  sayLater(workSessionStartLine(minutes), 'calm')
+}
+
+/**
+ * End the session. Completion reuses the existing stand_wag clip + neutral rest
+ * copy; an early end reuses idle_blink and is not recorded anywhere. Both are
+ * user-visible lines, never reward/streak/guilt language.
+ */
+function finishWorkSession(early: boolean): void {
+  if (!workSession) return
+  workSession = null
+  clearWorkSession()
+  clearWorkSessionTimer()
+  if (!canInteract()) return
+  if (early) {
+    heroPage.emit('idle_blink')
+    sayLater(WORK_SESSION_CUT_LINE, 'calm')
+    return
+  }
+  heroPage.emit('stand_wag')
+  // Completion is automatic, so quiet hours suppress the copy (ambient kind).
+  sayLater(WORK_SESSION_DONE_LINE, 'calm', 'ambient')
+}
+
+// A reload inside the same app window keeps the remaining session (sessionStorage);
+// the timer is re-armed here so completion still fires without a user action.
+if (workSession !== null) scheduleWorkSessionCompletion()
+
+// Cross-window cadence changes (设置 dialog opened in the content window) reach
+// the pet window through the same-origin storage event; apply it live.
+window.addEventListener('storage', (event) => {
+  if (event.key !== AMBIENT_CADENCE_KEY) return
+  ambientCadence = readAmbientCadence()
+})
 
 // The independent content/settings window (MB-062) never autosaves: it may run
 // next to the live pet window, and only the pet window owns the archive's
@@ -1432,6 +1590,15 @@ if (!CONTENT_SHELL) startDesktopShellLayout()
   // Additive QA surface: existing keys above keep their behaviour; `hero` is
   // the only new top-level key (flag/start status), see docs/PET-HERO-INTEGRATION.md.
   hero: heroStatus(HERO_CONFIG, null),
+  // C1 read-only interaction truth: the same plan hero-page.ts applies.
+  idleRhythm: {
+    cadence: (): AmbientCadence => ambientCadence,
+    effective: () => currentIdleRhythm(),
+    workSession: () =>
+      workSession === null
+        ? null
+        : { minutes: workSession.minutes, remainingMs: workSessionRemainingMs(workSession, Date.now()) },
+  },
   // Character-pack hot-switch truth (E4 / task-111): renderer truth only.
   characterPack: {
     rendered: () => heroPage.activePackIdentity(),
@@ -1785,7 +1952,13 @@ function initAdvisersFace(): void {
     // the local brief unless the TOS gate is accepted, even if a future caller
     // forgets the post-consent init order.
     isReadAllowed: canInteract,
+    // C1 2026-11-21: Advisers uses the user's persisted quiet-hours setting
+    // (which can be disabled or moved) instead of a hardcoded 22:00–08:00.
+    quietHoursActive: (at: Date) => quietHoursActive(at),
     onDirective: (directive) => {
+      // C1: pose has no matching clip (working/waiting), so it degrades to the
+      // non-animating quiet flag below instead of driving animation.
+      if (directive.pose !== undefined) applyAdvisersPose(directive.pose)
       // Output safety before display: the directive may carry external brief
       // content. Blocked content is replaced by the short refusal copy only.
       void (async () => {
@@ -2128,6 +2301,12 @@ function initializeApp(): void {
         // A full local-data wipe clears the quiet-hours preference too; fall
         // back to the safety default in this session as well.
         settingsPage.reloadQuietHours()
+        // C1: a full local-data wipe also clears the idle-rhythm preference and
+        // discards the session-scoped 一起工作 state (nothing is recorded anyway).
+        ambientCadence = DEFAULT_AMBIENT_CADENCE
+        workSession = null
+        clearWorkSession()
+        clearWorkSessionTimer()
         settingsPage.renderMemoryBook()
         settingsPage.hideMemoryScreen()
         render()
@@ -2162,6 +2341,16 @@ function initializeApp(): void {
       // 复位窗口 come from the extracted settings page (same audited paths as the
       // legacy panel); save/read stay on this page's save-runtime entries.
       ...settingsPage.shellOptions(),
+      // C1 待机节奏 / 一起工作: the shell persists+renders, this page owns the
+      // live hero plan and the completion timer.
+      getAmbientCadence: () => ambientCadence,
+      onAmbientCadenceChange: (next) => { ambientCadence = next },
+      getWorkSession: () =>
+        workSession === null
+          ? null
+          : { minutes: workSession.minutes, remainingMs: workSessionRemainingMs(workSession, Date.now()) },
+      onWorkSessionStart: (minutes) => { startWorkTogether(minutes) },
+      onWorkSessionEnd: () => { finishWorkSession(true) },
       saveArchive: saveArchiveWithFeedback,
       loadArchive: loadArchiveWithFeedback,
       // E6 MB-066: 设置… landings for the previously hidden aside.panel controls

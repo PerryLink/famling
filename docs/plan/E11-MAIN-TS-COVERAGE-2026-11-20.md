@@ -104,7 +104,7 @@
 ## 7. 证据命令
 
 ```bash
-cd /mnt/d/Projects/dsh/desktop-games
+cd <private-path>
 npm run coverage:check              # required（阈值/ratchet 违规 exit 1；entry 豁免见 §6）
 node --import tsx --test tests/e11-main-data-chain.test.ts tests/e11-coverage-ci.test.ts
 npm run docs:check

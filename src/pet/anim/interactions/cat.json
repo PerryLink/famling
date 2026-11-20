@@ -43,8 +43,8 @@
       }
     },
     "ambientIntervalMs": [
-      4000,
-      10000
+      60000,
+      90000
     ],
     "speech": {
       "lines": {
@@ -128,7 +128,13 @@
         {
           "on": "idle_blink",
           "priority": 15,
-          "cooldownMs": 500
+          "cooldownMs": 1000
+        },
+        {
+          "on": "hover.dwell",
+          "priority": 12,
+          "slot": false,
+          "cooldownMs": 3000
         }
       ]
     },
