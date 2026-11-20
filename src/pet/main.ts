@@ -20,6 +20,7 @@ import { transcribeWav } from '../voice/asr.ts'
 import type { TtsVoiceId } from '../voice/types.ts'
 import { SAFE_REFUSAL, verifyUtterance } from './claims.ts'
 import {
+  createPageInteractionProbe,
   createPetSaveService,
   saveFailureToError,
   shouldReportSaveFailure,
@@ -48,6 +49,7 @@ import { describeAdvisersFaceView } from './ui-state.ts'
 import {
   initDesktopShell,
   requestMenuCoach,
+  resolveContentCalendarEnabled,
   createComposerController,
   type ComposerController,
   type HeroMenuActionItem,
@@ -134,7 +136,7 @@ import type { PetPose } from '../presence/types.ts'
 import { AI_REPLY_LABEL, installBubbleAiLabel } from './ai-label.ts'
 import { roleplayTemplateReply } from './consent/roleplay.ts'
 import { decideDialogueLine, type DialogueLineKind } from './content-hub.ts'
-import { type CharacterPackKind, type DialogueBehavior } from './content-library.ts'
+import { resolveAmbientCalendarLine, type CharacterPackKind, type DialogueBehavior } from './content-library.ts'
 import { createContentRuntime } from './content-runtime.ts'
 import { CHARACTER_PACK_APPLY_EVENT, createHeroPage } from './hero-page.ts'
 import { createSettingsPage } from './settings-page.ts'
@@ -646,6 +648,22 @@ function sayLater(
     // MB-070: while quiet hours are active, no proactive/ambient line is emitted
     // at all (user-triggered replies still go through normally).
     if (quietHoursActive()) return
+    // P1 2026-11-21 content calendar: a low-probability festival/season/weekday
+    // overlay for AUTOMATIC lines only (interactive replies never reach here).
+    // OFF setting, quiet hours, 减少动态 and the quiet dialogue pack all degrade
+    // to the base line; the chosen line still passes the two gates below.
+    const runtime = contentRuntimeApi.getContentRuntime()
+    const builtinRenderer = heroPage.builtinRenderer()
+    const calendarLine = resolveAmbientCalendarLine({
+      library: runtime?.library ?? null,
+      characterId: heroPage.activePackKind() ?? (builtinRenderer === 'origami' ? runtime?.selection.character : builtinRenderer) ?? 'humanoid',
+      dialogueMode: dialogueBehavior?.mode ?? 'standard',
+      enabled: resolveContentCalendarEnabled(),
+      quietHoursActive: quietHoursActive(),
+      reduceMotion: document.documentElement.dataset.reduceMotion === '1',
+      random: Math.random,
+    })
+    if (calendarLine !== null) line = calendarLine.line
     // MB-075: waiting/guilt/soft-dependency hints never reach ambient output;
     // a legacy line is replaced with a neutral one instead of being shown.
     const filtered = filterProactiveLine(line)
@@ -1150,26 +1168,8 @@ async function invokeTimed<T>(command: string, args: Record<string, unknown> = {
  */
 const PET_SAVE_GAME_VERSION = '0.1.0'
 
-/**
- * Last user-input timestamp for the hidden-idle autosave backoff (P0 2026-11-21).
- * The save runtime only throttles its interval tick when both probes say the
- * page is hidden and has been idle for 15 minutes; visibility-hidden saves and
- * explicit saves still write immediately.
- */
-let lastPageInteractionAtMs = Date.now()
-let pageInteractionProbesWired = false
-
-function lastPageInteractionAt(): number {
-  if (!pageInteractionProbesWired) {
-    pageInteractionProbesWired = true
-    for (const type of ['pointerdown', 'keydown', 'wheel', 'touchstart'] as const) {
-      document.addEventListener(type, () => {
-        lastPageInteractionAtMs = Date.now()
-      }, { passive: true })
-    }
-  }
-  return lastPageInteractionAtMs
-}
+/** Hidden-idle autosave probe (save-host.ts; listeners are wired lazily). */
+const pageInteractionProbe = createPageInteractionProbe(document)
 
 function createPageSaveService(): PetSaveService {
   return createPetSaveService({
@@ -1184,7 +1184,7 @@ function createPageSaveService(): PetSaveService {
     canInteract,
     rateLimit: limits.save,
     isPageHidden: () => document.visibilityState === 'hidden',
-    lastInteractionAt: lastPageInteractionAt,
+    lastInteractionAt: pageInteractionProbe.lastInteractionAt,
     // The runtime reports an unavailable cipher at most once per instance and
     // never writes plaintext or a partial save (old saveWarningShown bubble).
     onEncryptUnavailable: () => showBubble('存档加密不可用，这次没有保存。'),
