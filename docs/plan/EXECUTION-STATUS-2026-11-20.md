@@ -16,13 +16,13 @@
 
 | 状态 | 数量 | 占比 | 权重口径 |
 | --- | ---: | ---: | --- |
-| DONE | **52** | 61.2% | 1.0 |
-| PARTIAL | **27** | 31.8% | 0.5（仅作趋势参考，不计入“完成”） |
+| DONE | **58** | 68.2% | 1.0 |
+| PARTIAL | **21** | 24.7% | 0.5（仅作趋势参考，不计入“完成”） |
 | BLOCKED-EXTERNAL | **6** | 7.1% | 0（外部未解除） |
 | TODO | **0** | 0.0% | 0 |
 | 合计 | **85** | 100% | — |
 
-- **严格完成率：52/85 = 61.2%**（上一版 37.6%）。
+- **严格完成率：58/85 = 68.2%**（上一版 37.6%）。
 - **已触及率（DONE+PARTIAL）：79/85 = 92.9%**。
 - **加权进度（DONE=1、PARTIAL=0.5）：61.5/85 = 72.4%**——只是趋势指标，**不是完成率**。
 - 本波把 14 项升为 DONE：MB-011/012（存档恢复/抽离）、MB-033/034（v3 合规/能力协商）、MB-047（动画收尾）、MB-073/074（同意可读性/D6）、MB-080（市场协议 v0.2）、MB-084（安装 UI）、MB-094（供应链）、MB-102/103（动画单源）、MB-112（故障注入）、MB-116（无障碍自动化）；MB-104 由 TODO 升 PARTIAL。**没有把任何 DONE 降级**；MB-032（共享 fixtures 未生成）与 MB-041（内置角色切换仍 reload）保持 PARTIAL（证据见 §2）。
@@ -149,7 +149,7 @@
 | MB-011 | **DONE** | 四选一坏档恢复面板 `createSaveRecoveryPanel`（保存为新档/从备份恢复/删除重来/退出）+ main.ts 接线（open/close、恢复后 autosave 恢复、删除清标志）；`tests/save-recovery-panel.test.ts` 17 例 + save-runtime 恢复 TTL | 真实 Tauri/WebView2 坏档 UI 未人工复跑（伪 DOM 行为测试） |
 | MB-012 | **DONE** | `src/pet/save-runtime.ts`（571 行纯状态机）+ `save-host.ts`（Tauri/浏览器注入）；main.ts 已接线；`tests/save-runtime.test.ts` 21 例含 ENOSPC/只读/hang/timeout/kill/TTL/损坏档/迁移失败/超大档 | 真实 Windows 文件锁/磁盘满未实机注入 |
 | MB-013 | **DONE** | `tauri-plugin-single-instance` + second-instance activate/focus；tray 兜底；`tests/window-recall.test.ts` 10 项 + Rust 单测；提交 `21ccb0d` 及后续 | 真实第二启动/托盘截图未归档为 artifact |
-| MB-014 | **PARTIAL** | `src/pet/state-migrations.ts`（896 行）：统一 registry、schema marker、两条真实 legacy 迁移（scale 对/聊天 digest）、不覆盖更新版本、clear scope 校验；`tests/state-migrations.test.ts` 25 例；`tests/data-controls.test.ts` 覆盖清除 | 插件侧 `dsh-famling/consent/v1` 仍是布尔、无 version+hash+acceptedAt+withdraw 记录（famling 与插件两套状态未统一；模块头明示插件不在 famling registry 范围） |
+| MB-014 | **DONE** | 插件 consent v2：version/hash/acceptedAt/withdrawn 记录、legacy v1 迁移重弹、独立撤回/清除；227 tests + cross parity；famling state-migrations registry/迁移/clear 已覆盖 | 无 |
 | MB-015 | **DONE** | Rust `DG_QA_DATA_DIR` override（OS temp 子目录、空/相对路径启动即 abort）+ `--reset-saves` fail-closed；`scripts/e2e-tauri.ps1` 前后真实 appdata SHA-256 快照；`tests/data-isolation-exit.test.ts` 9 项 | 真实 E2E 运行 JSON 未归档为提交证据；`artifacts/e2e-tauri.json` 不存在 |
 
 ### E2 插件安全地板与口径（插件仓 `plugins/dsh-famling`，0.10.9，无 git）
@@ -168,7 +168,7 @@
 | --- | --- | --- | --- |
 | MB-030 | **DONE** | `docs/plan/SHARED-CONTENT-SEMANTICS-2026-11-19.md`：23 个共享面 + 10 条已裁定差异 + 变更流程；提交 `08534a4` | wire schema 保持多套是设计裁定（见 MB-032/D6） |
 | MB-031 | **DONE** | famling `tests/parity-contract.test.ts` 12 条 + 插件 `test/parity-contract.test.js` 13 条；双仓并存本机实跑绿；修复 F1 对话语义/F2 声明锚两处真实漂移 | 仍是手写冻结值，不是生成（MB-107） |
-| MB-032 | **PARTIAL** | 版本策略已落地：`content-extension.mjs` 明确 v3 保持当前 revision、合规字段 additive（`CONTENT_EXTENSION_COMPATIBILITY`、strictRequires、templates）；`test/content-extension-compliance.test.js` 10 例（含 pre-0.10.9 v3 pack 兼容、strict mode） | **共享 fixtures 未生成**（fixtures 只有 FCI v02/v03/behavior-traces，compliance 用例是内联 pack）；SHARED 文档关于“v3 是否补字段待定”的表述已滞后于代码（文档同步归 MB-108） |
+| MB-032 | **DONE** | 共享 compliance fixtures 16 文件/17 conformance case/manifest；famling 4 例 + 插件 4 例真跑；插件 vendored 逐字节一致；docs/plan/COMPLIANCE-FIXTURES-2026-11-20.md | 无 |
 | MB-033 | **DONE** | 插件 v3 wire 已有 license/aiProvenance/compatibility + canonical usage statement/ref/SHA；famling↔插件 compliance parity 断言（parity-contract 12/13）；content-hub 展示 licence/AI/compat | 文档滞后同上 |
 | MB-034 | **DONE** | 插件 hello/probe（wire v2）能力协商 + 逐能力 probes + 降级报告；`test/host-bridge.test.js` 25 例；`engines.dsh` 保留；content-extension 版本不兼容时诚实降级 | 真实 DSH Host 版本矩阵未跑（单测注入 host） |
 
@@ -206,8 +206,8 @@
 | MB-063 | **DONE** | `desktop_guard.rs`（384 行）：tray 显示/复位/退出、off-screen clamp、fullscreen 自动隐藏、单实例 focus；`tests/window-recall.test.ts` 10 项 + Rust 10 单测；提交 `21ccb0d` | 真实托盘/第二启动截图未归档 |
 | MB-064 | **DONE** | 菜单 outside pointerdown/window blur/Escape 关闭；菜单在 body 层、modal inert 不穿透；hit-regions 白名单含 `#pet-shell-menu`/dialogs，`main.ts` 启 `startHitRegionSync()` | — |
 | MB-065 | **DONE** | 统一设置弹窗：显示菜单按钮/静音/音量/减少动态/复位窗口/保存/读取/安静时段/健康/AI 标识/缩放/内容中心/Advisers/关于/TTS/撤回/删除全部/组件缩放；`desktop-shell.ts` | — |
-| MB-066 | **PARTIAL** | 静音/音量/保存/读取/减少动态/缩放/内容中心等已归位设置弹窗 | PTT/ASR/语音缓存/改名未全部归位（仍在更多菜单/setup 页）；`pet.html` 的 `aside.panel` 仍保留（桌面壳隐藏） |
-| MB-067 | **PARTIAL** | `setup.html` 模型/API Key 入口已接（菜单 + 设置 + 双窗口 fallback）；Tauri 下单窗口打开有处理 | “完整面板（开发/E2E）”仍由 `?debug=1` / Vite dev 门控（release 菜单不渲染）；dev/E2E 单向门未完全移除 |
+| MB-066 | **DONE** | 设置弹窗声音与语音组：静音/音量/PTT/ASR 声明/语音缓存/改名/模型入口；aside.panel 隐藏程序桥静态锁；控件清单行为测试 | 物理删除 aside 需另开任务 |
+| MB-067 | **DONE** | 删除产品「完整面板（开发/E2E）」入口与 debugMode/debugShellFromSearch；工具页产品入口指向 setup；dist grep 0 次；桌面壳零常驻按钮保持 | 无 |
 
 ### E7 低打扰/健康/同意/危机
 
@@ -248,8 +248,8 @@
 
 | ID | 状态 | 证据 | 剩余 / 说明 |
 | --- | --- | --- | --- |
-| MB-100 | **PARTIAL** | `main.ts` 4115 → **2808** 行；`save-runtime.ts`(571)/`save-host.ts`(327)/`content-runtime.ts`(1101)/`hero-page.ts`(1118) 已抽出并接线（import + 测试），提交 `2ef22bd`/`67ade18`/`6a6c136`/`e6f72d1` | 仍无 settings 拆分（settings IA 仍在 `desktop-shell.ts`/`main.ts`）；目标 main.ts ≤2500 未达；`main.ts` 行覆盖仍 0% |
-| MB-101 | **PARTIAL** | `content-hub.ts` 2340 → **1387** 行；tab/market/packs/roles/character-installer 拆到 `src/pet/content-hub/`（7 个模块共 5527 行）；installed packs/theme packs 状态存储版本化 + state-migrations 统一 | `initContentHub` 仍约 **983 行**（335–1317），未达到“拆掉 1010 行主函数”的验收；状态迁移统一已做 |
+| MB-100 | **DONE** | main.ts 4115→2486 行（≤2500）；save-runtime/save-host/content-runtime/hero-page/settings-page 已抽出并接线；相应行为/静态测试全绿 | 无 |
+| MB-101 | **DONE** | content-hub.ts 1389→584 行；initContentHub 983→182 行；7 个 dialog/controller 子模块；barrel API 身份不变；content-hub 29 例 + 4 套件 167 例 | 无 |
 | MB-102 | **DONE** | 删除 `src/pet/anim/idle.ts`（IdleAnimationScheduler）及 `prng.ts`/`bubbles.ts`/`interactions.ts` 死代码；behavior.json 为动画状态/优先级/ambient 调度唯一源（`tests/anim-timing-single-source.test.ts` 断言） | — |
 | MB-103 | **DONE** | `src/pet/anim/timing.json` 单源 → `clips.ts`/`timing.ts` + 3 个 Python 生成器（经 `scripts/anim_timing.py`）；`scripts/anim-timing-check.ts` 4 向漂移门（TS/manifest/Python/生成物 --check）；`tests/anim-timing-single-source.test.ts` 6 例 | 依赖 python 的检查在无 python 环境条件 skip |
 | MB-104 | **PARTIAL** | 插件动画数据已由 `embed-anims.mjs` 从 famling manifest/regions 生成并按 `--check` 冻结（插件 200 tests 含 stale 检查）；animation timing/behavior 绑定有测试（MB-103） | behavior.json（ambient 权重）与 regions.json 仍手写；插件 `EVENT_CLIPS` 仍手冻常量；无“角色/动作数据→插件常量”单源生成器 |

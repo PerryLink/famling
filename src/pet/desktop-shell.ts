@@ -275,26 +275,15 @@ export function resolveReduceMotion(storage?: FlagStorage | null, prefersReduce 
 }
 
 /**
- * Dev/E2E surfaces (完整面板) are never in the release menu: only an explicit
- * ?debug=1/?dev=1 URL (or the Vite dev build) may expose them.
+ * No product path to a dev/E2E shell exists any more (E6 MB-067, task-129).
+ *
+ * The old dev/E2E full-panel row reloaded the window into ?shell=window, a
+ * full-page layout that creates no desktop menu and had no product way back — a
+ * one-way trap hidden behind a debug flag. Both the menu/settings rows and the
+ * old debug-URL helper gate are removed. ?shell=window remains only as an
+ * internal dev-only URL for that legacy layout; nothing in the shipped UI
+ * navigates to it (locked by tests/desktop-shell-menu.test.ts).
  */
-export function debugShellFromSearch(search: string): boolean {
-  try {
-    const params = new URLSearchParams(search)
-    return params.get('debug') === '1' || params.get('dev') === '1'
-  } catch {
-    return false
-  }
-}
-
-/** Vite dev build (never true in the packaged release; guarded for Node). */
-export function isViteDevBuild(): boolean {
-  try {
-    return (import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV === true
-  } catch {
-    return false
-  }
-}
 
 /** Pure first-run resolver: missing/malformed storage keeps the locked 2x. */
 export function resolvePetScale(storage?: NumberStorage | null): number {
@@ -542,6 +531,19 @@ export interface DesktopShellOptions {
   readonly loadArchive?: () => void
   /** 复位窗口 to the bottom-right (main.ts existing Tauri handler). */
   readonly resetWindow?: () => void
+  /**
+   * E6 MB-066: the legacy pet.html aside.panel is hidden by the desktop shell, so
+   * PTT / ASR / voice-cache / 改名 used to have no shipped landing. These
+   * callbacks let 设置… reuse the SAME audited handlers main.ts always owned
+   * (TalkRecorder + separate ASR declaration, the Tauri cache command, the
+   * per-action full-TOS rename). Absent handlers keep the controls visible but
+   * inert on dev pages (never fake a recording/consent path).
+   */
+  readonly onTalkStart?: () => void
+  readonly onTalkStop?: () => void
+  readonly onAsrConsent?: () => void
+  readonly onClearVoiceCache?: () => void
+  readonly onRename?: () => void
   /**
    * True while a higher-level modal (the role & content center) is open. The
    * body-level shell menu must not open above/behind it (UX review P1-4).
@@ -1192,8 +1194,9 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
   }
   applyQuietHours(quietHours, false)
 
-  // Dev/E2E-only entry point (完整面板). Never rendered in the release menu.
-  const debugMode = debugShellFromSearch(winRef.location.search) || isViteDevBuild()
+  // E6 MB-067: there is no dev/E2E entry in the product at all. ?shell=window is
+  // an internal dev URL for the legacy full-page layout (it still works when a
+  // developer types it) but no shipped surface links to it.
 
   // The settings dialog is body-level like the menu/content center. It is
   // created below; these state holders are declared first so the menu and the
@@ -1447,11 +1450,8 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
         void requestDeleteAllLocalData().catch(() => {})
       })
       add('TTS 声明与语音确认…', () => click('tts-consent'))
-      // 完整面板 (dev/E2E) is NEVER in the release menu (task-65): it exists
-      // only for an explicit ?debug=1 / ?dev=1 URL or the Vite dev build.
-      if (debugMode) {
-        add('完整面板（开发/E2E）', () => { winRef.location.search = '?shell=window' })
-      }
+      // E6 MB-067: the old dev/E2E full-panel one-way entry is removed from BOTH
+      // the menu and 设置; no debug flag brings it back.
       // Same save-then-close path as the root entry: a nested bare
       // window.close() silently dropped unsaved state (MB-010 / UX P0-3).
       add('退出', requestExit, '', 'menu/U-MENU-10a_32x32.png')
@@ -1636,15 +1636,21 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
   //
   // One body-level modal, opened from 设置… or 更多… (and later from a tray/
   // settings window). Groups follow the UX/psychology reviews:
-  //  常用 (menu-button visibility, mute/volume, reduce motion, reset, save/load)
-  //  外观 (pet/text scale, role & content center)
+  //  常用 (menu-button visibility, reduce motion, reset window, save/load)
+  //  声音与语音 (mute/volume + the relocated PTT / ASR / voice-cache controls)
+  //  安静 / 健康 / AI 标识
+  //  缩放（独立轴）
+  //  内容与外观 (role & content center + 改名)
+  //  工具 / 模型 (setup.html model/API-key page)
   //  隐私 / Advisers (read-only brief, local-only note)
   //  关于 / 声明 / 数据控制 (TOS, TTS declaration, withdraw, delete-all)
-  //  高级/调试 (ONLY ?debug=1 or the Vite dev build; release never shows it).
+  //  高级 · 组件缩放 (per-component overrides; no debug-only rows any more).
   // Escape/Tab are trapped, the closed dialog stays inert, and every consent
   // overlay closes it through the listener above.
   // -------------------------------------------------------------------------
   let settingsDom: SettingsDom | null = null
+  /** Stop a held PTT when the dialog closes/blurs (set by buildSettingsModal). */
+  let stopHeldTalkHook: (() => void) | null = null
 
   const settingsAudio = (): { muted: boolean; volume: number } => {
     try {
@@ -1733,6 +1739,14 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
   /** Close the settings dialog and restore focus to the opener when possible. */
   function closeSettings(restoreFocus = true): void {
     if (!settingsOpen || !settingsDom) return
+    // MB-066 privacy: Escape/outside-click/consent-overlay must never leave the
+    // microphone recording behind a closed dialog (the same P0-1 cleanup the
+    // legacy #talk button always had).
+    try {
+      stopHeldTalkHook?.()
+    } catch {
+      /* recorder cleanup is best-effort; closing still proceeds */
+    }
     settingsOpen = false
     settingsDom.root.dataset.state = 'closed'
     settingsDom.root.setAttribute('aria-hidden', 'true')
@@ -1998,11 +2012,116 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
       globalScaleRow.wrap,
       resetScaleField,
       showMenu.wrap,
-      muteField.wrap,
-      volumeField,
       reduceField.wrap,
       resetWindowField,
       archiveField,
+    )
+
+    // --- 声音与语音 (E6 MB-066) ----------------------------------------
+    // These controls used to exist ONLY in pet.html's aside.panel, which the
+    // desktop shell hides — so 静音/音量/PTT/ASR/语音缓存 were unreachable in the
+    // product. mute/volume moved here from 常用; the PTT/ASR/cache landings call
+    // the SAME audited main.ts handlers (TalkRecorder + separate ASR declaration,
+    // Tauri cache command): no second recording/consent path is added here.
+    const voice = group('声音与语音')
+    const talkField = field('pet-settings-field pet-settings-actions')
+    const talkButton = makeElement(docRef, 'button', 'pet-settings-action pet-settings-talk', '按住说话（松开识别）')
+    talkButton.id = 'pet-settings-talk'
+    talkButton.type = 'button'
+    talkButton.title = '按住开始录音，松开结束识别；首次使用需单独确认 ASR 声明'
+    let holdingTalk = false
+    const stopHeldTalk = (): void => {
+      if (!holdingTalk) return
+      holdingTalk = false
+      try {
+        options.onTalkStop?.()
+      } catch {
+        /* the recorder owns its cleanup; never trap the held flag */
+      }
+    }
+    stopHeldTalkHook = stopHeldTalk
+    const beginHeldTalk = (): void => {
+      if (holdingTalk) return
+      if (consentBlocked()) {
+        settingsStatus('请先同意完整声明后再使用语音。')
+        return
+      }
+      if (!options.onTalkStart) {
+        settingsStatus('语音输入在当前页面不可用（没有录音宿主）。')
+        return
+      }
+      holdingTalk = true
+      settingsStatus('正在录音…松开按钮结束并识别。')
+      try {
+        options.onTalkStart()
+      } catch {
+        holdingTalk = false
+        settingsStatus('语音输入启动失败，稍后再试。')
+      }
+    }
+    talkButton.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return
+      event.preventDefault()
+      // Capture so a release outside the button/dialog still stops the mic; the
+      // dialog-level pointerup listener below is the safety net when a host
+      // WebView does not honour capture.
+      try {
+        talkButton.setPointerCapture?.(event.pointerId)
+      } catch {
+        /* capture is best-effort */
+      }
+      beginHeldTalk()
+    })
+    talkButton.addEventListener('pointerup', () => {
+      stopHeldTalk()
+      settingsStatus('已松开：正在识别/结束录音。')
+    })
+    talkButton.addEventListener('pointercancel', () => stopHeldTalk())
+    talkButton.addEventListener('lostpointercapture', () => stopHeldTalk())
+    // Keyboard equivalent for PTT: hold Space/Enter (WCAG 2.2 keyboard path).
+    talkButton.addEventListener('keydown', (event) => {
+      if (event.key !== ' ' && event.key !== 'Spacebar' && event.key !== 'Enter') return
+      if (event.repeat) return
+      event.preventDefault()
+      beginHeldTalk()
+    })
+    talkButton.addEventListener('keyup', (event) => {
+      if (event.key !== ' ' && event.key !== 'Spacebar' && event.key !== 'Enter') return
+      event.preventDefault()
+      stopHeldTalk()
+      settingsStatus('已松开：正在识别/结束录音。')
+    })
+    talkButton.addEventListener('blur', () => stopHeldTalk())
+    docRef.addEventListener('pointerup', () => stopHeldTalk())
+    talkField.append(
+      talkButton,
+      note('按住开始录音，松开结束。首次使用会先弹出 ASR 单独声明（TOS/TTS 同意不能替代）；拒绝则不录音、不上传。录音会上传 DeepSeek ASR 并产生费用。'),
+    )
+    const voiceToolsField = field('pet-settings-field pet-settings-actions')
+    voiceToolsField.append(
+      action('pet-settings-asr', 'ASR 语音识别声明与确认…', () => {
+        if (!options.onAsrConsent) {
+          settingsStatus('ASR 声明在当前页面不可用。')
+          return
+        }
+        closeSettings(false)
+        options.onAsrConsent()
+      }),
+      action('pet-settings-voice-cache', '清除语音缓存…', () => {
+        if (!options.onClearVoiceCache) {
+          settingsStatus('当前环境没有本地语音缓存。')
+          return
+        }
+        closeSettings(false)
+        options.onClearVoiceCache()
+      }),
+    )
+    voice.append(
+      muteField.wrap,
+      volumeField,
+      talkField,
+      voiceToolsField,
+      note('静音只关 TTS 播放，与 ASR 相互独立；字幕/气泡不受静音影响。清除语音缓存不会清除 TTS 用量计数。'),
     )
 
     // --- 安静 / 健康 / AI 标识 (E7: MB-070, MB-072, MB-076) -------------
@@ -2102,8 +2221,38 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
         closeSettings(false)
         openContentHub?.()
       }),
+      action('pet-settings-rename', '改名…', () => {
+        if (!options.onRename) {
+          settingsStatus('改名在当前页面不可用。')
+          return
+        }
+        // main.ts owns the per-action full-TOS gate + prompt; never mutate the
+        // name from the shell itself.
+        closeSettings(false)
+        options.onRename()
+      }),
     )
-    contentGroup.append(contentField, note('缩放只影响显示大小；换角色/内容仍在内容中心完成。'))
+    contentGroup.append(
+      contentField,
+      note('缩放只影响显示大小；换角色/内容仍在内容中心完成。改名属于角色设定修改，每次都会重新要求完整 TOS 同意。'),
+    )
+
+    // --- 工具 / 模型 ---------------------------------------------------
+    // MB-067: setup.html (model/API-Key tool page) is a normal product surface,
+    // not a debug-only row. It used to sit in the debug block with the removed
+    // dev/E2E full-panel entry.
+    const tools = group('工具 / 模型')
+    const toolsField = field('pet-settings-field pet-settings-actions')
+    toolsField.append(
+      action('pet-settings-setup', '模型 / API Key 设置…', () => {
+        closeSettings(false)
+        openSetup()
+      }),
+    )
+    tools.append(
+      toolsField,
+      note('模型/语音调用会产生费用，由你的 API 账户承担；未配置时只能用本地占位能力。'),
+    )
 
     // --- 隐私 / Advisers ---------------------------------------------
     const privacy = group('隐私 / Advisers')
@@ -2187,29 +2336,15 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
       componentSelects[component.id] = select
       componentValues[component.id] = valueEl
     }
-    if (debugMode) {
-      advanced.append(makeElement(docRef, 'p', 'pet-settings-note', '调试（仅 ?debug=1）'))
-      const advancedField = field('pet-settings-field pet-settings-actions')
-      advancedField.append(
-        action('pet-settings-full-panel', '完整面板（开发/E2E）', () => {
-          closeSettings(false)
-          winRef.location.search = '?shell=window'
-        }),
-        action('pet-settings-setup', '模型 / API Key 设置…', () => {
-          closeSettings(false)
-          openSetup()
-        }),
-      )
-      advanced.append(advancedField)
-    }
-
     const cardChildren: HTMLElement[] = [
       head,
       status,
       common,
+      voice,
       calm,
       independent,
       contentGroup,
+      tools,
       privacy,
       aboutGroup,
       advanced,

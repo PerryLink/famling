@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 3,
+  "id": "com.example.canonical-only",
+  "name": "Canonical Only",
+  "version": "1.0.0",
+  "source": "local",
+  "usageDeclaration": {
+    "researchOnly": true,
+    "prohibitedUses": [
+      "emotional-companionship",
+      "virtual-partner",
+      "professional-advice",
+      "minor-intimacy",
+      "impersonation",
+      "illegal-use"
+    ],
+    "statement": "本项目及其全部代码、美术、音频、文案、角色素材和衍生物仅用于技术研究与原型验证，不得用于情感陪伴、虚拟伴侣、心理治疗/医疗/法律/金融建议、未成年人亲密关系、冒充真人/官方，或任何违反法律法规/平台规则的用途。",
+    "statementRef": "docs/legal/USE-RESTRICTIONS-2026-11-19.md",
+    "statementSha256": "0353536cefd702014b12a8365c4a486f19848d049652e9692027216adb80c743"
+  },
+  "entries": [
+    {
+      "kind": "theme",
+      "id": "canonical",
+      "name": "Canonical",
+      "description": "Canonical declaration restated without licence / AI / compatibility",
+      "version": "1.0.0",
+      "source": "local",
+      "preview": {
+        "kind": "color",
+        "value": "#eef2ff"
+      },
+      "permissions": [
+        "apply:theme"
+      ],
+      "apply": {
+        "variables": {
+          "--dsh-famling-bubble-bg": "#eef2ff",
+          "--dsh-famling-bubble-text": "#1f2937"
+        }
+      }
+    }
+  ]
+}

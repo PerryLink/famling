@@ -1033,21 +1033,23 @@ $('pet').addEventListener('click', () => doPat())
 $('pat').addEventListener('click', () => doPat())
 $('give').addEventListener('click', doGive)
 $('fold').addEventListener('click', doFold)
-// Renaming changes the character setting -> per-action full TOS consent (never
-// exempted by the first-run acceptance) before the prompt mutates state.
-$('rename').addEventListener('click', () => void (async () => {
-  if (!canInteract()) return
-  const allowed = await requireContentConsent({
-    action: CONSENT_ACTIONS.characterSettingModify,
-    detail: '修改角色名字/设定属于内容修改；每次修改都必须重新阅读完整免责声明并同意。',
-  })
-  if (!allowed) return
-  const name = window.prompt('给它起个名字（最多 8 字）', state.name)
-  if (!name) return
-  state = renamePet(state, name, now())
-  sayLater(pick(lines.rename), 'happy')
-  render()
-})().catch((error) => reportFailure(uiBoundary, error)))
+/** 改名 (E6 MB-066): shared by the legacy aside button and 设置 → 改名…; the per-action full-TOS gate is never exempted by first-run acceptance. */
+function renameCharacter(): void {
+  void (async () => {
+    if (!canInteract()) return
+    const allowed = await requireContentConsent({
+      action: CONSENT_ACTIONS.characterSettingModify,
+      detail: '修改角色名字/设定属于内容修改；每次修改都必须重新阅读完整免责声明并同意。',
+    })
+    if (!allowed) return
+    const name = window.prompt('给它起个名字（最多 8 字）', state.name)
+    if (!name) return
+    state = renamePet(state, name, now())
+    sayLater(pick(lines.rename), 'happy')
+    render()
+  })().catch((error) => reportFailure(uiBoundary, error))
+}
+$('rename').addEventListener('click', () => renameCharacter())
 const talkRecorder = new TalkRecorder({
   // The TalkRecorder owns the anti-double-click guard and all cleanup paths, so
   // two quick pointerdowns can never create a second MediaRecorder/microphone.
@@ -1057,6 +1059,10 @@ const talkRecorder = new TalkRecorder({
   transcribe: (wav) => transcribeWav(wav),
   onState: (talkState: TalkState) => {
     $('talk').textContent = talkState === 'listening' ? '松开识别' : '按住说话'
+    // E6 MB-066: mirror the hold state on the NEW settings PTT button too, so the
+    // relocated control gives the same recording feedback as the legacy button.
+    const shellTalk = document.getElementById('pet-settings-talk')
+    if (shellTalk) shellTalk.textContent = talkState === 'listening' ? '松开识别' : '按住说话（松开识别）'
     if (talkState === 'listening') heroPage.setExpression('listening')
   },
   onBubble: showBubble,
@@ -1148,15 +1154,15 @@ async function beginTalkWithAsrConsent(): Promise<void> {
   void talkRecorder.start()
 }
 
+/** E6 MB-066 hold-to-talk seam shared by the legacy #talk button and 设置 → 按住说话. */
+const beginTalkHold = (): void => { talkPointerDown = true; startTalk() }
+/** Every release path stops the tracks/timer (TalkRecorder.stop is idempotent). */
+const endTalkHold = (): void => { talkPointerDown = false; void talkRecorder.stop() }
 $('talk').addEventListener('pointerdown', (event) => {
   event.preventDefault()
-  talkPointerDown = true
-  startTalk()
+  beginTalkHold()
 })
-// Every release path stops the tracks/timer and resets the button (P0-1).
-$('talk').addEventListener('pointerup', () => void talkRecorder.stop())
-$('talk').addEventListener('pointercancel', () => void talkRecorder.stop())
-$('talk').addEventListener('lostpointercapture', () => void talkRecorder.stop())
+;(['pointerup', 'pointercancel', 'lostpointercapture'] as const).forEach((type) => $('talk').addEventListener(type, () => endTalkHold()))
 // Track release while the first-run ASR dialog is open (the pointer leaves the
 // hold-to-talk button to read/confirm the declaration); see beginTalkWithAsrConsent.
 document.addEventListener('pointerup', () => {
@@ -2243,6 +2249,13 @@ function initializeApp(): void {
       ...settingsPage.shellOptions(),
       saveArchive: saveArchiveWithFeedback,
       loadArchive: loadArchiveWithFeedback,
+      // E6 MB-066: 设置… landings for the previously hidden aside.panel controls
+      // reuse these exact audited handlers (no duplicate recording/consent path).
+      onTalkStart: beginTalkHold,
+      onTalkStop: endTalkHold,
+      onAsrConsent: () => { void requestAsrConfirmation(currentAsrConfig()).catch((error) => reportFailure(voiceBoundary, error)) },
+      onClearVoiceCache: () => settingsPage.clearVoiceCache(),
+      onRename: renameCharacter,
       // The role & content center and the corrupt-archive recovery panel are
       // above the body-level shell menu (the recovery panel is blocking).
       isHigherModalOpen: () => contentRuntimeApi.isContentHubOpen() || settingsPage.isRecoveryPanelVisible(),

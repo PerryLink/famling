@@ -74,6 +74,15 @@
                duplicates) the line. -->
           <div id="bubble" class="bubble"><span id="bubble-text" role="status" aria-live="polite" aria-atomic="true">……</span><span id="bubble-ai" class="bubble-ai" role="note" hidden></span></div>
         </div>
+        <!-- Legacy in-page panel (dev-only surface + programmatic bridge).
+             IMPORTANT (E6 MB-066, task-129): the desktop shell hides this whole
+             aside with CSS (pet.css: html[data-pet-shell="desktop"] aside.panel),
+             so it is NOT a product control surface. main.ts and the desktop menu
+             still .click() these buttons as their internal seam, and every
+             user-facing control now has a shipped landing in 设置… (声音与语音:
+             mute/volume/PTT/ASR/clear-voice-cache; 内容与外观: rename;
+             常用: save/load/reset-window). Do not re-enable this panel in the
+             product; ?shell=window is an internal dev URL only. -->
         <aside class="panel">
           <div class="actions">
             <button id="pat">摸摸</button>

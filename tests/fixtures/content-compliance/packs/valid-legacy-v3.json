@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 3,
+  "id": "com.example.legacyv3",
+  "name": "Fixture valid-legacy-v3",
+  "version": "0.9.0",
+  "source": "local",
+  "usageDeclaration": {
+    "researchOnly": true,
+    "prohibitedUses": [
+      "emotional-companionship",
+      "virtual-partner",
+      "professional-advice",
+      "minor-intimacy",
+      "impersonation",
+      "illegal-use"
+    ]
+  },
+  "entries": [
+    {
+      "kind": "theme",
+      "id": "legacy",
+      "name": "Legacy",
+      "description": "Pre-0.10.9 theme entry without compliance metadata",
+      "version": "1.0.0",
+      "source": "local",
+      "preview": {
+        "kind": "color",
+        "value": "#ffffff"
+      },
+      "permissions": [
+        "apply:theme"
+      ],
+      "apply": {
+        "variables": {
+          "--dsh-famling-bubble-bg": "#ffffff",
+          "--dsh-famling-bubble-text": "#111111"
+        }
+      }
+    }
+  ]
+}

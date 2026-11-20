@@ -1,0 +1,21 @@
+{
+  "fixture": "dsh-famling.content-compliance/1",
+  "algorithm": "sha256",
+  "files": {
+    "canonical-declaration.json": "9d03386682829e7cedd5a174b063eab21def7e1e74f976fbe52c1adebf92ba42",
+    "cases.json": "cdb8a671eef28b413e246c8542b84d330716dfa5c9d542507f1097a945d2384b",
+    "packs/invalid-ai-provenance.json": "e5b6d6f2ed433b5bce9f836c06c780524c775a72e4aac311bdc539e2ca93ed0f",
+    "packs/invalid-compatibility-host.json": "e8c5cf0dd1f5a158c8d0f0dd1f4e1a5fd14f0ad8f417c2af8074e95741e1813a",
+    "packs/invalid-compatibility-range.json": "17a70f7ac02f0034885130f8df51c6b3e87154e8cab7de1f7ab321a0f4f43b8f",
+    "packs/invalid-license-spdx.json": "e03e21b0b9f02bf17e179d7b2f4f2b519741d3bf4c523e69dbfd0044bdc5ee0c",
+    "packs/invalid-license-url.json": "0fea0804a2b7856780591f7fa8ce5e28aadbccaf01cf61b63af60d174c41b945",
+    "packs/invalid-mutated-role-statement.json": "30f083595dac5b90d3d0d1cde1baea58696135cab1d1ec1ad3283cba2ac67bc7",
+    "packs/invalid-mutated-statement-ref.json": "6d7c23917c5951ca492851cdd1e5a86a434b11fd6b6f2f6a47085b7f87eef273",
+    "packs/invalid-mutated-statement-sha.json": "88ccdfabf37613ae672bd3206649b0c98f5064aa4a07bc56822bd3778a7e4e71",
+    "packs/invalid-mutated-statement.json": "971e1a5605ff23250f02c7343f12cafd9cac977def0c3028a7699815a8c6b8ba",
+    "packs/invalid-prohibited-uses.json": "8f8c7de0af33ae1e27b9acd9d58bb400e713bb12cfb91c5af13e07bcbdeaf690",
+    "packs/valid-canonical-only-v3.json": "d3221cef0515f01b95102c66b30c9cc376cc6d5c9ad61adb0f109e0e6358b5ab",
+    "packs/valid-full-v3.json": "32480e9a08dcacd8626a6527684d16844fd93054bc63bed9317173b4d33fa37b",
+    "packs/valid-legacy-v3.json": "d742347f5c0bf9f7a9e6691b3899d1681b4b922eaf84b65b799b8d6a71938a94"
+  }
+}

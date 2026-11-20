@@ -1,0 +1,44 @@
+{
+  "fixture": "dsh-famling.content-compliance/1",
+  "description": "Shared content-extension v3 compliance fixtures for famling and dsh-famling. Data only: no asset loading, no execution, no network.",
+  "contract": {
+    "extensionVersion": 3,
+    "packSchemaVersion": 3,
+    "policy": "additive-within-major",
+    "supportedPackSchemaVersions": [
+      3
+    ],
+    "strictRequires": [
+      "pack.license",
+      "pack.aiProvenance",
+      "pack.compatibility",
+      "pack.usageDeclaration.statement",
+      "pack.usageDeclaration.statementRef"
+    ]
+  },
+  "usageDeclaration": {
+    "researchOnly": true,
+    "statement": "本项目及其全部代码、美术、音频、文案、角色素材和衍生物仅用于技术研究与原型验证，不得用于情感陪伴、虚拟伴侣、心理治疗/医疗/法律/金融建议、未成年人亲密关系、冒充真人/官方，或任何违反法律法规/平台规则的用途。",
+    "statementRef": "docs/legal/USE-RESTRICTIONS-2026-11-19.md",
+    "statementSha256": "0353536cefd702014b12a8365c4a486f19848d049652e9692027216adb80c743",
+    "prohibitedUses": [
+      "emotional-companionship",
+      "virtual-partner",
+      "professional-advice",
+      "minor-intimacy",
+      "impersonation",
+      "illegal-use"
+    ]
+  },
+  "license": {
+    "spdx": "LicenseRef-PolyForm-Noncommercial-1.0.0",
+    "attribution": "Famling maintainers; placeholder art under LICENSE-ART (CC BY-NC-SA 4.0)"
+  },
+  "aiProvenance": {
+    "generated": false,
+    "disclosure": "内置占位像素帧由确定性脚本生成，未使用生成式 AI；最终美术替换后须更新本声明。",
+    "tools": [
+      "deterministic-python-renderer"
+    ]
+  }
+}

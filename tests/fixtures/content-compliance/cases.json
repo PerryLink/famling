@@ -1,0 +1,282 @@
+{
+  "fixture": "dsh-famling.content-compliance/1",
+  "description": "Conformance cases for the shared content-extension v3 compliance fixtures. Both ends (famling tests/fixtures/content-compliance and the dsh-famling plugin test/fixtures/content-compliance mirror) run this exact file.",
+  "contractVersion": 3,
+  "packSchemaVersion": 3,
+  "cases": [
+    {
+      "id": "valid-full-strict",
+      "description": "A fully compliant v3 pack passes strict mode against a host inside its compatibility range.",
+      "pack": "packs/valid-full-v3.json",
+      "options": {
+        "requireCompliance": true,
+        "pluginVersion": "0.10.9"
+      },
+      "expect": {
+        "ok": true,
+        "errorCount": 0,
+        "warningCount": 0,
+        "errorIncludes": [],
+        "warningIncludes": []
+      }
+    },
+    {
+      "id": "valid-full-loose",
+      "description": "The same pack passes loose mode with no compliance warnings.",
+      "pack": "packs/valid-full-v3.json",
+      "options": {},
+      "expect": {
+        "ok": true,
+        "errorCount": 0,
+        "warningCount": 0,
+        "errorIncludes": [],
+        "warningIncludes": []
+      }
+    },
+    {
+      "id": "valid-full-old-host",
+      "description": "A host below minPluginVersion is rejected at both the pack and the role-entry level.",
+      "pack": "packs/valid-full-v3.json",
+      "options": {
+        "pluginVersion": "0.9.9"
+      },
+      "expect": {
+        "ok": false,
+        "errorCount": 2,
+        "warningCount": 0,
+        "errorIncludes": [
+          "pack.compatibility: excludes the current plugin version 0.9.9",
+          "entries[0].compatibility: excludes the current plugin version 0.9.9"
+        ],
+        "warningIncludes": []
+      }
+    },
+    {
+      "id": "valid-legacy-loose",
+      "description": "A pre-0.10.9 v3 pack still validates; the four missing compliance fields are warnings only.",
+      "pack": "packs/valid-legacy-v3.json",
+      "options": {},
+      "expect": {
+        "ok": true,
+        "errorCount": 0,
+        "warningCount": 4,
+        "errorIncludes": [],
+        "warningIncludes": [
+          "pack.license: missing optional compliance metadata",
+          "pack.aiProvenance: missing optional compliance metadata",
+          "pack.compatibility: missing optional compliance metadata",
+          "pack.usageDeclaration.statement: canonical statement/ref not restated"
+        ]
+      }
+    },
+    {
+      "id": "valid-legacy-strict",
+      "description": "Strict mode fails closed for the pre-0.10.9 pack: licence, AI provenance, compatibility and the canonical statement/ref are required.",
+      "pack": "packs/valid-legacy-v3.json",
+      "options": {
+        "requireCompliance": true
+      },
+      "expect": {
+        "ok": false,
+        "errorCount": 5,
+        "warningCount": 0,
+        "errorIncludes": [
+          "pack.usageDeclaration.statement: required when options.requireCompliance is true",
+          "pack.usageDeclaration.statementRef: required when options.requireCompliance is true",
+          "pack.license: required when options.requireCompliance is true",
+          "pack.aiProvenance: required when options.requireCompliance is true",
+          "pack.compatibility: required when options.requireCompliance is true"
+        ],
+        "warningIncludes": []
+      }
+    },
+    {
+      "id": "valid-canonical-only-loose",
+      "description": "A pack may restate the canonical declaration without the other compliance metadata; only three warnings remain.",
+      "pack": "packs/valid-canonical-only-v3.json",
+      "options": {},
+      "expect": {
+        "ok": true,
+        "errorCount": 0,
+        "warningCount": 3,
+        "errorIncludes": [],
+        "warningIncludes": [
+          "pack.license: missing optional compliance metadata",
+          "pack.aiProvenance: missing optional compliance metadata",
+          "pack.compatibility: missing optional compliance metadata"
+        ]
+      }
+    },
+    {
+      "id": "valid-canonical-only-strict",
+      "description": "Strict mode requires all three missing compliance fields even when the canonical declaration is restated.",
+      "pack": "packs/valid-canonical-only-v3.json",
+      "options": {
+        "requireCompliance": true
+      },
+      "expect": {
+        "ok": false,
+        "errorCount": 3,
+        "warningCount": 0,
+        "errorIncludes": [
+          "pack.license: required when options.requireCompliance is true",
+          "pack.aiProvenance: required when options.requireCompliance is true",
+          "pack.compatibility: required when options.requireCompliance is true"
+        ],
+        "warningIncludes": []
+      }
+    },
+    {
+      "id": "invalid-mutated-statement",
+      "description": "A non-canonical pack-level statement is rejected fail-closed.",
+      "pack": "packs/invalid-mutated-statement.json",
+      "options": {},
+      "expect": {
+        "ok": false,
+        "errorCount": 1,
+        "warningCount": 0,
+        "errorIncludes": [
+          "pack.usageDeclaration.statement: must equal the canonical shared research-only statement"
+        ],
+        "warningIncludes": []
+      }
+    },
+    {
+      "id": "invalid-mutated-statement-ref",
+      "description": "A non-canonical statementRef is rejected fail-closed.",
+      "pack": "packs/invalid-mutated-statement-ref.json",
+      "options": {},
+      "expect": {
+        "ok": false,
+        "errorCount": 1,
+        "warningCount": 0,
+        "errorIncludes": [
+          "pack.usageDeclaration.statementRef: must equal docs/legal/USE-RESTRICTIONS-2026-11-19.md"
+        ],
+        "warningIncludes": []
+      }
+    },
+    {
+      "id": "invalid-mutated-statement-sha",
+      "description": "A non-canonical statement SHA-256 is rejected fail-closed.",
+      "pack": "packs/invalid-mutated-statement-sha.json",
+      "options": {},
+      "expect": {
+        "ok": false,
+        "errorCount": 1,
+        "warningCount": 0,
+        "errorIncludes": [
+          "pack.usageDeclaration.statementSha256: must equal the canonical statement SHA-256"
+        ],
+        "warningIncludes": []
+      }
+    },
+    {
+      "id": "invalid-mutated-role-statement",
+      "description": "A per-role canonical restatement is validated too; a mutated one points at entries[0].",
+      "pack": "packs/invalid-mutated-role-statement.json",
+      "options": {},
+      "expect": {
+        "ok": false,
+        "errorCount": 1,
+        "warningCount": 0,
+        "errorIncludes": [
+          "entries[0].usageDeclaration.statement: must equal the canonical shared research-only statement"
+        ],
+        "warningIncludes": []
+      }
+    },
+    {
+      "id": "invalid-prohibited-uses",
+      "description": "The mandatory six prohibited-use tokens are checked at the pack declaration.",
+      "pack": "packs/invalid-prohibited-uses.json",
+      "options": {},
+      "expect": {
+        "ok": false,
+        "errorCount": 1,
+        "warningCount": 0,
+        "errorIncludes": [
+          "pack.usageDeclaration.prohibitedUses: must list all 6 prohibited uses exactly once"
+        ],
+        "warningIncludes": []
+      }
+    },
+    {
+      "id": "invalid-license-spdx",
+      "description": "A malformed SPDX-style licence id is rejected.",
+      "pack": "packs/invalid-license-spdx.json",
+      "options": {},
+      "expect": {
+        "ok": false,
+        "errorCount": 1,
+        "warningCount": 0,
+        "errorIncludes": [
+          "pack.license.spdx: SPDX-style licence id"
+        ],
+        "warningIncludes": []
+      }
+    },
+    {
+      "id": "invalid-license-url",
+      "description": "A licence URL with embedded credentials is rejected (https only, metadata only).",
+      "pack": "packs/invalid-license-url.json",
+      "options": {},
+      "expect": {
+        "ok": false,
+        "errorCount": 1,
+        "warningCount": 0,
+        "errorIncludes": [
+          "pack.license.url: absolute https URL, metadata only (never fetched)"
+        ],
+        "warningIncludes": []
+      }
+    },
+    {
+      "id": "invalid-ai-provenance",
+      "description": "AI-generated content without a real disclosure is rejected.",
+      "pack": "packs/invalid-ai-provenance.json",
+      "options": {},
+      "expect": {
+        "ok": false,
+        "errorCount": 1,
+        "warningCount": 0,
+        "errorIncludes": [
+          "pack.aiProvenance.disclosure: AI-generated content needs a real disclosure"
+        ],
+        "warningIncludes": []
+      }
+    },
+    {
+      "id": "invalid-compatibility-range",
+      "description": "An inverted plugin-version range is rejected structurally.",
+      "pack": "packs/invalid-compatibility-range.json",
+      "options": {},
+      "expect": {
+        "ok": false,
+        "errorCount": 1,
+        "warningCount": 0,
+        "errorIncludes": [
+          "pack.compatibility: minPluginVersion must be <= maxPluginVersion"
+        ],
+        "warningIncludes": []
+      }
+    },
+    {
+      "id": "invalid-compatibility-host",
+      "description": "A structurally valid range that excludes the concrete host version is rejected when pluginVersion is supplied.",
+      "pack": "packs/invalid-compatibility-host.json",
+      "options": {
+        "pluginVersion": "0.10.9"
+      },
+      "expect": {
+        "ok": false,
+        "errorCount": 1,
+        "warningCount": 0,
+        "errorIncludes": [
+          "pack.compatibility: excludes the current plugin version 0.10.9"
+        ],
+        "warningIncludes": []
+      }
+    }
+  ]
+}
