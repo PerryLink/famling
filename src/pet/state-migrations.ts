@@ -170,6 +170,8 @@ export const FAMLING_STORAGE_KEYS: readonly FamlingStorageKeySpec[] = Object.fre
   Object.freeze({ key: 'desktop-games/pet/ambient-cadence', owner: 'preferences', encoding: 'identifier', version: 0, note: 'Idle-rhythm level lively|normal|quiet (low-disturb.ts, C1 2026-11-21; applied to the live hero scene).' }),
   Object.freeze({ key: 'desktop-games/pet/work-session', owner: 'window', encoding: 'json', version: 0, note: 'Session-scoped 一起工作 focus session { minutes, startedAtMs, endsAtMs } in sessionStorage only (survives a page reload, not an app restart); no history is ever recorded.' }),
   Object.freeze({ key: 'desktop-games/pet/health-reminder', owner: 'health', encoding: 'json', version: 0, note: 'Cross-window 2h health-reminder state.' }),
+  Object.freeze({ key: 'desktop-games/pet/usage-summary/v1', owner: 'state', encoding: 'versioned', version: 1, note: 'Local usage summary counters/ring buffers (usage-summary.ts); manual export only, no content text, no network.' }),
+  Object.freeze({ key: 'desktop-games/pet/cohabitation/v1', owner: 'save', encoding: 'versioned', version: 1, note: 'Cohabitation day set (days with >=10 min interaction) + today accumulator (cohabitation.ts); no streak/backfill/reminder.' }),
   // -- hero renderer ------------------------------------------------------
   Object.freeze({ key: 'desktop-games/pet/hero', owner: 'hero', encoding: 'flag', version: 0, note: 'Hero renderer opt-in flag.' }),
   Object.freeze({ key: 'desktop-games/pet/heroCharacter', owner: 'hero', encoding: 'identifier', version: 0, note: 'Persisted hero character id (validated by hero-runtime).' }),
@@ -767,7 +769,7 @@ export function classifyFamlingStorageKey(key: string): FamlingClearItemId {
   if (key === 'desktop-games/consent/age-verification-v1') return 'age-verification'
   if (key === 'desktop-games/consent/safety-audit-v1' || key === 'desktop-games/consent/safety-audit-salt-v1') return 'safety-audit'
   if (key.startsWith('desktop-games/pet/chat-import')) return 'chat-digest'
-  if (key === 'desktop-games/pet/pet' || key === 'desktop-games/pet/pet.bak') return 'save'
+  if (key === 'desktop-games/pet/pet' || key === 'desktop-games/pet/pet.bak' || key === 'desktop-games/pet/cohabitation/v1') return 'save'
   if (key === 'desktop-games/pet/window') return 'window-position'
   if (
     key === 'desktop-games/pet/volume' ||
@@ -776,7 +778,8 @@ export function classifyFamlingStorageKey(key: string): FamlingClearItemId {
     key === 'desktop-games/pet/scale' ||
     key === 'desktop-games/pet/text-scale' ||
     key === 'desktop-games/pet/setup-ack-v1' ||
-    key === 'desktop-games/pet/advisers-mode'
+    key === 'desktop-games/pet/advisers-mode' ||
+    key === 'desktop-games/pet/usage-summary/v1'
   ) {
     return 'preferences'
   }

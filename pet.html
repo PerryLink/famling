@@ -186,8 +186,11 @@
         <p class="title-kicker">MEMORY</p>
         <h1>折页簿</h1>
         <p class="title-sub">只记你说过的事；可以改，也可以忘。</p>
+        <!-- P1 round 1 共处日历: dates with >=10 min real interaction, local only.
+             No streak/backfill/reminder; the line is filled by settings-page.ts. -->
+        <p id="cohabitation-note" class="note" role="status">共处日历：本月 0 天 · 累计第 0 天</p>
         <div id="memory-list" class="memory-list"></div>
-        <div class="title-actions"><button id="save-export">备份存档</button><button id="save-import">导入存档</button><button id="save-delete">删除存档</button><button id="memory-export">导出折页</button><button id="memory-forget-all">忘掉全部</button><button id="memory-close">合上</button>
+        <div class="title-actions"><button id="save-export">备份存档</button><button id="save-import">导入存档</button><button id="save-delete">删除存档</button><button id="memory-export">导出折页</button><button id="memory-forget-all">忘掉全部</button><button id="cohabitation-clear" title="只删除本机共处日期；不影响存档、记忆与羁绊">清除共处记录</button><button id="memory-close">合上</button>
         <input id="save-import-file" type="file" accept=".json,.pagefold" hidden /></div>
       </div>
     </div>

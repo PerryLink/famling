@@ -79,6 +79,25 @@ import {
   type StorageLike,
   type StorageWriteStatus,
 } from './security/safe-storage.ts'
+import {
+  CALENDAR_CHANNELS,
+  CALENDAR_CHARACTER_IDS,
+  CALENDAR_LIMITS,
+  CALENDAR_OCCASIONS,
+  CALENDAR_OCCASION_KINDS,
+  CALENDAR_SCHEMA,
+  isValidCalendarDateParts,
+  pickCalendarLine,
+  type CalendarCharacterLines,
+  type CalendarChannelLines,
+  type CalendarDayKindOccasion,
+  type CalendarEvents,
+  type CalendarFestivalOccasion,
+  type CalendarLine,
+  type CalendarLineQuery,
+  type CalendarOccasion,
+  type CalendarSeasonOccasion,
+} from './calendar-events.ts'
 
 // ---------------------------------------------------------------------------
 // Schema + categories
@@ -351,6 +370,12 @@ export interface ContentLibrary {
   readonly themes: readonly ContentThemeEntry[]
   readonly backgrounds: readonly ContentBackgroundEntry[]
   readonly fonts: readonly ContentFontEntry[]
+  /**
+   * Optional additive calendar pack (season / neutral public festival /
+   * weekday-weekend lines). Absent on deprecated v1 documents and on catalogs
+   * authored before famling.calendar/0.1, so old callers keep working.
+   */
+  readonly calendarEvents?: CalendarEvents
   /** True when this normalized view was produced from a deprecated v1 document. */
   readonly legacy?: boolean
 }
@@ -1888,6 +1913,350 @@ function parseEntryArray(
 }
 
 // ---------------------------------------------------------------------------
+// Optional calendar events block (additive; famling.calendar/0.1)
+// ---------------------------------------------------------------------------
+
+const CALENDAR_OCCASION_KIND_BY_ID: ReadonlyMap<string, string> = new Map(
+  CALENDAR_OCCASIONS.map((occasion) => [occasion.id, occasion.kind] as const),
+)
+
+/** Parse the optional top-level `calendarEvents` block (absent keeps old catalogs valid). */
+function parseCalendarEvents(raw: unknown, path: string, issues: ContentIssue[]): CalendarEvents | undefined {
+  if (!isRecord(raw)) {
+    addIssue(issues, path, 'invalid-type', 'calendarEvents must be an object')
+    return undefined
+  }
+  checkUnknownKeys(raw, ['schema', 'version', 'updatedAt', 'occasions', 'characters'], path, issues)
+  const schema = readStringField(raw, 'schema', path + '.schema', issues)
+  if (schema !== undefined && schema !== CALENDAR_SCHEMA) {
+    addIssue(issues, path + '.schema', 'invalid-schema', 'expected ' + CALENDAR_SCHEMA)
+  }
+  const version = readStringField(raw, 'version', path + '.version', issues)
+  if (version !== undefined && !SEMVER_PATTERN.test(version)) {
+    addIssue(issues, path + '.version', 'invalid-version', 'version must be SemVer')
+  }
+  const updatedAt = readStringField(raw, 'updatedAt', path + '.updatedAt', issues)
+  if (updatedAt !== undefined && !DATE_PATTERN.test(updatedAt)) {
+    addIssue(issues, path + '.updatedAt', 'invalid-text', 'updatedAt must be YYYY-MM-DD')
+  }
+  const occasions = parseCalendarOccasions(raw.occasions, path + '.occasions', issues)
+  const characters = parseCalendarCharacters(raw.characters, path + '.characters', issues)
+  if (schema !== CALENDAR_SCHEMA || version === undefined || updatedAt === undefined || occasions === undefined || characters === undefined) {
+    return undefined
+  }
+  return { schema: CALENDAR_SCHEMA, version, updatedAt, occasions, characters }
+}
+
+function parseCalendarOccasions(raw: unknown, path: string, issues: ContentIssue[]): CalendarOccasion[] | undefined {
+  if (!Array.isArray(raw)) {
+    addIssue(issues, path, 'invalid-type', 'occasions must be an array')
+    return undefined
+  }
+  const start = issues.length
+  if (raw.length !== CALENDAR_OCCASIONS.length) {
+    addIssue(issues, path, 'out-of-range', 'expected exactly ' + CALENDAR_OCCASIONS.length + ' canonical calendar occasions')
+  }
+  const seen = new Set<string>()
+  const parsed: CalendarOccasion[] = []
+  for (let index = 0; index < raw.length; index += 1) {
+    const occasion = parseCalendarOccasion(raw[index], path + '[' + index + ']', issues, seen)
+    if (occasion !== undefined) parsed.push(occasion)
+  }
+  for (const definition of CALENDAR_OCCASIONS) {
+    if (!seen.has(definition.id)) addIssue(issues, path, 'missing-field', 'missing calendar occasion: ' + definition.id)
+  }
+  if (issues.length === start) {
+    // Cross-occasion coverage: the four seasons split the 12 months and the
+    // day kinds split the 7 weekdays, so every local date resolves deterministically.
+    const months = new Set<number>()
+    const weekdays = new Set<number>()
+    for (const occasion of parsed) {
+      if (occasion.kind === 'season') {
+        for (const month of occasion.months) {
+          if (months.has(month)) addIssue(issues, path, 'duplicate-id', 'month covered by two seasons: ' + month)
+          months.add(month)
+        }
+      } else if (occasion.kind === 'day-kind') {
+        for (const weekday of occasion.weekdays) {
+          if (weekdays.has(weekday)) addIssue(issues, path, 'duplicate-id', 'weekday covered by two day kinds: ' + weekday)
+          weekdays.add(weekday)
+        }
+      }
+    }
+    if (months.size !== 12) addIssue(issues, path, 'invalid-type', 'seasons must cover all 12 months')
+    if (weekdays.size !== 7) addIssue(issues, path, 'invalid-type', 'day kinds must cover all 7 weekdays')
+  }
+  return issues.length === start ? parsed : undefined
+}
+
+function parseCalendarOccasion(
+  raw: unknown,
+  path: string,
+  issues: ContentIssue[],
+  seen: Set<string>,
+): CalendarOccasion | undefined {
+  if (!isRecord(raw)) {
+    addIssue(issues, path, 'invalid-type', 'occasion must be an object')
+    return undefined
+  }
+  const start = issues.length
+  const id = readStringField(raw, 'id', path + '.id', issues)
+  let definitionKind: string | undefined
+  if (id !== undefined) {
+    definitionKind = CALENDAR_OCCASION_KIND_BY_ID.get(id)
+    if (definitionKind === undefined) {
+      addIssue(issues, path + '.id', 'unknown-reference', 'unknown calendar occasion id: ' + id.slice(0, 32))
+    } else if (seen.has(id)) {
+      addIssue(issues, path + '.id', 'duplicate-id', 'duplicate occasion id: ' + id)
+    }
+  }
+  const kind = readEnumField(raw, 'kind', path + '.kind', issues, CALENDAR_OCCASION_KINDS)
+  if (definitionKind !== undefined && kind !== undefined && kind !== definitionKind) {
+    addIssue(issues, path + '.kind', 'incompatible', 'occasion kind must be ' + definitionKind)
+  }
+  const name = readPlainText(raw, 'name', path + '.name', issues, { maxChars: CALENDAR_LIMITS.maxOccasionNameChars })
+  let parsed: CalendarOccasion | undefined
+  if (kind === 'festival') {
+    checkUnknownKeys(raw, ['id', 'name', 'kind', 'dates'], path, issues)
+    const dates = parseCalendarFestivalDates(raw.dates, path + '.dates', issues)
+    if (id !== undefined && name !== undefined && dates !== undefined) {
+      parsed = { id, name, kind: 'festival', dates } as CalendarFestivalOccasion
+    }
+  } else if (kind === 'season') {
+    checkUnknownKeys(raw, ['id', 'name', 'kind', 'months'], path, issues)
+    const months = parseCalendarMonthList(raw.months, path + '.months', issues)
+    if (id !== undefined && name !== undefined && months !== undefined) {
+      parsed = { id, name, kind: 'season', months } as CalendarSeasonOccasion
+    }
+  } else if (kind === 'day-kind') {
+    checkUnknownKeys(raw, ['id', 'name', 'kind', 'weekdays'], path, issues)
+    const weekdays = parseCalendarWeekdayList(raw.weekdays, path + '.weekdays', issues)
+    if (id !== undefined && name !== undefined && weekdays !== undefined) {
+      parsed = { id, name, kind: 'day-kind', weekdays } as CalendarDayKindOccasion
+    }
+  }
+  if (issues.length !== start || parsed === undefined || id === undefined) return undefined
+  seen.add(id)
+  return parsed
+}
+
+function parseCalendarFestivalDates(raw: unknown, path: string, issues: ContentIssue[]): string[] | undefined {
+  if (!Array.isArray(raw)) {
+    addIssue(issues, path, 'invalid-type', 'dates must be an array')
+    return undefined
+  }
+  const start = issues.length
+  if (raw.length < 1 || raw.length > CALENDAR_LIMITS.maxFestivalDates) {
+    addIssue(issues, path, 'out-of-range', 'expected 1..' + CALENDAR_LIMITS.maxFestivalDates + ' dates')
+  }
+  const dates: string[] = []
+  const seen = new Set<string>()
+  for (let index = 0; index < raw.length; index += 1) {
+    const token = raw[index]
+    const itemPath = path + '[' + index + ']'
+    if (typeof token !== 'string') {
+      addIssue(issues, itemPath, 'invalid-type', 'expected a MM-DD or YYYY-MM-DD string')
+      continue
+    }
+    if (!isCalendarDateToken(token)) {
+      addIssue(issues, itemPath, 'invalid-text', 'invalid calendar date: ' + token.slice(0, 16))
+      continue
+    }
+    if (seen.has(token)) {
+      addIssue(issues, itemPath, 'duplicate-id', 'duplicate calendar date')
+      continue
+    }
+    seen.add(token)
+    dates.push(token)
+  }
+  return issues.length === start ? dates : undefined
+}
+
+/** 'MM-DD' (any year) or 'YYYY-MM-DD' (one year); both must be real dates. */
+function isCalendarDateToken(token: string): boolean {
+  const monthDay = /^([0-9]{2})-([0-9]{2})$/.exec(token)
+  if (monthDay !== null) {
+    return isValidCalendarDateParts({ year: 2000, month: Number(monthDay[1] ?? ''), day: Number(monthDay[2] ?? '') })
+  }
+  const full = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(token)
+  if (full === null) return false
+  return isValidCalendarDateParts({ year: Number(full[1] ?? ''), month: Number(full[2] ?? ''), day: Number(full[3] ?? '') })
+}
+
+function parseCalendarMonthList(raw: unknown, path: string, issues: ContentIssue[]): number[] | undefined {
+  return parseCalendarIntList(raw, path, issues, 1, 12, 'month')
+}
+
+function parseCalendarWeekdayList(raw: unknown, path: string, issues: ContentIssue[]): number[] | undefined {
+  return parseCalendarIntList(raw, path, issues, 0, 6, 'weekday')
+}
+
+function parseCalendarIntList(
+  raw: unknown,
+  path: string,
+  issues: ContentIssue[],
+  min: number,
+  max: number,
+  label: string,
+): number[] | undefined {
+  if (!Array.isArray(raw)) {
+    addIssue(issues, path, 'invalid-type', 'expected an array of integers')
+    return undefined
+  }
+  const start = issues.length
+  if (raw.length < 1 || raw.length > max - min + 1) {
+    addIssue(issues, path, 'out-of-range', 'expected 1..' + (max - min + 1) + ' ' + label + ' values')
+  }
+  const values: number[] = []
+  const seen = new Set<number>()
+  for (let index = 0; index < raw.length; index += 1) {
+    const value = raw[index]
+    const itemPath = path + '[' + index + ']'
+    if (typeof value !== 'number' || !Number.isInteger(value) || value < min || value > max) {
+      addIssue(issues, itemPath, 'out-of-range', label + ' must be an integer ' + min + '..' + max)
+      continue
+    }
+    if (seen.has(value)) {
+      addIssue(issues, itemPath, 'duplicate-id', 'duplicate ' + label)
+      continue
+    }
+    seen.add(value)
+    values.push(value)
+  }
+  return issues.length === start ? values : undefined
+}
+
+function parseCalendarCharacters(raw: unknown, path: string, issues: ContentIssue[]): CalendarCharacterLines[] | undefined {
+  if (!Array.isArray(raw)) {
+    addIssue(issues, path, 'invalid-type', 'characters must be an array')
+    return undefined
+  }
+  const start = issues.length
+  if (raw.length !== CALENDAR_CHARACTER_IDS.length) {
+    addIssue(issues, path, 'out-of-range', 'expected exactly ' + CALENDAR_CHARACTER_IDS.length + ' built-in calendar characters')
+  }
+  const seen = new Set<string>()
+  const characters: CalendarCharacterLines[] = []
+  for (let index = 0; index < raw.length; index += 1) {
+    const character = parseCalendarCharacter(raw[index], path + '[' + index + ']', issues)
+    if (character === undefined) continue
+    if (seen.has(character.id)) {
+      addIssue(issues, path + '[' + index + '].id', 'duplicate-id', 'duplicate calendar character: ' + character.id)
+      continue
+    }
+    seen.add(character.id)
+    characters.push(character)
+  }
+  for (const id of CALENDAR_CHARACTER_IDS) {
+    if (!seen.has(id)) addIssue(issues, path, 'missing-field', 'missing calendar character: ' + id)
+  }
+  return issues.length === start ? characters : undefined
+}
+
+function parseCalendarCharacter(raw: unknown, path: string, issues: ContentIssue[]): CalendarCharacterLines | undefined {
+  if (!isRecord(raw)) {
+    addIssue(issues, path, 'invalid-type', 'calendar character must be an object')
+    return undefined
+  }
+  const start = issues.length
+  checkUnknownKeys(raw, ['id', 'name', 'source', 'available', 'lines'], path, issues)
+  const id = readStringField(raw, 'id', path + '.id', issues)
+  if (id !== undefined && !(CALENDAR_CHARACTER_IDS as readonly string[]).includes(id)) {
+    addIssue(issues, path + '.id', 'unknown-reference', 'unknown calendar character id: ' + id.slice(0, 32))
+  }
+  const name = readPlainText(raw, 'name', path + '.name', issues, { maxChars: CALENDAR_LIMITS.maxCharacterNameChars })
+  const source = readStringField(raw, 'source', path + '.source', issues)
+  if (source !== undefined && source !== 'builtin') {
+    addIssue(issues, path + '.source', 'invalid-type', 'calendar character packs are built-in only')
+  }
+  const available = readBooleanField(raw, 'available', path + '.available', issues)
+  const lines = parseCalendarLineMap(raw.lines, path + '.lines', issues)
+  if (issues.length !== start || id === undefined || name === undefined || available === undefined || lines === undefined) {
+    return undefined
+  }
+  return { id, name, source: 'builtin', available, lines }
+}
+
+function parseCalendarLineMap(
+  raw: unknown,
+  path: string,
+  issues: ContentIssue[],
+): Readonly<Record<string, CalendarChannelLines>> | undefined {
+  if (!isRecord(raw)) {
+    addIssue(issues, path, 'invalid-type', 'lines must be an object keyed by occasion id')
+    return undefined
+  }
+  const start = issues.length
+  const canonical = new Set(CALENDAR_OCCASIONS.map((occasion) => occasion.id))
+  for (const key of Object.keys(raw)) {
+    if (!canonical.has(key)) {
+      addIssue(issues, path + '.' + key, 'unknown-field', 'unknown calendar occasion: ' + key.slice(0, 32))
+    }
+  }
+  const lines: Record<string, CalendarChannelLines> = {}
+  for (const definition of CALENDAR_OCCASIONS) {
+    const entryPath = path + '.' + definition.id
+    const value = raw[definition.id]
+    if (value === undefined) {
+      addIssue(issues, entryPath, 'missing-field', 'missing lines for occasion: ' + definition.id)
+      continue
+    }
+    const channelLines = parseCalendarChannelLines(value, entryPath, issues)
+    if (channelLines !== undefined) lines[definition.id] = channelLines
+  }
+  return issues.length === start ? lines : undefined
+}
+
+function parseCalendarChannelLines(raw: unknown, path: string, issues: ContentIssue[]): CalendarChannelLines | undefined {
+  if (!isRecord(raw)) {
+    addIssue(issues, path, 'invalid-type', 'occasion lines must be an object')
+    return undefined
+  }
+  const start = issues.length
+  checkUnknownKeys(raw, CALENDAR_CHANNELS, path, issues)
+  const ambient = raw.ambient === undefined ? undefined : parseCalendarTextList(raw.ambient, path + '.ambient', issues)
+  const interactive = raw.interactive === undefined ? undefined : parseCalendarTextList(raw.interactive, path + '.interactive', issues)
+  if (raw.ambient === undefined && raw.interactive === undefined) {
+    addIssue(issues, path, 'missing-field', 'expected at least one of: ' + CALENDAR_CHANNELS.join(', '))
+  }
+  if (issues.length !== start) return undefined
+  const out: { -readonly [K in keyof CalendarChannelLines]: CalendarChannelLines[K] } = {}
+  if (ambient !== undefined) out.ambient = ambient
+  if (interactive !== undefined) out.interactive = interactive
+  return out
+}
+
+function parseCalendarTextList(raw: unknown, path: string, issues: ContentIssue[]): string[] | undefined {
+  if (!Array.isArray(raw)) {
+    addIssue(issues, path, 'invalid-type', 'expected an array of lines')
+    return undefined
+  }
+  const start = issues.length
+  if (raw.length < 1 || raw.length > CALENDAR_LIMITS.maxLinesPerChannel) {
+    addIssue(issues, path, 'out-of-range', 'expected 1..' + CALENDAR_LIMITS.maxLinesPerChannel + ' lines')
+  }
+  const lines: string[] = []
+  const seen = new Set<string>()
+  for (let index = 0; index < raw.length; index += 1) {
+    const value = raw[index]
+    const itemPath = path + '[' + index + ']'
+    if (typeof value !== 'string') {
+      addIssue(issues, itemPath, 'invalid-type', 'expected a string line')
+      continue
+    }
+    const text = validatePlainText(value, itemPath, issues, CALENDAR_LIMITS.maxLineChars)
+    if (text === undefined) continue
+    if (seen.has(text)) {
+      addIssue(issues, itemPath, 'duplicate-id', 'duplicate calendar line')
+      continue
+    }
+    seen.add(text)
+    lines.push(text)
+  }
+  return issues.length === start ? lines : undefined
+}
+
+// ---------------------------------------------------------------------------
 // Library parser
 // ---------------------------------------------------------------------------
 
@@ -1966,6 +2335,7 @@ export function parseContentLibrary(input: unknown): ContentLibrary {
       'defaultRoleTheme',
       'rolePresets',
       'characterThemes',
+      'calendarEvents',
       'legacy',
       ...CONTENT_CATEGORIES,
     ],
@@ -2019,6 +2389,12 @@ export function parseContentLibrary(input: unknown): ContentLibrary {
     previewMode: 'either',
     max: CONTENT_PACK_V2_LIMITS.maxRoleThemesPerPack * 8,
   })
+  // Additive optional block: absent on v1 documents and on catalogs authored
+  // before famling.calendar/0.1, so older callers keep parsing byte-identically.
+  let calendarEvents: CalendarEvents | undefined
+  if (input.calendarEvents !== undefined) {
+    calendarEvents = parseCalendarEvents(input.calendarEvents, '$.calendarEvents', issues)
+  }
   checkRoleThemeDuplicates(rolePresets, characterThemes, issues)
   let defaultRoleTheme: string | undefined
   if (input.defaultRoleTheme !== undefined) {
@@ -2054,6 +2430,7 @@ export function parseContentLibrary(input: unknown): ContentLibrary {
     themes: categories.themes as ContentThemeEntry[],
     backgrounds: categories.backgrounds as ContentBackgroundEntry[],
     fonts: categories.fonts as ContentFontEntry[],
+    ...(calendarEvents !== undefined ? { calendarEvents } : {}),
   }
   if (defaultRoleTheme !== undefined) (library as { -readonly [K in keyof ContentLibrary]: ContentLibrary[K] }).defaultRoleTheme = defaultRoleTheme
   if (legacy) (library as { -readonly [K in keyof ContentLibrary]: ContentLibrary[K] }).legacy = true
@@ -2853,6 +3230,28 @@ export function resolveDialogueBehavior(library: ContentLibrary, selection?: Par
       return clampText(line)
     },
   })
+}
+
+// ---------------------------------------------------------------------------
+// Calendar overlay (season / neutral festival / weekday-weekend lines)
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve the one optional calendar line that may be overlaid on the active
+ * dialogue mode. Pure: the caller injects the local clock/date and the catalog
+ * validates the data (`calendarEvents`).
+ *
+ * Returns null for catalogs without `calendarEvents` (the pre-0.1 documented
+ * shape), unknown character ids, quiet+ambient requests, invalid dates and
+ * every other degraded path; it never falls back to network, storage or
+ * randomness.
+ */
+export function resolveCalendarLine(
+  library: ContentLibrary | null | undefined,
+  query: CalendarLineQuery,
+): CalendarLine | null {
+  if (library === null || library === undefined) return null
+  return pickCalendarLine(library.calendarEvents, query)
 }
 
 // ---------------------------------------------------------------------------

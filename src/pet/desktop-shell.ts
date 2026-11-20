@@ -65,6 +65,8 @@ import {
   watchReduceMotion,
   writeExplicitReduceMotion,
 } from './reduce-motion.ts'
+import { clearCohabitation, cohabitationLineNow } from './cohabitation.ts'
+import { clearUsageSummary, recordUsage, usageSummaryJson } from './usage-summary.ts'
 
 /**
  * Desktop pet shell (Phase 1A): hide the settings chrome by default, keep the
@@ -600,6 +602,8 @@ interface SettingsDom {
   readonly quietEnd: HTMLInputElement
   /** 安静 → 待机节奏 three-level select (C1). */
   readonly ambientCadence: HTMLSelectElement
+  /** 数据与边界 → live 共处日历 line (本月 N 天 / 累计第 N 天). */
+  readonly cohabitationNote: HTMLElement
   /** 常用 → 整体缩放 (all content together). */
   readonly globalScale: HTMLInputElement
   readonly globalValue: HTMLElement
@@ -657,6 +661,36 @@ function click(id: string): void {
 
 function openSetup(): void {
   activeWindow()?.open('/setup.html', '_blank')
+}
+
+/**
+ * Save one local JSON export through the SAME anchor-download channel the
+ * shipped archive / memory / audit exports already use: WebView2 (Tauri) hands
+ * it to the browser download path, plain browsers save it as a Blob download.
+ * No new IPC command, no filesystem permission, no network request.
+ */
+function downloadJsonFile(doc: Document, filename: string, json: string): boolean {
+  try {
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = doc.createElement('a')
+    link.href = url
+    link.download = filename
+    link.rel = 'noopener'
+    link.style.display = 'none'
+    doc.body.append(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** `pagefold-usage-summary-<UTC stamp>.json` for 设置 → 数据与边界. */
+function usageSummaryFileName(nowMs: number): string {
+  return `pagefold-usage-summary-${new Date(nowMs).toISOString().replace(/[:.]/g, '-')}.json`
 }
 
 /**
@@ -1028,6 +1062,7 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
     scaleSettings = normalizeScaleSettings(next)
     resolvedScales = resolveScaleSettings(scaleSettings)
     persistScaleSettings(scaleSettings)
+    recordUsage('settings-change')
     pendingScaleMigration = false
     applyScale()
     refreshSettings()
@@ -1073,6 +1108,7 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
     scaleSettings = resetScaleSettings()
     resolvedScales = resolveScaleSettings(scaleSettings)
     pendingScaleMigration = false
+    recordUsage('settings-change')
     applyScale()
     refreshSettings()
     settingsStatus('已恢复默认缩放：整体 100%，UI+文本/图像/组件全部跟随。')
@@ -1595,6 +1631,8 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
     menu.setAttribute('aria-hidden', 'false')
     trigger?.setAttribute('aria-expanded', 'true')
     menuOpen = true
+    // Local usage summary: one plain "menu" count per open (no user data).
+    recordUsage('menu')
     // The user found the menu: the one-time coach is no longer needed.
     ackMenuCoach()
     setConsentState()
@@ -1731,6 +1769,21 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
     if (settingsDom) settingsDom.status.textContent = text
   }
 
+  /**
+   * Confirmation for the two local-data clear entries. A host without
+   * window.confirm (Node fake DOM) accepts the explicit button click; the real
+   * WebView always asks before deleting anything.
+   */
+  const confirmLocal = (message: string): boolean => {
+    const ask = (winRef as unknown as { confirm?: (text: string) => boolean }).confirm
+    if (typeof ask !== 'function') return true
+    try {
+      return ask.call(winRef, message) === true
+    } catch {
+      return false
+    }
+  }
+
   function settingsFocusable(): HTMLElement[] {
     if (!settingsDom) return []
     return Array.from(settingsDom.root.querySelectorAll<HTMLElement>('button, input, select, a[href], summary')).filter((element) => {
@@ -1848,6 +1901,7 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
     settingsDom.quietStart.value = quietHours.start
     settingsDom.quietEnd.value = quietHours.end
     settingsDom.ambientCadence.value = currentAmbientCadence()
+    settingsDom.cohabitationNote.textContent = cohabitationLineNow()
 
     // 常用 → 整体缩放 (all content together).
     settingsDom.globalScale.value = String(scaleSettings.global)
@@ -2008,6 +2062,7 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
         showMenuButton = checked
         applyTriggerVisibility(checked)
         writeStoredFlag(SHOW_MENU_BUTTON_KEY, checked)
+        recordUsage('settings-change')
         settingsStatus(checked ? '已显示 ⋯：可以点它打开菜单。' : '已隐藏 ⋯：右键或 Shift+F10 仍可打开菜单。')
       },
       '默认隐藏，角色周围不常驻任何按钮；隐藏后右键 / Shift+F10 / ContextMenu 仍可打开菜单。',
@@ -2019,6 +2074,7 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
       (checked) => {
         options.setMuted?.(checked)
         refreshSettings()
+        recordUsage('settings-change')
         settingsStatus(checked ? '已静音；字幕/气泡仍会显示。' : '已取消静音；语音播放仍受 TTS 声明约束。')
       },
       '只影响语音播放；字幕与气泡不属于语音。',
@@ -2049,6 +2105,7 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
       (checked) => {
         applyReduceMotion(checked)
         refreshSettings()
+        recordUsage('settings-change')
         settingsStatus(checked ? '已减少动态：过渡/循环动画暂停，角色画布只保留静态帧。' : '已恢复动效。')
       },
       '系统开启「减少动态」时默认勾选并随系统变化；手动设置后覆盖系统偏好。角色画布/farm 游戏页的循环动画会暂停或降频，交互仍可用。',
@@ -2221,6 +2278,7 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
       }
       const next = applyQuietHours({ ...quietHours, start: quietStartInput.value })
       quietStartInput.value = next.start
+      recordUsage('settings-change')
       settingsStatus('安静开始时间已保存：' + quietHoursSummary(next) + '。')
     })
     const quietEndLabel = makeElement(docRef, 'label', 'pet-settings-label', '结束')
@@ -2237,6 +2295,7 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
       }
       const next = applyQuietHours({ ...quietHours, end: quietEndInput.value })
       quietEndInput.value = next.end
+      recordUsage('settings-change')
       settingsStatus('安静结束时间已保存：' + quietHoursSummary(next) + '。')
     })
     quietTimes.append(quietStartLabel, quietStartInput, quietEndLabel, quietEndInput)
@@ -2258,6 +2317,7 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
       const next = applyAmbientCadence(cadenceSelect.value)
       cadenceSelect.value = next
       const plan = AMBIENT_CADENCE_PLANS[next]
+      recordUsage('settings-change')
       settingsStatus('待机节奏已保存：' + plan.label + '。' + plan.description + '夜间安静 / 一起工作期间会自动降档。')
     })
     cadenceField.append(
@@ -2364,6 +2424,46 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
     )
     privacy.append(advisersField)
 
+    // --- 数据与边界（P1 round 1：本机使用摘要 / 共处日历） --------------
+    // Both values are local-only. The copy states the boundary explicitly
+    // (local, manual export, no network) and nothing here can write before the
+    // TOS gate or while the app is read-only (recordUsage/clear no-op then).
+    const dataBoundary = group('数据与边界')
+    const cohabitationNote = makeElement(docRef, 'p', 'pet-settings-note', '')
+    cohabitationNote.id = 'pet-settings-cohabitation'
+    cohabitationNote.setAttribute('role', 'status')
+    dataBoundary.append(
+      note('本机使用摘要：只统计操作类型/次数/时间与会话时长，不含任何内容文本；仅保存在本机，不上传、不联网。导出由你手动点击生成 JSON 文件，可随时清除。'),
+      cohabitationNote,
+    )
+    const dataBoundaryField = field('pet-settings-field pet-settings-actions')
+    dataBoundaryField.append(
+      action('pet-settings-export-usage', '导出使用摘要（仅本机 · 手动 · 无网络）…', () => {
+        const ok = downloadJsonFile(docRef, usageSummaryFileName(Date.now()), usageSummaryJson())
+        settingsStatus(
+          ok
+            ? '使用摘要已导出到本机文件（仅本机生成、未联网、不含内容文本）。'
+            : '当前环境无法创建下载文件，未导出（未报告成功）。',
+        )
+      }),
+      action('pet-settings-clear-usage', '清除使用摘要…', () => {
+        if (!confirmLocal('清除本机使用摘要？只删除本机的操作次数/时长记录，不影响存档、记忆与共处记录。')) return
+        const cleared = clearUsageSummary()
+        refreshSettings()
+        settingsStatus(cleared ? '本机使用摘要已清除。' : '本机存储不可用，未能清除。')
+      }),
+      action('pet-settings-clear-cohabitation', '清除共处记录…', () => {
+        if (!confirmLocal('清除共处记录？只删除本机的共处日期，不影响存档、记忆与羁绊。')) return
+        const cleared = clearCohabitation()
+        refreshSettings()
+        settingsStatus(cleared ? '共处记录已清除（无补签、无惩罚）。' : '本机存储不可用，未能清除。')
+      }),
+    )
+    dataBoundary.append(
+      dataBoundaryField,
+      note('共处日历只记录「当天真实互动满 10 分钟」的日期：无连续天数、无补签、无提醒、无惩罚；可在折页簿查看与清除。'),
+    )
+
     // --- 关于 / 声明 / 数据控制 ---------------------------------------
     const aboutGroup = group('关于 / 声明 / 数据控制')
     const aboutField = field('pet-settings-field pet-settings-actions')
@@ -2442,6 +2542,7 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
       contentGroup,
       tools,
       privacy,
+      dataBoundary,
       aboutGroup,
       advanced,
     ]
@@ -2480,6 +2581,7 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
       quietStart: quietStartInput,
       quietEnd: quietEndInput,
       ambientCadence: cadenceSelect,
+      cohabitationNote,
       globalScale: globalScaleRow.input,
       globalValue: globalScaleRow.value,
       resetScales: resetScalesButton,
@@ -3630,6 +3732,8 @@ export function createComposerController(deps: ComposerDeps): ComposerController
       }
       const record = describeLocalResult({ intent, status, inputText: routedText, createdAt: now() })
       sessionResults.push(record)
+      // Local usage summary: count reminder drafts only (never the draft text).
+      if (intent === 'reminder' && status === 'done') recordUsage('reminder-create')
       setLayerState(dom.composer, false)
       dom.input.value = ''
       setHint('')

@@ -48,6 +48,8 @@ import { toUserMessage, type ErrorBoundary } from './security/error-boundary.ts'
 import { SECURITY_LIMITS, utf8ByteLength } from './security/limits.ts'
 import { readClampedInt, safeSetItem, type StorageLike } from './security/safe-storage.ts'
 import type { PetSaveService } from './save-host.ts'
+import { clearCohabitation, cohabitationLineNow } from './cohabitation.ts'
+import { recordUsage } from './usage-summary.ts'
 
 /** Volume preference key (read through safe-storage; missing/corrupt keeps 70). */
 export const VOLUME_STORAGE_KEY = 'desktop-games/pet/volume'
@@ -260,6 +262,17 @@ export function createSettingsPage(deps: SettingsPageDeps): SettingsPage {
       empty.textContent = '还没有折页。'
       list.append(empty)
     }
+    renderCohabitationNote()
+  }
+
+  /**
+   * 折页簿 P1 (round 1): 共处日历 line — 本月 N 天 · 累计第 N 天. Pure local
+   * read; no streak/backfill/reminder copy is ever produced here.
+   */
+  function renderCohabitationNote(): void {
+    const note = document.getElementById('cohabitation-note')
+    if (!note) return
+    note.textContent = cohabitationLineNow()
   }
 
   function hideMemoryScreen(): void {
@@ -525,7 +538,10 @@ export function createSettingsPage(deps: SettingsPageDeps): SettingsPage {
   // Volume is part of the TTS config: re-confirm the TTS declaration on release
   // (not on every slider tick) when voice is currently enabled.
   function commitVolume(): void {
-    if (!canInteract() || deps.getState().muted) return
+    if (!canInteract()) return
+    // Local usage summary: a released volume slider is one settings change.
+    recordUsage('settings-change')
+    if (deps.getState().muted) return
     void deps.requestTtsConfirmation().catch((error) => reportFailure(deps.ttsBoundary, error))
   }
 
@@ -544,6 +560,13 @@ export function createSettingsPage(deps: SettingsPageDeps): SettingsPage {
     document.getElementById('memory-forget-all')?.addEventListener('click', () => forgetAllMemory())
     document.getElementById('memory-export')?.addEventListener('click', () => exportMemory())
     document.getElementById('memory-close')?.addEventListener('click', () => hideMemoryScreen())
+    // P1 round 1: clear the local cohabitation date set (never the save/memory).
+    document.getElementById('cohabitation-clear')?.addEventListener('click', () => {
+      if (!window.confirm('清除共处记录？只删除本机的共处日期，不影响存档、记忆与羁绊。')) return
+      const cleared = clearCohabitation()
+      renderCohabitationNote()
+      deps.showBubble(cleared ? '共处记录已清除（无补签、无惩罚）。' : '本机存储不可用，未能清除。')
+    })
     document.getElementById('save-export')?.addEventListener('click', () => exportArchive())
     document.getElementById('save-delete')?.addEventListener('click', () => deleteArchive())
     document.getElementById('save-import')?.addEventListener('click', () => pickImportFile())

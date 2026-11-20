@@ -67,6 +67,8 @@ import {
 import { MAX_TALK_MS, MAX_WAV_BYTES, TalkRecorder, type MediaStreamLike, type TalkState } from './recording.ts'
 import { safeGetItem, safeSetItem } from './security/safe-storage.ts'
 import { migrateFamlingLocalState } from './state-migrations.ts'
+import { initUsageSummary, recordUsage, resetUsageSummary } from './usage-summary.ts'
+import { initCohabitation, resetCohabitation } from './cohabitation.ts'
 import { SECURITY_LIMITS, sanitizePlainText } from './security/limits.ts'
 import { createErrorBoundary, toUserMessage, type ErrorBoundary } from './security/error-boundary.ts'
 import { createSecurityRateLimits, RateLimitError } from './security/rate-limit.ts'
@@ -1454,6 +1456,8 @@ async function bootPetOnce(): Promise<void> {
       stateMigration.steps.filter((step) => step.status === 'failed').map((step) => step.id),
     )
   }
+  // P1 round-1 local-only recorders (post-consent; manual export; clearable).
+  initUsageSummary({ canWrite: canInteract }); initCohabitation({ canWrite: canInteract })
   // P1-4: mirror the accepted TOS into the host (Rust) so IPC commands can
   // verify consent; if a `--game=` launch was held at startup, the host opens
   // that window and closes this gate window, so skip the rest of the boot.
@@ -2213,6 +2217,8 @@ async function exitAfterSave(): Promise<void> {
 }
 
 function exitApplication(): void {
+  // Local usage summary: an explicit quit is one "exit" event + one session end.
+  recordUsage('exit')
   try {
     if (HAS_TAURI) {
       if (CONTENT_SHELL) {
@@ -2301,6 +2307,8 @@ function initializeApp(): void {
         // A full local-data wipe clears the quiet-hours preference too; fall
         // back to the safety default in this session as well.
         settingsPage.reloadQuietHours()
+        // P1 round-1: the wipe deleted the two new local keys; drop their memory mirrors too.
+        resetUsageSummary(); resetCohabitation()
         // C1: a full local-data wipe also clears the idle-rhythm preference and
         // discards the session-scoped 一起工作 state (nothing is recorded anyway).
         ambientCadence = DEFAULT_AMBIENT_CADENCE

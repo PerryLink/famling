@@ -96,6 +96,8 @@ export const KNOWN_PET_STORAGE_KEYS = [
   'desktop-games/pet/advisers-mode',
   'desktop-games/pet/window',
   'desktop-games/pet/ambient-cadence',
+  'desktop-games/pet/usage-summary/v1',
+  'desktop-games/pet/cohabitation/v1',
   'desktop-games/consent/storage-probe-v1',
   ACCEPTANCE_STORAGE_KEY,
   AUDIT_STORAGE_KEY,
@@ -161,7 +163,7 @@ export function classifyStorageKey(key: string): string {
   if (key === AGE_STORAGE_KEY) return 'age-verification'
   if (key === SAFETY_AUDIT_STORAGE_KEY || key === SAFETY_AUDIT_SALT_KEY) return 'safety-audit'
   if (key.startsWith('desktop-games/pet/chat-import')) return 'chat-digest'
-  if (key === 'desktop-games/pet/pet' || key === 'desktop-games/pet/pet.bak') return 'save'
+  if (key === 'desktop-games/pet/pet' || key === 'desktop-games/pet/pet.bak' || key === 'desktop-games/pet/cohabitation/v1') return 'save'
   if (key === 'desktop-games/pet/window') return 'window-position'
   if (key === 'desktop-games/pet/volume') return 'preferences'
   if (key === 'desktop-games/pet/hero') return 'preferences'
@@ -170,6 +172,7 @@ export function classifyStorageKey(key: string): string {
   if (key === 'desktop-games/pet/text-scale') return 'preferences'
   if (key === 'desktop-games/pet/setup-ack-v1') return 'preferences'
   if (key === 'desktop-games/pet/advisers-mode') return 'preferences'
+  if (key === 'desktop-games/pet/usage-summary/v1') return 'preferences'
   if (key.startsWith('desktop-games/pet/')) return 'other-pet'
   if (key.startsWith('desktop-games/consent/')) return 'consent-audit'
   return 'unrelated'

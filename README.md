@@ -1,55 +1,79 @@
-# Famling — 汀岚 / 猫 / 狗 桌宠（pet-only 完整可执行源码）
+# Famling — 汀岚 / 布偶猫 / 金毛 桌宠（pet-only 完整可执行源码）
 
-> **内容中心**：角色 / 声音 / 对话 / 主题 / 背景 / 字体集中在桌面菜单「内容中心…」；扩展规范见 [`public/content/README.md`](public/content/README.md)、设计稿见 [`docs/design/CONTENT-MARKET-2026-11-19.md`](docs/design/CONTENT-MARKET-2026-11-19.md)。
->
-> ⚠️ **使用限制（必读）**：本项目及其全部代码、美术、音频、文案、角色素材和衍生物**仅用于技术研究与原型验证**；**不得用于情感陪伴、虚拟伴侣、心理治疗/医疗/法律/金融建议、未成年人亲密关系、冒充真人/官方，或任何违反法律法规/平台规则的用途**。完整说明见 [docs/legal/USE-RESTRICTIONS-2026-11-19.md](docs/legal/USE-RESTRICTIONS-2026-11-19.md)。
+> **状态：C1 unsigned 邀请 beta（研究原型）。** 无 Authenticode 签名、无自动更新、无公开商店、无生产 DLC 根；本仓不声称已合规或可公开发布。
+> **非官方项目，不关联 DeepSeek。** 内容/角色为原创或已登记来源，AI 生成资产按仓内 AI-PROVENANCE 标注。
 
-> **非官方项目，不关联 DeepSeek。** 本仓提供只含桌宠应用的完整可执行源码：pet 窗口、汀岚/猫/狗角色与素材、UI 91、TTS 音色切换（运行时；不随包音频）、输入 composer、TOS/年龄核验、Advisers 只读 brief。
-> **不包含**游戏基座、其它游戏 HTML/资产、私有 artifacts、内部 handoff、参考同人图。
+Famling 是一个 Windows 桌面像素桌宠 + DSH（DeepSeek Harness）客户端插件：480×336 无边框置顶小窗、托盘召回、单人/猫/狗三套 96×96 像素动画、四层缩放、存档自动保存与坏档恢复、内容角色包（安装/回滚/热切换）、低打扰安静时段与健康提醒。
 
-## 两个包
+## 快速开始
 
-本工作线提供两个包，按用途分开：
+### A. 作为 DSH 插件（最轻量）
 
-| 包 | 来源 | 用途 |
-|---|---|---|
-| **famling** | 本仓 | **独立运行的完整桌宠**（pet-only Tauri app；汀岚/猫/狗、UI、TTS、年龄核验等） |
-| **dsh-famling** | [PerryLink/dsh-famling](https://github.com/PerryLink/dsh-famling) | **DSH 客户端插件**；在 DSH 左下角账号区域显示 72px 汀岚小桌宠与本地小互动，不替代独立 app |
+```sh
+dsh plugin --profile web add dsh-famling
+```
 
-> `famling` 是独立应用；`dsh-famling` 是放在 DSH 里的轻量伴随入口。两者共享角色/品牌，不共享运行时代码。
+npm 包：`dsh-famling@0.11.0`（`npm view dsh-famling`）。插件在 DSH 左下角账号区下方显示 72px 桌宠；默认零常驻按钮，右键角色或 Shift+F10 打开菜单。也可从 [PerryLink/dsh-famling](https://github.com/PerryLink/dsh-famling) 本地安装。
 
-## 运行
+### B. 独立桌宠应用（Tauri，仅 Windows）
 
 ```bash
 npm ci
 npm run build
-# Windows (需要 Node >=22.16, Rust + Visual Studio Build Tools + WebView2)
+# 需要 Node >=22.16、Rust MSVC、Visual Studio Build Tools、WebView2
 cd app/tauri
 npx --yes @tauri-apps/cli@2 build
 ```
 
-开发：`npm run dev`，打开 `http://localhost:5173/pet.html`。
-构建产物：`dist/pet.html`、`dist/setup.html`、`dist/chat-import.html`；Tauri `app/tauri/src-tauri/tauri.conf.json` 默认 `pet.html` 480×336 透明置顶。
+开发：`npm run dev`，打开 `http://localhost:5173/pet.html`。产物：`dist/pet.html`、`dist/setup.html`、`dist/chat-import.html`；Tauri 默认窗口透明、置顶、480×336。
 
-## 内容
+## 2026-11-21 体验/性能批次（源码已包含）
 
-- 汀岚：`public/characters/tinglan`、`tinglan-256`、`public/assets/pet/tinglan-256`
-- 猫/狗：`pet-cat`/`pet-dog` + placeholder 素材
-- UI 91：`public/assets/ui`
-- 语音：本公开仓**不随包分发预生成音频**（2026-11-18 已移除 baked pack）；运行时使用系统 TTS / 宿主云 TTS（如配置）
-- 法务/二创/OC：`docs/legal`、`docs/modding`、`docs/art/oc`
+- **互动节奏可调**：待机动画三档（活泼 4–10s / 正常 60–90s / 安静仅呼吸+眨眼）；安静时段同时停止待机微动作；鼠标悬停 800ms 有回应用；Advisers pose 映射为安静档；「一起工作 25/50 分钟」只在用户设定边界结束提醒，无连续天数/无惩罚。
+- **角色表现**：猫/狗待机从 6 帧扩到 8 帧并加次级运动；猫慢眨眼 4fps；插件实际 72px 显示有独立可读性量尺与测试。
+- **性能**：健康提醒轮询 1s→15s；自动保存脏检查 + 隐藏空闲退避；hit-region 轮询随窗口隐藏暂停、待机降频；消除首帧整页闪烁；hero 首帧只解码 idle、其余后台分批解码，待机按需降帧率。
+- **契约与证据**：角色包能力门（声明未实现的语义会给出可见诊断）、golden trace 回放 fixture、第三方角色包 32 MiB 解码内存红线（fail-closed）、桌面+插件联合证据（`JOINT-EVIDENCE.json` / `PLUGIN-MANIFEST.json`）。
 
-## 许可
+## 两个包
 
-- 代码：**PolyForm Noncommercial 1.0.0**（`LICENSE`/`LICENSE-COMMERCIAL.md`）。
+| 包 | 来源 | 用途 |
+|---|---|---|
+| **famling** | 本仓 | 独立运行的完整桌宠（pet-only Tauri app；角色/内容/存档/语音运行时） |
+| **dsh-famling** | [PerryLink/dsh-famling](https://github.com/PerryLink/dsh-famling) | DSH 客户端插件；轻量伴随入口，与独立 app 共享角色/品牌、不共享运行时代码 |
+
+## 功能
+
+- 三套 96×96 像素动画（各 12 clip；cat 74 / dog 70 / human 68 帧），透明背景，跟随 DSH light/dark 的菜单与面板。
+- 角色包安装/更新/卸载/回滚/热切换；内容包 v2/v3（许可、AI provenance、compatibility）+ 离线市场 UI（生产服务器未接）。
+- 四层缩放（整体/UI+文本/图像/组件）、200% 溢出修复、DPR/多屏 clamp。
+- 存档：30s 自动保存（脏检查）、坏档四选一恢复、便携导入导出、删除。
+- 低打扰：安静时段、减少动态、暂时隐藏、健康提醒（2h）；无障碍与对比度门禁。
+- 内容中心：角色 / 自定义 / 内容包 / 市场；内容窗口 760×560。
+- TTS/ASR 运行时本地/宿主能力；公开仓不随包分发预生成音频。
+
+## 数据与隐私
+
+- 桌宠本地状态（存档、设置、内容包登记）保存在本机；无遥测上传、无市场网络请求（市场默认 unconfigured）。
+- DSH 插件聊天文本经 DSH Host 发送给你在 DSH 中配置的模型供应商；插件本身不保存聊天文本；危机关键词在本地短路为固定安全资源。
+- 使用摘要仅可手动导出到本机（若启用），不上传。
+
+## 许可与使用限制
+
+- 代码：**PolyForm Noncommercial 1.0.0**（`LICENSE` / `LICENSE-COMMERCIAL.md`）。
 - 桌宠美术/设定：**CC BY-NC-SA 4.0**（`LICENSE-ART`）；角色名/Logo/商标不随 CC 许可授权。
-- 音频/第三方：本导出不含音频文件；DeepSeek TTS 输出再分发/商用条款仍 TBD，不声称已获服务商许可。
-- 全部文本仍 DRAFT/非律师意见；发布前需律师/权利人复核。
+- **仅用于技术研究与原型验证**；禁止情感陪伴/虚拟伴侣、专业建议、未成年人亲密关系、冒充真人/官方、违法用途。完整条款见 [docs/legal/USE-RESTRICTIONS-2026-11-19.md](docs/legal/USE-RESTRICTIONS-2026-11-19.md)。
+- 全部法律文本仍为 DRAFT，需律师/权利人复核；本仓不构成合规结论。
+
+## 已知限制（如实披露）
+
+- unsigned beta：exe/安装器 NotSigned；无 updater/签名证书；无生产 DLC 信任根。
+- 无私有仓真实 CI（本仓 GitHub Actions 为公开镜像构建）；无 24h native soak、真机混合 DPI/多屏、真实 DSH Host 联调与真实 playtest 数据。
+- 市场/支付/审核/运营服务器不存在；内容包市场只做离线 UI 与协议。
 
 ## 不包含
 
-完整 desktop-games monorepo、游戏基座/存档、私有 research/artifacts、内部 reference 图、未清权第三方素材。
+完整 desktop-games monorepo、游戏基座/存档、私有 research/artifacts、内部 handoff、未清权第三方素材、预生成 TTS 音频。
 
 ## 历史说明（2026-11-18）
 
-本公开仓的 `main` 历史已于 2026-11-18 重建：旧的预生成 TTS 音频（42 个 WAV）与游戏残留不再存在于当前历史中；旧历史已归档于仓外（不进入公开仓）。注意：GitHub 上旧 commit SHA、fork/镜像与旧安装包可能仍可访问一段时间，本次重建**不等于**已从互联网完全清除旧音频。
+本仓 `main` 历史于 2026-11-18 重建：旧预生成 TTS 音频（42 WAV）与游戏残留不再存在于当前历史；旧历史归档于仓外。GitHub 旧 SHA/fork/镜像可能仍可访问一段时间，重建不等于互联网完全清除。

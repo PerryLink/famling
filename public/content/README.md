@@ -83,6 +83,7 @@ docs/content-packs/   # 第三方设计参考 / 0.2 内容包规范 / 三个 exa
 | rolePresets | array | **内置角色主题（主入口）**，0..8 条；内置目录为 human/cat/dog/origami 四条；source 必须 'builtin' |
 | characterThemes | array | 已安装/用户派生的角色主题，0..64 条；source 为 'local' / 'remote'，不得与 rolePresets 同 id |
 | characters / voices / dialoguePacks / themes / backgrounds / fonts | array | 六类**可选组件**，每类 1..64 条（角色主题引用它们；用户可自定义） |
+| calendarEvents | object? | 可选内容日历（'famling.calendar/0.1'）：节日/季节/工作日-周末台词，纯数据、无网络；缺失时行为不变，选择逻辑见 'src/pet/calendar-events.ts' |
 
 未知顶层字段、未知分类、重复 id 都会被严格解析器拒绝。v1 文档（0.1）经 deprecated 适配解析后返回 v2 视图：'legacy: true'、'rolePresets'/'characterThemes' 为空。
 
