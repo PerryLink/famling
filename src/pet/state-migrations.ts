@@ -160,7 +160,7 @@ export const FAMLING_STORAGE_KEYS: readonly FamlingStorageKeySpec[] = Object.fre
   }),
   // -- plain preferences (main.ts / desktop-shell.ts) ---------------------
   Object.freeze({ key: 'desktop-games/pet/volume', owner: 'audio', encoding: 'integer', version: 0, note: '0-100 master volume (readClampedInt).' }),
-  Object.freeze({ key: 'desktop-games/pet/window', owner: 'window', encoding: 'json', version: 0, note: 'Saved pet window position { x, y }.' }),
+  Object.freeze({ key: 'desktop-games/pet/window', owner: 'window', encoding: 'json', version: 0, note: 'Saved pet window position { x, y, dock? }.' }),
   Object.freeze({ key: 'desktop-games/pet/advisers-mode', owner: 'preferences', encoding: 'flag', version: 0, note: 'Advisers face opt-in flag (main.ts).' }),
   Object.freeze({ key: 'desktop-games/pet/setup-ack-v1', owner: 'preferences', encoding: 'flag', version: 1, note: 'Setup-page notice acknowledged.' }),
   Object.freeze({ key: 'desktop-games/pet/show-menu-button', owner: 'preferences', encoding: 'flag', version: 0 }),
@@ -168,6 +168,7 @@ export const FAMLING_STORAGE_KEYS: readonly FamlingStorageKeySpec[] = Object.fre
   Object.freeze({ key: 'desktop-games/pet/reduce-motion', owner: 'preferences', encoding: 'flag', version: 0 }),
   Object.freeze({ key: 'desktop-games/pet/quiet-hours', owner: 'health', encoding: 'json', version: 0, note: 'Quiet-hours window { enabled, start, end }.' }),
   Object.freeze({ key: 'desktop-games/pet/ambient-cadence', owner: 'preferences', encoding: 'identifier', version: 0, note: 'Idle-rhythm level lively|normal|quiet (low-disturb.ts, C1 2026-11-21; applied to the live hero scene).' }),
+  Object.freeze({ key: 'desktop-games/pet/content/calendar-ambient', owner: 'content', encoding: 'flag', version: 0, note: '内容日历（节日/季节台词）ambient-overlay ON/OFF flag, default ON (desktop-shell.ts, P1 2026-11-21; main.ts re-reads it before each automatic ambient line).' }),
   Object.freeze({ key: 'desktop-games/pet/work-session', owner: 'window', encoding: 'json', version: 0, note: 'Session-scoped 一起工作 focus session { minutes, startedAtMs, endsAtMs } in sessionStorage only (survives a page reload, not an app restart); no history is ever recorded.' }),
   Object.freeze({ key: 'desktop-games/pet/health-reminder', owner: 'health', encoding: 'json', version: 0, note: 'Cross-window 2h health-reminder state.' }),
   Object.freeze({ key: 'desktop-games/pet/usage-summary/v1', owner: 'state', encoding: 'versioned', version: 1, note: 'Local usage summary counters/ring buffers (usage-summary.ts); manual export only, no content text, no network.' }),

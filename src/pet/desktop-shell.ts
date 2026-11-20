@@ -1,4 +1,5 @@
 import { describeAdvisersFaceView } from './ui-state.ts'
+import { persistPetWindowPosition, settlePetWindowAfterDrag } from './pet-window-dock.ts'
 import { resolveAdvisersPanelPolicy } from './advisers/face.ts'
 import {
   canInteract,
@@ -273,6 +274,20 @@ export function writeStoredFlag(key: string, value: boolean): boolean {
 /** 「显示菜单按钮」: hidden by default (right-click/Shift+F10 still work). */
 export function resolveShowMenuButton(storage?: FlagStorage | null): boolean {
   return readStoredFlag(SHOW_MENU_BUTTON_KEY, false, storage)
+}
+
+/**
+ * 「内容日历（节日/季节台词）」preference (P1 2026-11-21): low-probability
+ * festival/season/weekday lines overlaid on automatic ambient output. Raw
+ * '1'/'0' flag in the same pet namespace, default ON and user-closable.
+ * main.ts re-reads it before each ambient line, so a change made from the
+ * content window needs no cross-window IPC; the quiet-hours / 减少动态 /
+ * quiet-dialogue gates are evaluated there.
+ */
+export const CONTENT_CALENDAR_KEY = 'desktop-games/pet/content/calendar-ambient'
+export const DEFAULT_CONTENT_CALENDAR_ENABLED = true
+export function resolveContentCalendarEnabled(storage?: FlagStorage | null): boolean {
+  return readStoredFlag(CONTENT_CALENDAR_KEY, DEFAULT_CONTENT_CALENDAR_ENABLED, storage)
 }
 
 /**
@@ -602,6 +617,8 @@ interface SettingsDom {
   readonly quietEnd: HTMLInputElement
   /** 安静 → 待机节奏 three-level select (C1). */
   readonly ambientCadence: HTMLSelectElement
+  /** 安静 → 内容日历（节日/季节台词）ON/OFF flag (P1 2026-11-21). */
+  readonly contentCalendar: HTMLInputElement
   /** 数据与边界 → live 共处日历 line (本月 N 天 / 累计第 N 天). */
   readonly cohabitationNote: HTMLElement
   /** 常用 → 整体缩放 (all content together). */
@@ -1283,6 +1300,14 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
   }
   applyAmbientCadence(ambientCadence, false)
 
+  // ------------------------------------------------------------------
+  // 内容日历 / content calendar (P1 2026-11-21)
+  // ------------------------------------------------------------------
+  // Persisted cross-restart '1'/'0' flag, default ON. main.ts re-reads it before
+  // each automatic ambient line (so a content-window change needs no reload);
+  // this shell only owns the control and its persistence.
+  let contentCalendarEnabled = resolveContentCalendarEnabled()
+
   // E6 MB-067: there is no dev/E2E entry in the product at all. ?shell=window is
   // an internal dev URL for the legacy full-page layout (it still works when a
   // developer types it) but no shipped surface links to it.
@@ -1901,6 +1926,7 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
     settingsDom.quietStart.value = quietHours.start
     settingsDom.quietEnd.value = quietHours.end
     settingsDom.ambientCadence.value = currentAmbientCadence()
+    settingsDom.contentCalendar.checked = contentCalendarEnabled
     settingsDom.cohabitationNote.textContent = cohabitationLineNow()
 
     // 常用 → 整体缩放 (all content together).
@@ -2325,10 +2351,26 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
       cadenceSelect,
       note('活泼约 4–10 秒、正常约 60–90 秒一个待机微动作；安静不做额外待机微动作，只保留呼吸循环与低频眨眼。夜间安静时段与「一起工作」期间会自动降档。'),
     )
+    // 内容日历 (P1 2026-11-21): default ON, low-probability ambient overlay only.
+    const contentCalendarCheck = checkbox(
+      'pet-settings-content-calendar',
+      '内容日历（节日/季节台词）',
+      contentCalendarEnabled,
+      (checked) => {
+        contentCalendarEnabled = checked
+        writeStoredFlag(CONTENT_CALENDAR_KEY, checked)
+        recordUsage('settings-change')
+        settingsStatus(checked
+          ? '已开启内容日历：自动气泡偶尔带一句节日/季节/周末台词。'
+          : '已关闭内容日历：自动气泡不再使用节日/季节台词。')
+      },
+      '默认开启，约 20% 的自动气泡换成一句节日/季节/周末台词；安静时段、减少动态与「安静」对话模式下不出现，也不影响你主动互动时的回复。',
+    )
     calm.append(
       quietCheck.wrap,
       quietTimes,
       cadenceField,
+      contentCalendarCheck.wrap,
       note('安静时段当前：' + quietHoursSummary(quietHours) + '。与「安静」对话模式叠加生效。'),
       note('健康使用：连续使用每 2 小时提醒一次；提醒只有「休息一下（2 小时后仍会提醒）」和「10 分钟后再提醒」，不能永久关闭。页面隐藏/切到游戏窗口/重启都不清零。'),
       note('AI 标识：每次 AI 回复与语音播放时，气泡旁显示「AI 生成 · 不是真人」/「AI 语音 · 合成（不是真人）」，不只写在关于页。'),
@@ -2581,6 +2623,7 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
       quietStart: quietStartInput,
       quietEnd: quietEndInput,
       ambientCadence: cadenceSelect,
+      contentCalendar: contentCalendarCheck.input,
       cohabitationNote,
       globalScale: globalScaleRow.input,
       globalValue: globalScaleRow.value,
@@ -2682,8 +2725,11 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
   // remains a pet interaction. The 6px threshold mirrors the hero canvas.
   let downAt: { x: number; y: number } | undefined
   let dragged = false
+  /** 边缘栖居: a new press cancels an in-flight post-drag dock settle. */
+  let dragSettleSeq = 0
   pet.addEventListener('pointerdown', (event) => {
     if (event.button !== 0) return
+    dragSettleSeq += 1
     downAt = { x: event.clientX, y: event.clientY }
     dragged = false
   })
@@ -2693,7 +2739,30 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
     dragged = true
     downAt = undefined
     if ('__TAURI_INTERNALS__' in winRef) {
-      void import('@tauri-apps/api/window').then(({ getCurrentWindow }) => getCurrentWindow().startDragging()).catch(() => {})
+      void import('@tauri-apps/api/window')
+        .then(({ getCurrentWindow }) => getCurrentWindow().startDragging())
+        .then(() => {
+          // The OS move loop keeps the WebView blocked until the user releases
+          // the window (the same timing the hero canvas drag path relies on), so
+          // this is the drop: dock the visible pet against the current monitor
+          // work-area edge it landed near, in 2-3 integer physical pixels.
+          if (!menuEnabled) return
+          dragSettleSeq += 1
+          const seq = dragSettleSeq
+          return settlePetWindowAfterDrag({
+            document: docRef,
+            window: winRef,
+            isCancelled: () => seq !== dragSettleSeq,
+            // Persist the position AND the dock claim, so a reboot restores the
+            // flush position and bounds locomotion on that side.
+            onSettled: (position, edges) => {
+              persistPetWindowPosition(position, edges)
+            },
+          })
+        })
+        .catch(() => {
+          /* drag/dock is best effort; the native move already happened */
+        })
     }
   })
   winRef.addEventListener('pointerup', () => { downAt = undefined })

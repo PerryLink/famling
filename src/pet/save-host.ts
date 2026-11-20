@@ -213,6 +213,61 @@ export function shouldReportSaveFailure(reason: SaveFailureReason): boolean {
   return reason !== 'consent-required' && reason !== 'rate-limited' && reason !== 'recovery-pending'
 }
 
+/**
+ * Page interaction probe for the hidden-idle autosave backoff (P0 2026-11-21;
+ * moved out of main.ts so the entry file stays inside its 2500-line budget).
+ *
+ * The save runtime only throttles its interval tick when the page is hidden AND
+ * no interaction was sampled for 15 minutes; visibility-hidden/explicit saves
+ * never consult this. Listeners are wired lazily on the first read and are
+ * passive; a detached/blocked document keeps the initial timestamp.
+ */
+export interface PageInteractionProbe {
+  /** Last sampled interaction (epoch ms); wires the listeners on the first read. */
+  lastInteractionAt(): number
+}
+
+/** Passive events sampled for the hidden-idle backoff. */
+export const PAGE_INTERACTION_EVENT_TYPES: readonly string[] = Object.freeze([
+  'pointerdown',
+  'keydown',
+  'wheel',
+  'touchstart',
+])
+
+/** Injected seams (tests pass a fake document/clock; production omits them). */
+export interface PageInteractionProbeOptions {
+  readonly now?: () => number
+  readonly eventTypes?: readonly string[]
+}
+
+export function createPageInteractionProbe(
+  documentLike: Pick<Document, 'addEventListener'> | null | undefined,
+  options: PageInteractionProbeOptions = {},
+): PageInteractionProbe {
+  const now = options.now ?? ((): number => Date.now())
+  const eventTypes = options.eventTypes ?? PAGE_INTERACTION_EVENT_TYPES
+  let lastInteractionAtMs = now()
+  let wired = false
+  return {
+    lastInteractionAt(): number {
+      if (!wired) {
+        wired = true
+        for (const type of eventTypes) {
+          try {
+            documentLike?.addEventListener(type, () => {
+              lastInteractionAtMs = now()
+            }, { passive: true })
+          } catch {
+            // A detached/blocked document keeps the initial timestamp.
+          }
+        }
+      }
+      return lastInteractionAtMs
+    },
+  }
+}
+
 export interface PetSaveServiceOptions {
   /** Save slot name (`pet`). */
   readonly slot: string

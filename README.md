@@ -13,7 +13,7 @@ Famling 是一个 Windows 桌面像素桌宠 + DSH（DeepSeek Harness）客户�
 dsh plugin --profile web add dsh-famling
 ```
 
-npm 包：`dsh-famling@0.11.0`（`npm view dsh-famling`）。插件在 DSH 左下角账号区下方显示 72px 桌宠；默认零常驻按钮，右键角色或 Shift+F10 打开菜单。也可从 [PerryLink/dsh-famling](https://github.com/PerryLink/dsh-famling) 本地安装。
+npm 包：`dsh-famling@0.12.0`（`npm view dsh-famling`）。插件在 DSH 左下角账号区下方显示 72px 桌宠；默认零常驻按钮，右键角色或 Shift+F10 打开菜单。也可从 [PerryLink/dsh-famling](https://github.com/PerryLink/dsh-famling) 本地安装。
 
 ### B. 独立桌宠应用（Tauri，仅 Windows）
 
@@ -33,6 +33,9 @@ npx --yes @tauri-apps/cli@2 build
 - **角色表现**：猫/狗待机从 6 帧扩到 8 帧并加次级运动；猫慢眨眼 4fps；插件实际 72px 显示有独立可读性量尺与测试。
 - **性能**：健康提醒轮询 1s→15s；自动保存脏检查 + 隐藏空闲退避；hit-region 轮询随窗口隐藏暂停、待机降频；消除首帧整页闪烁；hero 首帧只解码 idle、其余后台分批解码，待机按需降帧率。
 - **契约与证据**：角色包能力门（声明未实现的语义会给出可见诊断）、golden trace 回放 fixture、第三方角色包 32 MiB 解码内存红线（fail-closed）、桌面+插件联合证据（`JOINT-EVIDENCE.json` / `PLUGIN-MANIFEST.json`）。
+- **启动与边缘**：内容窗改为独立入口（`content.html`，同构建载荷约 −6.5%）；桌宠拖到工作区边缘会保留贴边停靠并做整数像素落地，位置恢复保留 dock；仅移动窗口，不读取其他窗口内容。
+- **本地数据**：可手动导出本机使用摘要（无文本/无网络）、共处日历（无连续天数/无提醒）；删除全部本地数据会一并清除。
+- **内容日历**：节日/季节/周末台词以 20% 低概率叠加在 ambient 气泡，设置内可关，安静时段/减少动态不触发。
 
 ## 两个包
 
@@ -54,7 +57,7 @@ npx --yes @tauri-apps/cli@2 build
 ## 数据与隐私
 
 - 桌宠本地状态（存档、设置、内容包登记）保存在本机；无遥测上传、无市场网络请求（市场默认 unconfigured）。
-- DSH 插件聊天文本经 DSH Host 发送给你在 DSH 中配置的模型供应商；插件本身不保存聊天文本；危机关键词在本地短路为固定安全资源。
+- DSH 插件聊天文本经 DSH Host 发送给你在 DSH 中配置的模型供应商；插件本身不保存聊天文本；危机关键词在本地短路为固定安全资源。插件可读取宿主粗状态（运行/空闲，仅分类错误码）用于安静/姿态切换，不读取消息、提示词或文件内容。
 - 使用摘要仅可手动导出到本机（若启用），不上传。
 
 ## 许可与使用限制

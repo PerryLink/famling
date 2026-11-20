@@ -3255,6 +3255,73 @@ export function resolveCalendarLine(
 }
 
 // ---------------------------------------------------------------------------
+// Ambient calendar overlay (P1 2026-11-21: content calendar in automatic output)
+// ---------------------------------------------------------------------------
+
+/**
+ * Chance that ONE automatic ambient bubble is replaced by a calendar line.
+ * Low by design: the active dialogue pack's own copy stays the default
+ * experience. The overlay is opt-out in 设置 and is additionally suppressed by
+ * quiet hours, 减少动态 and the `quiet` dialogue-pack mode.
+ */
+export const AMBIENT_CALENDAR_CHANCE = 0.2
+
+/**
+ * Map a live character id onto the built-in calendar character pack id.
+ * The animation/product layer calls the human presentation `human`; the
+ * calendar data uses `humanoid` (cat/dog already share the same id).
+ */
+export function calendarCharacterId(value: unknown): 'humanoid' | 'cat' | 'dog' | null {
+  if (value === 'human') return 'humanoid'
+  if (value === 'humanoid' || value === 'cat' || value === 'dog') return value
+  return null
+}
+
+/** Input for one automatic ambient overlay decision (pure; injectable clock/random). */
+export interface AmbientCalendarQuery {
+  readonly library: ContentLibrary | null | undefined
+  /** Live character id (hero pack kind / content selection); `human` is accepted. */
+  readonly characterId: unknown
+  /** Active dialogue-pack mode; unknown values and `quiet` degrade to null. */
+  readonly dialogueMode: unknown
+  /** User setting: only `false` disables (the shipped default is ON). */
+  readonly enabled?: boolean
+  /** 夜间安静: automatic output is already suppressed, so no overlay either. */
+  readonly quietHoursActive?: boolean
+  /** 减少动态: no optional flavor overlay. */
+  readonly reduceMotion?: boolean
+  /** Injected random for tests; production passes Math.random. */
+  readonly random?: () => number
+  /** Injected clock for tests; the default reads the local "now". */
+  readonly now?: Date | null
+}
+
+/**
+ * Resolve the ONE optional calendar line an automatic ambient bubble may show.
+ *
+ * Pure: the caller injects the random draw and the clock. Returns null for the
+ * OFF setting, quiet hours, 减少动态, unknown/`origami` characters, `quiet`
+ * dialogue mode, catalogs without `calendarEvents`, invalid dates and a draw
+ * that is not below {@link AMBIENT_CALENDAR_CHANCE} — the base line is kept.
+ * Interactive (user-triggered) replies never call this.
+ */
+export function resolveAmbientCalendarLine(query: AmbientCalendarQuery): CalendarLine | null {
+  if (query === null || query === undefined || typeof query !== 'object') return null
+  if (query.enabled === false || query.quietHoursActive === true || query.reduceMotion === true) return null
+  const characterId = calendarCharacterId(query.characterId)
+  if (characterId === null || typeof query.dialogueMode !== 'string') return null
+  const draw = query.random === undefined ? Math.random() : query.random()
+  // Fail closed on a NaN/non-finite draw: keep the base line instead of overlaying.
+  if (!Number.isFinite(draw) || draw >= AMBIENT_CALENDAR_CHANCE) return null
+  return resolveCalendarLine(query.library, {
+    characterId,
+    dialogueMode: query.dialogueMode,
+    channel: 'ambient',
+    now: query.now,
+  })
+}
+
+// ---------------------------------------------------------------------------
 // Appearance application (theme + background + font -> CSS vars / data attrs)
 // ---------------------------------------------------------------------------
 

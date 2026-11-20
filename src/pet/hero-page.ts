@@ -37,6 +37,14 @@ import { startTinglanPreview } from './tinglan-preview.ts'
 import { isBuiltinCharacterId } from './character/builtin.ts'
 import { resolveHeroRegionReaction, type HeroRegionAction, type HeroRegionReaction } from './anim/regions.ts'
 import { shouldStartWindowDrag } from './hero-drag.ts'
+import { monitorWorkAreaRect, resolveRestoreMatch, type DockEdge, type PixelRect } from './edge-dock.ts'
+import {
+  PET_WINDOW_POSITION_KEY,
+  persistPetWindowPosition,
+  resolvePetDockInsets,
+  settlePetWindowAfterDrag,
+  writePetDockInsets,
+} from './pet-window-dock.ts'
 import { checkRelativePath } from './security/path-safety.ts'
 import {
   installRuntimeViewportWatch,
@@ -44,7 +52,7 @@ import {
   type RuntimeViewportChangeReason,
   type RuntimeViewportWatchWindow,
 } from './desktop-shell.ts'
-import { removeKey, safeGetItem, safeSetItem, type StorageLike } from './security/safe-storage.ts'
+import { removeKey, safeGetItem, type StorageLike } from './security/safe-storage.ts'
 import { characterBubbleSemantic, characterCanVoice } from './character-voice.ts'
 import type { CharacterPackKind } from './content-library.ts'
 import type { CharacterPackRenderHost, CharacterPackRendererEvent } from './character-pack-renderer.ts'
@@ -205,6 +213,12 @@ export interface TauriWindowModule {
     outerPosition(): Promise<{ x: number; y: number }>
     setPosition(position: unknown): Promise<void>
     /**
+     * Outer window size in physical pixels (borderless pet window: inner ==
+     * outer). Optional so older Tauri builds and browser fakes keep working;
+     * the restore validation then falls back to innerWidth/innerHeight x DPR.
+     */
+    outerSize?(): Promise<{ width: number; height: number }>
+    /**
      * Tauri v2 window events (MB-046): `onScaleChanged` (the JS name for the
      * `ScaleFactorChanged` event) fires when the OS display scale changes as
      * the pet window crosses a monitor with different Windows scaling, and
@@ -215,10 +229,24 @@ export interface TauriWindowModule {
     onMoved?(handler: (event: { payload?: { x: number; y: number } }) => void): Promise<unknown> | unknown
   }
   PhysicalPosition: new (x: number, y: number) => unknown
-  currentMonitor(): Promise<{
+  currentMonitor(): Promise<TauriMonitor | null>
+  /**
+   * Every monitor (physical pixels). Used to validate a saved pet position on
+   * the monitor it actually belongs to instead of assuming the current one;
+   * optional like the rest of the seams.
+   */
+  availableMonitors?(): Promise<TauriMonitor[]>
+}
+
+/** One monitor as reported by Tauri (physical px; `workArea` is taskbar-aware). */
+export interface TauriMonitor {
+  position?: { x: number; y: number }
+  size?: { width: number; height: number }
+  workArea?: {
     position?: { x: number; y: number }
     size?: { width: number; height: number }
-  } | null>
+  }
+  scaleFactor?: number
 }
 
 /** Live renderer truth for the QA surface (matches the old `__pet.characterPack`). */
@@ -281,6 +309,12 @@ export interface HeroPageDeps {
   readonly now?: () => number
   readonly requestFrame?: (callback: FrameRequestCallback) => number
   readonly cancelFrame?: (handle: number) => void
+  /**
+   * Frame scheduler for the 2-3 frame post-drag window settle (edge habitation).
+   * Separate from the scene loop seam so a test can drive the settle without
+   * consuming the hero rAF queue; production defaults to requestAnimationFrame.
+   */
+  readonly requestDockFrame?: (callback: () => void) => unknown
   readonly scheduleTimeout?: (callback: () => void, timeoutMs?: number) => unknown
   /** Cancel a pending idle wake-up timer (test seam; default global clearTimeout). */
   readonly cancelTimeout?: (handle: unknown) => void
@@ -360,6 +394,18 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
   const cancelFrame = deps.cancelFrame ?? ((handle: number): void => cancelAnimationFrame(handle))
   const setTimeoutFn = deps.scheduleTimeout ?? ((callback: () => void, timeoutMs?: number): unknown => setTimeout(callback, timeoutMs))
   const clearTimeoutFn = deps.cancelTimeout ?? ((handle: unknown): void => clearTimeout(handle as ReturnType<typeof setTimeout>))
+  /**
+   * Post-drag dock settle scheduler (边缘栖居). Kept separate from the scene rAF
+   * seam so tests can drive the 2-3 frame window settle without consuming the
+   * hero render loop queue; production requestAnimationFrame keeps it aligned
+   * with the display.
+   */
+  const requestDockFrame =
+    deps.requestDockFrame ??
+    ((callback: () => void): unknown => {
+      const raf = (windowLike as unknown as { requestAnimationFrame?: (cb: () => void) => number }).requestAnimationFrame
+      return typeof raf === 'function' ? raf(callback) : setTimeout(callback, 16)
+    })
   const loadTauriWindow =
     deps.loadTauriWindow ??
     ((): Promise<TauriWindowModule> => import('@tauri-apps/api/window') as unknown as Promise<TauriWindowModule>)
@@ -482,6 +528,14 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
   >()
   /** Cat/dog run locomotion: CSS translate/scale on the canvas, reset on idle. */
   const heroMove = { offset: 0, dir: 1 as 1 | -1, active: false }
+  /**
+   * Work-area edges the live pet window is docked against (边缘栖居). Empty
+   * means "no claim": locomotion keeps its original in-window bounce. While
+   * docked, the window overhangs the work area by its transparent margin, so
+   * walking is bounded on that side (the pet must not walk half off-screen) and
+   * restored from the persisted position at boot.
+   */
+  let dockedEdges: readonly DockEdge[] = []
 
   /** Pointer hover dwell before the hover.dwell reaction fires (C1). */
   const HERO_HOVER_DWELL_MS = 800
@@ -722,20 +776,60 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
     },
   }
 
-  const WINDOW_KEY = 'desktop-games/pet/window'
+  const WINDOW_KEY = PET_WINDOW_POSITION_KEY
 
   async function saveWindowPosition(): Promise<void> {
     if (!HAS_TAURI) return
     try {
       const { getCurrentWindow } = await loadTauriWindow()
       const position = await getCurrentWindow().outerPosition()
-      const stored = safeSetItem(WINDOW_KEY, JSON.stringify({ x: position.x, y: position.y }), deps.storage)
+      // 边缘栖居: persist the dock claim together with the position so a reboot
+      // keeps the pet flush AND keeps locomotion from walking off that edge.
+      const stored = persistPetWindowPosition(position, dockedEdges, deps.storage)
       if (stored !== 'ok') reportFailure(storageBoundary, new Error(`window-position-storage-${stored}`))
     } catch (error) {
       reportFailure(storageBoundary, error)
     }
   }
 
+  /**
+   * Physical outer size of the pet window (borderless: inner == outer). Falls
+   * back to the page viewport x DPR so a Tauri build without `outerSize` (or a
+   * fake) can still validate a saved position.
+   */
+  async function windowOuterPhysicalSize(win: { outerSize?: () => Promise<{ width: number; height: number }> }): Promise<{ width: number; height: number }> {
+    if (typeof win.outerSize === 'function') {
+      try {
+        const size = await win.outerSize()
+        if (size && Number.isFinite(size.width) && Number.isFinite(size.height) && size.width > 0 && size.height > 0) {
+          return { width: size.width, height: size.height }
+        }
+      } catch {
+        /* fall through to the viewport fallback */
+      }
+    }
+    const dpr = ((): number => {
+      const value = (windowLike as unknown as { devicePixelRatio?: unknown }).devicePixelRatio
+      return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 1
+    })()
+    return {
+      width: Math.round((windowLike.innerWidth || 480) * dpr),
+      height: Math.round((windowLike.innerHeight || 336) * dpr),
+    }
+  }
+
+  /**
+   * Restore the persisted pet-window position.
+   *
+   * 边缘栖居 (P1 2026-11-21): a docked pet overhangs the work area with its
+   * transparent margin, so the old hard-coded bounds (40px top/right, 200px left
+   * against the FULL monitor) rejected a legitimately docked position and the pet
+   * came back somewhere else. Validation is now the same reachability rule the
+   * Rust survival guard applies (>= 96x72 physical px visible on the best
+   * matching monitor WORK area): anything the guard would leave alone restores,
+   * anything it would clamp back is ignored. Monitors are checked individually so
+   * a secondary-screen position is not judged by the primary one.
+   */
   async function restoreWindowPosition(): Promise<void> {
     if (!HAS_TAURI) return
     const raw = safeGetItem(WINDOW_KEY, deps.storage)
@@ -743,22 +837,84 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
     try {
       const saved = JSON.parse(raw) as { x: number; y: number }
       if (!saved || !Number.isFinite(saved.x) || !Number.isFinite(saved.y)) return
-      const { getCurrentWindow, PhysicalPosition, currentMonitor } = await loadTauriWindow()
-      const win = getCurrentWindow()
-      const monitor = await currentMonitor()
-      if (monitor && monitor.position && monitor.size) {
-        const left = monitor.position.x
-        const top = monitor.position.y
-        const right = left + monitor.size.width
-        const bottom = top + monitor.size.height
-        if (saved.x < left - 200 || saved.x > right - 40 || saved.y < top - 40 || saved.y > bottom - 40) {
-          return
+      const module = await loadTauriWindow()
+      const win = module.getCurrentWindow()
+      const monitors: PixelRect[] = []
+      if (typeof module.availableMonitors === 'function') {
+        try {
+          for (const monitor of await module.availableMonitors()) {
+            const workArea = monitorWorkAreaRect(monitor)
+            if (workArea) monitors.push(workArea)
+          }
+        } catch {
+          /* fall back to the current monitor below */
         }
       }
-      await win.setPosition(new PhysicalPosition(saved.x, saved.y))
+      if (monitors.length === 0) {
+        const workArea = monitorWorkAreaRect(await module.currentMonitor())
+        if (workArea) monitors.push(workArea)
+      }
+      const size = await windowOuterPhysicalSize(win)
+      const match = resolveRestoreMatch({ x: saved.x, y: saved.y }, size, monitors)
+      if (!match) return
+      const restorable = match.position
+      // Unknown/untrusted dock claims are dropped instead of restricting
+      // locomotion against an edge the window is not actually docked at.
+      const rawDock = (saved as { dock?: unknown }).dock
+      dockedEdges = Array.isArray(rawDock)
+        ? rawDock.filter(
+            (edge): edge is DockEdge =>
+              edge === 'left' || edge === 'right' || edge === 'top' || edge === 'bottom',
+          )
+        : []
+      // A restored docked position still overhangs the work area: publish the
+      // insets so the bubble/⋯ trigger re-anchor inside the visible screen
+      // immediately, not only after the next drag.
+      const dpr = ((): number => {
+        const value = (windowLike as unknown as { devicePixelRatio?: unknown }).devicePixelRatio
+        return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 1
+      })()
+      writePetDockInsets(document, resolvePetDockInsets(restorable, size, match.workArea), dpr)
+      await win.setPosition(new module.PhysicalPosition(restorable.x, restorable.y))
     } catch (error) {
       reportFailure(storageBoundary, error)
     }
+  }
+
+  /**
+   * 边缘栖居: after the native drag move loop ends (Tauri resolves the drag call
+   * once the WebView can run again), dock the visible pet flush against the
+   * current monitor work-area edge it was dropped near and settle the window
+   * there in 2-3 integer physical pixels. The settle is cancelled by the next
+   * pointer press so a second drag never races the animation.
+   */
+  let windowSettleSeq = 0
+  function settleWindowAfterDrag(): void {
+    windowSettleSeq += 1
+    const seq = windowSettleSeq
+    void settlePetWindowAfterDrag({
+      document,
+      window: windowLike,
+      loadTauriWindow,
+      scheduleFrame: requestDockFrame,
+      isCancelled: () => seq !== windowSettleSeq,
+      // hero-page owns storage + boundary reporting: suppress the module's
+      // default global-storage write; persist below once the dock state (and its
+      // `dock` hint) is known.
+      onSettled: () => {},
+    })
+      .then((outcome) => {
+        if (!outcome || seq !== windowSettleSeq) return
+        dockedEdges = outcome.edges
+        // Docked = standing at the edge: drop any in-window walk offset so the
+        // pet is flush; the locomotion bounds keep it from walking into the
+        // transparent overhang afterwards.
+        heroMove.offset = 0
+        void saveWindowPosition()
+      })
+      .catch(() => {
+        /* a skipped/failed dock is cosmetic; the drag itself already completed */
+      })
   }
 
   // Pet-window placement is pet-only: the content window is a normal decorated
@@ -1149,14 +1305,20 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
     }
     const width = canvas.clientWidth || 192
     const max = Math.max(24, Math.min(150, (windowLike.innerWidth - width) / 2 - 12))
+    // 边缘栖居: a docked window overhangs the work area by its transparent
+    // margin, so the pet may only walk INWARD from the docked edge (offset 0 is
+    // the flush pose). Without these bounds a docked pet would walk up to `max`
+    // px off-screen on every run clip.
+    const limitRight = dockedEdges.includes('right') ? 0 : max
+    const limitLeft = dockedEdges.includes('left') ? 0 : -max
     const speed = tag === 'ball_chase' ? 135 : 105
     heroMove.active = true
     heroMove.offset += heroMove.dir * (speed * Math.max(0, Math.min(120, dtMs))) / 1000
-    if (heroMove.offset > max) {
-      heroMove.offset = max
+    if (heroMove.offset > limitRight) {
+      heroMove.offset = limitRight
       heroMove.dir = -1
-    } else if (heroMove.offset < -max) {
-      heroMove.offset = -max
+    } else if (heroMove.offset < limitLeft) {
+      heroMove.offset = limitLeft
       heroMove.dir = 1
     }
     // The side-view run art faces LEFT (head on the left). Mirror it when the
@@ -1570,6 +1732,9 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
 
     canvas.addEventListener('pointerdown', (event) => {
       if (!hero || event.button !== 0) return
+      // A new press cancels an in-flight post-drag dock settle (it must never
+      // fight the next native move loop).
+      windowSettleSeq += 1
       cancelHoverDwell()
       onEnsureAudio()
       activePointer = event.pointerId
@@ -1625,6 +1790,9 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
             } catch {}
             dragActorId = undefined
             windowDrag = false
+            // 边缘栖居: the move loop is over — dock the pet to the work-area
+            // edge it was dropped near (2-3 integer pixel frames, no physics).
+            settleWindowAfterDrag()
           })
         return
       }

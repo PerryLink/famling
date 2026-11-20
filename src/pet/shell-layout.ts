@@ -29,6 +29,13 @@
  * left: 0 so its shrink-to-fit width does not depend on its own anchor; the
  * transform carries the visual centre, which keeps the measured wrap identical
  * to the wrap the user sees.
+ *
+ * 边缘栖居 (P1 2026-11-21): a docked pet window overhangs the monitor work area
+ * by its transparent margin (the visible pet is flush with the screen edge).
+ * The bubble/trigger must stay inside the VISIBLE work area, not just inside the
+ * window, so pet-window-dock.ts publishes the per-side off-screen amounts as
+ * CSS variables (--pet-dock-inset-*) and every clamp below subtracts them. With
+ * no dock the variables are 0 and the shipped 480x336 behaviour is unchanged.
  */
 
 import { fitScaleToViewport } from './scaling.ts'
@@ -38,6 +45,45 @@ const BUBBLE_GAP = 8
 export const BUBBLE_VIEWPORT_MARGIN = 4
 const TRIGGER_SIZE = 24
 const TRIGGER_GAP = 6
+
+/**
+ * Physical work-area docking insets published by pet-window-dock.ts as CSS px:
+ * how much of each window side hangs off the current monitor work area because
+ * the visible pet is docked flush against a screen edge.
+ */
+export interface BubbleDockInsets {
+  readonly left?: number
+  readonly right?: number
+  readonly top?: number
+  readonly bottom?: number
+}
+
+export interface ResolvedBubbleDockInsets {
+  readonly left: number
+  readonly right: number
+  readonly top: number
+  readonly bottom: number
+}
+
+/** CSS custom properties pet-window-dock.ts writes after a dock. */
+export const PET_DOCK_INSET_VARS = {
+  left: '--pet-dock-inset-left',
+  right: '--pet-dock-inset-right',
+  top: '--pet-dock-inset-top',
+  bottom: '--pet-dock-inset-bottom',
+} as const
+
+/** Max dock inset honoured (a window can overhang by at most half a side). */
+const MAX_DOCK_INSET = 480
+
+/** Normalize the optional dock insets (missing/NaN/negative → 0). */
+export function resolveBubbleDockInsets(insets?: BubbleDockInsets | null): ResolvedBubbleDockInsets {
+  const read = (value: number | undefined): number => {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return 0
+    return Math.min(MAX_DOCK_INSET, Math.max(0, value))
+  }
+  return { left: read(insets?.left), right: read(insets?.right), top: read(insets?.top), bottom: read(insets?.bottom) }
+}
 
 /** CSS layout box of the bubble at component zoom 1 (offsetWidth/offsetHeight). */
 export interface BubbleLayoutBox {
@@ -59,6 +105,12 @@ export interface BubblePlacementInput {
   readonly gap?: number
   /** Space kept between the scaled bubble and the window edges. */
   readonly margin?: number
+  /**
+   * Off-screen amounts of the docked window (CSS px). The bubble is clamped
+   * inside the VISIBLE work area, not the transparent window, so a pet docked
+   * at a screen edge still shows its whole bubble. Default 0 = undocked.
+   */
+  readonly insets?: BubbleDockInsets
 }
 
 export interface BubblePlacement {
@@ -95,9 +147,17 @@ export function fitBubbleZoom(
   layout: BubbleLayoutBox,
   viewport: { readonly width: number; readonly height: number },
   margin: number = BUBBLE_VIEWPORT_MARGIN,
+  insets?: BubbleDockInsets,
 ): number {
   const safeMargin = Number.isFinite(margin) ? Math.max(0, margin) : BUBBLE_VIEWPORT_MARGIN
-  return fitScaleToViewport(desiredZoom, layout, viewport, { x: safeMargin, top: safeMargin, bottom: safeMargin })
+  const dock = resolveBubbleDockInsets(insets)
+  // A docked window only shows (viewport - off-screen insets); fit the scaled
+  // bubble inside that visible area instead of the full transparent window.
+  const visible = {
+    width: Math.max(1, viewport.width - dock.left - dock.right),
+    height: Math.max(1, viewport.height - dock.top - dock.bottom),
+  }
+  return fitScaleToViewport(desiredZoom, layout, visible, { x: safeMargin, top: safeMargin, bottom: safeMargin })
 }
 
 /**
@@ -121,16 +181,17 @@ export function resolveBubblePlacement(input: BubblePlacementInput): BubblePlace
     width: positive(input.layout.width, 0),
     height: positive(input.layout.height, 0),
   }
-  const zoom = fitBubbleZoom(input.zoom, layout, viewport, margin)
+  const insets = resolveBubbleDockInsets(input.insets)
+  const zoom = fitBubbleZoom(input.zoom, layout, viewport, margin, insets)
   const width = layout.width * zoom
   const height = layout.height * zoom
 
-  // Horizontal: clamp the scaled box inside the window; when even the window
-  // width cannot hold it (pathological zoom), keep it centred instead of
-  // pinning it to an edge.
+  // Horizontal: clamp the scaled box inside the VISIBLE window area (a docked
+  // window hides `insets.right/left` off-screen); when even that cannot hold it
+  // (pathological zoom), keep it centred instead of pinning it to an edge.
   const half = width / 2
-  const minCentreX = margin + half
-  const maxCentreX = viewport.width - margin - half
+  const minCentreX = margin + insets.left + half
+  const maxCentreX = viewport.width - margin - insets.right - half
   const petCentreX = Number.isFinite(input.petCentreX) ? input.petCentreX : viewport.width / 2
   const centreX = minCentreX > maxCentreX
     ? viewport.width / 2
@@ -140,8 +201,8 @@ export function resolveBubblePlacement(input: BubblePlacementInput): BubblePlace
   // above the pet. Clamp it below the top margin using the scaled height, and
   // above the bottom margin. The fit above guarantees minBottom <= maxBottom.
   const desiredBottom = input.petTop - gap
-  const minBottom = margin + height
-  const maxBottom = viewport.height - margin
+  const minBottom = margin + insets.top + height
+  const maxBottom = Math.max(0, viewport.height - margin - insets.bottom)
   const bottomEdge = minBottom > maxBottom ? maxBottom : Math.min(maxBottom, Math.max(minBottom, desiredBottom))
   return { zoom, width, height, centreX, bottom: viewport.height - bottomEdge }
 }
@@ -178,6 +239,40 @@ function bubbleZoom(): number {
 /** Trim to 3 decimals: the fitted zoom is not observable beyond that (same precision as the CSS vars). */
 function formatZoom(zoom: number): number {
   return Math.round(zoom * 1000) / 1000
+}
+
+/**
+ * Off-screen amounts of the docked pet window, read from the CSS variables
+ * pet-window-dock.ts writes. Missing variables (undocked / older page) → 0, so
+ * the shipped 480x336 clamp is unchanged unless a dock actually happened.
+ */
+function readDockInsets(): ResolvedBubbleDockInsets {
+  let style: CSSStyleDeclaration | null = null
+  try {
+    style = getComputedStyle(document.documentElement)
+  } catch {
+    style = null
+  }
+  const read = (name: string): number => {
+    if (style === null) return 0
+    try {
+      const value = Number.parseFloat(style.getPropertyValue(name))
+      return Number.isFinite(value) ? value : 0
+    } catch {
+      return 0
+    }
+  }
+  return resolveBubbleDockInsets({
+    left: read(PET_DOCK_INSET_VARS.left),
+    right: read(PET_DOCK_INSET_VARS.right),
+    top: read(PET_DOCK_INSET_VARS.top),
+    bottom: read(PET_DOCK_INSET_VARS.bottom),
+  })
+}
+
+/** Clamp into [min,max]; a collapsed range (huge dock insets) pins to min. */
+function clampInto(value: number, min: number, max: number): number {
+  return max < min ? min : Math.min(max, Math.max(min, value))
 }
 
 /**
@@ -225,20 +320,31 @@ function place(rect: DOMRect | null): void {
     width: positive(bubble.offsetWidth, 0),
     height: positive(bubble.offsetHeight, 0),
   }
+  const insets = readDockInsets()
   const placement = resolveBubblePlacement({
     petCentreX: rect.left + rect.width / 2,
     petTop: rect.top,
     layout,
     zoom: desiredZoom,
     viewport: { width: viewportWidth, height: viewportHeight },
+    insets,
   })
   bubble.style.top = 'auto'
   bubble.style.bottom = `${Math.round(placement.bottom)}px`
   bubble.style.transform = bubbleTransform(placement.zoom, placement.centreX)
   bubble.style.pointerEvents = 'none'
-  // ⋯ trigger: pet lower-right corner, clamped into the window.
-  const left = Math.min(Math.max(rect.right + TRIGGER_GAP, 4), viewportWidth - TRIGGER_SIZE - 4)
-  const top = Math.min(Math.max(rect.bottom - TRIGGER_SIZE, 4), viewportHeight - TRIGGER_SIZE - 4)
+  // ⋯ trigger: pet lower-right corner, clamped into the VISIBLE area (a docked
+  // window's transparent margin is off-screen, so the trigger must move too).
+  const left = clampInto(
+    rect.right + TRIGGER_GAP,
+    4 + insets.left,
+    viewportWidth - TRIGGER_SIZE - 4 - insets.right,
+  )
+  const top = clampInto(
+    rect.bottom - TRIGGER_SIZE,
+    4 + insets.top,
+    viewportHeight - TRIGGER_SIZE - 4 - insets.bottom,
+  )
   trigger.style.left = `${Math.round(left)}px`
   trigger.style.top = `${Math.round(top)}px`
   trigger.style.right = 'auto'
