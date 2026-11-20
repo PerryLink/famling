@@ -61,8 +61,8 @@
 
 | 角色 | 问题 | 答案链 |
 |---|---|---|
-| cat | 为什么插件是 night/dark/serif + 不发声？ | `library.json.rolePresets[id=cat].appearance + voiceId=none` → `client.js ROLE_BUNDLES.cat`（theme night / background dark / font serif / `canTts:false`）→ 两端 parity 断言固定；来源是 `docs/content-packs/CAT-DESIGN-REFERENCE.md` 的夜间/毛色设计 + 共享“猫狗永不 TTS”安全规则（`public/content/README.md`） |
-| dog | 为什么是 paper/paper/system？ | `rolePresets[id=dog]` → `ROLE_BUNDLES.dog`；主题值来自 `themes.paper` / `backgrounds.paper`；字体来自 `fonts.system`；动画行为 `behaviorPreset=pet-dog` 对应 `public/characters/pet-dog` 与 v7 金毛 68 帧包 |
+| cat | 为什么插件是 night/transparent/serif + 不发声？ | `library.json.rolePresets[id=cat].appearance + voiceId=none` → `client.js ROLE_BUNDLES.cat`（theme night / background transparent / font serif / `canTts:false`）→ 两端 parity 断言固定；背景 transparent 让 DSH host 背景透出（0.10.12），夜间主题只作用于气泡/面板；来源是 `docs/content-packs/CAT-DESIGN-REFERENCE.md` 的夜间/毛色设计 + 共享“猫狗永不 TTS”安全规则（`public/content/README.md`） |
+| dog | 为什么是 paper/transparent/system？ | `rolePresets[id=dog]` → `ROLE_BUNDLES.dog`；主题值来自 `themes.paper`，背景自 0.10.12 起为 `backgrounds.transparent`（纸张气泡/面板保留）、字体来自 `fonts.system`；动画行为 `behaviorPreset=pet-dog` 对应 `public/characters/pet-dog` 与 v7 金毛 68 帧包 |
 | 任意 | 为什么声明是这句？ | `docs/legal/USE-RESTRICTIONS-2026-11-19.md` §1 是 canonical；`src/pet/content-library.ts` 常量与 `library.json` 每个 preset 逐字复制；插件 `SHARED_CONTENT_SEMANTICS.usageStatement` + SHA-256 由 parity 测试重算校验 |
 
 ## 3. 已裁定差异登记（10 条，禁止静默漂移）

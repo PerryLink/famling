@@ -58,13 +58,13 @@
     {
       "id": "cat",
       "name": "布偶猫",
-      "description": "一键切换到蓝重点双色布偶猫：白底丝滑长毛、灰蓝重点、空心心理气泡、永不 TTS、夜间外观与 72 帧动画行为。",
+      "description": "一键切换到蓝重点双色布偶猫：白底丝滑长毛、灰蓝重点、空心心理气泡、永不 TTS、透明背景 + 夜间气泡外观与 72 帧动画行为。",
       "characterId": "cat",
       "voiceId": "none",
       "dialoguePackId": "standard",
       "appearance": {
         "themeId": "night",
-        "backgroundId": "dark",
+        "backgroundId": "transparent",
         "fontId": "serif"
       },
       "behaviorPreset": "pet-cat",
@@ -101,13 +101,13 @@
     {
       "id": "dog",
       "name": "金毛",
-      "description": "一键切换到金毛寻回犬：空心心理气泡、永不 TTS、纸张外观与 68 帧动画行为。",
+      "description": "一键切换到金毛寻回犬：空心心理气泡、永不 TTS、透明背景 + 纸张气泡外观与 68 帧动画行为。",
       "characterId": "dog",
       "voiceId": "none",
       "dialoguePackId": "standard",
       "appearance": {
         "themeId": "paper",
-        "backgroundId": "paper",
+        "backgroundId": "transparent",
         "fontId": "system"
       },
       "behaviorPreset": "pet-dog",
