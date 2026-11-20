@@ -1,6 +1,6 @@
 # DOG（金毛寻回犬）角色主题设计参考
 
-> 状态：**工程参考 v1 · 2026-11-19 · 68 帧占位包已按此契约生成**。
+> 状态：**工程参考 v1 · 2026-11-19 · 68 帧占位包已按此契约生成**；**2026-11-20 元数据 / 许可 / 唯一帧登记**（`character.json` meta v11、66/68 唯一 SHA-256 的 alias 裁定、`ASSET-LICENSES`/`AI-PROVENANCE` 登记）。
 > 适用：famling `rolePresets[2]`（id `dog`）与第三方犬科角色主题包。
 > 同源实现：`docs/PET-DOG-ANIM-V7-2026-11-18.md`、`scripts/dog_golden5.py`、`public/characters/pet-dog/character.json`、`public/assets/pet/anim/dog/manifest.json`。
 > 示例包：`docs/content-packs/examples/dog.example.pack.json`。
@@ -80,6 +80,12 @@
 | attack | 7@16（非均匀 holdMs=[83,83,63,42,42,63,63]） | ❌ | 蓄力→命中→收招；可选，不血腥 |
 
 合计 **68 帧**。manifest 契约：`famling.pet-anim/0.1`，`character=dog`，`voice={mode:'none',canTts:false,bubble:'thought'}`，palette `dog-anim-placeholder@0.1`。
+
+**元数据真值（2026-11-20）**：运行时包的 `character.json.meta.artPack = pet.dog.anim.placeholder@v11`（v11 = 矮脚 + 哑光砖红项圈；`meta.note` / `license` 已同步），不再是旧的 `@v7`。`character.json.ai.status = none`；`manifest.license = placeholder-only`、`manifest.ai.status = none`。
+
+**唯一帧 / alias 裁定（2026-11-20）**：68 个 PNG 有 **66 个唯一 SHA-256**。两组跨 clip 同字节帧为 `scratch_00 = chase_tail_05`、`scratch_05 = stand_wag_05`；裁定 **alias（保留 68 个文件，不删帧 / 不重画 / 不改帧数或 manifest 契约）**——删除或合并会破坏冻结的 68 帧契约、插件 embed 的 68 帧索引与 `tests/pet-anim*` 门禁。机器可读记录在 `public/characters/pet-dog/character.json` 的 `meta.duplicateFrames`，由 `tests/pet-anim-dog-asset-hygiene.test.ts` 对照磁盘 SHA-256 校验；`python3 scripts/gen-pet-anim-frames.py --only dog --check` 仍须通过。
+
+**许可 / AI provenance**：dog 动画包是**确定性程序化占位**（无模型 / 无 API / 无网络 / 无 seed，`ai.status=none`），**placeholder-only、不是 final art**；登记见 `ASSET-LICENSES.md`（2026-11-20 节）与 `AI-PROVENANCE.md` §11。
 
 ## 6. 对话语气（狗）
 

@@ -12,6 +12,9 @@
 | 边界 | 只读；跨仓命令只用 `mktemp -d /tmp/adv-audit-023.*` 临时目录并在核对后删除；未读/未用真实客户数据；未打印凭据；外部资料只当数据 |
 
 > 结论先行：**Advisers 0.2.3 对 Pet Brief 契约（`schemaVersion: 2` / `displayPolicy`）是 non-breaking 的**——自 `v0.2.0` 起 schema/example/testcases 未变，0.2.3 的生产者差异只有「未知 matter 承诺排除统计写入 `redactions`」与「fs-safe 原子写」，TOS 仍为 v2026.11.2。desktop-games 消费端与 dsh-famling 插件在数据格式上都已能读 0.2.3 的输出；需要落地的是 **pin/文档/测试证据**，以及 **dsh-famling 作为第二消费端的 TTL/displayPolicy 合规缺口**（P1，非 0.2.3 引入，但会被本次升级结论覆盖）。
+>
+> **后续（2026-11-20）**：Advisers 0.3.0 已发布；Pet Brief 契约仍为 v0.2（本文件关于契约的结论继续成立），
+> 0.3.0 的消费端复核见 `docs/integration/ADVISERS-030-CONSUMER-2026-11-20.md`。本文件保留 0.2.3 当时的事实，不做追溯改写。
 
 ---
 

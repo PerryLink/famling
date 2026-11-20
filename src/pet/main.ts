@@ -34,6 +34,7 @@ import {
   ADVISERS_BLUR_HIDDEN_NOTICE,
   ADVISERS_NONE_CLEARED_NOTICE,
   ADVISERS_PAGE_HIDDEN_NOTICE,
+  ADVISERS_PRODUCER_TOS_GUIDANCE_LINES,
   ADVISERS_VISIBILITY_HIDDEN_NOTICE,
   AdvisersFaceController,
   AdvisersPanelPrivacyGuard,
@@ -1662,7 +1663,11 @@ function initAdvisersFace(): void {
     if (!canInteract()) return
     if (!panel || !panelMeta || !panelSections) return
     const view = describeAdvisersFaceView(controller.lastStatus)
-    const brief = controller.lastBrief
+    // A producer-side E_TOS_REQUIRED gate means the producer is not writing a
+    // valid brief; never re-render a cached brief under it (fail closed), only
+    // the fixed re-consent guidance below.
+    const producerTosRequired = controller.lastStatus.code === 'PRODUCER_TOS_REQUIRED'
+    const brief = producerTosRequired ? undefined : controller.lastBrief
     // TOS/consent is checked above and stays first; displayPolicy then decides
     // whether this panel session may exist and whether it may render content.
     const decision = privacyGuard.open(brief ?? controller.lastStatus)
@@ -1684,6 +1689,17 @@ function initAdvisersFace(): void {
         ? '暂无可用简报；可点“重试”重新读取（只读）。'
         : '暂无可用简报（只读）。'
       panelSections.append(empty)
+      // Producer-side TOS re-consent (Advisers 0.3.0: pet-brief exits 3 with
+      // E_TOS_REQUIRED until TOS v2026.11.3 is accepted again). Fixed guidance
+      // copy only: no raw stderr/paths and the pet never accepts for the user.
+      if (controller.lastStatus.code === 'PRODUCER_TOS_REQUIRED') {
+        for (const line of ADVISERS_PRODUCER_TOS_GUIDANCE_LINES) {
+          const guidance = document.createElement('p')
+          guidance.className = 'note advisers-tos-guidance'
+          guidance.textContent = line
+          panelSections.append(guidance)
+        }
+      }
     } else if (decision.contentBlock === 'stale') {
       // Expired briefs are never re-rendered, even though the controller keeps
       // them cached for status/counts: only a fresh brief may show its text.

@@ -224,7 +224,7 @@
     "chase_tail"
   ],
   "specOnly": {
-    "walk": "spec-only freeze 2026-11-20 (MB-047/E5-T7): no behavior slot/state/rule, no regions action/gesture and no hero event plays walk; kept as the locomotion reference for a future roam mode. The 8 frames stay in the 68-frame pack contract (the pack loader still embeds them) until a product entry is decided.",
-    "attack": "spec-only freeze 2026-11-20 (MB-047/E5-T7): unreachable combat one-shot (no UI, regions or plugin EVENT_CLIPS entry) and its behavior state was removed; kept as spec for a future play-fight reaction with cooldown. The 7 frames stay in the 68-frame pack contract (the pack loader still embeds them) until a product entry is decided."
+    "walk": "spec-only freeze 2026-11-20 (MB-047/E5-T7): no behavior slot/state/rule, no regions action/gesture and no hero event plays walk; kept as the locomotion reference for a future roam mode. The 8 frames stay in the frozen 12-clip pack contract (the pack loader still embeds them) until a product entry is decided.",
+    "attack": "spec-only freeze 2026-11-20 (MB-047/E5-T7): unreachable combat one-shot (no UI, regions or plugin EVENT_CLIPS entry) and its behavior state was removed; kept as spec for a future play-fight reaction with cooldown. The 7 frames stay in the frozen 12-clip pack contract (the pack loader still embeds them) until a product entry is decided."
   }
 }

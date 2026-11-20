@@ -308,7 +308,7 @@ export function formatScaleLabel(scale: number): string {
 /** Renderer choices that draw on the hero canvas (the animated characters). */
 export type HeroRendererChoice = 'dog' | 'cat' | 'humanoid'
 
-/** Hero renderer choices in menu order: 金毛 / 塞尔凯克卷毛猫 / 汀岚. */
+/** Hero renderer choices in menu order: 金毛 / 布偶猫 / 汀岚. */
 export const HERO_RENDERER_CHOICES: readonly HeroRendererChoice[] = ['dog', 'cat', 'humanoid']
 
 /** Renderer choice written by the desktop-shell menu (hero characters + origami). */
@@ -321,7 +321,7 @@ function isHeroRendererChoice(choice: PetRendererChoice): choice is HeroRenderer
 /**
  * Pure storage writes for one renderer choice.
  *
- * - a hero character (`dog` = v9 golden retriever, `cat` = Selkirk Rex,
+ * - a hero character (`dog` = v11 golden retriever, `cat` = Ragdoll,
  *   `humanoid` = Tinglan) = enable hero + persist that character (the next load
  *   resolves it through `HERO_CHARACTER_STORAGE_KEY`);
  * - `origami` = folded-paper DOM: switch hero off. The persisted character is
@@ -354,7 +354,7 @@ export interface RendererMenuItem {
  */
 export const RENDERER_MENU_ITEMS: readonly RendererMenuItem[] = [
   { choice: 'dog', label: '渲染器：金毛（动画）' },
-  { choice: 'cat', label: '渲染器：塞尔凯克卷毛猫（动画）' },
+  { choice: 'cat', label: '渲染器：布偶猫（动画）' },
   { choice: 'humanoid', label: '渲染器：汀岚（动画）' },
   { choice: 'origami', label: '渲染器：折纸（默认）' },
 ]

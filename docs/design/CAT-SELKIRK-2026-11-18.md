@@ -4,7 +4,7 @@
 - 设定变更：cat 角色由布偶猫（Ragdoll）改为**塞尔凯克卷毛猫（Selkirk Rex）**，只保留**灰色 + 白色/米色**；去掉全部橙色/棕色/粉红毛色。
 - 用户参考图（只读、不随包分发）：`/mnt/d/Projects/dsh/_scratch/pet-refs-user-2026-11-18/selkirk-user.png`。参考里的橙色斑块在本实现中全部改为灰色斑块。
 - 不改：dog/human 动画包、`scripts/gen-pet-anim-frames.py`、hero-runtime/desktop-shell/menu；不 commit、不改插件仓、不新增 npm 依赖。
-- 旧版文档 `docs/design/CAT-RAGDOLL-2026-11-18.md` 保留为历史版本；本文件是当前有效设计。
+- **历史版本**：2026-11-20 已改回同配色蓝重点双色布偶猫（Ragdoll），当前有效设计见 `docs/design/CAT-RAGDOLL-2026-11-20.md`；旧文档 `docs/design/CAT-RAGDOLL-2026-11-18.md` 亦为历史版本。
 
 ## 1. 角色设计（灰白卷毛，不是顺滑长毛）
 

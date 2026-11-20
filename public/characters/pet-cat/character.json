@@ -35,15 +35,15 @@
     "scale": 2,
     "pixelated": true
   },
-  "palette": "cat-selkirk-anim@0.1",
+  "palette": "cat-ragdoll-anim@0.1",
   "packBase": "/assets/pet/anim/cat/",
   "behaviorFile": "behavior.json",
-  "license": "placeholder-only (deterministic Selkirk Rex cat anim placeholder frames; commercial use not granted; see LICENSE-ART)",
+  "license": "placeholder-only (deterministic blue-bicolor Ragdoll cat anim placeholder frames, same 16-hex cat palette; commercial use not granted; see LICENSE-ART)",
   "meta": {
     "authors": [
       "Famling"
     ],
-    "note": "Default cat pet (grey/cream curly Selkirk Rex placeholder, v7 anim pack: 96x96, 12 tags / 68 frames from scripts/gen-cat-anim.py + scripts/cat_selkirk.py). Behaviour states map to pack tags: rub/pat_head -> pat_head, play -> stand_wag, meow/nudge/drag/land/sleep -> idle; ball_throw/ball_chase/paw_face/scratch/stand_wag/chase_tail/idle_blink render the matching clips; ambient micro-actions cycle every 4-10s. Legacy tags listed in fallback resolve to anim tags.",
+    "note": "Default cat pet (blue-bicolor Ragdoll placeholder, white-dominant silky straight coat with blue-grey cap/ears/plume tail and a white blaze over the eyes; 96x96, 12 clips / 72 frames from scripts/gen-cat-anim.py + scripts/cat_selkirk.py). Behaviour states map to pack tags: rub/pat_head -> pat_head, play -> stand_wag, meow/nudge/drag/land/sleep -> idle; ball_throw/ball_chase/paw_face/scratch/stand_wag/chase_tail/idle_blink render the matching clips; ambient micro-actions cycle every 4-10s. Legacy tags listed in fallback resolve to anim tags.",
     "artStatus": "placeholder",
     "artPack": "pet.cat.anim.placeholder@v0.1"
   },

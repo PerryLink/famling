@@ -57,8 +57,8 @@
     },
     {
       "id": "cat",
-      "name": "塞尔凯克卷毛猫",
-      "description": "一键切换到灰白卷毛猫：空心心理气泡、永不 TTS、夜间外观与 72 帧动画行为。",
+      "name": "布偶猫",
+      "description": "一键切换到蓝重点双色布偶猫：白底丝滑长毛、灰蓝重点、空心心理气泡、永不 TTS、夜间外观与 72 帧动画行为。",
       "characterId": "cat",
       "voiceId": "none",
       "dialoguePackId": "standard",
@@ -220,8 +220,8 @@
     },
     {
       "id": "cat",
-      "name": "塞尔凯克卷毛猫",
-      "description": "塞尔凯克卷毛猫桌宠：空心心理活动气泡，永不 TTS。",
+      "name": "布偶猫",
+      "description": "蓝重点双色布偶猫桌宠：白底丝滑长毛、空心心理活动气泡，永不 TTS。",
       "preview": "/assets/pet/anim/cat/idle/idle_00.png",
       "kind": "cat",
       "source": "builtin",

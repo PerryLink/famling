@@ -74,6 +74,7 @@ export type AdvisersFaceReason =
   | 'stale'
   | 'quiet-or-deduped'
   | 'consent-required'
+  | 'producer-tos-required'
   | 'error'
 
 /** Coarse classification for the status line / panel (disabled vs stale vs error). */
@@ -94,6 +95,7 @@ export type AdvisersFaceCode =
   | 'FRESH'
   | 'QUIET_OR_DEDUPED'
   | 'CONSENT_REQUIRED'
+  | 'PRODUCER_TOS_REQUIRED'
 
 /** Must match the Tauri command / producer cap (`app/tauri/.../main.rs`). */
 export const ADVISERS_BRIEF_MAX_BYTES = PET_BRIEF_MAX_BYTES
@@ -101,6 +103,26 @@ export const ADVISERS_BRIEF_MAX_BYTES = PET_BRIEF_MAX_BYTES
 export const ADVISERS_BRIEF_TIMEOUT_MS = 8_000
 export const ADVISERS_SYNC_INTERVAL_MS = 60_000
 export const ADVISERS_MAX_SYNC_INTERVAL_MS = 300_000
+
+/**
+ * Producer-side Advisers TOS gate. Advisers 0.3.0 bumps TOS to v2026.11.3 and
+ * its gated `pet-brief` command exits 3 with `E_TOS_REQUIRED` until the user
+ * re-consents; the old v2026.11.2 consent is not valid. The desktop path only
+ * reads the produced file, so this signal is surfaced only when a reader or a
+ * future diagnostic reports the producer error (see README/docs). The pet must
+ * never accept TOS or write a consent record on the producer behalf.
+ */
+export const ADVISERS_PRODUCER_TOS_CODE = 'E_TOS_REQUIRED'
+export const ADVISERS_PRODUCER_TOS_VERSION = '2026.11.3'
+export const ADVISERS_PRODUCER_TOS_STATUS_TEXT = 'Advisers：生产者需重新同意 TOS v2026.11.3（只读）'
+/** Fixed, content-free re-consent instructions; safe to render in the status/panel. */
+export const ADVISERS_PRODUCER_TOS_GUIDANCE_LINES = [
+  'Advisers 生产者需要重新同意使用条款（TOS v2026.11.3；Advisers 0.3.0 起旧同意失效）。',
+  '在终端运行 `advisers tos show` 查看全文，再用交互式 `advisers tos accept` 重新同意。',
+  '定时任务/非交互环境：显式加 `--accept-tos` 或设置 `ADVISERS_ACCEPT_TOS=1`（记录为非交互同意）。',
+  '桌面端不代你同意、不修改 Advisers 的同意记录；完成后再点“重试”。',
+] as const
+export const ADVISERS_PRODUCER_TOS_GUIDANCE = ADVISERS_PRODUCER_TOS_GUIDANCE_LINES.join('\n')
 
 /** Largest backoff exponent; keeps `base * 2^n` from overflowing. */
 const BACKOFF_MAX_EXPONENT = 6
@@ -144,6 +166,11 @@ export interface AdvisersFaceStatus {
   warnings?: PetBriefWarning[]
   /** Why a validated brief was skipped instead of retained. */
   skipReason?: 'display_none' | 'user_opt_out'
+  /**
+   * Producer TOS version reported by an `E_TOS_REQUIRED` reader error. Present
+   * only for `producer-tos-required`; drives the fixed re-consent guidance.
+   */
+  producerTosVersion?: string
   message?: string
 }
 
@@ -253,6 +280,35 @@ function readErrorParts(error: unknown): { code?: string; message: string } {
   return { message: String(error ?? '') }
 }
 
+/** Producer TOS-gate signal detected from a reader error. */
+export interface AdvisersProducerTosSignal {
+  required: boolean
+  /** Version parsed from the message, or the current known version. */
+  version?: string
+}
+
+const PRODUCER_TOS_ERROR_CODE = /E_TOS_REQUIRED/i
+const PRODUCER_TOS_CONSENT_TEXT = /需要(?:先|再次|重新)同意使用条款/
+const PRODUCER_TOS_VERSION_TEXT = /(?:TOS|使用条款)[^0-9]{0,24}(\d{4}\.\d{1,2}\.\d{1,2})/i
+const PRODUCER_TOS_ANY_VERSION = /(\d{4}\.\d{1,2}\.\d{1,2})/
+
+/**
+ * Recognize the producer-side Advisers TOS gate (`pet-brief` exit 3,
+ * `E_TOS_REQUIRED`) from a reader rejection. Supports both the future
+ * structured `{ code, message }` error shape and plain `Error`/string
+ * messages (the producer stderr contains the code and the Chinese consent
+ * sentence). Never reads brief content and never mutates consent state.
+ */
+export function detectProducerTosError(error: unknown): AdvisersProducerTosSignal {
+  const { code, message } = readErrorParts(error)
+  const text = `${code ?? ''}\n${message}`
+  if (!PRODUCER_TOS_ERROR_CODE.test(text) && !PRODUCER_TOS_CONSENT_TEXT.test(message)) {
+    return { required: false }
+  }
+  const match = text.match(PRODUCER_TOS_VERSION_TEXT) ?? text.match(PRODUCER_TOS_ANY_VERSION)
+  return { required: true, version: match?.[1] ?? ADVISERS_PRODUCER_TOS_VERSION }
+}
+
 /**
  * Redact local paths from reader errors before they reach a status/UI.
  * Keeps only a bounded, single-line message.
@@ -276,6 +332,7 @@ export function sanitizeAdvisersErrorMessage(error: unknown): string {
 function classifyReadError(error: unknown): AdvisersFaceCode {
   if (error instanceof AdvisersBriefTimeoutError) return 'TIMEOUT'
   if (error instanceof AdvisersTransportError) return 'NO_TRANSPORT'
+  if (detectProducerTosError(error).required) return 'PRODUCER_TOS_REQUIRED'
   const { code, message } = readErrorParts(error)
   // Structured errors (proposed Rust patch) carry the classification directly.
   const KNOWN: readonly AdvisersFaceCode[] = [
@@ -285,6 +342,7 @@ function classifyReadError(error: unknown): AdvisersFaceCode {
     'INVALID_BRIEF',
     'UNSUPPORTED_SCHEMA',
     'NO_FILE',
+    'PRODUCER_TOS_REQUIRED',
     'READ_ERROR',
   ]
   if (code && (KNOWN as readonly string[]).includes(code)) return code as AdvisersFaceCode
@@ -336,6 +394,11 @@ export function describeAdvisersFaceStatus(status: AdvisersFaceStatus): Advisers
     case 'consent-required':
       text = 'Advisers：需先同意完整声明（只读）'
       break
+    case 'producer-tos-required':
+      text = status.producerTosVersion
+        ? `Advisers：生产者需重新同意 TOS v${status.producerTosVersion}（只读）`
+        : ADVISERS_PRODUCER_TOS_STATUS_TEXT
+      break
     case 'no-file':
       text = 'Advisers：未找到 pet-brief.json（可选）'
       break
@@ -381,6 +444,7 @@ type StatusFields = Pick<
   | 'displayPolicy'
   | 'warnings'
   | 'skipReason'
+  | 'producerTosVersion'
   | 'message'
 >
 
@@ -439,6 +503,7 @@ export class AdvisersFaceController {
     if (fields.displayPolicy !== undefined) status.displayPolicy = fields.displayPolicy
     if (fields.warnings !== undefined) status.warnings = fields.warnings
     if (fields.skipReason !== undefined) status.skipReason = fields.skipReason
+    if (fields.producerTosVersion !== undefined) status.producerTosVersion = fields.producerTosVersion
     if (fields.message !== undefined) status.message = fields.message
     if (this.lastError !== undefined) status.lastError = this.lastError
     this.lastBriefState = this.lastBrief
@@ -487,6 +552,15 @@ export class AdvisersFaceController {
     const message = sanitizeAdvisersErrorMessage(error)
     this.lastError = { code, message }
     this.consecutiveFailures += 1
+    if (code === 'PRODUCER_TOS_REQUIRED') {
+      // Fixed copy only: the producer stderr sentence may mention paths/terms;
+      // the status line and panel render the version + stable code instead.
+      const producerTosVersion = detectProducerTosError(error).version ?? ADVISERS_PRODUCER_TOS_VERSION
+      const tosMessage =
+        'producer TOS v' + producerTosVersion + ' requires re-consent (' + ADVISERS_PRODUCER_TOS_CODE + ')'
+      this.lastError = { code, message: tosMessage }
+      return this.publish({ ok: false, reason: 'producer-tos-required', state: 'unavailable', code, retryable: true, message: tosMessage, producerTosVersion })
+    }
     if (code === 'NO_TRANSPORT') {
       return this.publish({ ok: false, reason: 'no-transport', state: 'unavailable', code, retryable: false, message })
     }
@@ -949,7 +1023,8 @@ function panelHideReasonForStatus(status: AdvisersPanelStatusView): AdvisersPane
     status.reason === 'invalid' ||
     status.reason === 'error' ||
     status.reason === 'no-file' ||
-    status.reason === 'no-transport'
+    status.reason === 'no-transport' ||
+    status.reason === 'producer-tos-required'
   ) {
     return 'unavailable'
   }

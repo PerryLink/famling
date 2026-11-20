@@ -75,7 +75,7 @@ export const HERO_STORAGE_KEY = 'desktop-games/pet/hero'
  * Persisted hero character selection (`desktop-games/pet/heroCharacter`).
  *
  * Written by the desktop-shell renderer menu (`渲染器：金毛（动画）` sets
- * `'dog'`, `渲染器：塞尔凯克卷毛猫（动画）` sets `'cat'`, `渲染器：汀岚（动画）`
+ * `'dog'`, `渲染器：布偶猫（动画）` sets `'cat'`, `渲染器：汀岚（动画）`
  * sets `'humanoid'`), read here only when the URL has no `?character=`. Values are
  * restricted to `HERO_CHARACTER_IDS`; anything else resolves to the default
  * (`humanoid`) so a stale/typo'd preference can never break the page.
@@ -126,8 +126,8 @@ export const HERO_CHARACTER_SOURCES: Readonly<Record<HeroCharacterId, HeroCharac
     dir: '/characters/pet-tinglan-anim/',
     canvasTarget: [DEFAULT_HUMANOID_CANVAS, DEFAULT_HUMANOID_CANVAS],
   },
-  cat: { id: 'cat', label: '塞尔凯克卷毛猫（动画占位）', dir: '/characters/pet-cat/' },
-  dog: { id: 'dog', label: '金毛（动画占位 v7）', dir: '/characters/pet-dog/' },
+  cat: { id: 'cat', label: '布偶猫（动画占位）', dir: '/characters/pet-cat/' },
+  dog: { id: 'dog', label: '金毛（动画占位 v11）', dir: '/characters/pet-dog/' },
   tinglan: {
     id: 'tinglan',
     label: '汀岚（Q 256 概念/预览，非 final）',

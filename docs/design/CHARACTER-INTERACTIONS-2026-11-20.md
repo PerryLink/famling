@@ -92,7 +92,7 @@ plugins/dsh-famling/scripts/gen-content-constants.mjs
 | `public/characters/pet-dog/behavior.json` | `27f41a5809f7d8c711363898cd6f8a4967fcb74ae01b4c5563f4e6154b1d593f` |
 | `public/characters/pet-dog/regions.json` | `59483a6a20c9140c25c7bf34949306b6813aa020c41f9460da4ee27026ddfc0b` |
 | `public/characters/pet-cat/behavior.json` | `369989ed404c33cd0773ad83c3e9b1b110a6713ebf6e037984ff9609aaf1e8fe` |
-| `public/characters/pet-cat/regions.json` | `3410adc55c1880da5138dbae6b1ef226100708ae34d8363b27bc8d29f003b5fb` |
+| `public/characters/pet-cat/regions.json` | `965e12d4488f496fa747802c8c048187566d889452b0b605b1fd729cdfeca913`（2026-11-20 task-153：洗脸台词改为「长毛不好梳」） |
 | `public/characters/pet-tinglan-anim/behavior.json` | `39bcf96b932837557960378ace565dec34ffe0d7a87c16d5d53b221839428fbd` |
 | `public/characters/pet-tinglan-anim/regions.json` | `8d2cd34a98be0ed2e3084b3716378d531797f5b852b3523357e0e1041dc72726` |
 

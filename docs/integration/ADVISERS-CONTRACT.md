@@ -2,11 +2,11 @@
 
 | 项目 | 内容 |
 |---|---|
-| 状态 | **生效（2026-11-18，Advisers 0.2.3）**；消费端已接受 contract v0.1 + v0.2；Advisers 侧 pin `advisers@0.2.3` |
-| 负责 | desktop-games：Advisers consumer 通道（`src/presence/**`、`src/pet/advisers/**`、本文件、`docs/audit/ADVISERS-*`）；Advisers 仓由 Advisers 维护者负责 |
+| 状态 | **生效（2026-11-20，Advisers 0.3.0 package / Pet Brief contract v0.2）**；消费端已接受 contract v0.1 + v0.2；Advisers 侧 pin `advisers@0.3.0` |
+| 负责 | desktop-games：Advisers consumer 通道（`src/presence/**`、`src/pet/advisers/**`、本文件、`docs/integration/ADVISERS-*`）；Advisers 仓由 Advisers 维护者负责 |
 | 范围 | 只读 Pet Brief 文件契约、版本协商、升级/回滚、TOS/safety 对齐、Tauri 读取命令建议；**不含** UI、consent、safety、security 实现（其他工作线）与 Rust 实际改动 |
-| 基线 | desktop-games 当前 HEAD；Advisers `v0.2.3` tag → commit `2a9a4a8`（2026-11-18 发布） |
-| 验收报告 | `docs/audit/ADVISERS-020-COMPAT-2026-11-17.md` |
+| 基线 | desktop-games 当前 HEAD；Advisers annotated tag `v0.3.0`（tag object `f3ac009`）→ commit `1199fbf`（2026-11-20 发布）；发布后仅 docs-only 提交 `e3f440d` |
+| 验收报告 | `docs/integration/ADVISERS-030-CONSUMER-2026-11-20.md`（2026-11-20，0.3.0 消费端）；`docs/audit/ADVISERS-020-COMPAT-2026-11-17.md`（历史 0.2.0） |
 
 > 本文件是 **desktop-games 侧的集成契约与升级 runbook**，不是 Advisers 发布物的一部分，也不改写 Advisers 的 canonical 契约。
 > 契约形状以 Advisers 仓 `docs/pet-brief/` 快照为准；本文的 hash/行号用于复现核对。
@@ -25,19 +25,22 @@
 
 | 项 | 值 | 证据 |
 |---|---|---|
-| 包版本 | `advisers@0.2.3`（npm `latest`，六包 lockstep：advisers / core / office / policy-strict / bridge-hermes / dsh-advisers；两个私有 link-* 同版本不发布） | Advisers `CHANGELOG.md` §0.2.3（2026-11-18 published，六包 lockstep）；`git tag v0.2.3` |
-| 发布 tag | `v0.2.3` → commit `2a9a4a8` | `git rev-parse v0.2.3^{commit}` |
-| 契约版本 | `schemaVersion: 2`（contract v0.2）；v0.1 = `schemaVersion: 1` 作为 legacy 可读 | `docs/pet-brief/README.md`、`schema-v0.2.json` |
-| 契约快照 | `docs/pet-brief/schema-v0.2.json` sha256 `bd2704c5…`（快照与 tag 逐字节一致） | `sha256sum`；`git diff v0.2.0..HEAD -- docs/pet-brief` 为空 |
-| 生产者实现 | `packages/advisers/lib/pet-brief.js` sha256 `877675c8…`（`buildPetBrief` / `validatePetBrief` / `writePetBriefAtomic`） | 同上 |
-| TOS | v2026.11.2（effective 2026-11-17），`docs/TOS.md` sha256 `c40f869a…`；随包分发 `packages/advisers/lib/tos/` | `docs/TOS.md` 头表；`lib/tos/manifest.json` |
-| 消费者契约快照 | `docs/contracts/pet-brief/`（v0.1 私有 `PerryLink/famling` 快照，只读，不改写） | 其 `SOURCE.md` blob sha |
+| 包版本 | `advisers@0.3.0`（npm `latest`；`next` 仍为 `0.2.3`，0.2.4 从未发布；八包 workspace lockstep `0.3.0` = 六个发布包 advisers / core / office / policy-strict / bridge-hermes / dsh-advisers + 两个私有 link-*） | npm registry `dist-tags` 逐包查询（2026-11-20）；Advisers `CHANGELOG.md` §0.3.0（2026-11-20 published） |
+| 发布 tag | annotated tag `v0.3.0` object `f3ac0093271bb1ba4eda99286ac12772a190b8d7` → commit `1199fbfe79ef70dcb013775549de450c8a864aac` | `git rev-parse v0.3.0` / `git rev-parse 'v0.3.0^{commit}'` / `git cat-file -t v0.3.0` |
+| 供应链/provenance | 0.3.0 是首个 Trusted-Publishing/OIDC release：六个包 `dist.attestations` 含 `url`+`provenance`；附 CycloneDX SBOM；仓库 `verify-release --version 0.3.0 --require-sbom` 记录 222 checks | npm registry 逐包 `dist.attestations`；Advisers CHANGELOG §0.3.0 Status/Provenance；`docs/SBOM.md` |
+| 契约版本 | **`schemaVersion: 2`（contract v0.2）不变**；0.3.0 **没有** `schema-v0.3.json`；v0.1 = `schemaVersion: 1` 作为 legacy 可读 | `git diff v0.2.3..v0.3.0 -- docs/pet-brief` 为空；`status --json.contracts.petBrief = 2`；`contracts/CONSUMERS.json` 登记 `pet-brief@0.2` |
+| 契约快照 | `schema-v0.2.json` sha256 `bd2704c5…`；`example-v0.2.json` `275c2ee1…`；`testcases-v0.2.json` `4e15eb9b…`（与 v0.2.0/v0.2.3 逐字节相同） | `git show v0.3.0:<path> \| sha256sum`；安装包 `pet-brief --print-schema` 同 hash |
+| 生产者实现 | `packages/advisers/lib/pet-brief.js` sha256 `70651e56…`（0.2.3 为 `877675c8…`；+102/−39 为性能/投影重构，注释声明 output-equivalent） | `git show v0.3.0:packages/advisers/lib/pet-brief.js \| sha256sum`；`git diff v0.2.3..v0.3.0 -- packages/advisers/lib/pet-brief.js` |
+| TOS | **v2026.11.3（effective 2026-11-20）**，`docs/TOS.md` sha256 `6d508bd7…`（= 安装包 `tos status --json.textSha256`）；v2026.11.2 的既存同意**不适用于** 2026.11.3，受门控命令需重新同意；随包分发 `packages/advisers/lib/tos/` | `git show v0.3.0:docs/TOS.md \| sha256sum`；`advisers tos status --json`；CHANGELOG §0.3.0 Legal texts |
+| 消费者契约快照 | `docs/contracts/pet-brief/`（v0.1 私有 `PerryLink/famling` 快照 + v0.2 公开快照，只读，不改写；0.3.0 复核见其 README §5） | 其 `SOURCE.md` / README §5 hash 表 |
 | 生产/消费实现 | `advisers pet-brief --out ~/.advisers/pet-brief.json` → Tauri `read_advisers_brief` → `validatePetBrief` → `AdvisersFaceController` | `src/presence/pet-brief.ts`、`src/pet/advisers/face.ts`、`app/tauri/src-tauri/src/main.rs:85` |
 
-> **2026-11-18 Advisers 0.2.3 更新**：Pet Brief schema v0.2 不变（schemaVersion:2、displayPolicy、128 KiB/TTL 均不变），TOS 仍为 v2026.11.2；变化集中在 producer 的未知 matter 承诺显式披露（redactions 增加排除统计）、原子写/fsync、持久化/读路径性能与 DSH adapter preview 标记。consumer 无需改数据格式，只需更新 pin/文档/兼容测试口径。详见 docs/integration/ADVISERS-023-UPDATE-2026-11-18.md。
+> **2026-11-20 Advisers 0.3.0 更新**：Pet Brief **契约不变**（schemaVersion 2、displayPolicy、128 KiB/TTL、closed schema 均不变；`docs/pet-brief/` 在 `v0.2.3..v0.3.0` 零 diff）。0.3.0 是 package release：producer 性能/投影重构（output-equivalent）、per-item secrecy clearance 口径、TOS 升到 **v2026.11.3（需重新同意）**、首个 provenance release、ledger schema v21（additive，与文件契约无关）。consumer 无需改数据格式，只需更新 pin/文档/fixtures/兼容测试口径。详见 `docs/integration/ADVISERS-030-CONSUMER-2026-11-20.md`。
+>
+> 历史：2026-11-18 Advisers 0.2.3（TOS v2026.11.2、unknown-matter redactions、原子写）见 `docs/integration/ADVISERS-023-UPDATE-2026-11-18.md`。
 
-**pin 原则**：集成文档只 pin `advisers@0.2.3` 这一稳定 release；不 pin preview/next，不在 consumer 代码里依赖 `advisers` 包或 `~/.advisers`
-的数据库/审计链。`schemaVersion` 是契约 major，与包版本解耦：**包升级 ≠ 契约升级**，反之亦然。
+**pin 原则**：集成文档只 pin `advisers@0.3.0` 这一稳定 release（`latest`；不放宽到 `next`=0.2.3 或任何 preview）；不在 consumer 代码里依赖 `advisers` 包或 `~/.advisers`
+的数据库/审计链。`schemaVersion` 是契约 major，与包版本解耦：**包升级 ≠ 契约升级**——0.2.3→0.3.0 是包 minor 升级而契约仍是 v0.2，就是最直接的例证；反之亦然。
 
 ---
 
@@ -63,8 +66,8 @@
 | 契约 | `schemaVersion` | 生产者 | `displayPolicy` | consumer 行为 |
 |---|---|---|---|---|
 | v0.1（2026-11-14 design contract） | `1` | `advisers@0.2.1-preview.71` 及更早 | 无字段 | **接受（legacy）**，warning `W_LEGACY_SCHEMA_VERSION` + `W_MISSING_DISPLAY_POLICY`，按 `private` 处理 |
-| **v0.2（当前）** | `2` | `advisers@0.2.3` stable | `public \| private \| none`，缺失=warning+`private` | 严格校验；`private`/`public` 接受，`none` → `skip(display_none)` |
-| 未来 major（≥3） | `>= 3` | 未知，不得提前假设 | — | **refuse fail-closed**（`SCHEMA_VERSION`，状态 `UNSUPPORTED_SCHEMA`）；不降级按 v0.1 解析、不以 `public` 渲染 |
+| **v0.2（当前）** | `2` | `advisers@0.3.0` stable（契约自 0.2.0 起未变） | `public \| private \| none`，缺失=warning+`private` | 严格校验；`private`/`public` 接受，`none` → `skip(display_none)` |
+| 未来 major（≥3） | `>= 3` | 未知，不得提前假设（0.3.0 **没有** v0.3 契约） | — | **refuse fail-closed**（`SCHEMA_VERSION`，状态 `UNSUPPORTED_SCHEMA`）；不降级按 v0.1 解析、不以 `public` 渲染 |
 
 ### 3.2 协商算法（consumer 必须按此实现，已实现）
 
@@ -88,12 +91,15 @@ if (policy === 'none') return skip('display_none')                // 不保留/�
 
 - 必须同时接受 `schemaVersion 1|2`，直到**至少**下列条件全部满足：v0.2 producer 已稳定运行一个 MINOR 周期、
   v0.1 文件因 5min TTL 不再可能存在、且 release notes 明示放弃 legacy。否则不能只接受 v2。
-- 当前 release（0.2.x）**不**声明升级到只接受 v2；收紧需单独变更 + 测试矩阵更新。
-- 未来 0.3 的接入顺序见 §8（consumer 先、producer 后；不得反向）。
+- 当前 release（0.3.x package / contract v0.2）**不**声明升级到只接受 v2；收紧需单独变更 + 测试矩阵更新。
+- **包版本与契约 major 已解耦**：`advisers@0.3.0` 仍输出 `schemaVersion: 2`。未来契约 major（vNext）的接入顺序见 §8（consumer 先、producer 后；不得反向），不能用包 minor 版本号推断契约版本。
 
 ---
 
 ## 4. 0.2.0 相对上一版（`.71` preview）的兼容性清单
+
+> §4.1–4.2 是 2026-11-17 的**历史清单**（0.2.0）；当前 pin 的增量见 §4.3（0.3.0 package release）与
+> `docs/integration/ADVISERS-023-UPDATE-2026-11-18.md`（0.2.3）。
 
 ### 4.1 对 Pet Brief consumer 有影响的变更
 
@@ -118,14 +124,34 @@ if (policy === 'none') return skip('display_none')                // 不保留/�
 > 结论：对桌宠通道，**唯一必须同步的是 contract v0.2 + TOS 门 + 许可告知**；MCP/DSH 工具数变化不改变 Pet Brief schema，
 > 不得作为“必须升级 consumer”的理由，也不得反向要求 producer 回退 v0.1。
 
+### 4.3 0.2.3 → 0.3.0（2026-11-20，package release，契约不变）
+
+> 完整核对与实测见 `docs/integration/ADVISERS-030-CONSUMER-2026-11-20.md`；此处只列对 consumer 的处置结论。
+
+| 变更 | 性质 | consumer 处置 |
+|---|---|---|
+| **Pet Brief contract v0.2 不变**：`docs/pet-brief/` 在 `v0.2.3..v0.3.0` 零 diff（schema/example/testcases 同 hash），没有 `schema-v0.3.json`；`docs/PET-BRIEF-CONSUMERS.md`/`docs/PET-BRIEF-PRODUCER.md` 也不变 | non-breaking，契约未动 | **无需改代码**；只更新 pin/文档/fixtures/测试口径；继续接受 `schemaVersion 1\|2` |
+| producer `lib/pet-brief.js` 重构（+102/−39）：redactor 候选先去重、narrow projection/`nameCandidates`、top-N 有界插入、due 缓存；diff 注释声明 output-equivalent | non-breaking（输出等价；200k 账本性能修复） | 无；0.3.0 实测输出通过现有 consumer（新增 fixture） |
+| per-item secrecy clearance（0.3.0 安全声明把 Pet Brief projection 列入同一口径）：`secrecy >= 2` 的 matter 及其承诺在**计数/截断前**排除，只把排除数写 `redactions` | non-breaking（隐私加固，且本就是 contract v0.2 要求） | 无数据格式变化；fixture 验证保密事项标题/承诺文本不出现 |
+| **TOS v2026.11.3（2026-11-20）**：实质性修订（补 bridge/Hermes 出网披露）；v2026.11.2 的同意不再有效；`ADVISERS_TOS_VERSION` 不能再伪造同意记录 | **operational breaking（仅 producer 定时任务）**：首次受门控命令需重新同意 | consumer 不解析 TOS；producer 定时任务需交互重新同意或显式 `--accept-tos`/`ADVISERS_ACCEPT_TOS=1`，否则 exit 3 `E_TOS_REQUIRED` → 桌宠 idle（非文件损坏/非崩溃） |
+| ledger schema **v21**（clients/projects/client_notes、`commitments.created_at`、delivery lineage 等 additive） | 与 Pet Brief **文件通道无关** | 无（consumer 不读 SQLite，只读 JSON 文件） |
+| 供应链：0.2.3 → 0.3.0 首个 provenance 发布（六个包 `dist.attestations` 非空）、SBOM、`contracts/` 机器可读契约、`status --json.contracts.petBrief = 2`；未发布的 0.2.4 被 0.3.0 吸收 | non-breaking（新增可核验性） | pin `advisers@0.3.0`；可抽查 `dist.attestations`；桌面通道不消费 MCP/DSH/CLI contracts |
+| 性能：200k 账本 `pet-brief` 写放大 31.8 MB → ≤32 KB、耗时 2,171 → 399 ms（release 自述仍有边界项未达标） | producer 侧 non-breaking | 无 |
+| CLI `pet-brief` 选项/默认值不变（`--json`、`--out [path]`、`--check [--strict]`、`--display-policy`、`--print-schema`；默认 `~/.advisers/pet-brief.json`、0600 原子写、5 min TTL） | non-breaking | 跨仓验收脚本无需改参数 |
+| Windows 真机/完整 `pnpm -r test` on Windows 仍未验证（release 自述） | 未知项，不得宣称已支持 | 本文件不声称 Windows 已验收 |
+
+> 结论：0.3.0 对 Pet Brief consumer **P0 = 0**；consumer 代码零改动即可读 0.3.0 输出；唯一运维项是 producer 侧重新接受 TOS v2026.11.3。
+> 回滚到 `advisers@0.2.3` 与 0.3.0 同契约（v0.2），无需 consumer 配合。
+
 ---
 
 ## 5. 升级检查清单（consumer-first，顺序不可反）
 
 > 反序后果：producer 先输出 v0.2，旧 consumer 把每份 brief 判 `SCHEMA_VERSION` → 永远 idle（不崩溃，但功能静默消失）。
 
-1. **冻结证据**：确认 Advisers 发布证据（`CHANGELOG.md` / `E11-release-2026-11-17.md`）、tag `v0.2.0`、契约快照 hash；
-   不改 Advisers 仓。
+1. **冻结证据**：确认 Advisers 发布证据（`CHANGELOG.md` §0.3.0）、annotated tag `v0.3.0`、npm `dist-tags`/provenance、
+   `docs/pet-brief/` 在 `v0.2.3..v0.3.0` 零 diff、契约快照 hash（§1.1）；不改 Advisers 仓。0.3.0 的**契约**未变，
+   包升级不需要重跑步骤 2–4。
 2. **版本闸门**：consumer `schemaVersion` 接受 `1|2`；未知版本 fail-closed；缺 `displayPolicy` 默认 `private` + warning。
    （`src/presence/pet-brief.ts`）
 3. **displayPolicy 执行**：`none` → skip 且**丢弃**已保留 brief；`private` 默认；`public` 仅显式。
@@ -135,27 +161,36 @@ if (policy === 'none') return skip('display_none')                // 不保留/�
 5. **验收**：
    ```sh
    cd /mnt/d/Projects/dsh/desktop-games
-   node --import tsx --test tests/advisers-020-compat.test.ts tests/pet-brief-consumer.test.ts \
-     tests/advisers-face.test.ts tests/advisers-harden.test.ts
+   node --import tsx --test tests/advisers-020-compat.test.ts tests/advisers-030-compat.test.ts \
+     tests/pet-brief-consumer.test.ts tests/advisers-face.test.ts tests/advisers-harden.test.ts \
+     tests/advisers-source.test.ts tests/advisers-ui-privacy.test.ts
    npm run typecheck
    npm test
    npm run build
    ```
-6. **跨仓验收**（两层，均不动账本内容）：
+6. **跨仓验收**（两层，均不动账本内容；npm 查询/安装必须用 `https://registry.npmjs.org`，本机 npmmirror 缓存可能滞后）：
    ```sh
+   # 0. 安装并核对 0.3.0 包；--print-schema 的 sha256 必须等于 §1.1 的 schema hash
+   npm install --prefix /tmp/adv030 advisers@0.3.0 --registry=https://registry.npmjs.org --ignore-scripts
+   ADVISERS_HOME=/tmp/adv030-check ADVISERS_ACCEPT_TOS=1 \
+     /tmp/adv030/node_modules/.bin/advisers pet-brief --print-schema | sha256sum   # bd2704c5…
    # A. 契约/文件校验（不需要账本；临时 ADVISERS_HOME 只放 TOS 同意记录）
    ADVISERS_HOME=/tmp/advisers-check ADVISERS_ACCEPT_TOS=1 \
-     advisers pet-brief --check --strict --in /tmp/pet-brief-v02.json   # 必须 ok:true
+     /tmp/adv030/node_modules/.bin/advisers pet-brief --check --strict --in /tmp/pet-brief-v02.json   # 必须 ok:true
    # B. 真实生成（需执行者已初始化账本并同意 TOS；输出到 /tmp，不写账本、不改 ~/.advisers）
-   advisers pet-brief --display-policy private --out /tmp/pet-brief-v02.json
-   # 再把 /tmp/pet-brief-v02.json 喂给 consumer：validatePetBrief → accept，displayPolicy=private
+   /tmp/adv030/node_modules/.bin/advisers pet-brief --display-policy private --out /tmp/pet-brief-v02.json
+   # C. 把 B 的输出喂给 consumer：validatePetBrief → accept，displayPolicy=private
+   #    仓库内已有 0.3.0 实测输出 fixture：tests/advisers-fixtures/pet-brief-advisers-0.3.0.json
    ```
    `advisers pet-brief` 是受 TOS 门控命令：未同意时 exit 3 `E_TOS_REQUIRED`；非交互 CI 用 `--accept-tos`/`ADVISERS_ACCEPT_TOS=1`。
    注意 A 的 `ADVISERS_HOME` 不能用于 B：新 home 没有账本，`pet-brief` 会 `E_STORE`。
-7. **producer 侧 rollout**：定时任务先同意 TOS（或显式 env），再 `advisers pet-brief --out ~/.advisers/pet-brief.json`
+   注意：2026-11-20 TOS v2026.11.3 之后，v2026.11.2 的既存同意无效，第一次受门控命令会要求重新同意；`--check --in` 也受该门控（未同意 → exit 3 `E_TOS_REQUIRED`）。
+7. **producer 侧 rollout**：定时任务**先重新同意 TOS v2026.11.3**（或显式 env），再 `advisers pet-brief --out ~/.advisers/pet-brief.json`
    （建议 1–2 分钟刷新，TTL 5 分钟）；`--display-policy` 默认 `private`，只有用户显式要求才 `public`。
+   TOS 版本/文本变更后需再次确认；未重新同意时定时任务 exit 3 → 桌宠 idle（不是文件损坏）。
 8. **上线观察**：桌宠状态不得出现 `UNSUPPORTED_SCHEMA` / `INVALID_BRIEF(SCHEMA_VERSION)`；实际出现 → 先回退 producer（见 §6）。
-9. **文档口径**：只有第 5–7 步全部通过后才对外写“支持 Advisers 0.2.0 / Pet Brief v0.2”。
+9. **文档口径**：只有第 5–7 步全部通过后才对外写“支持 Advisers 0.3.0 / Pet Brief v0.2”；必须同时写清
+   “package 0.3.0 ≠ contract v0.3”，不得把包 minor 版本当作契约版本。
 
 ---
 
@@ -163,11 +198,12 @@ if (policy === 'none') return skip('display_none')                // 不保留/�
 
 | 触发 | 动作 | 结果 |
 |---|---|---|
-| consumer 升级导致异常 | 回滚 `src/presence/pet-brief.ts` + `src/pet/advisers/face.ts` 到升级前 commit；**保留** legacy 接受路径 | 若 producer 已 v0.2：brief 被判 `SCHEMA_VERSION` → idle（可见的功能静默消失，不是崩溃/数据损坏） |
-| producer 输出异常/误判 | 降级安装 `advisers@0.2.1-preview.71`（v0.1 producer）或临时停止定时任务、删除 `pet-brief.json` | consumer 接受 v0.1（warnings）；文件删除 → `NO_FILE`；不影响账本 |
+| consumer 升级导致异常 | 回滚 `src/presence/pet-brief.ts` + `src/pet/advisers/face.ts` 到升级前 commit；**保留** legacy 接受路径 | 0.3.0 producer 仍是 contract v0.2，可回退到任意支持 v0.2 的 consumer；若 producer 已未来 v3：brief 被判 `SCHEMA_VERSION` → idle（可见的功能静默消失，不是崩溃/数据损坏） |
+| producer 输出异常/误判 | 降级安装 `advisers@0.2.3`（同 contract v0.2）或 `advisers@0.2.1-preview.71`（v0.1 producer）；或临时停止定时任务、删除 `pet-brief.json`。**不要**用未发布的 `0.2.4` | consumer 接受 v0.2/v0.1（v0.1 带 warnings）；文件删除 → `NO_FILE`；不影响账本 |
 | displayPolicy 误设 `none` | producer 改回 `--display-policy private`（或显式 public）；consumer 下一次轮询恢复 | `none` 期间 consumer 已丢弃保留 brief，需重新生成 |
-| TOS 门导致定时任务失败（exit 3 / `E_TOS_REQUIRED`） | 在交互界面完成 `advisers tos show|accept`，或定时任务加 `--accept-tos`/`ADVISERS_ACCEPT_TOS=1` | 恢复生成；同意版本/文本变更后需重新确认 |
-| consumer 必须回退但 producer 已是 0.3（未来） | **禁止**按 v0.1 猜读；保持 `UNSUPPORTED_SCHEMA` idle，等 consumer 支持 | 安全降级（宁可 idle，不展示未知语义） |
+| TOS 门导致定时任务失败（exit 3 / `E_TOS_REQUIRED`） | 在交互界面完成 `advisers tos show\|accept`（v2026.11.3），或定时任务加 `--accept-tos`/`ADVISERS_ACCEPT_TOS=1` | 恢复生成；0.2.3 → 0.3.0 的 v2026.11.2 同意**必须重新确认**，否则定时任务持续 exit 3 → 桌宠 idle |
+| consumer 必须回退但 producer 已是 **0.3.0**（当前） | 直接回退 consumer 到上一 release（契约仍 v0.2，可互操作）；**禁止**把包版本当契约版本 | 安全、可逆；无需 producer 降级 |
+| consumer 必须回退但 producer 已输出**未来契约 major（v3）** | **禁止**按 v0.1/v0.2 猜读；保持 `UNSUPPORTED_SCHEMA` idle，等 consumer 支持 | 安全降级（宁可 idle，不展示未知语义） |
 
 回滚纪律：不删除/不改写 Advisers 账本；不把 `~/.advisers` 纳入版本控制；真实客户数据不入测试/fixture/issue。
 
@@ -272,23 +308,28 @@ async fn read_advisers_brief() -> Result<Option<serde_json::Value>, AdvisersBrie
 
 ---
 
-## 8. 未来升级通道（预留 0.3，不虚构内容）
+## 8. 未来契约升级通道（schemaVersion major；当前仍无 v0.3 契约）
 
-**当前没有任何 0.3 契约内容；以下只定义流程，不预设字段。** 任何“0.3 会加 X”的说法必须以 Advisers 仓发布的
-`docs/pet-brief/schema-v0.3.json` + tag 为准，否则视为谣言。
+**Advisers 0.3.0（2026-11-20 package release）没有引入 contract v0.3**：`schemaVersion` 仍为 `2`，仓内没有
+`docs/pet-brief/schema-v0.3.json`。以下只定义未来**契约 major** 的流程，不预设字段。任何“0.3/0.4 会加 X（契约字段）”
+的说法必须以 Advisers 仓发布的 `schema-vNext.json` + annotated tag 为准，否则视为谣言；**包版本号不是契约版本号**
+（0.3.0 包 → v0.2 契约就是例证）。
 
-1. **触发**：Advisers 发布新契约 major（`schemaVersion: 3`）的公开快照 + annotated tag + release evidence；consumer 不改 Advisers 仓。
+1. **触发**：Advisers 发布新契约 major（`schemaVersion: 3`）的公开快照 `docs/pet-brief/schema-v0.3.json` + annotated tag + release evidence；consumer 不改 Advisers 仓。
 2. **评估**：对比 `schema-v0.2.json` 与 `schema-v0.3.json`，分类 breaking/non-breaking；更新 §4 表格与本文件 §3 版本族谱。
 3. **consumer 先升级**（顺序不可反）：允许列表 `{1,2,3}`；v3 专属字段默认不展示，未知仍 fail-closed；`displayPolicy` 语义若变化需单独评审。
 4. **测试先行**：新增 v0.3 fixture + 测试矩阵（accept/reject/未来版本/displayPolicy/cap/TTL/consent），并保留 v0.1/v0.2 全部用例。
 5. **producer 再启用**：consumer 发布且验证通过后，Advisers 才把稳定 `pet-brief` 输出切到 v3；旧 major 在至少一个 MINOR 周期内继续可读。
 6. **收紧旧版**：仅当 v0.1/v0.2 文件因 5min TTL 不再可能存在、且 release notes 明示后，consumer 才可收窄允许列表；
    收紧本身是一次独立变更（需要回滚预案）。
-7. **契约 hash 固定**：每次升级把新快照 sha256 写进本文件 §1.1，并更新 `docs/audit/ADVISERS-*-COMPAT-*.md`。
+7. **契约 hash 固定**：每次升级把新快照 sha256 写进本文件 §1.1，并在 `docs/integration/ADVISERS-*-CONSUMER-*.md` 记录验收。
 8. **不改通道**：除非另有 ADR，Pet Brief 仍为“固定路径 JSON + TTL + 轮询”；MCP/DSH/IPC/daemon 不作为桌宠消费通道。
 
-其它未来事项（不影响本契约，单独跟踪）：Advisers 侧 `dsh-advisers` 仍依赖 DSH preview line（rc）；MCP/DSH 工具扩容；
-TTS/DLC 在 TOS 14.6 下明确“0.2.0 不提供”。桌宠若未来要消费 MCP/DSH 通道，必须另立契约文档，不复用本文件。
+其它未来事项（不影响本契约，单独跟踪）：
+
+- Advisers **包 minor** 版本继续按自身节奏（如 0.3.x → 0.4.x），**不自动**改变契约 major；consumer 只在 schema 快照变化时升级。
+- Advisers 侧 `dsh-advisers` 仍依赖 DSH preview line（rc）；0.3.0 的 DSH 真实只读账本仍是 preview 语义。
+- TTS/DLC 在 TOS 中明确“0.2.0 不提供”；桌宠若未来要消费 MCP/DSH 通道，必须另立契约文档，不复用本文件。
 
 ---
 
@@ -296,10 +337,10 @@ TTS/DLC 在 TOS 14.6 下明确“0.2.0 不提供”。桌宠若未来要消费 M
 
 | 主题 | 契约 | 本集成的事实 |
 |---|---|---|
-| TOS | v2026.11.2（2026-11-17 生效）；首启 + 版本/文本变更重新确认；撤回即停止受门控功能 | Advisers 侧 `pet-brief` 是受门控命令（非豁免）；无同意时 exit 3 `E_TOS_REQUIRED`。桌面端在**自己的** bootstrap TOS 同意前不读本地 brief（`isReadAllowed` → `CONSENT_REQUIRED`），两套同意彼此独立 |
-| 非交互同意 | `--accept-tos` / `ADVISERS_ACCEPT_TOS=1`，记录 `non_interactive=1` | 定时任务/cross-repo CI 必须显式携带，否则不生成 brief（这是 `E_TOS_REQUIRED`，不是文件不存在） |
-| 隐私/失败 | 只读、脱敏、限长、最短化；不存原文 | brief 是脱敏投影；consumer 不读 DB、不联网、不回写；`redactions` 不渲染 |
-| safety | 14 类 / 92 规则，规则集 `advisers-content-1`；动作 `allow/warn/confirm/redact/block`（block 仅 5 类 23 条白名单） | safety 在 **producer** 边界生效（pet-brief 的 suggestedLines 等过滤）；`displayPolicy` 是**可见性契约**，不是安全/合规认证；consumer 端文本审查是第二层，不替代 producer |
+| TOS | **v2026.11.3（2026-11-20 生效）**：实质性修订，补 bridge/Hermes 出网披露；首启 + 版本/文本变更重新确认；**v2026.11.2 的既存同意不适用于 v2026.11.3**；撤回即停止受门控功能 | Advisers 侧 `pet-brief` 是受门控命令（非豁免），**`--print-schema`/`--check --in`/`--out` 均受门控**（0.3.0 实测未同意 → exit 3 `E_TOS_REQUIRED`）。桌面端在**自己的** bootstrap TOS 同意前不读本地 brief（`isReadAllowed` → `CONSENT_REQUIRED`），两套同意彼此独立 |
+| 非交互同意 | `--accept-tos` / `ADVISERS_ACCEPT_TOS=1`，记录 `non_interactive=1`；`ADVISERS_TOS_VERSION` 只是 debug 显示、**不能**伪造同意 | 定时任务/cross-repo CI 必须显式携带，否则不生成 brief（这是 `E_TOS_REQUIRED`，不是文件不存在）；0.2.3 → 0.3.0 的 TOS 升版后必须重新确认 |
+| 隐私/失败 | 只读、脱敏、限长、最短化；不存原文；**per-item secrecy clearance**：`secrecy >= 2` 的 matter 及其承诺在计数/截断前排除，只把排除数写 `redactions` | brief 是脱敏投影；consumer 不读 DB、不联网、不回写；`redactions`（含 0.3.0 的排除计数）不渲染；0.3.0 fixture 实测保密事项标题/承诺文本不出现 |
+| safety | 14 类 / 92 规则，规则集 `advisers-content-1`（**0.3.0 未改规则集**；`docs/SAFETY.md`/`CONTENT-SAFETY.md` 仅随 TOS 同步版本号与 bridge 披露说明）；动作 `allow/warn/confirm/redact/block`（block 仅 5 类 23 条白名单） | safety 在 **producer** 边界生效（pet-brief 的 suggestedLines 等过滤）；`displayPolicy` 是**可见性契约**，不是安全/合规认证；consumer 端文本审查是第二层，不替代 producer |
 | 许可 | 软件 PolyForm NC 1.0.0；文档/数据 CC BY-NC-SA 4.0；TOS §3.2.2 为接口互操作提供 schema/测试向量的复制许可 | 本仓自带契约快照仅用于本地验收；再分发文档仍受 CC BY-NC-SA；商业分发需 Advisers 书面许可（本仓自身 PolyForm-NC） |
 | 责任边界 | TOS 1.1.1 运营者不提供在线服务；宿主/客户端处理受其自身条款 | 桌宠是第三方客户端；不宣称 Advisers 对桌宠展示内容背书；不把 brief 用于公开/商业展示而不做人工复核 |
 
@@ -307,14 +348,15 @@ TTS/DLC 在 TOS 14.6 下明确“0.2.0 不提供”。桌宠若未来要消费 M
 
 ## 10. 测试矩阵
 
-| 层 | 位置 | 覆盖 | 命令/结果（2026-11-17 本机） |
+| 层 | 位置 | 覆盖 | 命令/结果（2026-11-20 本机） |
 |---|---|---|---|
-| Advisers producer | `plugins/advisers/packages/advisers/test/pet-brief.test.js` | 契约快照/example/26 向量/CLI 选项/只读/原子写 | `node --experimental-strip-types --test test/pet-brief.test.js` → 28/28（Advisers 侧记录） |
-| consumer 契约 | `tests/pet-brief-consumer.test.ts` | v0.1 20 向量 + v0.2 displayPolicy/legacy | 16/16 |
-| **consumer 0.2.0 兼容** | `tests/advisers-020-compat.test.ts` + `tests/advisers-fixtures/` | v0.1/v0.2 fixture、public/private/none、legacy、未知未来、128 KiB、invalid、TOS/consent、timeout/in-flight/backoff、状态/错误码、Tauri 错误映射 | 24/24 |
-| face 加固 | `tests/advisers-face.test.ts`、`tests/advisers-harden.test.ts` | disabled/no-file/stale/invalid/no-transport、超时/停止/退避、sanitize、摘要 | 6/6 + 11/11 |
-| 跨仓往返 | §5 第 6 步（临时 `ADVISERS_HOME`） | producer v0.2 → consumer accept/private；`--check --strict` | 手工（需已同意 TOS 的 Advisers 环境） |
-| 全仓 | `npm test` / `npm run typecheck` / `npm run build` | 回归 + 构建 | 见 `docs/audit/ADVISERS-020-COMPAT-2026-11-17.md` |
+| Advisers producer | `plugins/advisers/packages/advisers/test/pet-brief.test.js` + `pet-brief-matter.test.js` | 契约快照/example/26 向量/CLI 选项/只读/原子写/matter 归属 | Advisers 侧 release evidence（其 CI/发布门；本仓不运行，见 `CHANGELOG.md` §0.3.0） |
+| consumer 契约 | `tests/pet-brief-consumer.test.ts` | v0.1 20 向量 + v0.2 displayPolicy/legacy + **v0.2 快照 hash 冻结 + 26 条 v0.2 canonical vector** | **18/18** |
+| **consumer 0.2.0 兼容** | `tests/advisers-020-compat.test.ts` + `tests/advisers-fixtures/` | v0.1/v0.2 fixture、public/private/none、legacy、未知未来、128 KiB、invalid、TOS/consent、timeout/in-flight/backoff、状态/错误码、Tauri 错误映射 | **24/24** |
+| **consumer 0.3.0 兼容** | `tests/advisers-030-compat.test.ts` + `pet-brief-advisers-0.3.0.json` | 0.3.0 producer 输出 acceptance/closed schema/TTL/128 KiB/secrecy 排除/face/none | **6/6** |
+| face / 隐私加固 | `tests/advisers-face.test.ts`、`advisers-harden.test.ts`、`advisers-source.test.ts`、`advisers-ui-privacy.test.ts` | disabled/no-file/stale/invalid/no-transport、超时/停止/退避、sanitize、摘要、来源、UI 隐私 | 6/6 + 11/11 + 3/3 + 17/17 |
+| 跨仓往返 | §5 第 6 步（临时 `ADVISERS_HOME`；npmjs registry 安装 `advisers@0.3.0`） | 0.3.0 包 `--print-schema` hash = §1.1；生成/校验 0.3.0 fixture；consumer accept/private | 见 `docs/integration/ADVISERS-030-CONSUMER-2026-11-20.md` §4 |
+| 全仓 | `npm test` / `npm run typecheck` | 回归 + 类型 | `npm test` **1946/1946 pass**；`npx tsc --noEmit` **exit 0**（2026-11-20） |
 
 **不允许**：把真实客户数据写进 fixtures/测试/文档；以“通过测试”宣称合规认证或安全性证明。
 
@@ -324,8 +366,12 @@ TTS/DLC 在 TOS 14.6 下明确“0.2.0 不提供”。桌宠若未来要消费 M
 
 - Advisers 契约快照：`plugins/advisers/docs/pet-brief/`（`schema-v0.2.json` / `example-v0.2.json` / `testcases-v0.2.json` / `README.md`）
 - Advisers 生产者/消费者文档：`plugins/advisers/docs/PET-BRIEF-PRODUCER.md`、`docs/PET-BRIEF-CONSUMERS.md`
-- Advisers 发布说明/证据：`plugins/advisers/CHANGELOG.md`（0.2.0）、`eval/results/E11-release-2026-11-17.md`、`docs/RELEASING.md`
-- Advisers TOS/safety：`plugins/advisers/docs/TOS.md`、`docs/SAFETY.md`、`docs/CONTENT-SAFETY.md`、`packages/advisers/lib/tos/`
+- Advisers 发布说明/证据：`plugins/advisers/CHANGELOG.md`（**§0.3.0，2026-11-20**）、`docs/RELEASING.md`、
+  `docs/PERFORMANCE.md`、`docs/SBOM.md`、`contracts/CONSUMERS.json`（登记 `famling-desktop-games` / `pet-brief@0.2`）；
+  release notes <https://github.com/PerryLink/advisers/releases/tag/v0.3.0>
+- Advisers TOS/safety：`plugins/advisers/docs/TOS.md`（v2026.11.3）、`docs/SAFETY.md`、`docs/CONTENT-SAFETY.md`、`packages/advisers/lib/tos/`
 - 本仓实现：`src/presence/pet-brief.ts`、`src/pet/advisers/face.ts`、`app/tauri/src-tauri/src/main.rs:85`
-- 本仓历史：`docs/contracts/pet-brief/README.md`（v0.1 快照 + v0.2 更新节）、`docs/ADVISERS-FACE-INTEGRATION.md`
-- 验收报告：`docs/audit/ADVISERS-020-COMPAT-2026-11-17.md`
+- 本仓 fixtures/测试：`tests/advisers-fixtures/README.md`、`tests/advisers-030-compat.test.ts`、`tests/pet-brief-consumer.test.ts`
+- 本仓历史：`docs/contracts/pet-brief/README.md`（v0.1 快照 + v0.2 更新节 + **§5 0.3.0 复核**）、`docs/ADVISERS-FACE-INTEGRATION.md`
+- 验收报告：`docs/integration/ADVISERS-030-CONSUMER-2026-11-20.md`（0.3.0）、`docs/integration/ADVISERS-023-UPDATE-2026-11-18.md`（0.2.3）、
+  `docs/audit/ADVISERS-020-COMPAT-2026-11-17.md`（历史 0.2.0）

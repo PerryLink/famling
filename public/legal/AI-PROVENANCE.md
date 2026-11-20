@@ -4,6 +4,7 @@
 > 本文件不是法律意见；它汇总**已有的生成元数据**，供 AI 披露、可版权性证据、相似度审查与许可证登记使用。
 > 不包含 API key / 凭据 / 账号 token。相关文件：`LICENSE-ART`、`CREDITS.md`、`THIRD-PARTY.md`、`docs/LEGAL-STATUS-2026-11-15.md`。
 > **2026-11-17 更新**：TTS baked pack 随包授权 + manifest v2 逐文件元数据见 §10；pack 现为 42 个 WAV（21 `stella` + 21 `tide`，双预设 available），代码/文档集成工作**未调用任何 API**（WAV 由用户此前用自己账号生成）；其余图像链快照仍为 2026-11-15。
+> **2026-11-20 更新**：`public/assets/pet/anim/dog/**` 确定性占位动画包已登记（§11；`ai.status=none`，无 API/模型/网络，仍为 placeholder-only）；`public/characters/pet-dog/character.json` 的 `meta.artPack` 已从 v7 修正为 v11，并记录 66/68 唯一帧 alias 裁定。
 
 ## 0. 证据来源（本机只读核对，2026-11-15）
 
@@ -235,6 +236,7 @@ sha256sum public/assets/voice/pet/*.wav
 | 2026-11-15 | 首版草案：汇总 Orca 19 条 + Pearl 5 条 + TTS 18 文件；记录校验/成本/缺口与新增模板 | draft；待用户 + 律师确认 |
 | 2026-11-17 | TTS 18 WAV 转 baked pack 随包（用户授权）；manifest v2 逐文件元数据 + `scripts/bake-voice.mjs`；tide 保持 planned/不伪造；本次零 API 调用 | draft；上游条款/再分发 TBD，未律师审核 |
 | 2026-11-17 | 资产口径更新：baked pack 扩为 **42 WAV（21 stella + 21 tide）**，双预设 available、tide 在 `tide/`；运行时按 voice 选包且缓存键含 voice；构建/法务 guard 校验 42 行/双 available/跨音色不重用；本次集成零 API 调用 | draft；tide 实际账单/上游条款仍 TBD，未律师审核 |
+| 2026-11-20 | 登记 `public/assets/pet/anim/dog/**` 确定性占位动画包（§11）：v11、68 帧 / 66 唯一 SHA-256、2 组 alias、`ai.status=none`、生成器与复验命令；`character.json` meta 从 v7 修正为 v11 | draft；仍 placeholder-only，未律师审核 |
 
 > 本文件是草案，不是法律意见；所有成本/条款以供应商账单与官方文本为准。
 
@@ -351,3 +353,62 @@ DEEPSEEK_API_KEY=... node scripts/bake-voice.mjs --generate --voice=tide  # 42/4
 npx tsc --noEmit && npm test && npm run build
 node scripts/legal-check.mjs                # WARN-ONLY；dist baked pack 42 行通过 voice gate
 ```
+
+## 11. 2026-11-20 确定性像素动画包（dog / cat；`ai.status=none`）
+
+> 本节登记 `public/assets/pet/anim/**` 的 dog 与 cat 两个完整条目（human 待补）。**没有调用任何图像 / TTS / ASR API，没有模型、没有网络、没有 seed**；68 帧全部由本机 Python + Pillow 确定性绘制，因此 `ai.status=none`、`final=false`、`placeholder=true`。**仍是 placeholder-only，不得当 final 发布。**
+
+### 11.1 金毛（dog，v11）
+
+| 项 | 值 |
+|---|---|
+| 资产 | `public/assets/pet/anim/dog/`：68 PNG + `manifest.json`，共 119,611 B（≈116.8 KiB） |
+| 生成器（包壳/调色板/调度） | `scripts/gen-pet-anim-frames.py`，SHA-256 `6a05609e00ebed755ba9d48917c59c66c4e6caf0e57d1af6f330be9bf6e23481` |
+| 生成器（金毛绘制几何） | `scripts/dog_golden5.py`，SHA-256 `657199683f069a6c396b87f0483730360deeb9f2dcb5cbb45b19eb29fb2c3030` |
+| 运行环境 | Python 3.12.3 + Pillow 13.0.0 + numpy 2.5.4（本机实测）；无网络 / 无模型 / 无 API key / 无 seed |
+| 版本 | **v11**：风格化短腿 + 哑光砖红项圈（`#a63d35`）+ 羽状尾；12 clip / 68 帧 / 96×96 / 地线 y=89 |
+| 元数据 | `public/characters/pet-dog/character.json`：`meta.artPack = pet.dog.anim.placeholder@v11`（2026-11-20 从 v7 修正），`meta.artStatus=placeholder`，`ai.status=none`；SHA-256 `8ffa771defe12cbd90e7154ebc0bebce13808d0e448fa236a493b14216c084cd` |
+| 唯一帧 / alias | 68 个 PNG 中 **66 个唯一 SHA-256**；两组跨 clip 同字节帧（`scratch/scratch_00.png = chase_tail/chase_tail_05.png`、`scratch/scratch_05.png = stand_wag/stand_wag_05.png`）裁定为 **alias（保留文件，不删 / 不重画）**，记录在 `character.json.meta.duplicateFrames`；由 `tests/pet-anim-dog-asset-hygiene.test.ts` 对照磁盘哈希锁定 |
+| manifest SHA-256 | `487f3860faf7dfb2867b0f0589309cb1a059362be655cbfb6487f2c2b2d3abed`（生成器产物，未手改） |
+| 许可 | **placeholder-only**（商用未授权），2026-11-20 登记于 `ASSET-LICENSES.md` 同名节；分发按 `LICENSE-ART` |
+| 未生成 | 本轮元数据整治**未重画任何帧、未生成图片、未调用 API**；无 AI 调用链 / 费用 / seed 可记（非 AI 生成） |
+
+### 11.2 复验命令
+
+```bash
+python3 scripts/gen-pet-anim-frames.py --only dog --check        # 生成器字节级复验（须 exit 0）
+node --import tsx --test tests/pet-anim-dog-asset-hygiene.test.ts  # 元数据 / alias / 登记门禁
+node --import tsx --test tests/pet-anim.test.ts                   # 68 帧 / 12 clip / 硬 alpha / 地线等契约
+```
+
+### 11.3 布偶猫（cat，同配色 blue bicolor Ragdoll）
+
+| 项 | 值 |
+|---|---|
+| 资产 | `public/assets/pet/anim/cat/`：72 PNG + `manifest.json`，共 145,810 B（≈142.4 KiB），另 `public/characters/pet-cat/{character,behavior,regions}.json` |
+| 生成器（包壳 / 调色板 / 调度） | `scripts/gen-cat-anim.py`，SHA-256 `72e048f167d3786950aefeacf96de0f1b76c70fa54334fb4689d268b783b2c2e` |
+| 渲染器（布偶直长毛几何） | `scripts/cat_selkirk.py`，SHA-256 `8ac2b641115b454e857b45c14b9c2d306fe008624b012fcad9801c9a3ffe24a1`（**文件名为历史遗留**；task-149 已把内容从卷毛渲染改为布偶直长毛渲染，删 `curl_puff` / `ringlet`） |
+| 运行环境 | Python 3.12.3 + Pillow 13.0.0 + numpy 2.5.4（本机实测）；无网络 / 无模型 / 无 API key / 无 seed |
+| 版本 | **同配色 blue bicolor 布偶猫**（16 个 palette hex 与旧包逐字节相同，palette id `cat-ragdoll-anim@0.1`）：白底丝滑直长毛 + 冷灰蓝连帽 / 面罩 / 耳 / 羽状尾 + v10 白 blaze，产品化短腿保留；12 clip / 72 帧 / 96×96 / 地线 y=89 / anchor 48,96 不变 |
+| 元数据 | `public/characters/pet-cat/character.json`：`meta.artPack = pet.cat.anim.placeholder@v0.1`，`meta.artStatus=placeholder`，`ai.status=none`；SHA-256 `1170bc8b37bdbf4bcf194987f940dd621f046377e43d688bcf3b866b00dda2cd`（2,109 B） |
+| 唯一帧 / alias | 72 个 PNG **72/72 唯一 SHA-256**（无跨 clip 同字节 alias） |
+| manifest SHA-256 | `b2dc39a4ffc381a4902fa86cd107235b183bd0743734a8511995c962c2d89f23`（9,088 B；生成器产物，未手改） |
+| 行为 / 区域单源 | `src/pet/anim/interactions/cat.json` → `public/characters/pet-cat/{behavior,regions}.json`（确定性生成；本次洗脸台词改为「长毛不好梳」，regions SHA-256 `965e12d4488f496fa747802c8c048187566d889452b0b605b1fd729cdfeca913`） |
+| 跨仓消费 | dsh-famling **0.10.11**：`embed:anims` 重嵌入 cat 帧（72 帧，208 帧总数不变；cat chunk 97.2 KiB），`gen:content` 同步 regions / manifest 单源哈希；插件 UI 文案统一为「布偶猫」/「Ragdoll」 |
+| 许可 | **placeholder-only**（商用未授权），2026-11-20 登记于 `ASSET-LICENSES.md` 同名节；分发按 `LICENSE-ART` |
+| 未生成 | 本轮**未调用任何图像 / TTS / ASR API、未使用生成模型**；帧由确定性 Python 渲染器重绘；无 AI 调用链 / 费用 / seed 可记（非 AI 生成） |
+
+### 11.4 复验命令（cat）
+
+```bash
+python3 scripts/gen-cat-anim.py --check                            # 72 帧生成器字节级复验（须 exit 0）
+node scripts/gen-character-interactions.mjs --check                # behavior/regions 单源漂移门禁
+node --import tsx --test tests/pet-anim-cat.test.ts                # 72 帧 / 12 clip / 16 色 / silky 指标
+node --import tsx --test tests/character-interactions-single-source.test.ts
+# 插件侧（sibling checkout）
+cd ../plugins/dsh-famling && npm run check && npm run verify && npm test
+```
+
+### 11.5 human（同管线，待任务登记）
+
+`public/assets/pet/anim/human/`（68 帧；`scripts/gen-human-anim.py` + Tinglan 渲染器）同属确定性占位管线，`ai.status=none` / placeholder-only。human 的逐包登记需在其任务补齐，补齐前不得宣称 final 或 AI 生成。

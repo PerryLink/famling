@@ -109,7 +109,7 @@ my-character-anim.zip
   "footBox": { "x": -36, "y": -18, "w": 72, "h": 18 },
   "bbox": [12, 8, 72, 84],
   "display": { "scale": 2, "pixelated": true },
-  "palette": "cat-selkirk-anim@0.1"
+  "palette": "cat-ragdoll-anim@0.1"
 }
 ```
 

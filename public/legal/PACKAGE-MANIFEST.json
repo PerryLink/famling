@@ -96,7 +96,7 @@
       "source": "AI-PROVENANCE.md",
       "dest": "AI-PROVENANCE.md",
       "required": true,
-      "sha256": "eb12e87a0d6def69c10b229a41cc6f33c65be8c6d5add2e0b31ec455b0a24db7"
+      "sha256": "c4eb3d9e5d39a2e52125fafe6ee5dab9641fafb9d32caf20011bfea86bbf778d"
     },
     {
       "source": "docs/legal/AI-CONTENT-POLICY.md",
