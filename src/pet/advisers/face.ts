@@ -105,19 +105,19 @@ export const ADVISERS_SYNC_INTERVAL_MS = 60_000
 export const ADVISERS_MAX_SYNC_INTERVAL_MS = 300_000
 
 /**
- * Producer-side Advisers TOS gate. Advisers 0.3.0 bumps TOS to v2026.11.3 and
+ * Producer-side Advisers TOS gate. Advisers 0.4.0 bumps TOS to v2026.11.4 and
  * its gated `pet-brief` command exits 3 with `E_TOS_REQUIRED` until the user
- * re-consents; the old v2026.11.2 consent is not valid. The desktop path only
+ * re-consents; the old v2026.11.3 consent is not valid. The desktop path only
  * reads the produced file, so this signal is surfaced only when a reader or a
  * future diagnostic reports the producer error (see README/docs). The pet must
  * never accept TOS or write a consent record on the producer behalf.
  */
 export const ADVISERS_PRODUCER_TOS_CODE = 'E_TOS_REQUIRED'
-export const ADVISERS_PRODUCER_TOS_VERSION = '2026.11.3'
-export const ADVISERS_PRODUCER_TOS_STATUS_TEXT = 'Advisers：生产者需重新同意 TOS v2026.11.3（只读）'
+export const ADVISERS_PRODUCER_TOS_VERSION = '2026.11.4'
+export const ADVISERS_PRODUCER_TOS_STATUS_TEXT = 'Advisers：生产者需重新同意 TOS v2026.11.4（只读）'
 /** Fixed, content-free re-consent instructions; safe to render in the status/panel. */
 export const ADVISERS_PRODUCER_TOS_GUIDANCE_LINES = [
-  'Advisers 生产者需要重新同意使用条款（TOS v2026.11.3；Advisers 0.3.0 起旧同意失效）。',
+  'Advisers 生产者需要重新同意使用条款（TOS v2026.11.4；Advisers 0.4.0 起旧同意失效）。',
   '在终端运行 `advisers tos show` 查看全文，再用交互式 `advisers tos accept` 重新同意。',
   '定时任务/非交互环境：显式加 `--accept-tos` 或设置 `ADVISERS_ACCEPT_TOS=1`（记录为非交互同意）。',
   '桌面端不代你同意、不修改 Advisers 的同意记录；完成后再点“重试”。',
