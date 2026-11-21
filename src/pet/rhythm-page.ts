@@ -13,7 +13,7 @@
  */
 
 import { createDayNightPage, type DayNightHeroMirror } from './day-night-page.ts'
-import type { TimeOfDay } from './day-night.ts'
+import { resolveQaNowMs, type TimeOfDay } from './day-night.ts'
 import { createHideForPage, type HideForMenuPort } from './hide-for.ts'
 
 export interface RhythmPageOptions {
@@ -50,9 +50,18 @@ export interface RhythmPage {
 
 /** Compose the page-level day/night + hide-for surfaces for the live pet window. */
 export function createRhythmPage(options: RhythmPageOptions): RhythmPage {
+  // QA/debug clock seam (real-WebView2 boundary probes; ignored when absent).
+  const qaNowMs = (() => {
+    try {
+      return resolveQaNowMs(options.document.defaultView?.location?.search)
+    } catch {
+      return null
+    }
+  })()
+  const now = (): Date => (qaNowMs === null ? options.now() : new Date(qaNowMs))
   const dayNightPage = createDayNightPage({
     document: options.document,
-    now: options.now,
+    now,
     isQuiet: options.isQuiet,
     getMood: options.getMood,
     syncHero: options.syncHero,

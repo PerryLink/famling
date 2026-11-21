@@ -138,3 +138,30 @@ export function createDayNightClock(options: DayNightClockOptions): DayNightCloc
     state: () => current ?? resolve(),
   }
 }
+
+/**
+ * QA/debug-only clock override from the page query string
+ * (`?qa_now_ms=<epoch ms>`). Used by the real-WebView2 clock probes to verify
+ * the 22:00/23:00/06:00 boundaries without changing the machine clock.
+ *
+ * The override only affects the pet's own mood/quiet presentation (the page
+ * clock), never consent, saves or money; malformed or out-of-window values are
+ * ignored. Product code only reads it when the page was loaded with the query.
+ * @param search `location.search` (may be empty/null).
+ * @returns Epoch milliseconds within 2000-01-01..2100-01-01, or null.
+ */
+export function resolveQaNowMs(search: string | null | undefined): number | null {
+  if (typeof search !== 'string' || search === '') return null
+  let params: URLSearchParams
+  try {
+    params = new URLSearchParams(search)
+  } catch {
+    return null
+  }
+  const raw = params.get('qa_now_ms')
+  if (raw === null || !/^[0-9]{1,15}$/.test(raw)) return null
+  const value = Number(raw)
+  if (!Number.isSafeInteger(value)) return null
+  if (value < Date.UTC(2000, 0, 1) || value > Date.UTC(2100, 0, 1)) return null
+  return value
+}
