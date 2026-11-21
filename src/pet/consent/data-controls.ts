@@ -96,7 +96,10 @@ export const KNOWN_PET_STORAGE_KEYS = [
   'desktop-games/pet/advisers-mode',
   'desktop-games/pet/window',
   'desktop-games/pet/ambient-cadence',
+  'desktop-games/pet/hide-until',
   'desktop-games/pet/content/calendar-ambient',
+  // B2 2026-11-21: custom key days (content-library CONTENT_CUSTOM_DAYS_KEY).
+  'desktop-games/pet/content/custom-days/v1',
   'desktop-games/pet/usage-summary/v1',
   'desktop-games/pet/cohabitation/v1',
   'desktop-games/consent/storage-probe-v1',
@@ -174,6 +177,7 @@ export function classifyStorageKey(key: string): string {
   if (key === 'desktop-games/pet/setup-ack-v1') return 'preferences'
   if (key === 'desktop-games/pet/advisers-mode') return 'preferences'
   if (key === 'desktop-games/pet/usage-summary/v1') return 'preferences'
+  if (key === 'desktop-games/pet/hide-until') return 'preferences'
   if (key.startsWith('desktop-games/pet/')) return 'other-pet'
   if (key.startsWith('desktop-games/consent/')) return 'consent-audit'
   return 'unrelated'

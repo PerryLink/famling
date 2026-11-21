@@ -66,7 +66,12 @@ import {
   watchReduceMotion,
   writeExplicitReduceMotion,
 } from './reduce-motion.ts'
+import { HIDE_FOR_CHOICES, hideForStatusText, type HideForMenuPort } from './hide-for.ts'
 import { clearCohabitation, cohabitationLineNow } from './cohabitation.ts'
+import {
+  createContentCalendarTodayPanel,
+  type ContentCalendarTodayPanel,
+} from './content-calendar-settings.ts'
 import { clearUsageSummary, recordUsage, usageSummaryJson } from './usage-summary.ts'
 
 /**
@@ -600,6 +605,13 @@ export interface DesktopShellOptions {
   readonly getWorkSession?: () => { readonly minutes: 25 | 50; readonly remainingMs: number } | null
   readonly onWorkSessionStart?: (minutes: 25 | 50) => void
   readonly onWorkSessionEnd?: () => void
+  /**
+   * 定时隐身 (B3 2026-11-21). The pet window supplies the live Tauri port; the
+   * content window supplies the cross-window bridge (state read from the shared
+   * key, writes forwarded by event). Absent/null hides the whole surface (browser
+   * build or a page that does not own the pet window), so no fake hide exists.
+   */
+  readonly hideFor?: HideForMenuPort | null
 }
 
 /** Element handles for the #pet-settings dialog (built once per init). */
@@ -619,6 +631,8 @@ interface SettingsDom {
   readonly ambientCadence: HTMLSelectElement
   /** 安静 → 内容日历（节日/季节台词）ON/OFF flag (P1 2026-11-21). */
   readonly contentCalendar: HTMLInputElement
+  /** 常用 → 定时隐身 status line (B3 2026-11-21; empty when unsupported). */
+  readonly hideForNote: HTMLElement
   /** 数据与边界 → live 共处日历 line (本月 N 天 / 累计第 N 天). */
   readonly cohabitationNote: HTMLElement
   /** 常用 → 整体缩放 (all content together). */
@@ -1538,6 +1552,14 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
         if (options.resetWindow) options.resetWindow()
         else click('reset-window')
       })
+      // 定时隐身 (B3): the desktop had only the tray's infinite toggle. These
+      // entries persist a deadline; the window restores itself automatically.
+      if (options.hideFor) {
+        addHeading(hideForStatusText(options.hideFor.get(), Date.now()))
+        for (const entry of HIDE_FOR_CHOICES) {
+          add(entry.label, () => { options.hideFor?.change(entry.choice) })
+        }
+      }
       add('模型 / API Key 设置…', openSetup, '', 'menu/U-MENU-07a_32x32.png')
       // Scale settings are one level down in 设置… (常用 → 整体缩放; second
       // level → UI+文本 / 图像; 高级 → 组件缩放). One deep-link entry replaces
@@ -1777,6 +1799,8 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
   // overlay closes it through the listener above.
   // -------------------------------------------------------------------------
   let settingsDom: SettingsDom | null = null
+  /** B2 content-calendar 「今天」 panel (created with the dialog, manual-only). */
+  let calendarTodayPanel: ContentCalendarTodayPanel | null = null
   /** Stop a held PTT when the dialog closes/blurs (set by buildSettingsModal). */
   let stopHeldTalkHook: (() => void) | null = null
 
@@ -1809,11 +1833,23 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
     }
   }
 
+  /** True when the element (or an ancestor) is hard-hidden from the a11y tree. */
+  function inHiddenSubtree(element: HTMLElement): boolean {
+    let node: Node | null = element.parentNode
+    while (node !== null) {
+      if (node instanceof HTMLElement && node.hidden) return true
+      node = node.parentNode
+    }
+    return false
+  }
+
   function settingsFocusable(): HTMLElement[] {
     if (!settingsDom) return []
     return Array.from(settingsDom.root.querySelectorAll<HTMLElement>('button, input, select, a[href], summary')).filter((element) => {
       const input = element as HTMLInputElement
-      return !(element as HTMLButtonElement).disabled && !element.hidden && input.type !== 'hidden'
+      // The B2 「今天」 panel builds its controls once and hides the whole panel;
+      // a hidden subtree must not join the manual Tab cycle.
+      return !(element as HTMLButtonElement).disabled && !element.hidden && input.type !== 'hidden' && !inHiddenSubtree(element)
     })
   }
 
@@ -1890,6 +1926,8 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
     } catch {
       /* recorder cleanup is best-effort; closing still proceeds */
     }
+    // B2: collapse the manual 「今天」 view so a stale panel never reappears.
+    calendarTodayPanel?.close()
     settingsOpen = false
     settingsDom.root.dataset.state = 'closed'
     settingsDom.root.setAttribute('aria-hidden', 'true')
@@ -1927,6 +1965,11 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
     settingsDom.quietEnd.value = quietHours.end
     settingsDom.ambientCadence.value = currentAmbientCadence()
     settingsDom.contentCalendar.checked = contentCalendarEnabled
+    // B2: the 今天 row only exists when the switch is ON and the catalog has
+    // calendar data; the panel re-reads the live runtime snapshot each refresh.
+    calendarTodayPanel?.refresh()
+    // B3 定时隐身: live status line (null port = the surface is omitted).
+    settingsDom.hideForNote.textContent = options.hideFor ? hideForStatusText(options.hideFor.get(), Date.now()) : ''
     settingsDom.cohabitationNote.textContent = cohabitationLineNow()
 
     // 常用 → 整体缩放 (all content together).
@@ -2144,6 +2187,28 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
         settingsStatus('已请求把窗口移回右下角。')
       }),
     )
+    // 定时隐身 (B3): 1h / 到明天 / 关闭. Only rendered when the host owns the
+    // pet window visibility; the choice persists and restores automatically.
+    const hideForField = field('pet-settings-field pet-settings-actions')
+    const hideForNote = note('')
+    if (options.hideFor) {
+      for (const entry of HIDE_FOR_CHOICES) {
+        hideForField.append(
+          action('pet-settings-hide-for-' + entry.choice, entry.label, () => {
+            options.hideFor?.change(entry.choice)
+            refreshSettings()
+            recordUsage('settings-change')
+            settingsStatus(
+              entry.choice === 'off'
+                ? '定时隐身已关闭，桌宠已恢复显示。'
+                : '已设置定时隐身：' + entry.label + '，到期自动恢复。',
+            )
+          }),
+        )
+      }
+      hideForNote.textContent = hideForStatusText(options.hideFor.get(), Date.now())
+      hideForField.append(note('到期自动恢复显示；退出/重启后仍生效。托盘「显示 / 隐藏桌宠」可随时提前找回。'))
+    }
     const archiveField = field('pet-settings-field pet-settings-actions')
     archiveField.append(
       action('pet-settings-save', '保存', () => {
@@ -2165,6 +2230,9 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
       resetWindowField,
       archiveField,
     )
+    // 定时隐身 stays absent (no empty field/note) when the page cannot hide the
+    // pet window (browser build / content window without a Tauri host).
+    if (options.hideFor) common.append(hideForField, hideForNote)
 
     // --- 声音与语音 (E6 MB-066) ----------------------------------------
     // These controls used to exist ONLY in pet.html's aside.panel, which the
@@ -2363,14 +2431,23 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
         settingsStatus(checked
           ? '已开启内容日历：自动气泡偶尔带一句节日/季节/周末台词。'
           : '已关闭内容日历：自动气泡不再使用节日/季节台词。')
+        calendarTodayPanel?.refresh()
       },
-      '默认开启，约 20% 的自动气泡换成一句节日/季节/周末台词；安静时段、减少动态与「安静」对话模式下不出现，也不影响你主动互动时的回复。',
+      '默认开启，约 20% 的自动气泡换成一句节日/季节/周末台词；安静时段、减少动态与「安静」对话模式下不出现，也不影响你主动互动时的回复。下方「内容日历 · 今天…」可手动查看今天的节点/台词（不会主动弹出）。',
     )
+    // B2: manual-only 「今天」 view (collapsed row; no bubble, no network, no timer).
+    calendarTodayPanel = createContentCalendarTodayPanel({
+      document: docRef,
+      window: winRef,
+      getEnabled: () => contentCalendarEnabled,
+      onRecordUsage: () => recordUsage('settings-change'),
+    })
     calm.append(
       quietCheck.wrap,
       quietTimes,
       cadenceField,
       contentCalendarCheck.wrap,
+      calendarTodayPanel.field,
       note('安静时段当前：' + quietHoursSummary(quietHours) + '。与「安静」对话模式叠加生效。'),
       note('健康使用：连续使用每 2 小时提醒一次；提醒只有「休息一下（2 小时后仍会提醒）」和「10 分钟后再提醒」，不能永久关闭。页面隐藏/切到游戏窗口/重启都不清零。'),
       note('AI 标识：每次 AI 回复与语音播放时，气泡旁显示「AI 生成 · 不是真人」/「AI 语音 · 合成（不是真人）」，不只写在关于页。'),
@@ -2624,6 +2701,7 @@ export function initDesktopShell(options: DesktopShellOptions = {}): void {
       quietEnd: quietEndInput,
       ambientCadence: cadenceSelect,
       contentCalendar: contentCalendarCheck.input,
+      hideForNote,
       cohabitationNote,
       globalScale: globalScaleRow.input,
       globalValue: globalScaleRow.value,

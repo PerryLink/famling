@@ -136,11 +136,12 @@ import type { PetPose } from '../presence/types.ts'
 import { AI_REPLY_LABEL, installBubbleAiLabel } from './ai-label.ts'
 import { roleplayTemplateReply } from './consent/roleplay.ts'
 import { decideDialogueLine, type DialogueLineKind } from './content-hub.ts'
-import { resolveAmbientCalendarLine, type CharacterPackKind, type DialogueBehavior } from './content-library.ts'
+import { readContentCustomDays, resolveAmbientCalendarLine, type CharacterPackKind, type DialogueBehavior } from './content-library.ts'
 import { createContentRuntime } from './content-runtime.ts'
 import { CHARACTER_PACK_APPLY_EVENT, createHeroPage } from './hero-page.ts'
 import { createSettingsPage } from './settings-page.ts'
 import { createContentReportPanel, type ContentReportPanel } from './content-reporting.ts'
+import { createRhythmPage } from './rhythm-page.ts'
 import './pet.css'
 
 /**
@@ -383,6 +384,7 @@ const heroPage = createHeroPage({
   storageBoundary, applyRemoteBuiltinRenderer: (choice) => contentRuntimeApi.applyBuiltinRendererLocally(choice),
   onPat: (actorId) => doPat(actorId),
   onRegionTouch: (actorId, reaction) => doHeroRegionTouch(actorId, reaction),
+  onSleepWake: () => rhythmPage.noteSleepWake(), // B3: waking tap = interaction
   onEnsureAudio: () => {
     ensureAudio()
     void audioContext?.resume()
@@ -637,7 +639,7 @@ function currentAsrConfig(): string {
 function sayLater(
   text: string,
   emotion: 'calm' | 'happy' = 'calm',
-  kind: DialogueLineKind = 'interactive',
+  kind: DialogueLineKind = 'interactive', lineContext: 'generic' | 'functional' = 'functional',
 ): void {
   // Content-center dialogue policy: `brief`/`quiet` clamp interaction lines
   // (shorter bubbles), `quiet` additionally suppresses automatic/ambient lines.
@@ -650,8 +652,9 @@ function sayLater(
     if (quietHoursActive()) return
     // P1 2026-11-21 content calendar: a low-probability festival/season/weekday
     // overlay for AUTOMATIC lines only (interactive replies never reach here).
-    // OFF setting, quiet hours, 减少动态 and the quiet dialogue pack all degrade
-    // to the base line; the chosen line still passes the two gates below.
+    // B2: functional sentences (work done / memory / return / night greeting)
+    // never opt in; OFF setting, quiet hours, 减少动态 and the quiet dialogue pack
+    // still degrade to the base line, which also passes the two gates below.
     const runtime = contentRuntimeApi.getContentRuntime()
     const builtinRenderer = heroPage.builtinRenderer()
     const calendarLine = resolveAmbientCalendarLine({
@@ -661,7 +664,7 @@ function sayLater(
       enabled: resolveContentCalendarEnabled(),
       quietHoursActive: quietHoursActive(),
       reduceMotion: document.documentElement.dataset.reduceMotion === '1',
-      random: Math.random,
+      random: Math.random, context: lineContext, customDays: readContentCustomDays(),
     })
     if (calendarLine !== null) line = calendarLine.line
     // MB-075: waiting/guilt/soft-dependency hints never reach ambient output;
@@ -803,8 +806,7 @@ function openTypedInput(): void {
 }
 
 function render(): void {
-  const hour = new Date().getHours()
-  document.body.dataset.time = hour < 6 ? 'night' : hour < 12 ? 'morning' : hour < 18 ? 'day' : 'evening'
+  rhythmPage.syncRender() // B3 作息时钟: day/night + quiet state, every render
   $('pet-name').textContent = state.name
   $('bond').textContent = `羁绊 ${state.bond}`
   $('paper').textContent = `纸片 ${state.paper}`
@@ -813,14 +815,7 @@ function render(): void {
   $('schedule').textContent = `它现在：${schedule.label} · ${petMood(state)}`
   $('pet').dataset.phase = schedule.phase
   $('pet').classList.toggle('happy', state.bond >= 8 || state.folded >= 2)
-  $('pet').classList.toggle('sleepy', hour >= 23 || hour < 6)
   $('mute').textContent = state.muted ? '有声' : '静音'
-  heroPage.syncRenderState({
-    happy: state.bond >= 8 || state.folded >= 2,
-    sleepy: hour >= 23 || hour < 6,
-    muted: state.muted,
-    night: hour >= 23 || hour < 6,
-  })
   const list = $('memories')
   list.replaceChildren()
   // Defensive read: a corrupt/legacy state must never crash render (P0-3).
@@ -1317,6 +1312,18 @@ const settingsPage = createSettingsPage({
 })
 settingsPage.bind()
 
+const rhythmPage = createRhythmPage({
+  document,
+  now: () => new Date(),
+  isQuiet: (at) => quietHoursActive(at),
+  getMood: () => ({ happy: state.bond >= 8 || state.folded >= 2, muted: state.muted }),
+  syncHero: (input) => heroPage.syncRenderState(input),
+  say: (line) => sayLater(line),
+  hasTauri: HAS_TAURI && !CONTENT_SHELL,
+  canInteract,
+  reportFailure: (error) => reportFailure(uiBoundary, error),
+})
+
 // ---------------------------------------------------------------------------
 // 待机节奏 / 一起工作 wiring (C1 2026-11-21)
 // ---------------------------------------------------------------------------
@@ -1400,7 +1407,7 @@ function finishWorkSession(early: boolean): void {
   }
   heroPage.emit('stand_wag')
   // Completion is automatic, so quiet hours suppress the copy (ambient kind).
-  sayLater(WORK_SESSION_DONE_LINE, 'calm', 'ambient')
+  sayLater(WORK_SESSION_DONE_LINE, 'calm', 'ambient', 'functional')
 }
 
 // A reload inside the same app window keeps the remaining session (sessionStorage);
@@ -1463,6 +1470,7 @@ async function bootPetOnce(): Promise<void> {
   // that window and closes this gate window, so skip the rest of the boot.
   const hostConsent = await syncHostConsent(consentSnapshot())
   if (hostConsent?.launched) return
+  rhythmPage.start() // B3 定时隐身: restore an active deadline after a restart
   // loadNow() may throw (corrupt/unreadable save); never leave the boot chain
   // unhandled or boot a half-rendered pet (P0-2).
   const loaded = await loadBoundary.guardAsync(() => loadNow())
@@ -1484,13 +1492,14 @@ async function bootPetOnce(): Promise<void> {
   if (!loaded.ok || !loaded.value) {
     state = createPet(now())
     render()
-    sayLater('你来了。', 'calm', 'ambient')
+    sayLater('你来了。', 'calm', 'ambient', 'generic')
   } else {
     const away = now() - state.lastSeenMs
     state = { ...state, lastSeenMs: now() }
     render()
+    rhythmPage.armNightGreetingIfNight() // B3: quiet night boot arms the one-shot line
     if (away > 60 * 60 * 1000) {
-      sayLater('你回来了。书页翻到你上次那页。', 'happy', 'ambient')
+      sayLater('你回来了。书页翻到你上次那页。', 'happy', 'ambient', 'functional')
     } else {
       const memoryItems = Array.isArray(state.memory?.items) ? state.memory.items : []
       const activeMemories = memoryItems.filter((item) => item.status === 'active')
@@ -1498,23 +1507,13 @@ async function bootPetOnce(): Promise<void> {
       const canRecall = canRecallMemory(state, now())
       if (canRecall && last && activeMemories.length > 2) {
         state = markMemoryRecalled(state, now())
-        sayLater(`我还记得：${last.text}`, 'calm', 'ambient')
+        sayLater(`我还记得：${last.text}`, 'calm', 'ambient', 'functional')
         void saveNow().catch((error) => {
           if (!(error instanceof RateLimitError)) reportFailure(saveBoundary, error)
         })
       } else {
-        const hour = new Date().getHours()
-        // Night copy is low-arousal and does not claim to leave a light on for
-        // the user; quiet hours suppress this ambient line entirely.
-        sayLater(
-          hour >= 23 || hour < 6
-            ? '……这么晚还在呀。早点休息，明天见。'
-            : hour < 12
-              ? '早。今天书页很轻。'
-              : '你忙你的。',
-          'calm',
-          'ambient',
-        )
+        // Night copy is low-arousal; quiet hours suppress this ambient line.
+        sayLater(rhythmPage.bootFallbackLine(), 'calm', 'ambient', 'functional')
       }
     }
   }
@@ -2312,6 +2311,7 @@ function initializeApp(): void {
         // C1: a full local-data wipe also clears the idle-rhythm preference and
         // discards the session-scoped 一起工作 state (nothing is recorded anyway).
         ambientCadence = DEFAULT_AMBIENT_CADENCE
+        rhythmPage.reset()
         workSession = null
         clearWorkSession()
         clearWorkSessionTimer()
@@ -2359,6 +2359,7 @@ function initializeApp(): void {
           : { minutes: workSession.minutes, remainingMs: workSessionRemainingMs(workSession, Date.now()) },
       onWorkSessionStart: (minutes) => { startWorkTogether(minutes) },
       onWorkSessionEnd: () => { finishWorkSession(true) },
+      hideFor: rhythmPage.hideForPort(), // B3: null in the browser build
       saveArchive: saveArchiveWithFeedback,
       loadArchive: loadArchiveWithFeedback,
       // E6 MB-066: 设置… landings for the previously hidden aside.panel controls
@@ -2412,7 +2413,7 @@ function initializeApp(): void {
   if (!wired.health) {
     // One 2h health reminder per app: only the live pet window owns it. Running
     // it in the content/settings window would double-fire and misreport usage.
-    if (!CONTENT_SHELL) startHealthReminder()
+    if (!CONTENT_SHELL) startHealthReminder({ onTick: () => rhythmPage.sync() }) // B3: no new timer
     wired.health = true
   }
   if (!wired.trayExit) {

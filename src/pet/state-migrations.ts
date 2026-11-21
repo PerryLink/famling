@@ -38,6 +38,7 @@
  */
 
 import { CHAT_DIGEST_KEY, CHAT_DIGEST_VERSION, validateDigest } from './chat-import/store.ts'
+import { CONTENT_CUSTOM_DAYS_KEY } from './content-library.ts'
 import {
   LEGACY_PET_SCALE_KEY,
   LEGACY_TEXT_SCALE_KEY,
@@ -169,7 +170,9 @@ export const FAMLING_STORAGE_KEYS: readonly FamlingStorageKeySpec[] = Object.fre
   Object.freeze({ key: 'desktop-games/pet/quiet-hours', owner: 'health', encoding: 'json', version: 0, note: 'Quiet-hours window { enabled, start, end }.' }),
   Object.freeze({ key: 'desktop-games/pet/ambient-cadence', owner: 'preferences', encoding: 'identifier', version: 0, note: 'Idle-rhythm level lively|normal|quiet (low-disturb.ts, C1 2026-11-21; applied to the live hero scene).' }),
   Object.freeze({ key: 'desktop-games/pet/content/calendar-ambient', owner: 'content', encoding: 'flag', version: 0, note: '内容日历（节日/季节台词）ambient-overlay ON/OFF flag, default ON (desktop-shell.ts, P1 2026-11-21; main.ts re-reads it before each automatic ambient line).' }),
+  Object.freeze({ key: CONTENT_CUSTOM_DAYS_KEY, owner: 'content', encoding: 'versioned', version: 1, note: '自定义关键日（MM-DD + 标签，至多 8 条纯文本）envelope v1 (content-library.ts, B2 2026-11-21; 当天优先「今天是 <标签>」，设置「内容日历 · 今天」查看/编辑；损坏/非法日期 fail closed；删除全部数据可清).' }),
   Object.freeze({ key: 'desktop-games/pet/work-session', owner: 'window', encoding: 'json', version: 0, note: 'Session-scoped 一起工作 focus session { minutes, startedAtMs, endsAtMs } in sessionStorage only (survives a page reload, not an app restart); no history is ever recorded.' }),
+  Object.freeze({ key: 'desktop-games/pet/hide-until', owner: 'window', encoding: 'integer', version: 0, note: '定时隐身 deadline (epoch ms; hide-for.ts, B3 2026-11-21). Expired/corrupt/outside (now, now+48h] is cleared; 到期自动恢复, 关闭或删除全部数据即清除.' }),
   Object.freeze({ key: 'desktop-games/pet/health-reminder', owner: 'health', encoding: 'json', version: 0, note: 'Cross-window 2h health-reminder state.' }),
   Object.freeze({ key: 'desktop-games/pet/usage-summary/v1', owner: 'state', encoding: 'versioned', version: 1, note: 'Local usage summary counters/ring buffers (usage-summary.ts); manual export only, no content text, no network.' }),
   Object.freeze({ key: 'desktop-games/pet/cohabitation/v1', owner: 'save', encoding: 'versioned', version: 1, note: 'Cohabitation day set (days with >=10 min interaction) + today accumulator (cohabitation.ts); no streak/backfill/reminder.' }),
@@ -780,7 +783,8 @@ export function classifyFamlingStorageKey(key: string): FamlingClearItemId {
     key === 'desktop-games/pet/text-scale' ||
     key === 'desktop-games/pet/setup-ack-v1' ||
     key === 'desktop-games/pet/advisers-mode' ||
-    key === 'desktop-games/pet/usage-summary/v1'
+    key === 'desktop-games/pet/usage-summary/v1' ||
+    key === 'desktop-games/pet/hide-until'
   ) {
     return 'preferences'
   }

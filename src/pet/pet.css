@@ -753,6 +753,107 @@ html:not([data-pet-shell="desktop"]) .pet-menu-button { display: none; }
   outline-offset: 1px;
 }
 
+/* 内容日历 · 今天 (B2 2026-11-21): one collapsed settings row + a compact
+   manual-only panel. No always-on chrome; every action reuses the existing
+   settings button style so the 480x336 card stays compact. */
+.pet-settings-calendar-today-field {
+  display: grid;
+  justify-items: start;
+}
+.pet-settings-calendar-today {
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px 7px;
+  border: 1px solid #3a2e24;
+  border-radius: 8px;
+  background: #100d0a;
+}
+.pet-settings-calendar-today[hidden] { display: none; }
+.pet-settings-calendar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.pet-settings-calendar-date {
+  margin: 0;
+  color: #ffd98a;
+  font-size: calc(9px * var(--panel-base, 2));
+}
+.pet-settings-calendar-nodes {
+  margin: 2px 0;
+  color: #d8c29a;
+  font-size: calc(8px * var(--panel-base, 2));
+}
+.pet-settings-calendar-line {
+  margin: 4px 0 2px;
+  color: #ffe7b3;
+  font-size: calc(9px * var(--panel-base, 2));
+}
+.pet-settings-calendar-subtitle {
+  margin: 5px 0 2px;
+  color: #c9a46a;
+  font-size: calc(8px * var(--panel-base, 2));
+}
+.pet-settings-calendar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 2px 0;
+}
+.pet-settings-calendar-upcoming {
+  margin: 2px 0;
+  padding-left: 14px;
+  color: #a08a70;
+  font-size: calc(7px * var(--panel-base, 2));
+}
+.pet-settings-calendar-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 3px 0;
+}
+.pet-settings-calendar-input {
+  flex: 0 1 64px;
+  min-height: 24px;
+  padding: 1px 4px;
+  border: 1px solid #5a402b;
+  border-radius: 6px;
+  background: #241b15;
+  color: #f0e4d4;
+  font: inherit;
+  font-size: calc(8px * var(--panel-base, 2));
+}
+.pet-settings-calendar-input:focus-visible {
+  outline: 2px solid #e0b35a;
+  outline-offset: 1px;
+}
+.pet-settings-calendar-day-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin: 2px 0;
+}
+.pet-settings-calendar-day-text {
+  margin: 0;
+  color: #d8c29a;
+  font-size: calc(8px * var(--panel-base, 2));
+}
+.pet-settings-calendar-feedback {
+  margin: 3px 0 0;
+  min-height: calc(11px * var(--panel-base, 2));
+  color: #ffd98a;
+  font-size: calc(7px * var(--panel-base, 2));
+}
+/* Clipboard fallback textarea: off-screen, never visible in the card. */
+.pet-settings-calendar-copy-area {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  opacity: 0;
+}
+
 /* Corrupt-archive recovery panel (E1 / MB-011, task-106). Blocking body-level
    dialog: above the menu (80), 2h banner (90), settings (96) and the role &
    content center (150), below every consent layer (200) so a TOS/TTS/blocked

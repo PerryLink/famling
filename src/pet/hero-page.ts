@@ -36,6 +36,7 @@ import { ConsentDeclinedError, loadCharacterPackWithConsent } from './consent/co
 import { startTinglanPreview } from './tinglan-preview.ts'
 import { isBuiltinCharacterId } from './character/builtin.ts'
 import { resolveHeroRegionReaction, type HeroRegionAction, type HeroRegionReaction } from './anim/regions.ts'
+import { isNightHour } from './day-night.ts'
 import { shouldStartWindowDrag } from './hero-drag.ts'
 import { monitorWorkAreaRect, resolveRestoreMatch, type DockEdge, type PixelRect } from './edge-dock.ts'
 import {
@@ -288,6 +289,12 @@ export interface HeroPageDeps {
   /** Pointer/kernel side effects that intentionally stay in main.ts. */
   onPat(actorId?: string): void
   onRegionTouch(actorId: string, reaction: HeroRegionReaction): void
+  /**
+   * Low-intensity wake acknowledgement (B3 2026-11-21): called after a tap woke
+   * a sleeping actor. Display-only host hook — it must not save, notify or
+   * record history; main.ts uses it for the one-shot night line latch.
+   */
+  onSleepWake?(actorId?: string): void
   /** Resume/reuse the pet-page AudioContext on a hero pointer press. */
   onEnsureAudio(): void
   /**
@@ -1676,6 +1683,26 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
     return { ok: true, message: '已切换到内置 hero 角色「' + character + '」（无需刷新）。' }
   }
 
+  /**
+   * Low-intensity wake (B3 2026-11-21): a tap on a SLEEPING actor used to be
+   * swallowed by the regions state whitelist (idle/idle_blink only). Emit the
+   * existing `wake` rule (-> idle) plus one blink overlay — no new clip/frame,
+   * no system notification, no save/history write. 减少动态 keeps the state
+   * change but skips the blink; packs without a `wake` rule fall back to the
+   * blink rule (which also leaves `sleep`) so the pet can never stay stuck.
+   */
+  function wakeSleepingActor(actorId: string): void {
+    const reducedMotion = document.documentElement.dataset.reduceMotion === '1'
+    const wake = hero?.emit('wake', { actorId }) ?? null
+    if (wake === null || wake.emitted === false) hero?.emit('idle_blink', { actorId })
+    else if (!reducedMotion) hero?.emit('idle_blink', { actorId })
+    try {
+      deps.onSleepWake?.(actorId)
+    } catch {
+      /* display-only host hook; a thrown listener must not trap the pointer */
+    }
+  }
+
   /** Pointer → hero events. A real drag (>6 px) in the Tauri window starts the
    *  native window move via `startDragging()`; the canvas deliberately avoids
    *  `data-tauri-drag-region` so a short tap still reaches the hero hit test.
@@ -1820,13 +1847,24 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
       const elapsed = now() - startedAt
       if (!wasDragging && elapsed < 500) {
         const point = localPoint(event)
+        const nowMs = now()
         // Region hit-test first (art-pixel rects, zoom-independent). Packs with a
         // regions.json only react inside their declared zones/state whitelist; a
         // tap on a transparent/undefined area is intentionally a no-op instead
         // of a whole-body pat. Legacy packs without regions keep the old pat.
         const hit = hero.hitRegion(point.x, point.y)
-        if (hit) {
-          const nowMs = now()
+        const target = hit === null ? hero.hitActor(point.x, point.y) : null
+        const actorId = hit?.actor.id ?? target?.id ?? null
+        // B3: a sleeping pet is outside every region state whitelist. The first
+        // tap wakes it (one blink) and the next tap is a normal interaction.
+        if (actorId !== null && (hero.actorState(actorId) ?? 'idle') === 'sleep') {
+          if (nowMs - lastHeroTouchAt < HERO_TOUCH_COOLDOWN_MS) {
+            endPointer(event)
+            return
+          }
+          lastHeroTouchAt = nowMs
+          wakeSleepingActor(actorId)
+        } else if (hit) {
           const key = `${hit.actor.id}:${hit.region.id}`
           const lastRegionAt = lastRegionTouchAt.get(key) ?? Number.NEGATIVE_INFINITY
           if (nowMs - lastHeroTouchAt < HERO_TOUCH_COOLDOWN_MS || nowMs - lastRegionAt < HERO_REGION_COOLDOWN_MS) {
@@ -1839,10 +1877,10 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
           const config = hit.actor.bundle.regions
           const reaction = config ? resolveHeroRegionReaction(config, hit.region.id, state, 'tap') : null
           if (reaction) onRegionTouch(hit.actor.id, reaction)
-        } else {
-          const target = hero.hitActor(point.x, point.y)
-          if (target && !target.bundle.regions) onPat(target.id)
-          else if (!target) hero.emit('click')
+        } else if (target !== null && !target.bundle.regions) {
+          onPat(target.id)
+        } else if (target === null) {
+          hero.emit('click')
         }
       }
       endPointer(event)
@@ -1934,8 +1972,8 @@ export function createHeroPage(deps: HeroPageDeps): HeroPageApi {
       const mounted = mountHeroView()
       if (!mounted.ok) throw new Error(mounted.reason)
       const { canvas, ctx } = mounted
-      const hour = new Date().getHours()
-      const night = hour >= 23 || hour < 6
+      // B3: one shared 23:00-06:00 sleep window (day-night.ts), not a second copy.
+      const night = isNightHour(new Date())
       const runtimeOptions = {
         config: HERO_CONFIG,
         canvas,

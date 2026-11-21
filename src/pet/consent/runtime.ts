@@ -998,6 +998,13 @@ export interface HealthReminderOptions {
   readonly afterMs?: number
   /** Poll override (tests); production uses HEALTH_TICK_MS (15 s). */
   readonly tickMs?: number
+  /**
+   * Side-effect-only hook run once per existing poll (B3 2026-11-21): the pet
+   * window uses it for the day/night + quiet-hours clock, so the clock reuses
+   * this 15 s schedule and visibility resume instead of adding its own timer.
+   * It never runs before the consent gate accepted.
+   */
+  readonly onTick?: () => void
 }
 
 /**
@@ -1095,6 +1102,13 @@ export function startHealthReminder(options: HealthReminderOptions = {}): void {
   const tick = (): void => {
     try {
       if (!gateRefAvailable()) return
+      // B3: the lightweight local clock rides this EXISTING 15 s poll (and its
+      // visibility-resume tick); no permanent re-timer is added by the pet page.
+      try {
+        options.onTick?.()
+      } catch {
+        /* a page-level hook must never break the health reminder */
+      }
       const nowMs = Date.now()
       // The game windows write the same record: merge their interactions/claims
       // before evaluating, so one 2h clock spans pet <-> game without a host.

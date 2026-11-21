@@ -86,16 +86,21 @@ import {
   CALENDAR_OCCASIONS,
   CALENDAR_OCCASION_KINDS,
   CALENDAR_SCHEMA,
+  calendarDateKey,
   isValidCalendarDateParts,
+  localDateParts,
   pickCalendarLine,
+  type CalendarChannel,
   type CalendarCharacterLines,
   type CalendarChannelLines,
+  type CalendarDateParts,
   type CalendarDayKindOccasion,
   type CalendarEvents,
   type CalendarFestivalOccasion,
   type CalendarLine,
   type CalendarLineQuery,
   type CalendarOccasion,
+  type CalendarOccasionKind,
   type CalendarSeasonOccasion,
 } from './calendar-events.ts'
 
@@ -3100,6 +3105,238 @@ export function clearContentSelection(storage?: StorageLike | null): boolean {
 }
 
 // ---------------------------------------------------------------------------
+// Custom key days (自定义关键日; B2 2026-11-21)
+// ---------------------------------------------------------------------------
+//
+// A user may save up to eight RECURRING `MM-DD` key days with a short plain-text
+// label. On that local day the pet may use ONE locally synthesized line
+// ("今天是 <标签>") instead of a catalog calendar line, and the settings
+// 「内容日历 · 今天」 view shows the same line. Boundaries: local storage only, no
+// history / streak / reminder / punishment, malformed values fail closed, and
+// "delete all local data" clears the key through the state-migrations registry.
+
+/** localStorage key of the custom key-days payload (versioned envelope v1). */
+export const CONTENT_CUSTOM_DAYS_KEY = 'desktop-games/pet/content/custom-days/v1'
+/** Envelope version of the custom key-days payload. */
+export const CONTENT_CUSTOM_DAYS_VERSION = 1
+/** Hard bounds (UI + storage validation share them). */
+export const CONTENT_CUSTOM_DAYS_LIMITS = Object.freeze({
+  maxDays: 8,
+  maxLabelChars: 16,
+  maxBytes: 4096,
+})
+/** Prefix of the local synthesized line; the validated label is appended. */
+export const CONTENT_CUSTOM_DAY_LINE_PREFIX = '今天是 '
+
+/** One user-defined recurring key day. */
+export interface ContentCustomKeyDay {
+  /** 'MM-DD' only (every year); year-bearing / impossible dates are rejected. */
+  readonly date: string
+  /** Short plain-text label (1..16 code points). */
+  readonly label: string
+}
+
+export type ContentCustomDaysReadStatus = 'ok' | 'missing' | 'invalid' | 'unavailable' | 'version'
+
+export interface ContentCustomDaysReadResult {
+  readonly days: readonly ContentCustomKeyDay[]
+  readonly status: ContentCustomDaysReadStatus
+}
+
+export interface ContentCustomDaysWriteResult {
+  readonly ok: boolean
+  readonly days: readonly ContentCustomKeyDay[]
+  readonly status: 'ok' | 'invalid' | 'unavailable' | 'quota' | 'serialize' | 'too-large'
+  readonly error?: 'invalid-entry'
+}
+
+export type ContentCustomDayMutationError = 'invalid-date' | 'invalid-label' | 'too-many'
+
+export interface ContentCustomDayMutation {
+  readonly ok: boolean
+  readonly days: readonly ContentCustomKeyDay[]
+  readonly error?: ContentCustomDayMutationError
+}
+
+export interface ContentCustomDayRemoval {
+  readonly days: readonly ContentCustomKeyDay[]
+  readonly removed: boolean
+}
+
+const EMPTY_CUSTOM_DAYS: readonly ContentCustomKeyDay[] = Object.freeze([])
+const CUSTOM_DAY_DATE_PATTERN = /^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/
+
+/** True for a real Gregorian 'MM-DD' ('02-30', '13-01', '2026-12-25' rejected). */
+export function isValidContentCustomDayDate(value: unknown): value is string {
+  if (typeof value !== 'string' || !CUSTOM_DAY_DATE_PATTERN.test(value)) return false
+  const month = Number(value.slice(0, 2))
+  const day = Number(value.slice(3, 5))
+  return isValidCalendarDateParts({ year: 2000, month, day })
+}
+
+/** Trim + validate one user label; null means reject (fail closed). */
+export function normalizeContentCustomDayLabel(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const text = value.trim()
+  if (text.length === 0) return null
+  if (stripControlChars(text) !== text || stripBidiControls(text) !== text || /[\r\n\t]/.test(text)) return null
+  if (MARKUP_TEST.test(text)) return null
+  if (countCodePoints(text) > CONTENT_CUSTOM_DAYS_LIMITS.maxLabelChars) return null
+  return text
+}
+
+/** Normalize a passed/stored list for the pure mutation helpers (drops junk). */
+function normalizeCustomKeyDayList(days: unknown): readonly ContentCustomKeyDay[] {
+  if (!Array.isArray(days)) return EMPTY_CUSTOM_DAYS
+  const out: ContentCustomKeyDay[] = []
+  const seen = new Set<string>()
+  for (const entry of days) {
+    if (!isRecord(entry)) continue
+    const date = entry.date
+    const label = normalizeContentCustomDayLabel(entry.label)
+    if (!isValidContentCustomDayDate(date) || label === null || seen.has(date)) continue
+    seen.add(date)
+    out.push(Object.freeze({ date, label }))
+    if (out.length >= CONTENT_CUSTOM_DAYS_LIMITS.maxDays) break
+  }
+  return out.length === 0 ? EMPTY_CUSTOM_DAYS : Object.freeze(out)
+}
+
+/**
+ * Strict parse of a stored payload `{ days: [...] }`. `undefined` = invalid:
+ * one corrupt entry rejects the whole list instead of silently showing a
+ * half-trusted custom day. Used as the safe-storage envelope validator, so a
+ * newer envelope version is never rewritten behind the user's back.
+ */
+export function parseContentCustomKeyDays(raw: unknown): readonly ContentCustomKeyDay[] | undefined {
+  if (!isRecord(raw) || !Array.isArray(raw.days)) return undefined
+  if (raw.days.length > CONTENT_CUSTOM_DAYS_LIMITS.maxDays) return undefined
+  const out: ContentCustomKeyDay[] = []
+  const seen = new Set<string>()
+  for (const entry of raw.days) {
+    if (!isRecord(entry)) return undefined
+    const date = entry.date
+    if (!isValidContentCustomDayDate(date) || seen.has(date)) return undefined
+    const label = normalizeContentCustomDayLabel(entry.label)
+    if (label === null) return undefined
+    seen.add(date)
+    out.push(Object.freeze({ date, label }))
+  }
+  return out.length === 0 ? EMPTY_CUSTOM_DAYS : Object.freeze(out)
+}
+
+/** Read the stored key days; missing/corrupt/unavailable/newer all read empty. */
+export function readContentCustomDaysDetailed(storage?: StorageLike | null): ContentCustomDaysReadResult {
+  const result = readVersioned<readonly ContentCustomKeyDay[]>(
+    CONTENT_CUSTOM_DAYS_KEY,
+    {
+      version: CONTENT_CUSTOM_DAYS_VERSION,
+      maxBytes: CONTENT_CUSTOM_DAYS_LIMITS.maxBytes,
+      validate: (value: unknown) => parseContentCustomKeyDays(value),
+    },
+    storage,
+  )
+  if (result.status === 'ok' && result.value !== undefined) {
+    return Object.freeze({ days: result.value, status: 'ok' as const })
+  }
+  const status: ContentCustomDaysReadStatus =
+    result.status === 'missing' || result.status === 'unavailable' || result.status === 'version'
+      ? result.status
+      : 'invalid'
+  return Object.freeze({ days: EMPTY_CUSTOM_DAYS, status })
+}
+
+/** Convenience reader: stored key days (empty on every degraded path). */
+export function readContentCustomDays(storage?: StorageLike | null): readonly ContentCustomKeyDay[] {
+  return readContentCustomDaysDetailed(storage).days
+}
+
+/** Persist the full list (validated first; an invalid list is never written). */
+export function writeContentCustomDays(
+  days: readonly ContentCustomKeyDay[] | null | undefined,
+  storage?: StorageLike | null,
+): ContentCustomDaysWriteResult {
+  const normalized = parseContentCustomKeyDays({ days: Array.isArray(days) ? days : [] })
+  if (normalized === undefined) {
+    return Object.freeze({ ok: false, days: EMPTY_CUSTOM_DAYS, status: 'invalid', error: 'invalid-entry' })
+  }
+  const written = writeVersioned(
+    CONTENT_CUSTOM_DAYS_KEY,
+    { days: normalized },
+    { version: CONTENT_CUSTOM_DAYS_VERSION, maxBytes: CONTENT_CUSTOM_DAYS_LIMITS.maxBytes },
+    storage,
+  )
+  if (written.status !== 'ok') {
+    return Object.freeze({ ok: false, days: normalized, status: written.status })
+  }
+  return Object.freeze({ ok: true, days: normalized, status: 'ok' })
+}
+
+/** Remove every stored custom key day (delete-all; the registry also covers it). */
+export function clearContentCustomDays(storage?: StorageLike | null): boolean {
+  return removeKey(CONTENT_CUSTOM_DAYS_KEY, storage)
+}
+
+/** Add or replace (same 'MM-DD') one key day; pure, never throws. */
+export function addContentCustomKeyDay(
+  days: readonly ContentCustomKeyDay[] | null | undefined,
+  dateInput: unknown,
+  labelInput: unknown,
+): ContentCustomDayMutation {
+  const current = normalizeCustomKeyDayList(days)
+  const date = typeof dateInput === 'string' ? dateInput.trim() : ''
+  if (!isValidContentCustomDayDate(date)) {
+    return Object.freeze({ ok: false, days: current, error: 'invalid-date' as const })
+  }
+  const label = normalizeContentCustomDayLabel(labelInput)
+  if (label === null) {
+    return Object.freeze({ ok: false, days: current, error: 'invalid-label' as const })
+  }
+  const existing = current.findIndex((entry) => entry.date === date)
+  if (existing >= 0) {
+    const next = [...current]
+    next[existing] = Object.freeze({ date, label })
+    return Object.freeze({ ok: true, days: Object.freeze(next) })
+  }
+  if (current.length >= CONTENT_CUSTOM_DAYS_LIMITS.maxDays) {
+    return Object.freeze({ ok: false, days: current, error: 'too-many' as const })
+  }
+  return Object.freeze({ ok: true, days: Object.freeze([...current, Object.freeze({ date, label })]) })
+}
+
+/** Remove one key day by 'MM-DD'; pure, never throws. */
+export function removeContentCustomKeyDay(
+  days: readonly ContentCustomKeyDay[] | null | undefined,
+  dateInput: unknown,
+): ContentCustomDayRemoval {
+  const current = normalizeCustomKeyDayList(days)
+  const date = typeof dateInput === 'string' ? dateInput.trim() : ''
+  const next = current.filter((entry) => entry.date !== date)
+  if (next.length === current.length) return Object.freeze({ days: current, removed: false })
+  return Object.freeze({ days: next.length === 0 ? EMPTY_CUSTOM_DAYS : Object.freeze(next), removed: true })
+}
+
+/** The entry matching a local calendar date (MM-DD), or null. */
+export function findContentCustomKeyDay(
+  days: readonly ContentCustomKeyDay[] | null | undefined,
+  date: CalendarDateParts | null | undefined,
+): ContentCustomKeyDay | null {
+  if (!Array.isArray(days) || !isValidCalendarDateParts(date)) return null
+  const monthDay = String(date.month).padStart(2, '0') + '-' + String(date.day).padStart(2, '0')
+  for (const entry of days) {
+    if (!isRecord(entry) || entry.date !== monthDay) continue
+    const label = normalizeContentCustomDayLabel(entry.label)
+    if (label !== null) return Object.freeze({ date: monthDay, label })
+  }
+  return null
+}
+
+/** The locally synthesized line for one custom key day. */
+export function resolveContentCustomDayLine(day: ContentCustomKeyDay): string {
+  return CONTENT_CUSTOM_DAY_LINE_PREFIX + day.label
+}
+
+// ---------------------------------------------------------------------------
 // Selection resolution + dialogue behaviour
 // ---------------------------------------------------------------------------
 
@@ -3255,7 +3492,8 @@ export function resolveCalendarLine(
 }
 
 // ---------------------------------------------------------------------------
-// Ambient calendar overlay (P1 2026-11-21: content calendar in automatic output)
+// Ambient calendar overlay (P1 2026-11-21; functional-line protection + custom
+// key days, B2 2026-11-21)
 // ---------------------------------------------------------------------------
 
 /**
@@ -3265,6 +3503,36 @@ export function resolveCalendarLine(
  * quiet hours, 减少动态 and the `quiet` dialogue-pack mode.
  */
 export const AMBIENT_CALENDAR_CHANCE = 0.2
+
+/**
+ * What kind of automatic line is asking for the overlay.
+ *
+ * `functional` lines carry product meaning (一起工作完成 / 记忆回顾 / 回归 /
+ * 夜间问候 / 启动问候 …) and MUST NOT be replaced by a calendar line.
+ * `generic` lines are neutral ambient greetings; only those may be overlaid.
+ * The default is `functional` (fail closed): a future call site that forgets to
+ * opt in keeps its own sentence.
+ */
+export const AMBIENT_CALENDAR_CONTEXTS = ['generic', 'functional'] as const
+export type AmbientCalendarContext = (typeof AMBIENT_CALENDAR_CONTEXTS)[number]
+
+/** Where the returned line came from: catalog data vs the user's key day. */
+export const AMBIENT_CALENDAR_SOURCES = ['calendar', 'custom-day'] as const
+export type AmbientCalendarSource = (typeof AMBIENT_CALENDAR_SOURCES)[number]
+
+/** One overlay decision: the catalog line or a locally synthesized key-day line. */
+export interface AmbientCalendarOverlay {
+  /** 'YYYY-MM-DD' local date key the line was selected for. */
+  readonly date: string
+  readonly occasionId: string
+  readonly occasionName: string
+  /** `custom-day` = the user's "今天是 <标签>" line (not catalog data). */
+  readonly occasionKind: CalendarOccasionKind | 'custom-day'
+  readonly characterId: string
+  readonly channel: CalendarChannel
+  readonly line: string
+  readonly source: AmbientCalendarSource
+}
 
 /**
  * Map a live character id onto the built-in calendar character pack id.
@@ -3294,31 +3562,73 @@ export interface AmbientCalendarQuery {
   readonly random?: () => number
   /** Injected clock for tests; the default reads the local "now". */
   readonly now?: Date | null
+  /** Explicit local date (tests/determinism); wins over `now`. */
+  readonly date?: CalendarDateParts | null
+  /**
+   * Line context; only `generic` ambient greetings may be overlaid. Omitted /
+   * unknown values behave like `functional` (the base line is always kept).
+   */
+  readonly context?: unknown
+  /** User custom key days; a matching MM-DD wins over the catalog line. */
+  readonly customDays?: readonly ContentCustomKeyDay[] | null
+}
+
+function resolveAmbientCalendarDate(query: AmbientCalendarQuery): CalendarDateParts | null {
+  if (query.date !== undefined) return isValidCalendarDateParts(query.date) ? query.date : null
+  return localDateParts(query.now)
 }
 
 /**
- * Resolve the ONE optional calendar line an automatic ambient bubble may show.
+ * Resolve the ONE optional line an automatic ambient bubble may show.
  *
- * Pure: the caller injects the random draw and the clock. Returns null for the
- * OFF setting, quiet hours, 减少动态, unknown/`origami` characters, `quiet`
- * dialogue mode, catalogs without `calendarEvents`, invalid dates and a draw
- * that is not below {@link AMBIENT_CALENDAR_CHANCE} — the base line is kept.
+ * Pure: the caller injects the random draw, the clock and the custom key days.
+ * Returns null (keep the base line) for: the OFF setting, quiet hours, 减少动态,
+ * a non-`generic` context (functional sentences are protected), unknown
+ * characters, unknown/`quiet` dialogue modes, invalid dates and a draw that is
+ * not below {@link AMBIENT_CALENDAR_CHANCE}. A matching custom key day yields
+ * the local "今天是 <标签>" line, which wins over the catalog line; catalogs
+ * without `calendarEvents` degrade to null (except for that local line).
  * Interactive (user-triggered) replies never call this.
  */
-export function resolveAmbientCalendarLine(query: AmbientCalendarQuery): CalendarLine | null {
+export function resolveAmbientCalendarLine(query: AmbientCalendarQuery): AmbientCalendarOverlay | null {
   if (query === null || query === undefined || typeof query !== 'object') return null
   if (query.enabled === false || query.quietHoursActive === true || query.reduceMotion === true) return null
+  // Functional lines are never replaced; unknown contexts fail closed too.
+  const context = query.context ?? 'functional'
+  if (!(AMBIENT_CALENDAR_CONTEXTS as readonly string[]).includes(context as string) || context !== 'generic') return null
   const characterId = calendarCharacterId(query.characterId)
   if (characterId === null || typeof query.dialogueMode !== 'string') return null
+  if (!(DIALOGUE_MODES as readonly string[]).includes(query.dialogueMode)) return null
+  // quiet = explicit interactions only; automatic ambient bubbles stay silent.
+  if (query.dialogueMode === 'quiet') return null
   const draw = query.random === undefined ? Math.random() : query.random()
   // Fail closed on a NaN/non-finite draw: keep the base line instead of overlaying.
   if (!Number.isFinite(draw) || draw >= AMBIENT_CALENDAR_CHANCE) return null
-  return resolveCalendarLine(query.library, {
+  const date = resolveAmbientCalendarDate(query)
+  if (date === null) return null
+  // A user custom key day wins over the catalog line for the local day.
+  const customDay = findContentCustomKeyDay(query.customDays, date)
+  if (customDay !== null) {
+    return Object.freeze({
+      date: calendarDateKey(date),
+      occasionId: 'custom-day',
+      occasionName: '自定义关键日',
+      occasionKind: 'custom-day' as const,
+      characterId,
+      channel: 'ambient' as const,
+      line: resolveContentCustomDayLine(customDay),
+      source: 'custom-day' as const,
+    })
+  }
+  if (query.library === null || query.library === undefined) return null
+  const line = resolveCalendarLine(query.library, {
     characterId,
     dialogueMode: query.dialogueMode,
     channel: 'ambient',
-    now: query.now,
+    date,
   })
+  if (line === null) return null
+  return Object.freeze({ ...line, source: 'calendar' as const })
 }
 
 // ---------------------------------------------------------------------------

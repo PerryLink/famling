@@ -131,6 +131,7 @@ import type { HeroCharacterId, HeroConfig } from './hero-runtime.ts'
 import { requestRemoteBuiltinRenderer } from './hero-page.ts'
 import { isTtsVoiceId, writeVoicePref } from './voice-prefs.ts'
 import type { TtsVoiceId } from '../voice/types.ts'
+import { setContentCalendarTodaySource } from './content-calendar-today.ts'
 import { canInteract } from './consent/runtime.ts'
 import { hasOpenConsentOverlay } from './consent/modal.ts'
 import { resolveStorage, type StorageLike } from './security/safe-storage.ts'
@@ -1337,6 +1338,24 @@ async function bootContentWindowOnce(): Promise<void> {
     }
     return { ok: true, message: '已实时切换内置渲染器。' }
   }
+
+  // 内容日历「今天」 (B2 2026-11-21): publish a LIVE snapshot for the settings
+  // dialog. No main.ts wiring: this runtime owns the catalog/character/dialogue
+  // truth, and the dialog re-reads the snapshot whenever it opens.
+  setContentCalendarTodaySource(() => {
+    const runtime = contentRuntime
+    if (runtime === null) return null
+    let activePackKind: string | null = null
+    try {
+      activePackKind = runtime.characterPacks?.state().rows.find((row) => row.active)?.kind ?? null
+    } catch {
+      activePackKind = null
+    }
+    const rendererChoice = liveRendererChoice()
+    const characterId =
+      activePackKind ?? (rendererChoice === 'origami' ? runtime.selection.character : rendererChoice)
+    return { library: runtime.library, characterId, dialogueMode: runtime.dialogue.mode }
+  })
 
   return {
     ensureContentRuntime,
