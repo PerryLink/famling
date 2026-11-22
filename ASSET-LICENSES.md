@@ -50,3 +50,14 @@
 | 批量烘焙/校验脚本 | `scripts/bake-voice.mjs` | PolyForm Noncommercial 1.0.0（代码） | 默认 dry-run 不联网；`--verify` 校验 sha/bytes/duration；`--generate` 才调用 API 且只读 `DEEPSEEK_API_KEY` 环境变量（不落盘/不打印） |
 
 **待确认/待补**：DeepSeek TTS 条款对输出音频再分发/商用的书面确认（TBD）；`tide` 21 句实际账单未单独入账（TBD），按 330 计费字符估算 ≈ ¥0.099（标价）/¥0.0495（限时价）；stella+tide 合计 42 句仍属同一用户授权范围，未来新增音色需另记授权/成本；C2PA/IPTC 音频元数据未做。以上不是法律意见，未律师审核。
+
+## 2026-11-22 美术重制（final art）
+
+| 资产 | 当前位置 | 当前声明 | 备注 |
+|---|---|---|---|
+| 汀岚动画（human） | `public/assets/pet/anim/human/*` | CC BY-NC-SA 4.0（final art） | 29 tags / 141 帧；AI 底稿 + 脚本精修；见 `docs/ART-REBUILD-2026-11-22.md` |
+| 布偶猫动画（cat） | `public/assets/pet/anim/cat/*` | CC BY-NC-SA 4.0（final art） | 29 tags / 143 帧（含 12-tag 别名）；同上 |
+| 金毛动画（dog） | `public/assets/pet/anim/dog/*` | CC BY-NC-SA 4.0（final art） | 28 tags / 136 帧（含别名）；同上 |
+| UI 97 文件（2026-11-22 版） | release `art-delivery-2026-11-22` 内 `output/assets/ui/` | CC BY-NC-SA 4.0（final art） | 本仓 UI 仍为 2026-11-17 版；manifest 再生后替换 |
+
+> 模型许可未核实（MiniMax-H3-Image，本地）；商用前由 owner 复核。旧 placeholder 资产（cat/dog/pearl-placeholder）保留原 placeholder-only 声明。

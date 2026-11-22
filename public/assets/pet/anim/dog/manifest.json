@@ -1,5 +1,5 @@
 {
-  "id": "pet.dog.anim.placeholder",
+  "id": "pet.dog.anim",
   "style": "pixel-hero",
   "formatVersion": 1,
   "canvas": [
@@ -21,18 +21,18 @@
   "tags": {
     "idle": {
       "frames": 8,
-      "fps": 6,
+      "fps": 8,
       "loop": true,
       "phase": "1a"
     },
     "idle_blink": {
       "frames": 3,
-      "fps": 8,
+      "fps": 12,
       "loop": false,
       "phase": "1a"
     },
     "walk": {
-      "frames": 8,
+      "frames": 6,
       "fps": 10,
       "loop": true,
       "phase": "1a"
@@ -43,53 +43,149 @@
       "loop": true,
       "phase": "1a"
     },
-    "pat_head": {
+    "tap_head": {
       "frames": 4,
-      "fps": 8,
+      "fps": 12,
       "loop": false,
+      "phase": "1a"
+    },
+    "paw_face": {
+      "frames": 5,
+      "fps": 10,
+      "loop": false,
+      "phase": "1a"
+    },
+    "scratch": {
+      "frames": 6,
+      "fps": 12,
+      "loop": true,
+      "phase": "1a"
+    },
+    "tail_wag": {
+      "frames": 6,
+      "fps": 12,
+      "loop": true,
+      "phase": "1a"
+    },
+    "chase_tail": {
+      "frames": 6,
+      "fps": 12,
+      "loop": true,
       "phase": "1a"
     },
     "ball_throw": {
       "frames": 5,
       "fps": 10,
       "loop": false,
-      "phase": "1b"
+      "phase": "1a"
     },
     "ball_chase": {
       "frames": 6,
-      "fps": 12,
-      "loop": false,
-      "phase": "1b"
-    },
-    "paw_face": {
-      "frames": 5,
-      "fps": 8,
-      "loop": false,
-      "phase": "1b"
-    },
-    "scratch": {
-      "frames": 6,
-      "fps": 8,
-      "loop": false,
-      "phase": "1b"
-    },
-    "stand_wag": {
-      "frames": 6,
-      "fps": 8,
-      "loop": false,
-      "phase": "1b"
-    },
-    "chase_tail": {
-      "frames": 6,
       "fps": 10,
-      "loop": false,
-      "phase": "1b"
+      "loop": true,
+      "phase": "1a"
     },
     "attack": {
       "frames": 7,
       "fps": 16,
       "loop": false,
-      "phase": "later"
+      "phase": "1a"
+    },
+    "land": {
+      "frames": 4,
+      "fps": 12,
+      "loop": false,
+      "phase": "1a"
+    },
+    "sleep": {
+      "frames": 4,
+      "fps": 4,
+      "loop": true,
+      "phase": "1a"
+    },
+    "pet_head": {
+      "frames": 6,
+      "fps": 8,
+      "loop": true,
+      "phase": "1a"
+    },
+    "sway": {
+      "frames": 4,
+      "fps": 8,
+      "loop": true,
+      "phase": "1a"
+    },
+    "look": {
+      "frames": 5,
+      "fps": 8,
+      "loop": true,
+      "phase": "1a"
+    },
+    "wake": {
+      "frames": 4,
+      "fps": 12,
+      "loop": false,
+      "phase": "1a"
+    },
+    "happy": {
+      "frames": 4,
+      "fps": 8,
+      "loop": true,
+      "phase": "1a"
+    },
+    "beg": {
+      "frames": 4,
+      "fps": 10,
+      "loop": false,
+      "phase": "1a"
+    },
+    "drag": {
+      "frames": 3,
+      "fps": 12,
+      "loop": true,
+      "phase": "1a"
+    },
+    "ear_flap": {
+      "frames": 4,
+      "fps": 10,
+      "loop": true,
+      "phase": "1a"
+    },
+    "pant": {
+      "frames": 4,
+      "fps": 10,
+      "loop": true,
+      "phase": "1a"
+    },
+    "shake": {
+      "frames": 4,
+      "fps": 12,
+      "loop": true,
+      "phase": "1a"
+    },
+    "blep": {
+      "frames": 4,
+      "fps": 8,
+      "loop": true,
+      "phase": "1a"
+    },
+    "pat_head": {
+      "frames": 4,
+      "fps": 12,
+      "loop": false,
+      "phase": "1a"
+    },
+    "stand_wag": {
+      "frames": 6,
+      "fps": 12,
+      "loop": true,
+      "phase": "1a"
+    },
+    "rub": {
+      "frames": 4,
+      "fps": 12,
+      "loop": false,
+      "phase": "1a"
     }
   },
   "anim": {
@@ -99,9 +195,9 @@
     "clips": {
       "idle": {
         "frames": 8,
-        "fps": 6,
+        "fps": 8,
         "loop": true,
-        "durationMs": 1333,
+        "durationMs": 1000,
         "layer": "base",
         "category": "idle",
         "priority": 0,
@@ -109,19 +205,19 @@
       },
       "idle_blink": {
         "frames": 3,
-        "fps": 8,
+        "fps": 12,
         "loop": false,
-        "durationMs": 375,
+        "durationMs": 250,
         "layer": "overlay",
         "category": "idle",
         "priority": 10,
         "dir": "idle_blink"
       },
       "walk": {
-        "frames": 8,
+        "frames": 6,
         "fps": 10,
         "loop": true,
-        "durationMs": 800,
+        "durationMs": 600,
         "layer": "base",
         "category": "locomotion",
         "priority": 5,
@@ -134,97 +230,248 @@
         "durationMs": 429,
         "layer": "base",
         "category": "locomotion",
-        "priority": 15,
+        "priority": 6,
         "dir": "run"
       },
-      "pat_head": {
+      "tap_head": {
         "frames": 4,
-        "fps": 8,
+        "fps": 12,
+        "loop": false,
+        "durationMs": 333,
+        "layer": "base",
+        "category": "interaction",
+        "priority": 50,
+        "dir": "tap_head"
+      },
+      "paw_face": {
+        "frames": 5,
+        "fps": 10,
         "loop": false,
         "durationMs": 500,
-        "layer": "oneshot",
-        "category": "social",
-        "priority": 50,
-        "dir": "pat_head"
+        "layer": "base",
+        "category": "interaction",
+        "priority": 35,
+        "dir": "paw_face"
+      },
+      "scratch": {
+        "frames": 6,
+        "fps": 12,
+        "loop": true,
+        "durationMs": 500,
+        "layer": "base",
+        "category": "behavior",
+        "priority": 25,
+        "dir": "scratch"
+      },
+      "tail_wag": {
+        "frames": 6,
+        "fps": 12,
+        "loop": true,
+        "durationMs": 500,
+        "layer": "overlay",
+        "category": "idle",
+        "priority": 15,
+        "dir": "tail_wag"
+      },
+      "chase_tail": {
+        "frames": 6,
+        "fps": 12,
+        "loop": true,
+        "durationMs": 500,
+        "layer": "base",
+        "category": "behavior",
+        "priority": 30,
+        "dir": "chase_tail"
       },
       "ball_throw": {
         "frames": 5,
         "fps": 10,
         "loop": false,
         "durationMs": 500,
-        "layer": "oneshot",
-        "category": "interaction",
-        "priority": 40,
+        "layer": "base",
+        "category": "play",
+        "priority": 35,
         "dir": "ball_throw"
       },
       "ball_chase": {
         "frames": 6,
-        "fps": 12,
-        "loop": false,
-        "durationMs": 500,
-        "layer": "oneshot",
-        "category": "interaction",
-        "priority": 45,
-        "dir": "ball_chase"
-      },
-      "paw_face": {
-        "frames": 5,
-        "fps": 8,
-        "loop": false,
-        "durationMs": 625,
-        "layer": "oneshot",
-        "category": "action",
-        "priority": 20,
-        "dir": "paw_face"
-      },
-      "scratch": {
-        "frames": 6,
-        "fps": 8,
-        "loop": false,
-        "durationMs": 750,
-        "layer": "oneshot",
-        "category": "action",
-        "priority": 20,
-        "dir": "scratch"
-      },
-      "stand_wag": {
-        "frames": 6,
-        "fps": 8,
-        "loop": false,
-        "durationMs": 750,
-        "layer": "oneshot",
-        "category": "action",
-        "priority": 20,
-        "dir": "stand_wag"
-      },
-      "chase_tail": {
-        "frames": 6,
         "fps": 10,
-        "loop": false,
+        "loop": true,
         "durationMs": 600,
-        "layer": "oneshot",
-        "category": "action",
-        "priority": 20,
-        "dir": "chase_tail"
+        "layer": "base",
+        "category": "play",
+        "priority": 35,
+        "dir": "ball_chase"
       },
       "attack": {
         "frames": 7,
         "fps": 16,
         "loop": false,
-        "durationMs": 439,
-        "layer": "oneshot",
-        "category": "combat",
-        "priority": 60,
-        "dir": "attack",
-        "holdMs": [
-          83,
-          83,
-          63,
-          42,
-          42,
-          63,
-          63
-        ]
+        "durationMs": 438,
+        "layer": "base",
+        "category": "interaction",
+        "priority": 55,
+        "dir": "attack"
+      },
+      "land": {
+        "frames": 4,
+        "fps": 12,
+        "loop": false,
+        "durationMs": 333,
+        "layer": "base",
+        "category": "interaction",
+        "priority": 90,
+        "dir": "land"
+      },
+      "sleep": {
+        "frames": 4,
+        "fps": 4,
+        "loop": true,
+        "durationMs": 1000,
+        "layer": "base",
+        "category": "state",
+        "priority": 5,
+        "dir": "sleep"
+      },
+      "pet_head": {
+        "frames": 6,
+        "fps": 8,
+        "loop": true,
+        "durationMs": 750,
+        "layer": "base",
+        "category": "interaction",
+        "priority": 50,
+        "dir": "pet_head"
+      },
+      "sway": {
+        "frames": 4,
+        "fps": 8,
+        "loop": true,
+        "durationMs": 500,
+        "layer": "overlay",
+        "category": "idle",
+        "priority": 12,
+        "dir": "sway"
+      },
+      "look": {
+        "frames": 5,
+        "fps": 8,
+        "loop": true,
+        "durationMs": 625,
+        "layer": "overlay",
+        "category": "awareness",
+        "priority": 10,
+        "dir": "look"
+      },
+      "wake": {
+        "frames": 4,
+        "fps": 12,
+        "loop": false,
+        "durationMs": 333,
+        "layer": "base",
+        "category": "state",
+        "priority": 70,
+        "dir": "wake"
+      },
+      "happy": {
+        "frames": 4,
+        "fps": 8,
+        "loop": true,
+        "durationMs": 500,
+        "layer": "base",
+        "category": "social",
+        "priority": 40,
+        "dir": "happy"
+      },
+      "beg": {
+        "frames": 4,
+        "fps": 10,
+        "loop": false,
+        "durationMs": 400,
+        "layer": "base",
+        "category": "social",
+        "priority": 35,
+        "dir": "beg"
+      },
+      "drag": {
+        "frames": 3,
+        "fps": 12,
+        "loop": true,
+        "durationMs": 250,
+        "layer": "base",
+        "category": "interaction",
+        "priority": 100,
+        "dir": "drag"
+      },
+      "ear_flap": {
+        "frames": 4,
+        "fps": 10,
+        "loop": true,
+        "durationMs": 400,
+        "layer": "overlay",
+        "category": "idle",
+        "priority": 8,
+        "dir": "ear_flap"
+      },
+      "pant": {
+        "frames": 4,
+        "fps": 10,
+        "loop": true,
+        "durationMs": 400,
+        "layer": "overlay",
+        "category": "idle",
+        "priority": 10,
+        "dir": "pant"
+      },
+      "shake": {
+        "frames": 4,
+        "fps": 12,
+        "loop": true,
+        "durationMs": 333,
+        "layer": "overlay",
+        "category": "idle",
+        "priority": 30,
+        "dir": "shake"
+      },
+      "blep": {
+        "frames": 4,
+        "fps": 8,
+        "loop": true,
+        "durationMs": 500,
+        "layer": "overlay",
+        "category": "idle",
+        "priority": 15,
+        "dir": "blep"
+      },
+      "pat_head": {
+        "frames": 4,
+        "fps": 12,
+        "loop": false,
+        "durationMs": 333,
+        "layer": "base",
+        "category": "interaction",
+        "priority": 50,
+        "dir": "pat_head"
+      },
+      "stand_wag": {
+        "frames": 6,
+        "fps": 12,
+        "loop": true,
+        "durationMs": 500,
+        "layer": "overlay",
+        "category": "idle",
+        "priority": 15,
+        "dir": "stand_wag"
+      },
+      "rub": {
+        "frames": 4,
+        "fps": 12,
+        "loop": false,
+        "durationMs": 333,
+        "layer": "base",
+        "category": "interaction",
+        "priority": 50,
+        "dir": "rub"
       }
     },
     "fpsBands": {
@@ -310,29 +557,16 @@
     "walk/walk_03.png",
     "walk/walk_04.png",
     "walk/walk_05.png",
-    "walk/walk_06.png",
-    "walk/walk_07.png",
     "run/run_00.png",
     "run/run_01.png",
     "run/run_02.png",
     "run/run_03.png",
     "run/run_04.png",
     "run/run_05.png",
-    "pat_head/pat_head_00.png",
-    "pat_head/pat_head_01.png",
-    "pat_head/pat_head_02.png",
-    "pat_head/pat_head_03.png",
-    "ball_throw/ball_throw_00.png",
-    "ball_throw/ball_throw_01.png",
-    "ball_throw/ball_throw_02.png",
-    "ball_throw/ball_throw_03.png",
-    "ball_throw/ball_throw_04.png",
-    "ball_chase/ball_chase_00.png",
-    "ball_chase/ball_chase_01.png",
-    "ball_chase/ball_chase_02.png",
-    "ball_chase/ball_chase_03.png",
-    "ball_chase/ball_chase_04.png",
-    "ball_chase/ball_chase_05.png",
+    "tap_head/tap_head_00.png",
+    "tap_head/tap_head_01.png",
+    "tap_head/tap_head_02.png",
+    "tap_head/tap_head_03.png",
     "paw_face/paw_face_00.png",
     "paw_face/paw_face_01.png",
     "paw_face/paw_face_02.png",
@@ -344,31 +578,116 @@
     "scratch/scratch_03.png",
     "scratch/scratch_04.png",
     "scratch/scratch_05.png",
-    "stand_wag/stand_wag_00.png",
-    "stand_wag/stand_wag_01.png",
-    "stand_wag/stand_wag_02.png",
-    "stand_wag/stand_wag_03.png",
-    "stand_wag/stand_wag_04.png",
-    "stand_wag/stand_wag_05.png",
+    "tail_wag/tail_wag_00.png",
+    "tail_wag/tail_wag_01.png",
+    "tail_wag/tail_wag_02.png",
+    "tail_wag/tail_wag_03.png",
+    "tail_wag/tail_wag_04.png",
+    "tail_wag/tail_wag_05.png",
     "chase_tail/chase_tail_00.png",
     "chase_tail/chase_tail_01.png",
     "chase_tail/chase_tail_02.png",
     "chase_tail/chase_tail_03.png",
     "chase_tail/chase_tail_04.png",
     "chase_tail/chase_tail_05.png",
+    "ball_throw/ball_throw_00.png",
+    "ball_throw/ball_throw_01.png",
+    "ball_throw/ball_throw_02.png",
+    "ball_throw/ball_throw_03.png",
+    "ball_throw/ball_throw_04.png",
+    "ball_chase/ball_chase_00.png",
+    "ball_chase/ball_chase_01.png",
+    "ball_chase/ball_chase_02.png",
+    "ball_chase/ball_chase_03.png",
+    "ball_chase/ball_chase_04.png",
+    "ball_chase/ball_chase_05.png",
     "attack/attack_00.png",
     "attack/attack_01.png",
     "attack/attack_02.png",
     "attack/attack_03.png",
     "attack/attack_04.png",
     "attack/attack_05.png",
-    "attack/attack_06.png"
+    "attack/attack_06.png",
+    "land/land_00.png",
+    "land/land_01.png",
+    "land/land_02.png",
+    "land/land_03.png",
+    "sleep/sleep_00.png",
+    "sleep/sleep_01.png",
+    "sleep/sleep_02.png",
+    "sleep/sleep_03.png",
+    "pet_head/pet_head_00.png",
+    "pet_head/pet_head_01.png",
+    "pet_head/pet_head_02.png",
+    "pet_head/pet_head_03.png",
+    "pet_head/pet_head_04.png",
+    "pet_head/pet_head_05.png",
+    "sway/sway_00.png",
+    "sway/sway_01.png",
+    "sway/sway_02.png",
+    "sway/sway_03.png",
+    "look/look_00.png",
+    "look/look_01.png",
+    "look/look_02.png",
+    "look/look_03.png",
+    "look/look_04.png",
+    "wake/wake_00.png",
+    "wake/wake_01.png",
+    "wake/wake_02.png",
+    "wake/wake_03.png",
+    "happy/happy_00.png",
+    "happy/happy_01.png",
+    "happy/happy_02.png",
+    "happy/happy_03.png",
+    "beg/beg_00.png",
+    "beg/beg_01.png",
+    "beg/beg_02.png",
+    "beg/beg_03.png",
+    "drag/drag_00.png",
+    "drag/drag_01.png",
+    "drag/drag_02.png",
+    "ear_flap/ear_flap_00.png",
+    "ear_flap/ear_flap_01.png",
+    "ear_flap/ear_flap_02.png",
+    "ear_flap/ear_flap_03.png",
+    "pant/pant_00.png",
+    "pant/pant_01.png",
+    "pant/pant_02.png",
+    "pant/pant_03.png",
+    "shake/shake_00.png",
+    "shake/shake_01.png",
+    "shake/shake_02.png",
+    "shake/shake_03.png",
+    "blep/blep_00.png",
+    "blep/blep_01.png",
+    "blep/blep_02.png",
+    "blep/blep_03.png",
+    "pat_head/pat_head_00.png",
+    "pat_head/pat_head_01.png",
+    "pat_head/pat_head_02.png",
+    "pat_head/pat_head_03.png",
+    "stand_wag/stand_wag_00.png",
+    "stand_wag/stand_wag_01.png",
+    "stand_wag/stand_wag_02.png",
+    "stand_wag/stand_wag_03.png",
+    "stand_wag/stand_wag_04.png",
+    "stand_wag/stand_wag_05.png",
+    "rub/rub_00.png",
+    "rub/rub_01.png",
+    "rub/rub_02.png",
+    "rub/rub_03.png"
   ],
-  "license": "placeholder-only: deterministic placeholders generated by scripts/gen-pet-anim-frames.py; not final art; commercial use not granted",
+  "license": "CC BY-NC-SA 4.0; final pixel art (2026-11-22 art rebuild); AI-assisted (local ComfyUI MiniMax-H3-Image + script refinement); see docs/ART-REBUILD-2026-11-22.md",
   "ai": {
-    "status": "none"
+    "status": "final",
+    "tool": "MiniMax-H3-Image (local ComfyUI) + Pillow scripts"
   },
-  "placeholder": true,
-  "sourceSpec": "scripts/gen-pet-anim-frames.py",
-  "generator": "scripts/gen-pet-anim-frames.py"
+  "placeholder": false,
+  "sourceSpec": "art-rebuild-2026-11-22 (work/rig generators; delivered in famling art-delivery release)",
+  "generator": "work/rig (Pillow scripts) + work/tools post-processing",
+  "meta": {
+    "artStatus": "final",
+    "artPack": "pet.dog.anim",
+    "note": "Famling art rebuild (2026-11-22): 28 tags / 136 frames; source output/phase1; validator-checked."
+  }
 }

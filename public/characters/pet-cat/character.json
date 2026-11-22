@@ -38,17 +38,18 @@
   "palette": "cat-ragdoll-anim@0.1",
   "packBase": "/assets/pet/anim/cat/",
   "behaviorFile": "behavior.json",
-  "license": "placeholder-only (deterministic blue-bicolor Ragdoll cat anim placeholder frames, same 16-hex cat palette; commercial use not granted; see LICENSE-ART)",
+  "license": "CC BY-NC-SA 4.0; final pixel art (2026-11-22 art rebuild); AI-assisted (local ComfyUI MiniMax-H3-Image + script refinement); see docs/ART-REBUILD-2026-11-22.md",
   "meta": {
     "authors": [
       "Famling"
     ],
-    "note": "Default cat pet (blue-bicolor Ragdoll placeholder, white-dominant silky straight coat with blue-grey cap/ears/plume tail and a white blaze over the eyes; 96x96, 12 clips / 74 frames from scripts/gen-cat-anim.py + scripts/cat_selkirk.py; artPack v0.2 2026-11-21 idle pass: 8-frame lazy breathing with ear/tail/eye-saccade secondary motion, slow blink at 4 fps = 750ms with a 250ms closed frame). Behaviour states map to pack tags: rub/pat_head -> pat_head, play -> stand_wag, meow/nudge/drag/land/sleep -> idle; ball_throw/ball_chase/paw_face/scratch/stand_wag/chase_tail/idle_blink render the matching clips; ambient micro-actions cycle every 4-10s. Legacy tags listed in fallback resolve to anim tags.",
-    "artStatus": "placeholder",
-    "artPack": "pet.cat.anim.placeholder@v0.2"
+    "note": "Final art rebuild 2026-11-22: cat frames / new clip set; 96x96, palette-locked, validator-checked. Provenance and verification: docs/ART-REBUILD-2026-11-22.md. UI 97-file update ships in the famling art-delivery release (public/assets/ui manifest regeneration pending).",
+    "artStatus": "final",
+    "artPack": "famling.pet-cat@2026-11-22"
   },
   "ai": {
-    "status": "none"
+    "status": "final",
+    "tool": "MiniMax-H3-Image (local ComfyUI) + Pillow scripts"
   },
   "capabilities": {
     "sockets": [

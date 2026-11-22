@@ -38,14 +38,14 @@
   "palette": "dog-anim-placeholder@0.1",
   "packBase": "/assets/pet/anim/dog/",
   "behaviorFile": "behavior.json",
-  "license": "placeholder-only (deterministic v11 anim placeholder frames; no AI model, no network; commercial use not granted; see ASSET-LICENSES.md, AI-PROVENANCE.md §11 and LICENSE-ART)",
+  "license": "CC BY-NC-SA 4.0; final pixel art (2026-11-22 art rebuild); AI-assisted (local ComfyUI MiniMax-H3-Image + script refinement); see docs/ART-REBUILD-2026-11-22.md",
   "meta": {
     "authors": [
       "Famling"
     ],
-    "note": "Default dog pet (golden retriever placeholder, v12 anim pack: 96x96, 12 tags / 70 frames; stylized short legs, matte brick-red collar, feathery tail). Behaviour states map to the 12 runtime clips: pat/rub -> pat_head, play -> stand_wag, bark/nudge/drag/land/sleep -> idle; ball_throw/ball_chase/paw_face/scratch/stand_wag/chase_tail/idle_blink render their own clips; ambient micro-actions cycle every 4-10s. Legacy tags listed in fallback resolve to the current clips. The 70 frame files contain 68 unique SHA-256 images: two cross-clip duplicates are declared in meta.duplicateFrames and kept as alias files (no redraw) so the frozen 70-frame pack contract and plugin embed indexes stay stable. v12 (2026-11-21 idle pass): 8-frame idle breathing/secondary motion, blink slowed to 8 fps (375ms).",
-    "artStatus": "placeholder",
-    "artPack": "pet.dog.anim.placeholder@v12",
+    "note": "Final art rebuild 2026-11-22: dog frames / new clip set; 96x96, palette-locked, validator-checked. Provenance and verification: docs/ART-REBUILD-2026-11-22.md. UI 97-file update ships in the famling art-delivery release (public/assets/ui manifest regeneration pending).",
+    "artStatus": "final",
+    "artPack": "famling.pet-dog@2026-11-22",
     "frameCount": 70,
     "uniqueFrameCount": 68,
     "duplicateFrames": {
@@ -73,7 +73,8 @@
     }
   },
   "ai": {
-    "status": "none"
+    "status": "final",
+    "tool": "MiniMax-H3-Image (local ComfyUI) + Pillow scripts"
   },
   "capabilities": {
     "sockets": [

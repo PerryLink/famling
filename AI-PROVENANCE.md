@@ -353,3 +353,12 @@ DEEPSEEK_API_KEY=... node scripts/bake-voice.mjs --generate --voice=tide  # 42/4
 npx tsc --noEmit && npm test && npm run build
 node scripts/legal-check.mjs                # WARN-ONLY；dist baked pack 42 行通过 voice gate
 ```
+
+## 11. 2026-11-22 像素美术重制（final art）
+
+- **范围**：`public/assets/pet/anim/{human,cat,dog}` 全量替换（368 帧 / 75 clip 源集，含 12-tag 兼容别名）；角色 `character.json` license/ai/meta 更新。
+- **生成链**：本地 ComfyUI + MiniMax-H3-Image（int8 DiT + qwen3vl_32b TE + VAE，RTX 5090 D v2 24GB）；母版 human `master_v7`（owner 选 A），cat/dog `master_v2`；派生与后处理为确定性 Pillow/numpy 脚本（`work/rig` + `work/tools`，随交付 release 提供）。
+- **证据**：交付包内 368 帧 SHA256/manifest、validator 报告、一致性/伪影/循环接缝审计、`art-targets-v2.json`（465 条）；release `art-delivery-2026-11-22` 提供 zip 与校验和。
+- **验证**：`node --import tsx scripts/validate-character.mjs public/characters/{pet-cat,pet-dog,pet-tinglan-anim} --json --strict` → ok=true / 0 errors / 0 warnings（2026-11-22 本机）。
+- **披露**：美术为 AI 生成底稿 + 人工脚本精修（不是纯手绘）；**模型许可未核实**；新美术按 CC BY-NC-SA 4.0 分发。
+- **UI**：97 文件已交付但本仓 UI manifest 尚未再生，UI 替换与 manifest 更新列为后续单独提交。
