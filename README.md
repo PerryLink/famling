@@ -26,7 +26,7 @@ Famling 是一个 Windows 桌面像素桌宠 + DSH（DeepSeek Harness）客户�
 dsh plugin --profile web add dsh-famling
 ```
 
-插件在 DSH 左下角账号信息下方显示 72px 桌宠；默认零常驻按钮，右键或 Shift+F10 打开菜单。npm 最新发布：`dsh-famling@0.13.3`（[npm](https://www.npmjs.com/package/dsh-famling)；见 [dsh-famling repo](https://github.com/PerryLink/dsh-famling)）。
+插件在 DSH 左下角账号信息下方显示 72px 桌宠；默认零常驻按钮，右键或 Shift+F10 打开菜单。npm 最新发布：`dsh-famling@0.13.4`（[npm](https://www.npmjs.com/package/dsh-famling)；见 [dsh-famling repo](https://github.com/PerryLink/dsh-famling)）。
 
 ### C. 从源码跑（浏览器开发模式）
 
