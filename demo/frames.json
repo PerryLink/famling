@@ -1,0 +1,191 @@
+{
+ "characters": {
+  "human": {
+   "label": "汀岚",
+   "clips": {
+    "idle": {
+     "frames": [
+      "assets/human/idle/idle_00.png",
+      "assets/human/idle/idle_01.png",
+      "assets/human/idle/idle_02.png",
+      "assets/human/idle/idle_03.png",
+      "assets/human/idle/idle_04.png",
+      "assets/human/idle/idle_05.png"
+     ],
+     "fps": 8,
+     "loop": true
+    },
+    "idle_blink": {
+     "frames": [
+      "assets/human/idle_blink/idle_blink_00.png",
+      "assets/human/idle_blink/idle_blink_01.png",
+      "assets/human/idle_blink/idle_blink_02.png"
+     ],
+     "fps": 12,
+     "loop": false
+    },
+    "pat_head": {
+     "frames": [
+      "assets/human/pat_head/pat_head_00.png",
+      "assets/human/pat_head/pat_head_01.png",
+      "assets/human/pat_head/pat_head_02.png",
+      "assets/human/pat_head/pat_head_03.png",
+      "assets/human/pat_head/pat_head_04.png"
+     ],
+     "fps": 12,
+     "loop": false
+    },
+    "run": {
+     "frames": [
+      "assets/human/run/run_00.png",
+      "assets/human/run/run_01.png",
+      "assets/human/run/run_02.png",
+      "assets/human/run/run_03.png",
+      "assets/human/run/run_04.png",
+      "assets/human/run/run_05.png"
+     ],
+     "fps": 14,
+     "loop": true
+    },
+    "attack": {
+     "frames": [
+      "assets/human/attack/attack_00.png",
+      "assets/human/attack/attack_01.png",
+      "assets/human/attack/attack_02.png",
+      "assets/human/attack/attack_03.png",
+      "assets/human/attack/attack_04.png",
+      "assets/human/attack/attack_05.png"
+     ],
+     "fps": 16,
+     "loop": false
+    }
+   }
+  },
+  "cat": {
+   "label": "布偶猫",
+   "clips": {
+    "idle": {
+     "frames": [
+      "assets/cat/idle/idle_00.png",
+      "assets/cat/idle/idle_01.png",
+      "assets/cat/idle/idle_02.png",
+      "assets/cat/idle/idle_03.png",
+      "assets/cat/idle/idle_04.png",
+      "assets/cat/idle/idle_05.png",
+      "assets/cat/idle/idle_06.png",
+      "assets/cat/idle/idle_07.png"
+     ],
+     "fps": 8,
+     "loop": true
+    },
+    "idle_blink": {
+     "frames": [
+      "assets/cat/idle_blink/idle_blink_00.png",
+      "assets/cat/idle_blink/idle_blink_01.png",
+      "assets/cat/idle_blink/idle_blink_02.png"
+     ],
+     "fps": 12,
+     "loop": false
+    },
+    "pat_head": {
+     "frames": [
+      "assets/cat/pat_head/pat_head_00.png",
+      "assets/cat/pat_head/pat_head_01.png",
+      "assets/cat/pat_head/pat_head_02.png",
+      "assets/cat/pat_head/pat_head_03.png"
+     ],
+     "fps": 12,
+     "loop": false
+    },
+    "run": {
+     "frames": [
+      "assets/cat/run/run_00.png",
+      "assets/cat/run/run_01.png",
+      "assets/cat/run/run_02.png",
+      "assets/cat/run/run_03.png",
+      "assets/cat/run/run_04.png",
+      "assets/cat/run/run_05.png"
+     ],
+     "fps": 14,
+     "loop": true
+    },
+    "attack": {
+     "frames": [
+      "assets/cat/attack/attack_00.png",
+      "assets/cat/attack/attack_01.png",
+      "assets/cat/attack/attack_02.png",
+      "assets/cat/attack/attack_03.png",
+      "assets/cat/attack/attack_04.png",
+      "assets/cat/attack/attack_05.png",
+      "assets/cat/attack/attack_06.png"
+     ],
+     "fps": 16,
+     "loop": false
+    }
+   }
+  },
+  "dog": {
+   "label": "金毛",
+   "clips": {
+    "idle": {
+     "frames": [
+      "assets/dog/idle/idle_00.png",
+      "assets/dog/idle/idle_01.png",
+      "assets/dog/idle/idle_02.png",
+      "assets/dog/idle/idle_03.png",
+      "assets/dog/idle/idle_04.png",
+      "assets/dog/idle/idle_05.png",
+      "assets/dog/idle/idle_06.png",
+      "assets/dog/idle/idle_07.png"
+     ],
+     "fps": 8,
+     "loop": true
+    },
+    "idle_blink": {
+     "frames": [
+      "assets/dog/idle_blink/idle_blink_00.png",
+      "assets/dog/idle_blink/idle_blink_01.png",
+      "assets/dog/idle_blink/idle_blink_02.png"
+     ],
+     "fps": 12,
+     "loop": false
+    },
+    "pat_head": {
+     "frames": [
+      "assets/dog/pat_head/pat_head_00.png",
+      "assets/dog/pat_head/pat_head_01.png",
+      "assets/dog/pat_head/pat_head_02.png",
+      "assets/dog/pat_head/pat_head_03.png"
+     ],
+     "fps": 12,
+     "loop": false
+    },
+    "run": {
+     "frames": [
+      "assets/dog/run/run_00.png",
+      "assets/dog/run/run_01.png",
+      "assets/dog/run/run_02.png",
+      "assets/dog/run/run_03.png",
+      "assets/dog/run/run_04.png",
+      "assets/dog/run/run_05.png"
+     ],
+     "fps": 14,
+     "loop": true
+    },
+    "attack": {
+     "frames": [
+      "assets/dog/attack/attack_00.png",
+      "assets/dog/attack/attack_01.png",
+      "assets/dog/attack/attack_02.png",
+      "assets/dog/attack/attack_03.png",
+      "assets/dog/attack/attack_04.png",
+      "assets/dog/attack/attack_05.png",
+      "assets/dog/attack/attack_06.png"
+     ],
+     "fps": 16,
+     "loop": false
+    }
+   }
+  }
+ }
+}

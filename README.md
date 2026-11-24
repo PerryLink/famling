@@ -1,65 +1,76 @@
 # Famling — 汀岚 / 布偶猫 / 金毛 桌宠（pet-only 完整可执行源码）
 
+<p align="center">
+  <a href="https://github.com/PerryLink/famling/actions/workflows/build-windows.yml"><img alt="Windows build" src="https://github.com/PerryLink/famling/actions/workflows/build-windows.yml/badge.svg" /></a>
+  <a href="https://github.com/PerryLink/famling/releases"><img alt="app release" src="https://img.shields.io/github/v/release/PerryLink/famling?label=app%20release" /></a>
+  <a href="https://www.npmjs.com/package/dsh-famling"><img alt="npm" src="https://img.shields.io/npm/v/dsh-famling?label=dsh-famling" /></a>
+  <a href="LICENSE"><img alt="license" src="https://img.shields.io/github/license/PerryLink/famling" /></a>
+</p>
+
 > **状态：C1 unsigned 邀请 beta（研究原型）。** 无 Authenticode 签名、无自动更新、无公开商店、无生产 DLC 根；本仓不声称已合规或可公开发布。
 > **非官方项目，不关联 DeepSeek。** 内容/角色为原创或已登记来源，AI 生成资产按仓内 AI-PROVENANCE 标注。
 
-Famling 是一个 Windows 桌面像素桌宠 + DSH（DeepSeek Harness）客户端插件：480×336 无边框置顶小窗、托盘召回、单人/猫/狗三套 96×96 像素动画、四层缩放、存档自动保存与坏档恢复、内容角色包（安装/回滚/热切换）、低打扰安静时段与健康提醒。
+Famling 是一个 Windows 桌面像素桌宠 + DSH（DeepSeek Harness）客户端插件：480×336 无边框置顶小窗、三套 96×96 像素角色、四层缩放、存档自动保存与坏档恢复、内容角色包（安装/回滚/热切换）、低打扰安静时段与健康提醒。
 
-## 快速开始
+## 30 秒开始
 
-### A. 作为 DSH 插件（最轻量）
+### A. Windows 桌面版（unsigned，推荐）
+
+1. 打开 [Releases](https://github.com/PerryLink/famling/releases) 下载最新的 `Famling_*_x64-setup.exe`（或 `famling-pet-windows-unsigned` 里的 portable zip）。
+2. 运行安装器。**产物未签名**：SmartScreen 提示时选「更多信息 → 仍要运行」；SHA256 校验值随 Release 提供。
+3. 这是透明的 480×336 置顶小窗：点角色互动，右键角色（或 Shift+F10）打开菜单；设置里可调低打扰、缩放、音色与数据边界。
+
+### B. 作为 DSH 插件（最轻量）
 
 ```sh
 dsh plugin --profile web add dsh-famling
 ```
 
-npm 包：`dsh-famling@0.12.0`（`npm view dsh-famling`）。插件在 DSH 左下角账号区下方显示 72px 桌宠；默认零常驻按钮，右键角色或 Shift+F10 打开菜单。也可从 [PerryLink/dsh-famling](https://github.com/PerryLink/dsh-famling) 本地安装。
+插件在 DSH 左下角账号信息下方显示 72px 桌宠；默认零常驻按钮，右键或 Shift+F10 打开菜单。npm 最新发布：`dsh-famling@0.13.2`（[npm](https://www.npmjs.com/package/dsh-famling)；0.13.3 为下一个待发布版本，见 [dsh-famling repo](https://github.com/PerryLink/dsh-famling)）。
 
-### B. 独立桌宠应用（Tauri，仅 Windows）
+### C. 从源码跑（浏览器开发模式）
 
-```bash
+```sh
 npm ci
-npm run build
-# 需要 Node >=22.16、Rust MSVC、Visual Studio Build Tools、WebView2
-cd app/tauri
-npx --yes @tauri-apps/cli@2 build
+npm run dev
+# 打开 http://localhost:5173/pet.html?hero=1（不加 ?hero=1 时显示折纸 PAGEFOLD 兜底形态）
 ```
 
-开发：`npm run dev`，打开 `http://localhost:5173/pet.html`。产物：`dist/pet.html`、`dist/setup.html`、`dist/chat-import.html`；Tauri 默认窗口透明、置顶、480×336。
+Tauri 桌面版构建需要 Node ≥22.16、Rust MSVC、Visual Studio Build Tools 与 WebView2：
 
-## 2026-11-21 体验/性能批次（源码已包含）
+```sh
+npm ci && npm run build
+cd app/tauri && npx --yes @tauri-apps/cli@2 build
+```
 
-- **互动节奏可调**：待机动画三档（活泼 4–10s / 正常 60–90s / 安静仅呼吸+眨眼）；安静时段同时停止待机微动作；鼠标悬停 800ms 有回应用；Advisers pose 映射为安静档；「一起工作 25/50 分钟」只在用户设定边界结束提醒，无连续天数/无惩罚。
-- **角色表现**：猫/狗待机从 6 帧扩到 8 帧并加次级运动；猫慢眨眼 4fps；插件实际 72px 显示有独立可读性量尺与测试。
-- **性能**：健康提醒轮询 1s→15s；自动保存脏检查 + 隐藏空闲退避；hit-region 轮询随窗口隐藏暂停、待机降频；消除首帧整页闪烁；hero 首帧只解码 idle、其余后台分批解码，待机按需降帧率。
-- **契约与证据**：角色包能力门（声明未实现的语义会给出可见诊断）、golden trace 回放 fixture、第三方角色包 32 MiB 解码内存红线（fail-closed）、桌面+插件联合证据（`JOINT-EVIDENCE.json` / `PLUGIN-MANIFEST.json`）。
-- **边缘栖居**：桌宠拖到当前屏工作区边缘会保留贴边停靠（透明悬垂不超过可达下限），落地做整数像素 settle，重启位置恢复保留 dock；仅移动窗口，不读取其他窗口内容。
-- **本地数据**：可手动导出本机使用摘要（无文本/无网络）、共处日历（无连续天数/无提醒）；删除全部本地数据会一并清除。
-- **内容日历**：节日/季节/周末台词以 20% 低概率叠加在 ambient 气泡，设置内可关，安静时段/减少动态不触发；设置内新增手动「内容日历 · 今天…」面板（今天节点/一句台词/复制/接下来 7 个节点，不主动弹出），并支持本机自定义关键日（`MM-DD + 标签`，≤8 条、当天优先一句「今天是 …」，无提醒/无历史/不计连续天数）。
-- **作息与睡眠**：22–8 安静、23–6 入睡/06:00 醒，复用既有 15s 健康轮询（隐藏暂停、恢复补同步）；睡眠中点击先低强度唤醒（wake+眨眼，无通知/无存档），之后正常互动；夜间问候改为安静模式下首次交互的一次性文案。
-- **定时隐身**：更多菜单与设置支持「1 小时 / 到明天 08:00 / 关闭」，deadline 只存本机（已注册迁移与删除全部数据），到期/启动/窗口恢复三路自动恢复显示。
+## 在线预览
 
-## 两个包
+**[perrylink.github.io/famling](https://perrylink.github.io/famling/)** —— 3 个角色的 pet-only 像素预览（无 DSH 依赖、无网络、无遥测），点宠物看动作、按 1/2/3 切换角色。
 
-| 包 | 来源 | 用途 |
+## 效果
+
+| 汀岚（humanoid） | 布偶猫 | 金毛 |
 |---|---|---|
-| **famling** | 本仓 | 独立运行的完整桌宠（pet-only Tauri app；角色/内容/存档/语音运行时） |
-| **dsh-famling** | [PerryLink/dsh-famling](https://github.com/PerryLink/dsh-famling) | DSH 客户端插件；轻量伴随入口，与独立 app 共享角色/品牌、不共享运行时代码 |
+| ![汀岚](docs/demo/human-idle.gif) | ![布偶猫](docs/demo/cat-idle.gif) | ![金毛](docs/demo/dog-idle.gif) |
+
+![三只角色](docs/demo/hero.png)
 
 ## 功能
 
-- 三套 96×96 像素动画（各 12 clip；cat 74 / dog 70 / human 68 帧），透明背景，跟随 DSH light/dark 的菜单与面板。
-- 角色包安装/更新/卸载/回滚/热切换；内容包 v2/v3（许可、AI provenance、compatibility）+ 离线市场 UI（生产服务器未接）。
-- 四层缩放（整体/UI+文本/图像/组件）、200% 溢出修复、DPR/多屏 clamp。
-- 存档：30s 自动保存（脏检查）、坏档四选一恢复、便携导入导出、删除。
-- 低打扰：安静时段、减少动态、暂时隐藏、健康提醒（2h）；无障碍与对比度门禁。
-- 内容中心：角色 / 自定义 / 内容包 / 市场；内容窗口 760×560。
-- TTS/ASR 运行时本地/宿主能力；公开仓不随包分发预生成音频。
+- **三套 96×96 像素动画**：2026-11-22 final art，共 **420 帧**（368 canonical + 52 alias）；透明背景，跟随 DSH light/dark 的菜单与面板。
+- **独立桌面应用**：480×336 无边框透明置顶窗、贴边停靠与位置恢复、多屏/DPI clamp、拖拽物理；菜单/互动/设置/内容中心。
+- **DSH 插件**：侧栏 72px、零常驻按钮、右键/Shift+F10 分级菜单；工作状态粗状态（idle/working/success/error）与气泡优先级。
+- **低打扰**：安静时段（默认 22:00–08:00）、减少动态、暂时隐藏、健康提醒；所有自动源可跳过，不补打扰。
+- **内容与角色**：角色包安装/更新/卸载/回滚/热切换；内容包 v2/v3（许可、AI provenance、compatibility）+ 离线市场 UI（生产服务器未接）。
+- **四层缩放**（整体/UI+文本/图像/组件）、200% 溢出修复、DPR/多屏 clamp。
+- **存档**：30s 自动保存（脏检查）、坏档四选一恢复、便携导入导出、删除。
+- **隐私最小**：无遥测上传、市场默认 unconfigured；插件不保存聊天文本，危机关键词在本地短路为固定安全资源。
 
 ## 数据与隐私
 
 - 桌宠本地状态（存档、设置、内容包登记）保存在本机；无遥测上传、无市场网络请求（市场默认 unconfigured）。
-- DSH 插件聊天文本经 DSH Host 发送给你在 DSH 中配置的模型供应商；插件本身不保存聊天文本；危机关键词在本地短路为固定安全资源。插件可读取宿主粗状态（运行/空闲，仅分类错误码）用于安静/姿态切换，不读取消息、提示词或文件内容。
+- DSH 插件聊天文本经 DSH Host 发送给你在 DSH 中配置的模型供应商；插件本身不接收、不存储 API Key、不保存聊天记录；危机关键词命中时文本不会离开本机。
+- 插件的宿主粗状态只读取运行/空闲与分类错误码用于安静/姿态切换，不读取消息、提示词、工具参数或文件内容。
 - 使用摘要仅可手动导出到本机（若启用），不上传。
 
 ## 许可与使用限制
@@ -72,13 +83,24 @@ npx --yes @tauri-apps/cli@2 build
 ## 已知限制（如实披露）
 
 - unsigned beta：exe/安装器 NotSigned；无 updater/签名证书；无生产 DLC 信任根。
-- 无私有仓真实 CI（本仓 GitHub Actions 为公开镜像构建）；无 24h native soak、真机混合 DPI/多屏、真实 DSH Host 联调与真实 playtest 数据。
+- Windows only（桌面 app）；公开导出不含私有 monorepo 的测试/证据链，C1 可复现证据在私有侧维护。
+- 无私有仓真实 CI；本仓 GitHub Actions 为 pet-only Windows 构建（unsigned artifact 上传 Releases）。
 - 市场/支付/审核/运营服务器不存在；内容包市场只做离线 UI 与协议。
+- DSH 插件当前发布版为 `0.13.2`；0.13.3 的离线自检/门禁增强尚未发布。
 
 ## 不包含
 
-完整 desktop-games monorepo、游戏基座/存档、私有 research/artifacts、内部 handoff、未清权第三方素材、预生成 TTS 音频。
+完整 desktop-games monorepo、游戏基座/存档、私有 research/artifacts、内部 handoff、未清权第三方素材、预生成 TTS 音频、私有测试与证据链。
+
+## 目录
+
+- `pet.html` / `setup.html` / `chat-import.html`：pet-only UI 入口；
+- `src/pet/`：角色运行时、hero 渲染、内容中心、设置、同意与低打扰；
+- `app/tauri/`：Windows 桌面壳（透明窗、存档、语音/密钥 IPC）；
+- `public/assets/pet/anim/`：三套 96×96 final art 与 manifest；
+- `public/legal/`：TOS/隐私/使用限制；`docs/`：设计与契约文档；
+- `demo/`：GitHub Pages 在线预览源码；`docs/demo/`：README 用 GIF/截图。
 
 ## 历史说明（2026-11-18）
 
-本仓 `main` 历史于 2026-11-18 重建：旧预生成 TTS 音频（42 WAV）与游戏残留不再存在于当前历史；旧历史归档于仓外。GitHub 旧 SHA/fork/镜像可能仍可访问一段时间，重建不等于互联网完全清除。
+本仓 `main` 历史于 2026-11-18 重建：旧预生成 TTS 音频（42 WAV）与游戏残留不再存在于当前历史；旧历史归档于仓外。重建不等于互联网完全清除。
