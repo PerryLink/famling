@@ -1,8 +1,14 @@
 name: build-windows-pet-only
+
 on:
   workflow_dispatch:
   push:
     branches: [main]
+    tags: ['famling-pet-v*']
+
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
@@ -22,6 +28,44 @@ jobs:
       - name: Build Tauri (unsigned)
         working-directory: app/tauri
         run: npx --no-install tauri build
+      - name: Collect release files + checksums
+        if: startsWith(github.ref, 'refs/tags/famling-pet-v')
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $ver = $tag -replace '^famling-pet-v',''
+          $root = (Get-Location).Path
+          $installer = Get-ChildItem -Recurse 'app/tauri/src-tauri/target/release/bundle/nsis' -Filter *.exe | Select-Object -First 1
+          if (-not $installer) { throw 'NSIS installer not found' }
+          $portableExe = Get-ChildItem 'app/tauri/src-tauri/target/release' -Filter *.exe -File | Select-Object -First 1
+          if (-not $portableExe) { throw 'portable exe not found' }
+          $out = New-Item -ItemType Directory -Force 'out/release'
+          Copy-Item $installer.FullName (Join-Path $out ("Famling_{0}_x64-setup.exe" -f $ver))
+          $zipInputs = @($portableExe.FullName, (Join-Path $root 'README.md'), (Join-Path $root 'LICENSE'), (Join-Path $root 'LICENSE-ART'), (Join-Path $root 'NOTICE'))
+          Compress-Archive -Path $zipInputs -DestinationPath (Join-Path $out ("Famling_{0}_x64-portable.zip" -f $ver))
+          $files = Get-ChildItem $out -File
+          $lines = foreach ($f in $files) { '{0}  {1}' -f (Get-FileHash $f.FullName -Algorithm SHA256).Hash.ToLower(), $f.Name }
+          $lines | Set-Content (Join-Path $out 'SHA256SUMS.txt') -Encoding ascii
+          "RELEASE_TAG=$tag" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "RELEASE_DIR=$($out.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Get-ChildItem $out | Select-Object Name,Length
+      - name: Create unsigned Release
+        if: startsWith(github.ref, 'refs/tags/famling-pet-v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $notes = @'
+          Famling pet-only Windows build (unsigned).
+
+          - Public pet-only export; desktop app is a 480x336 transparent always-on-top window.
+          - Build is unsigned: Windows SmartScreen will warn; use 'More info -> Run anyway' after verifying SHA256.
+          - No auto-updater, no store listing, no DLC/market server.
+          - Include SHA256SUMS.txt; verify assets before running.
+          - Research prototype only; not an emotional-companion product.
+          '@
+          $fileArgs = Get-ChildItem $env:RELEASE_DIR -File | ForEach-Object { $_.FullName }
+          gh release create $env:RELEASE_TAG @fileArgs --title $env:RELEASE_TAG --notes $notes --repo $env:GITHUB_REPOSITORY
       - uses: actions/upload-artifact@v4
         with:
           name: famling-pet-windows-unsigned
