@@ -31,8 +31,3 @@ jobs:
           path: demo
       - id: deployment
         uses: actions/deploy-pages@v4
-        continue-on-error: true
-      - name: Retry Pages deploy once (transient 'Deployment failed, try again later')
-        id: retry
-        if: steps.deployment.outcome == 'failure'
-        uses: actions/deploy-pages@v4
