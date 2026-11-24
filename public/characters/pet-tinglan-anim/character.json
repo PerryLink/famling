@@ -26,10 +26,10 @@
     18
   ],
   "bbox": [
-    12,
-    8,
-    72,
-    84
+    15,
+    4,
+    66,
+    86
   ],
   "display": {
     "scale": 2,
@@ -45,7 +45,8 @@
     ],
     "note": "Final art rebuild 2026-11-22: human frames / new clip set; 96x96, palette-locked, validator-checked. Provenance and verification: docs/ART-REBUILD-2026-11-22.md. UI 97-file update ships in the famling art-delivery release (public/assets/ui manifest regeneration pending).",
     "artStatus": "final",
-    "artPack": "famling.tinglan-anim@2026-11-22"
+    "artPack": "famling.tinglan-anim@2026-11-22",
+    "bboxNote": "bbox recalibrated to actual union of 2026-11-22 final art frames"
   },
   "ai": {
     "status": "final",

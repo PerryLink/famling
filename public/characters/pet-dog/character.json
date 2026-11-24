@@ -26,10 +26,10 @@
     18
   ],
   "bbox": [
-    9,
-    7,
-    82,
-    83
+    4,
+    2,
+    91,
+    88
   ],
   "display": {
     "scale": 2,
@@ -70,7 +70,8 @@
           "note": "identical deterministic pose bytes; both files kept as aliases to preserve the frozen 70-frame contract"
         }
       ]
-    }
+    },
+    "bboxNote": "bbox recalibrated to actual union of 2026-11-22 final art frames"
   },
   "ai": {
     "status": "final",

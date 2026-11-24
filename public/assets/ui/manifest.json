@@ -1,26 +1,22 @@
 {
   "schemaVersion": 1,
   "id": "ui.roleplay.91.v1",
-  "title": "UI / 图标 / 背景 / roleplay 合规资产 91 件",
+  "title": "UI / 图标 / 背景 / roleplay 合规资产 91 件（2026-11-22 final）",
   "registry": "docs/art/per-image/INVENTORY-UI-ROLEPLAY-2026-11-16.md",
-  "generated": "2026-11-17",
+  "generated": "2026-11-22",
   "generation": {
-    "method": "deterministic local pixel painting with Python/PIL primitives",
+    "method": "deterministic local pixel painting with Python/PIL primitives (2026-11-22 art rebuild)",
     "api": "none",
     "model": "none",
     "network": "none",
     "ai": "none",
     "costUSD": 0,
-    "generator": "docs/art/ui-91-qa/gen_ui91.py",
-    "generatorSha256": "385580ee79fb9957009b8be29211497d4cdfed2ee328f2024b84fb587812d5b9",
+    "generator": "art-rebuild/work/tools/gen_ui.py",
+    "generatorSha256": "98c7599d7b60480923be011f7fd5625adc0516bebaec6774b313c1346b5eb0bc",
     "palette": "famling-ui-pixel@0.1",
-    "report": "docs/art/UI-91-GENERATION-2026-11-17.md",
-    "contactSheets": [
-      "docs/art/ui-91-qa/contact-sheet.png",
-      "docs/art/ui-91-qa/contact-sheet-dark.png",
-      "docs/art/ui-91-qa/contact-sheet-light.png",
-      "docs/art/ui-91-qa/clarity-16-32.png"
-    ]
+    "report": "docs/ART-REBUILD-2026-11-22.md",
+    "contactSheets": [],
+    "note": "Contact sheets are distributed in the art-delivery release (art-delivery-2026-11-22), not committed to this repo."
   },
   "style": {
     "name": "famling-ui-pixel@0.1",
@@ -81,10 +77,10 @@
     "officialMarks": "none: no DeepSeek logo / mascot / fish / whale shapes; non-official pagefold motif only"
   },
   "license": {
-    "id": "placeholder-only",
-    "spdx": "NONE",
-    "note": "Deterministic locally painted art; not final human-reviewed art, not cleared for commercial release. Repo policy target for final art is CC-BY-NC-SA-4.0 (D2 pending); these files are placeholder/pilot assets, commercial use not granted. No third-party or AI-derived material is included.",
-    "commercialUse": "not granted",
+    "id": "CC-BY-NC-SA-4.0",
+    "spdx": "CC-BY-NC-SA-4.0",
+    "note": "Final pixel UI art (2026-11-22 art rebuild); deterministic local painting, no AI model, no third-party material.",
+    "commercialUse": "per CC BY-NC-SA 4.0 (noncommercial; share-alike)",
     "aiDisclosure": "none (no AI model used)",
     "notOfficialDeepseek": true
   },
@@ -165,14 +161,14 @@
         "menu/U-MENU-01a_32x32.png"
       ],
       "format": "png",
-      "sha256": "490c5ea4c501752f8ffc53125f30c268458db6a01accc0b6b91c1af47aa442f4",
-      "bytes": 386,
+      "sha256": "5f95843c6113af80775f9018bde5210e0475e4e3b0f8289c78dfb70cda62774f",
+      "bytes": 303,
       "colors": 5,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "开掌 + 3 条 1px 动线"
     },
@@ -193,14 +189,14 @@
         "menu/U-MENU-01b_64x64.png"
       ],
       "format": "png",
-      "sha256": "8392288956a5451dc3ad3f2e238402c7694aba61044711c3e9e6f57464248ba6",
-      "bytes": 446,
+      "sha256": "d5e108d99621b88e63436c61cdec0256ab2d5074de683da7233b97181d25f580",
+      "bytes": 382,
       "colors": 5,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "开掌 + 3 条 1px 动线；32 母版整数 2x，不重采样、不加细节"
     },
@@ -221,14 +217,14 @@
         "menu/U-MENU-02a_32x32.png"
       ],
       "format": "png",
-      "sha256": "ae41bbc6a8c5b2570d43130078d40f8e33071940b89263e4f7deacee9cb13df8",
-      "bytes": 354,
-      "colors": 7,
+      "sha256": "b4665cb6ed3de7a3ddd105757b81cd478f2a9d356bc63221bbcb3503d47115a2",
+      "bytes": 246,
+      "colors": 5,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "纸片 + 折角 + 金色加号"
     },
@@ -249,14 +245,14 @@
         "menu/U-MENU-02b_64x64.png"
       ],
       "format": "png",
-      "sha256": "f87039e2d0323b9669fd9d1f66b3b09391fd519d1f9945f875baae752004bf12",
-      "bytes": 430,
-      "colors": 7,
+      "sha256": "25f8e8c370574125f21afb25dd04aa2c06af58dd5e32a193fd920ec0e9727de9",
+      "bytes": 354,
+      "colors": 5,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "纸片 + 折角 + 金色加号；32 母版整数 2x，不重采样、不加细节"
     },
@@ -277,14 +273,14 @@
         "menu/U-MENU-03a_32x32.png"
       ],
       "format": "png",
-      "sha256": "5625e1788220bc0e871d2fe724863b18ef273e6aea1a3c12e709a27513d0ce42",
-      "bytes": 450,
-      "colors": 7,
+      "sha256": "f88df3ba0268b391620233897b2b766a4049a6021a6f633130cadaa6e0cdeb3a",
+      "bytes": 419,
+      "colors": 5,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "折纸狐 + 折痕，非写实动物"
     },
@@ -305,14 +301,14 @@
         "menu/U-MENU-03b_64x64.png"
       ],
       "format": "png",
-      "sha256": "3208d29540a6f4d3e64d16c61309f26ffb43c9c47e7c875229032988829fbaa9",
-      "bytes": 527,
-      "colors": 7,
+      "sha256": "8225aefcb65d42e3dada848e40bc4c09507c3b8a1cf7c6ec22fbf9b99a9d169e",
+      "bytes": 544,
+      "colors": 5,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "折纸狐 + 折痕，非写实动物；32 母版整数 2x，不重采样、不加细节"
     },
@@ -333,14 +329,14 @@
         "menu/U-MENU-04a_32x32.png"
       ],
       "format": "png",
-      "sha256": "3a6a554e1c087cdd8cc832b1b4f2908f290b95db7b27f7509766036f7d6bbd15",
-      "bytes": 319,
-      "colors": 7,
+      "sha256": "889ded29bb1038357746657b13ebada23cb4b1687c0e49fb5077adca596558c7",
+      "bytes": 223,
+      "colors": 5,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "合起簿 + 1px 书签带"
     },
@@ -361,14 +357,14 @@
         "menu/U-MENU-04b_64x64.png"
       ],
       "format": "png",
-      "sha256": "47f45b97c7added1be884e8b47a888bdbaedee495222357687e55b6ad5dec0b8",
-      "bytes": 434,
-      "colors": 7,
+      "sha256": "1df16a93296b8f778d6f8d2788122c98b25103a3d8341fd1640f72088a0c1044",
+      "bytes": 320,
+      "colors": 5,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "合起簿 + 1px 书签带；32 母版整数 2x，不重采样、不加细节"
     },
@@ -389,14 +385,14 @@
         "menu/U-MENU-05a_32x32.png"
       ],
       "format": "png",
-      "sha256": "6e0f975ea9986a334a91fd8ae704deb42585e27e240e444aed41f750be8b91b3",
-      "bytes": 281,
+      "sha256": "ceb3080f014de6755058e2c7f42059ac188f015cfa23bbb46542e06d05fc37e2",
+      "bytes": 266,
       "colors": 6,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "收件托盘 + 下箭头"
     },
@@ -417,14 +413,14 @@
         "menu/U-MENU-05b_64x64.png"
       ],
       "format": "png",
-      "sha256": "daaecfb166fb1606b989fccadbc078323e7087c79c24836c13f080fb9248aa1b",
-      "bytes": 368,
+      "sha256": "4c8f1656dabd2686cac2ff7f94db6c023d5d499546c4ed37d78517d88ce236a9",
+      "bytes": 377,
       "colors": 6,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "收件托盘 + 下箭头；32 母版整数 2x，不重采样、不加细节"
     },
@@ -445,14 +441,14 @@
         "menu/U-MENU-06a_32x32.png"
       ],
       "format": "png",
-      "sha256": "fd9103198b415c3e9ac5248151d1eedd6af09db6a536e11472857367993803f4",
-      "bytes": 324,
-      "colors": 9,
+      "sha256": "442a538a2d52b9c1429c47a08076131871257f6f41e0b5e2bcbb7bb61537a06d",
+      "bytes": 258,
+      "colors": 5,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "剪贴板 + 三条勾线 + 角标"
     },
@@ -473,14 +469,14 @@
         "menu/U-MENU-06b_64x64.png"
       ],
       "format": "png",
-      "sha256": "5f0068ceeeb58c078143834d7d0132d8834ac1bbda3909fe7a265485cc43e1e5",
-      "bytes": 420,
-      "colors": 9,
+      "sha256": "f700cbacbf57aabce3ce32192ae2902a4a585af0467e4a45bff61e64a9fa23b8",
+      "bytes": 359,
+      "colors": 5,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "剪贴板 + 三条勾线 + 角标；32 母版整数 2x，不重采样、不加细节"
     },
@@ -501,14 +497,14 @@
         "menu/U-MENU-07a_32x32.png"
       ],
       "format": "png",
-      "sha256": "6d622f4d3443696f9be97ca8f94ff1fee591174a420515a743568a23d802c58a",
-      "bytes": 282,
-      "colors": 8,
+      "sha256": "e7da293ce522a52789ff617475558d736a6544af1d9104453f366355ff5f60c0",
+      "bytes": 229,
+      "colors": 3,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "两组横滑杆 + 方形旋钮"
     },
@@ -529,14 +525,14 @@
         "menu/U-MENU-07b_64x64.png"
       ],
       "format": "png",
-      "sha256": "d9171cc7bfe0ebbd0a92a7e0374d30804a95788fa1a00036a375d24e8e5958b1",
-      "bytes": 366,
-      "colors": 8,
+      "sha256": "77501b1377078c984b6a22ff6dd85292d593ddb148b662f3844bbbf12e37b4c0",
+      "bytes": 314,
+      "colors": 3,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "两组横滑杆 + 方形旋钮；32 母版整数 2x，不重采样、不加细节"
     },
@@ -557,14 +553,14 @@
         "menu/U-MENU-08a_32x32.png"
       ],
       "format": "png",
-      "sha256": "069b0b3926c8f98d042578ed49cc8b488e67dee42b130e2c723333b75d63a575",
-      "bytes": 427,
-      "colors": 5,
+      "sha256": "9c194b53745348c5c24baa7eca7a085c525416e8c878ec196fbebdcac57f09f6",
+      "bytes": 447,
+      "colors": 6,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "放大镜 + 四向外角箭头"
     },
@@ -585,14 +581,14 @@
         "menu/U-MENU-08b_64x64.png"
       ],
       "format": "png",
-      "sha256": "fe20071bf4500e5b1e4e6b1616dd22c58d94a4529a786161aa2939cfb2d13fbd",
-      "bytes": 500,
-      "colors": 5,
+      "sha256": "408b9b40b49852575436ef371bc38582831d3695df5a11ccfa055df006276d67",
+      "bytes": 512,
+      "colors": 6,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "放大镜 + 四向外角箭头；32 母版整数 2x，不重采样、不加细节"
     },
@@ -613,14 +609,14 @@
         "menu/U-MENU-09a_32x32.png"
       ],
       "format": "png",
-      "sha256": "e41ea9a9954b0499143b0fa29b3395dfdf66619b46b3421ee08188c438fd14ee",
-      "bytes": 345,
-      "colors": 4,
+      "sha256": "ec267459f3753dd377bc26b473f268d4c00d6fafc8c904aee4bca96b2c72d40a",
+      "bytes": 359,
+      "colors": 5,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "信息环 + 1px 竖条 + 点"
     },
@@ -641,14 +637,14 @@
         "menu/U-MENU-09b_64x64.png"
       ],
       "format": "png",
-      "sha256": "7787e3e53c2cbcb19c51f01eb50fa20225102f41377e5dda5f6b467ca934b205",
-      "bytes": 453,
-      "colors": 4,
+      "sha256": "d70b4450cd0f9f242860723890840440446a5e6842975f930b21d4fa9afe5945",
+      "bytes": 448,
+      "colors": 5,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "信息环 + 1px 竖条 + 点；32 母版整数 2x，不重采样、不加细节"
     },
@@ -669,14 +665,14 @@
         "menu/U-MENU-10a_32x32.png"
       ],
       "format": "png",
-      "sha256": "395d69a527509086f2cc1c81b4a29be245f08f6f7a5d15d865b0afb6093f7c30",
-      "bytes": 322,
-      "colors": 7,
+      "sha256": "2ff5ceac1eba9578ad47f98bdab82ada6de62af69ae26f2ff5b5c60c9d2e389a",
+      "bytes": 279,
+      "colors": 4,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "门框 + 向右外指箭头"
     },
@@ -697,14 +693,14 @@
         "menu/U-MENU-10b_64x64.png"
       ],
       "format": "png",
-      "sha256": "9a33853246a5f4f69fefeb8d898cda1d79bbc8ba0bbb52ad6eb88c360a14b7c5",
-      "bytes": 417,
-      "colors": 7,
+      "sha256": "40e09be4b6ca05bdcd025b4b204a70868e034ea79533aee23488c13ce282d1d9",
+      "bytes": 372,
+      "colors": 4,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "门框 + 向右外指箭头；32 母版整数 2x，不重采样、不加细节"
     },
@@ -725,14 +721,14 @@
         "props/U-PROP-01a_16x16.png"
       ],
       "format": "png",
-      "sha256": "d820669b1d8c2351155e85894a1dd0ce3f284b97552f7b2ed98e3f68d0eb085c",
-      "bytes": 206,
-      "colors": 4,
+      "sha256": "14eb8f09e14b13320ad9cdd3f6695c208e6054134454dc80960fd4151664b7db",
+      "bytes": 143,
+      "colors": 3,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "单张纸片 + 折痕，三阶明暗；16 单独重绘（不缩 32）"
     },
@@ -753,14 +749,14 @@
         "props/U-PROP-01b_32x32.png"
       ],
       "format": "png",
-      "sha256": "1efa6edbcefec648f04333cbaf0887f63cda474a69c0b1307ee21da28d122b1e",
-      "bytes": 279,
-      "colors": 5,
+      "sha256": "10cb64b3b7a08c5949c78634efa95f54058c7bc5a68e0196844d7de66f2a7d30",
+      "bytes": 201,
+      "colors": 4,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "单张纸片 + 折痕，三阶明暗"
     },
@@ -781,14 +777,14 @@
         "props/U-PROP-01c_64x64.png"
       ],
       "format": "png",
-      "sha256": "64740f3f02e70c6eecc9fbb0d90dc13419026d34581033ed39d3920f4b131f74",
-      "bytes": 354,
-      "colors": 5,
+      "sha256": "bbb786c1251213943935250e59990326a4b08bd6d54e6d3e09bc2f3dab319eff",
+      "bytes": 278,
+      "colors": 4,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "单张纸片 + 折痕，三阶明暗；32 母版整数 2x"
     },
@@ -809,14 +805,14 @@
         "props/U-PROP-02a_16x16.png"
       ],
       "format": "png",
-      "sha256": "9a017c16d31fa911b75c3ddb50b4f6ecea99c98322f1f8db94c41066abc0f1fe",
-      "bytes": 283,
-      "colors": 6,
+      "sha256": "ee61da0d6e2ced0163ad8f9d97c231cc055fcd1b20c127df8f33aab66efd1d3f",
+      "bytes": 206,
+      "colors": 4,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "折纸鹤 + 三个折面，非写实鸟；16 单独重绘（不缩 32）"
     },
@@ -837,14 +833,14 @@
         "props/U-PROP-02b_32x32.png"
       ],
       "format": "png",
-      "sha256": "7122a6208eef927fca7946845ebb292b4886c5a2fed25489ee45cc661e804358",
-      "bytes": 469,
-      "colors": 6,
+      "sha256": "503af3be91623cdc70177837f213ec08603a1392c0e0435bc73eca24ed8394c0",
+      "bytes": 292,
+      "colors": 4,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "折纸鹤 + 三个折面，非写实鸟"
     },
@@ -865,14 +861,14 @@
         "props/U-PROP-02c_64x64.png"
       ],
       "format": "png",
-      "sha256": "95ac3a43183ea5140c27e75603fe6f6b901eb8f9129c80e8b532ae7b3f13f1a7",
-      "bytes": 574,
-      "colors": 6,
+      "sha256": "6e29474d3f4a2f44557389e7c555c63c4b4077ee24b8c8a2ab723429785b9148",
+      "bytes": 389,
+      "colors": 4,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "折纸鹤 + 三个折面，非写实鸟；32 母版整数 2x"
     },
@@ -893,14 +889,14 @@
         "props/U-PROP-03a_16x16.png"
       ],
       "format": "png",
-      "sha256": "95ae23659eeaf96b4b4294507f8136c594fa2a2c4d4fa2a737d9d227bab8bccf",
-      "bytes": 214,
-      "colors": 5,
+      "sha256": "30e3bdd6b0324a4795485d326fefaff1782551449ca8b9e537004f145a5e6859",
+      "bytes": 134,
+      "colors": 4,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "合起簿 + 书签带，与 04 开态成对；16 单独重绘（不缩 32）"
     },
@@ -921,14 +917,14 @@
         "props/U-PROP-03b_32x32.png"
       ],
       "format": "png",
-      "sha256": "3a6a554e1c087cdd8cc832b1b4f2908f290b95db7b27f7509766036f7d6bbd15",
-      "bytes": 319,
-      "colors": 7,
+      "sha256": "9ada67e99d59f2a62b93578589877af106d0ecfb9a435be71e9d38083aa0f07c",
+      "bytes": 162,
+      "colors": 4,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "合起簿 + 书签带，与 04 开态成对"
     },
@@ -949,14 +945,14 @@
         "props/U-PROP-03c_64x64.png"
       ],
       "format": "png",
-      "sha256": "47f45b97c7added1be884e8b47a888bdbaedee495222357687e55b6ad5dec0b8",
-      "bytes": 434,
-      "colors": 7,
+      "sha256": "85ad63f6a7547c50a6846ecb9273566c627f11ae6b258b3e5635b03365e55e6d",
+      "bytes": 239,
+      "colors": 4,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "合起簿 + 书签带，与 04 开态成对；32 母版整数 2x"
     },
@@ -977,14 +973,14 @@
         "props/U-PROP-04a_16x16.png"
       ],
       "format": "png",
-      "sha256": "e4e1854d8b064372abb7a77ce48878749d7ca7927bde7af625c457e382f728d9",
-      "bytes": 235,
-      "colors": 5,
+      "sha256": "3c9e65c463c2710617390746a6f79e40144375146a41ba67cae57f126daa8887",
+      "bytes": 160,
+      "colors": 3,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "打开两页 + 1px 横线；16 单独重绘（不缩 32）"
     },
@@ -1005,14 +1001,14 @@
         "props/U-PROP-04b_32x32.png"
       ],
       "format": "png",
-      "sha256": "bd95b27db55a95fa8434af51850e9fcb03b7b93d052f20364af36b39e0d7183a",
-      "bytes": 342,
-      "colors": 5,
+      "sha256": "16da095be1c80a01ac3beaf94a8b14421786055044646cd41e316e9520e131ff",
+      "bytes": 243,
+      "colors": 4,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "打开两页 + 1px 横线"
     },
@@ -1033,14 +1029,14 @@
         "props/U-PROP-04c_64x64.png"
       ],
       "format": "png",
-      "sha256": "9bb155767468ced2ee5331de5fc39cc48a0c34e5cbcbd1bd79b0b2c03aec832a",
-      "bytes": 444,
-      "colors": 5,
+      "sha256": "8fd3e967fd15cf2cd653f6d3f2a927deb0ec50f8dc48a6fb9c7a988d7f91e700",
+      "bytes": 328,
+      "colors": 4,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "打开两页 + 1px 横线；32 母版整数 2x"
     },
@@ -1061,14 +1057,14 @@
         "props/U-PROP-05a_16x16.png"
       ],
       "format": "png",
-      "sha256": "46825475398701ec3480f2f9b39c8d8a3bb10a8cfeacfeeed0f39a84860162e4",
-      "bytes": 212,
-      "colors": 4,
+      "sha256": "3bfb7eb0d3dedc21038c7ed15ee01abc8c7d80d1be7c460f5f5525b975806736",
+      "bytes": 151,
+      "colors": 3,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "单页 + 折角 + 1px 横线；16 单独重绘（不缩 32）"
     },
@@ -1089,14 +1085,14 @@
         "props/U-PROP-05b_32x32.png"
       ],
       "format": "png",
-      "sha256": "9ede2e1d8db848ea3a16a2fc814b2fd1666f43c85de2443857c78fbdab6a77f5",
-      "bytes": 298,
-      "colors": 5,
+      "sha256": "df529117cfc90aacc80849e30008fa30b9a5e7f3e1b15bf6171cd54a3d155768",
+      "bytes": 207,
+      "colors": 4,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "单页 + 折角 + 1px 横线"
     },
@@ -1117,14 +1113,14 @@
         "props/U-PROP-05c_64x64.png"
       ],
       "format": "png",
-      "sha256": "81002662831a742484ab4514339a0fe88a78c21940bf8e21f595428c34d842f8",
-      "bytes": 386,
-      "colors": 5,
+      "sha256": "802b02bde317dbc53d89a51b6cae44abed4bd39ad96a59a8a3d8a790f4e1fae9",
+      "bytes": 287,
+      "colors": 4,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "单页 + 折角 + 1px 横线；32 母版整数 2x"
     },
@@ -1145,14 +1141,14 @@
         "props/U-PROP-06a_16x16.png"
       ],
       "format": "png",
-      "sha256": "af71e00c77eb889a2721318993fceb3f816162cad6eddf6627d19e5531da09dc",
-      "bytes": 280,
-      "colors": 6,
+      "sha256": "ac0923eaae4a8ec67281020486c1c6f94215113ecd0578f06d4a35884546b386",
+      "bytes": 192,
+      "colors": 5,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "墨水瓶 + 羽毛笔，三阶明暗；16 单独重绘（不缩 32）"
     },
@@ -1173,14 +1169,14 @@
         "props/U-PROP-06b_32x32.png"
       ],
       "format": "png",
-      "sha256": "c3aedf8a33fab44129b2cb7da55f3103b18dc7492de65c61ccbf4b9c5d8574fd",
-      "bytes": 416,
-      "colors": 10,
+      "sha256": "b02a2d20709281978f027936e9decc69c28ba704b99e8e57477183841308a2c7",
+      "bytes": 248,
+      "colors": 5,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "墨水瓶 + 羽毛笔，三阶明暗"
     },
@@ -1201,14 +1197,14 @@
         "props/U-PROP-06c_64x64.png"
       ],
       "format": "png",
-      "sha256": "06e1452ed16254e6236ec072e40bc2daf181bc222b2e660ac8cbff29972c0103",
-      "bytes": 514,
-      "colors": 10,
+      "sha256": "ade9f501d9737db5cd1ec351b6bd2836edb1518d298bb682009b7a7c80ee3310",
+      "bytes": 349,
+      "colors": 5,
       "maxColors": 12,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "墨水瓶 + 羽毛笔，三阶明暗；32 母版整数 2x"
     },
@@ -1229,14 +1225,14 @@
         "badges/U-BADGE-01a_16x16.png"
       ],
       "format": "png",
-      "sha256": "0b26243b21fc823f10a9cf93dfed1d5c8def25f686354cd476148d47bcec52bd",
-      "bytes": 202,
-      "colors": 6,
+      "sha256": "b3f393eb741fc3e96d97a5a9e8b1f84aa77a8e0a481bbc650ad3294e61615e99",
+      "bytes": 196,
+      "colors": 4,
       "maxColors": 6,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "绿点 #3fa66b；≤6 色"
     },
@@ -1257,14 +1253,14 @@
         "badges/U-BADGE-01b_32x32.png"
       ],
       "format": "png",
-      "sha256": "69672ff877c4dab0c1f5600cbe97033eb1901ea186fabbf01e5ab3a37a36f15d",
-      "bytes": 249,
-      "colors": 6,
+      "sha256": "927aa5d932066405c5751be7a38c793dcc411bbe0e60d77e8e3245504124f765",
+      "bytes": 258,
+      "colors": 4,
       "maxColors": 6,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "绿点 #3fa66b；≤6 色；16 母版整数 2x"
     },
@@ -1285,14 +1281,14 @@
         "badges/U-BADGE-02a_16x16.png"
       ],
       "format": "png",
-      "sha256": "f4513cb6e33300bb4d46abb1fe5df21fe1ade9b3e9301353957a93400b247213",
-      "bytes": 228,
-      "colors": 5,
+      "sha256": "c21bd493ea241408c6d91938cd36301bf1c5a1f36a8573a85aca842747ae472e",
+      "bytes": 178,
+      "colors": 4,
       "maxColors": 6,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "琥珀 #e0b35a；与 01 色差可辨"
     },
@@ -1313,14 +1309,14 @@
         "badges/U-BADGE-02b_32x32.png"
       ],
       "format": "png",
-      "sha256": "c73f03fd203e0bb17e9d4c9eeb5dbd43dbe41b95b43da37abd1b80dd8fe43c5a",
-      "bytes": 264,
-      "colors": 5,
+      "sha256": "d16c518cff5aef12112a4d733e004390d2401d30b18fbcdd8fb0c65377a5a008",
+      "bytes": 228,
+      "colors": 4,
       "maxColors": 6,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "琥珀 #e0b35a；与 01 色差可辨；16 母版整数 2x"
     },
@@ -1341,14 +1337,14 @@
         "badges/U-BADGE-03a_16x16.png"
       ],
       "format": "png",
-      "sha256": "0eb6808713e7aea00dc9a9491996dd1dd650e6b95a664446eb3425cf6b0844cd",
-      "bytes": 235,
-      "colors": 6,
+      "sha256": "40e95dd08252c3e03afcf9c39c592028bf226172cfbd5e4bb21281784d7cede4",
+      "bytes": 178,
+      "colors": 4,
       "maxColors": 6,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "灰蓝 #8fa8c0；与 02 区分"
     },
@@ -1369,14 +1365,14 @@
         "badges/U-BADGE-03b_32x32.png"
       ],
       "format": "png",
-      "sha256": "59e77e00be51652e0cdeae9e272bc329baf7c673f7d4b785a9201b1b1b02c0e3",
-      "bytes": 276,
-      "colors": 6,
+      "sha256": "342a3a7e037feceb2f61b27c8928edc12fc77826ad193a89704a744cc8927048",
+      "bytes": 229,
+      "colors": 4,
       "maxColors": 6,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "灰蓝 #8fa8c0；与 02 区分；16 母版整数 2x"
     },
@@ -1397,14 +1393,14 @@
         "badges/U-BADGE-04a_16x16.png"
       ],
       "format": "png",
-      "sha256": "a1ade36dd462404bf16a3b936faa42e3e741052690b394786150925971e75e74",
-      "bytes": 240,
-      "colors": 5,
+      "sha256": "0347c36528e9d1832d0189471845c6ece5ba5597b57a9c631f41240b6c3994d3",
+      "bytes": 145,
+      "colors": 3,
       "maxColors": 6,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "绿勾 1px 闭合"
     },
@@ -1425,14 +1421,14 @@
         "badges/U-BADGE-04b_32x32.png"
       ],
       "format": "png",
-      "sha256": "8718e674481e72600bc5912cf635a88ab86f5766ba1e52b0d573ab7ae440a23f",
-      "bytes": 279,
-      "colors": 5,
+      "sha256": "dfff6991395463f57d40fe241eed173ce77d157ad4e9d90037933f745be3a39d",
+      "bytes": 180,
+      "colors": 3,
       "maxColors": 6,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "绿勾 1px 闭合；16 母版整数 2x"
     },
@@ -1453,14 +1449,14 @@
         "badges/U-BADGE-05a_16x16.png"
       ],
       "format": "png",
-      "sha256": "e2c8f9d8082fcbd6f007365b8f1f78aa53dd44daa09fd674dbf0fb6bde47cd08",
-      "bytes": 226,
-      "colors": 5,
+      "sha256": "cd0df0951cd8acdbc646f191d903d1d1ffe33914653c28783c685f04d09634f5",
+      "bytes": 174,
+      "colors": 3,
       "maxColors": 6,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "非货币符号、非文字"
     },
@@ -1481,14 +1477,14 @@
         "badges/U-BADGE-05b_32x32.png"
       ],
       "format": "png",
-      "sha256": "605d7a50c3be6eb0da799b8f3c5d076b855a5aac2d2f77687b4758bf6667b730",
-      "bytes": 266,
-      "colors": 5,
+      "sha256": "b69399369ccb8256dd007fc93ede4bb40bc7ae72183e9dad0244ad266445d2a7",
+      "bytes": 219,
+      "colors": 3,
       "maxColors": 6,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "非货币符号、非文字；16 母版整数 2x"
     },
@@ -1509,14 +1505,14 @@
         "badges/U-BADGE-06a_16x16.png"
       ],
       "format": "png",
-      "sha256": "65ffa2e5839cb322a99c04a250d41d9126111514f8c74a3b7785fe47db0a44c8",
-      "bytes": 164,
+      "sha256": "041bf10ba9647b8ed81698fa5a82c22eb61167f87b4ef075fbaa8dcefe7748e8",
+      "bytes": 165,
       "colors": 3,
       "maxColors": 6,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "折角页 + 灰虚线轮廓"
     },
@@ -1537,14 +1533,14 @@
         "badges/U-BADGE-06b_32x32.png"
       ],
       "format": "png",
-      "sha256": "055827decd5427a77ee7fb36b257d3c61821d183e3ae0f3260594725fd65f354",
-      "bytes": 209,
+      "sha256": "4a887faf0ccd23ab756e32a7466126cf957265bbe0f22732af49fa39c551adff",
+      "bytes": 200,
       "colors": 3,
       "maxColors": 6,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "折角页 + 灰虚线轮廓；16 母版整数 2x"
     },
@@ -1565,14 +1561,14 @@
         "placeholders/U-PH-01a_48x48.png"
       ],
       "format": "png",
-      "sha256": "02108b804176f1a13cc1af52ae2d7250a00ba96ac21f0800884266c536a5dc4a",
-      "bytes": 211,
-      "colors": 2,
+      "sha256": "3e97f2e2f5bf5781a1103d4507191940b754126c7ef6aa24739cdef9a79dbb5d",
+      "bytes": 341,
+      "colors": 4,
       "maxColors": 8,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "空白折页轮廓 + 1px 虚线"
     },
@@ -1593,14 +1589,14 @@
         "placeholders/U-PH-01b_96x96.png"
       ],
       "format": "png",
-      "sha256": "7db7c3183b372b46f32f4879712edb658aa656c235205d03ccbed96da28ff7a6",
-      "bytes": 304,
-      "colors": 2,
+      "sha256": "afc564bc97b63caeda354a025dd411733b0dbc55372015d0276b000d6dc755a9",
+      "bytes": 508,
+      "colors": 4,
       "maxColors": 8,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "空白折页轮廓 + 1px 虚线；48 母版整数 2x"
     },
@@ -1621,14 +1617,14 @@
         "placeholders/U-PH-02a_48x48.png"
       ],
       "format": "png",
-      "sha256": "447b7eae14507bfc89e7248cfcf450c6b327c83adf13151514c1edcf65ac8b40",
-      "bytes": 284,
+      "sha256": "4754c9496037709372a9f1d1420bf3d24587fce0a6fb7d0ce19ee1a8de6a479b",
+      "bytes": 229,
       "colors": 4,
       "maxColors": 8,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "两张叠纸 + 三点，低对比"
     },
@@ -1649,14 +1645,14 @@
         "placeholders/U-PH-02b_96x96.png"
       ],
       "format": "png",
-      "sha256": "3aaf37aa1b7b73ebc4272625650ba47039d117131c9f8b70b65de51bd71090e6",
-      "bytes": 387,
+      "sha256": "2b29f35c3ae3f67b53f6b2063bd2521de2de43c1ca966d61d4d9e7f762278c6a",
+      "bytes": 329,
       "colors": 4,
       "maxColors": 8,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "两张叠纸 + 三点，低对比；48 母版整数 2x"
     },
@@ -1677,14 +1673,14 @@
         "placeholders/U-PH-03a_48x48.png"
       ],
       "format": "png",
-      "sha256": "fbab966b3574e5dfec0e9ef4ef1378707cc8c9ef1bc7b61a291376f778eb2e50",
-      "bytes": 392,
+      "sha256": "0ed2834e6af120857e5bac07fce685357e54b1284cdcfac8dc4206abe10c2a04",
+      "bytes": 266,
       "colors": 4,
       "maxColors": 8,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "撕角纸页 + 断线头，灰蓝"
     },
@@ -1705,14 +1701,14 @@
         "placeholders/U-PH-03b_96x96.png"
       ],
       "format": "png",
-      "sha256": "7f77b4696a21a458feefbbf9ddef18457c1fe7071e749c7a99a19b5d88719c08",
-      "bytes": 528,
+      "sha256": "60d61be7a3574dc99ef966b6f1233f81b1fecc27584de8c90128d45925d4b529",
+      "bytes": 387,
       "colors": 4,
       "maxColors": 8,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "撕角纸页 + 断线头，灰蓝；48 母版整数 2x"
     },
@@ -1733,14 +1729,14 @@
         "placeholders/U-PH-04a_48x48.png"
       ],
       "format": "png",
-      "sha256": "1bb486f9c9b9663f57d3c5e53d3a0f31257fe01fc610dd04bed5212cea1e8490",
-      "bytes": 384,
-      "colors": 5,
+      "sha256": "4348f1d91f68d63c84849e6f18d8dfc76b6819296eabc5b7e52461c3ee26e7d5",
+      "bytes": 295,
+      "colors": 4,
       "maxColors": 8,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "空白折纸剪影，仅物体、无脸"
     },
@@ -1761,14 +1757,14 @@
         "placeholders/U-PH-04b_96x96.png"
       ],
       "format": "png",
-      "sha256": "d0e474b6dfef3fdc2823515f5b50d6b12c8f28cfb381e66acacca4da9b2eca25",
-      "bytes": 522,
-      "colors": 5,
+      "sha256": "1e6a5cb7a95f0ed116b70013259b32e787c95af5b6c7bb9c48e9a3df0d231d53",
+      "bytes": 383,
+      "colors": 4,
       "maxColors": 8,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "空白折纸剪影，仅物体、无脸；48 母版整数 2x"
     },
@@ -1789,14 +1785,14 @@
         "indicators/U-IND-01a_12x12.png"
       ],
       "format": "png",
-      "sha256": "22ad025328ed8487479c6fe1f11297394f74fb72822d00840d1e2d5de285d5c9",
-      "bytes": 159,
-      "colors": 2,
+      "sha256": "1495982733db363a17168c3157313de1cce20da927239dac38dbaaeb60413279",
+      "bytes": 176,
+      "colors": 3,
       "maxColors": 8,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "像素箭头 + 1px 环"
     },
@@ -1817,14 +1813,14 @@
         "indicators/U-IND-01b_16x16.png"
       ],
       "format": "png",
-      "sha256": "cf72ad2399a26b9021e8ff6db70a521ff56ee377a6776745035328da64228d11",
-      "bytes": 255,
-      "colors": 4,
+      "sha256": "9d4ed6ca39f444798bd423da09744de8e6a70848bd8da948ad400d78662e295f",
+      "bytes": 239,
+      "colors": 3,
       "maxColors": 8,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "像素箭头 + 1px 环"
     },
@@ -1845,14 +1841,14 @@
         "indicators/U-IND-01c_24x24.png"
       ],
       "format": "png",
-      "sha256": "d080be8f75f9ae943aa3a061ac8cb359d3e06c87219eb322ca1d768f606c4607",
-      "bytes": 351,
-      "colors": 4,
+      "sha256": "f75aa3c9126c4bb0232801cd0d11254a60833dc0df4bd12fac985bd1e9884037",
+      "bytes": 296,
+      "colors": 3,
       "maxColors": 8,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "像素箭头 + 1px 环"
     },
@@ -1873,14 +1869,14 @@
         "indicators/U-IND-02a_12x12.png"
       ],
       "format": "png",
-      "sha256": "b1ab173135c97131d15f37ccfedd2c27dbf14ecdebc46f857cb5043cd4e58eac",
-      "bytes": 194,
+      "sha256": "532d9d63afc32e99d0a41b3635bcdba0660c5f4e2612b126e98de8941247bcad",
+      "bytes": 180,
       "colors": 4,
       "maxColors": 8,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "抓握手 + 一条运动线"
     },
@@ -1901,14 +1897,14 @@
         "indicators/U-IND-02b_16x16.png"
       ],
       "format": "png",
-      "sha256": "d712298b6ba75c53ecc36b30281b97a2bd3723997233a67f438f46fe70949b2c",
-      "bytes": 223,
-      "colors": 5,
+      "sha256": "057381d3bc3e02e270499d114c3cad680afadeea6e7ce30162c99ecf8545f57d",
+      "bytes": 198,
+      "colors": 4,
       "maxColors": 8,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "抓握手 + 一条运动线"
     },
@@ -1929,14 +1925,14 @@
         "indicators/U-IND-02c_24x24.png"
       ],
       "format": "png",
-      "sha256": "01cb869ebe2b190d14b89dca1b34fcf54d3e47551d602832e75836ebe906966c",
-      "bytes": 282,
-      "colors": 5,
+      "sha256": "cdb339d0e62e6b8fc3586c67a3fede6bee92f310d708aaf9bd2445ad3bf5cc4a",
+      "bytes": 226,
+      "colors": 4,
       "maxColors": 8,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "抓握手 + 一条运动线"
     },
@@ -1957,14 +1953,14 @@
         "indicators/U-IND-03a_12x12.png"
       ],
       "format": "png",
-      "sha256": "e40c1e600eccb6e190c28762c0db3b4cfe454badc3133b82a2daa0f0a2a6ee33",
-      "bytes": 96,
-      "colors": 2,
+      "sha256": "f7a567506c21b14a6a1563d10829f95b9ea5671330bdb24005306347abaeb458",
+      "bytes": 104,
+      "colors": 3,
       "maxColors": 8,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "三团 1px 尘弧，无地面阴影块"
     },
@@ -1985,14 +1981,14 @@
         "indicators/U-IND-03b_16x16.png"
       ],
       "format": "png",
-      "sha256": "62815b547ccfb339463fcbc4e054c093e6b0552ff3ffd3af55570648f58e31cc",
-      "bytes": 117,
-      "colors": 2,
+      "sha256": "373defaf9419eac3376263848e5f0a4c79227ac107d683365d0853b3e2484336",
+      "bytes": 112,
+      "colors": 3,
       "maxColors": 8,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "三团 1px 尘弧，无地面阴影块"
     },
@@ -2013,14 +2009,14 @@
         "indicators/U-IND-03c_24x24.png"
       ],
       "format": "png",
-      "sha256": "955283fe6f44e1aded1cc2e7925e22e624abfda7fcd567bc73e7fe7add427616",
-      "bytes": 130,
-      "colors": 2,
+      "sha256": "041b9eae0d9fe9d21d1b5cff392618b5213ff92a13e26512086e5794227a32f0",
+      "bytes": 151,
+      "colors": 3,
       "maxColors": 8,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "三团 1px 尘弧，无地面阴影块"
     },
@@ -2041,14 +2037,14 @@
         "indicators/U-IND-04a_12x12.png"
       ],
       "format": "png",
-      "sha256": "71753a2df6bdb61cd2407f05174ed89777521b926a57e783f2e7d1b21f7cc666",
-      "bytes": 109,
+      "sha256": "02405d526441dc3f2b3a6251cb5153a87f898c8d7965ac3ace26052289d72a8c",
+      "bytes": 125,
       "colors": 2,
       "maxColors": 8,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "琥珀几何「!」竖条+点，非文字"
     },
@@ -2069,14 +2065,14 @@
         "indicators/U-IND-04b_16x16.png"
       ],
       "format": "png",
-      "sha256": "529464b664bf1d5404aec5094b527d668b427b0a8e1cc661af29ab37352ae142",
-      "bytes": 129,
-      "colors": 3,
+      "sha256": "e5a68a06502de53a9ba5f6efb7bd79d69ac39145a469a348a89bf775726ee0ec",
+      "bytes": 117,
+      "colors": 2,
       "maxColors": 8,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "琥珀几何「!」竖条+点，非文字"
     },
@@ -2097,14 +2093,14 @@
         "indicators/U-IND-04c_24x24.png"
       ],
       "format": "png",
-      "sha256": "62463c891b62ca786ac79627b2f1fe3979e267c7fa5f14b8551ad14cd77656b9",
-      "bytes": 164,
-      "colors": 4,
+      "sha256": "ce0ceeb8cec756984c0e36c7cabd96b18557f32e656eb921cbd95589bb6b3e4c",
+      "bytes": 148,
+      "colors": 2,
       "maxColors": 8,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "琥珀几何「!」竖条+点，非文字"
     },
@@ -2125,14 +2121,14 @@
         "indicators/U-IND-05a_12x12.png"
       ],
       "format": "png",
-      "sha256": "d3bd09b0b085c9eabd618e17ed6820fb60dff4ae72e6a6133b380145bebe6d72",
-      "bytes": 165,
+      "sha256": "d0c0afb240c73fcc2df3c8ea20eda053d0b1d236b314bb3129fd589b1968ab06",
+      "bytes": 158,
       "colors": 3,
       "maxColors": 8,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "喇叭 + 1px 斜杠"
     },
@@ -2153,14 +2149,14 @@
         "indicators/U-IND-05b_16x16.png"
       ],
       "format": "png",
-      "sha256": "5fb7c2712f0bee7aa2ed47322b587586b4105c641a447af5c974e61f561197bc",
-      "bytes": 190,
+      "sha256": "d9b0b74d06453decdd50554028cf91cc43b398edad653651fe4987e9b20ecad1",
+      "bytes": 194,
       "colors": 3,
       "maxColors": 8,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "喇叭 + 1px 斜杠"
     },
@@ -2181,14 +2177,14 @@
         "indicators/U-IND-05c_24x24.png"
       ],
       "format": "png",
-      "sha256": "4a0e3b98f5f5963de86ab191d61a60b13c66d827a37bc26cca1a7956e361074f",
-      "bytes": 258,
-      "colors": 4,
+      "sha256": "dee842c847087f48aa8664f0b9a014c73d2de52c97b7f272facfb1470a3affc2",
+      "bytes": 228,
+      "colors": 3,
       "maxColors": 8,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "喇叭 + 1px 斜杠"
     },
@@ -2209,14 +2205,14 @@
         "indicators/U-IND-06a_12x12.png"
       ],
       "format": "png",
-      "sha256": "71f8ac577a11f8e17854b5511542c734bd699262770f991598b9c10e7c67a4ba",
-      "bytes": 195,
+      "sha256": "2c494f107faf90061a95c6f4cbeab8533550682c0edfa4a1e4839cc3c125413e",
+      "bytes": 167,
       "colors": 4,
       "maxColors": 8,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "麦克风胶囊 + 红点 #d95f5f"
     },
@@ -2237,14 +2233,14 @@
         "indicators/U-IND-06b_16x16.png"
       ],
       "format": "png",
-      "sha256": "7dc65da2a16e00d2d61bfc311dedda8b1bc088478d05f2d289b2138aaa66c5da",
-      "bytes": 225,
+      "sha256": "1923508c8ac96306f6017c1de3156e44ad57b023b86386e554a832765e94543d",
+      "bytes": 180,
       "colors": 4,
       "maxColors": 8,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "麦克风胶囊 + 红点 #d95f5f"
     },
@@ -2265,14 +2261,14 @@
         "indicators/U-IND-06c_24x24.png"
       ],
       "format": "png",
-      "sha256": "33b506e903f8dfc833ed44df4c86ed722228ff4dfa2504f2dee9fe7ff52d9f05",
-      "bytes": 276,
+      "sha256": "06ae5da316e71ba5ff23d1e6a65175d7166561f2571f0089f01aceafbaa40364",
+      "bytes": 239,
       "colors": 4,
       "maxColors": 8,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "麦克风胶囊 + 红点 #d95f5f"
     },
@@ -2293,14 +2289,14 @@
         "icons/U-ICON-01_16x16.png"
       ],
       "format": "png",
-      "sha256": "e7547a446126fd3319f3b3fe032f288d397eaa80dca4ec66a6da36bc7268b92a",
-      "bytes": 209,
-      "colors": 6,
+      "sha256": "25440a3e46b69c98c9f9b20342676b82592f6bf3bc4adeee18e9cc607ee45002",
+      "bytes": 149,
+      "colors": 5,
       "maxColors": 6,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "折页角标记；≤4 色 + 1px 轮廓；无文字"
     },
@@ -2321,14 +2317,14 @@
         "icons/U-ICON-02_32x32.png"
       ],
       "format": "png",
-      "sha256": "dc7a073e65f2b972d0a873ee4e9eab87c957287dfdc815aa09499521a8dce75f",
-      "bytes": 272,
+      "sha256": "c9751e19c735b63674a586d686512393d8df0b717f7aecb7b2793da6460b6667",
+      "bytes": 214,
       "colors": 5,
       "maxColors": 6,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "同标记 32 母版；16 不直接缩 32"
     },
@@ -2349,14 +2345,14 @@
         "icons/U-ICON-03_256x256.png"
       ],
       "format": "png",
-      "sha256": "77cec6e11709e1cc1f6f8cb6cd744d6ff72d67ae51162dfd102a82a81753e0c0",
-      "bytes": 971,
-      "colors": 6,
+      "sha256": "4b8d9fee763973f88936e45e96f923bd89cc0f8b0e566291687daa21b1e4aa83",
+      "bytes": 855,
+      "colors": 5,
       "maxColors": 6,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "圆角纸块 + 折角 + 书签；≤6 色；32 网格整数 x8"
     },
@@ -2377,14 +2373,14 @@
         "icons/U-ICON-04_app.ico"
       ],
       "format": "ico",
-      "sha256": "2408f11f7ced145a6539cf0d6b651c230a1d5807809902d0f0b39b900270a5fc",
-      "bytes": 2072,
-      "colors": 6,
+      "sha256": "122b4cf456efb3f8a619a7d3310818628914a899356c03db1210b88d8da74930",
+      "bytes": 3080,
+      "colors": 5,
       "maxColors": 6,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "由 16/32/256 打包，48=16x3 整数；来源可核",
       "icoSizes": [
@@ -2411,14 +2407,14 @@
         "backgrounds/U-BG-01_480x336.png"
       ],
       "format": "png",
-      "sha256": "3271871a8c7dc8ecb456f65f7d2abd81cffc8e22acd708099d5232a5ed0a33f8",
-      "bytes": 2200,
-      "colors": 4,
+      "sha256": "16a5e1dcd83203a35af0cf68d7c4feed20f1c869720b6c0f8cb8e0e9aa3506cb",
+      "bytes": 2764,
+      "colors": 3,
       "maxColors": 16,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "纸桌 + 折痕、低对比"
     },
@@ -2439,14 +2435,14 @@
         "backgrounds/U-BG-02_480x336.png"
       ],
       "format": "png",
-      "sha256": "06d4be7f6b292bcbfec6f63b024e2d4f3c94ef61634210c69b45d75455c4fd9c",
-      "bytes": 2472,
-      "colors": 7,
+      "sha256": "5ccf14b6d377864bea7044fc8cfcfa3ca9caa0d3d52dedd78ddf52851cd7dd03",
+      "bytes": 2114,
+      "colors": 5,
       "maxColors": 16,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "账本 + 金币母题边框"
     },
@@ -2467,14 +2463,14 @@
         "backgrounds/U-BG-03_480x336.png"
       ],
       "format": "png",
-      "sha256": "9552daead64fb875b6809da8a4d125446af66c17f3497c95b6bf8ac717654619",
-      "bytes": 1660,
-      "colors": 6,
+      "sha256": "9da74a69d39eb702754f8c3aef3451276f27fd5090528b0922425daf0d09a612",
+      "bytes": 1797,
+      "colors": 3,
       "maxColors": 16,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "折角纸框 + 平斜面，无接缝"
     },
@@ -2495,14 +2491,14 @@
         "fx/U-FX-01_24x24.png"
       ],
       "format": "png",
-      "sha256": "96850ef6578eb0760b96f6aaea2397c496630d970e047cc0d10ab93ad320ff51",
-      "bytes": 205,
+      "sha256": "2c2a3726b0c1c8a85f0e4fe2ad619674d4dda8afebc375acfad0b1c44f8e1872",
+      "bytes": 152,
       "colors": 3,
       "maxColors": 6,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "纸色 tail 三角，透明四角，2 阶色"
     },
@@ -2523,14 +2519,14 @@
         "fx/U-FX-02_48x48.png"
       ],
       "format": "png",
-      "sha256": "07a9626a1f02feaed60e762d8d0ecc55a42eb5316052f5c1537a57ece31df520",
-      "bytes": 399,
+      "sha256": "50e9bf821da6c8ce426e8e3ac7f894677fe13d5c16457b831f7c4e81ef6ab71f",
+      "bytes": 440,
       "colors": 4,
       "maxColors": 6,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "纸白 + 淡金几何闪片，硬 alpha"
     },
@@ -2552,14 +2548,14 @@
         "roleplay/RP-001_128x128.png"
       ],
       "format": "png",
-      "sha256": "3dac5978957725c5994595bcf22426e038a522f458739c275309cb69c26ef269",
-      "bytes": 653,
-      "colors": 7,
+      "sha256": "4c874372e37296401faeecce8952159d7f3d9bcae0a07a8ab054412172fbd540",
+      "bytes": 512,
+      "colors": 5,
       "maxColors": 16,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "剧场面具 + 对话框",
       "variants": [
@@ -2595,14 +2591,14 @@
         "roleplay/RP-002_64x64.png"
       ],
       "format": "png",
-      "sha256": "721d369c6930740c6ec6966fffa61b8ae1eb72dbcbbf457343c6c8789e7d3134",
-      "bytes": 364,
-      "colors": 4,
+      "sha256": "23482497f2abd99cf55ca84b7a46682a7a9c9de6714a8e304323239db073e43e",
+      "bytes": 309,
+      "colors": 3,
       "maxColors": 16,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "中性八边形 + 绿色对勾，不露骨不卖萌",
       "variants": [
@@ -2638,14 +2634,14 @@
         "roleplay/RP-003_64x64.png"
       ],
       "format": "png",
-      "sha256": "c4768d13ebce47a069022e911770d8c3c8b385151c1a775ff1e3d6891d4ffadc",
-      "bytes": 296,
-      "colors": 4,
+      "sha256": "89bfbe1e879e10dc649e6d3bec9499f083fc302b3e3d0efba129d75bd618bcf8",
+      "bytes": 290,
+      "colors": 5,
       "maxColors": 16,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "AI 闪光 + 对话框，不是人脸",
       "variants": [
@@ -2681,14 +2677,14 @@
         "roleplay/RP-004_64x64.png"
       ],
       "format": "png",
-      "sha256": "f120a1a637937d03175196e894db3cc107ea4db6d06be2864a48f75ea0702fd0",
-      "bytes": 303,
-      "colors": 5,
+      "sha256": "9ec5181ff86fc4b6c362aff8aa3b6e564a38bb05e0f142d0160fc2956eeb489b",
+      "bytes": 376,
+      "colors": 6,
       "maxColors": 16,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "钟 + 暂停条，温和",
       "variants": [
@@ -2724,14 +2720,14 @@
         "roleplay/RP-005_128x128.png"
       ],
       "format": "png",
-      "sha256": "c0b948153cc23fbf6df2482061cc31d4d1ec12676f291105e1dcac072c8ac6d9",
-      "bytes": 674,
-      "colors": 8,
+      "sha256": "da9841d93b26a827bf9388460eb7df84e7f482b9dc41f2d4b38d22e20b395c59",
+      "bytes": 547,
+      "colors": 5,
       "maxColors": 16,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "救生圈 + 求助卡，无医疗十字",
       "variants": [
@@ -2767,14 +2763,14 @@
         "roleplay/RP-006_64x64.png"
       ],
       "format": "png",
-      "sha256": "74edb6233fdedfd5c89937d7153b18c145d7c352f2a000a29c66b02035f030b0",
-      "bytes": 279,
-      "colors": 8,
+      "sha256": "7f6fcde0495b60320363d579bfa55135b7b9dcc374b0c07e6acd14b973b7495f",
+      "bytes": 263,
+      "colors": 6,
       "maxColors": 16,
       "alpha": "binary",
-      "license": "placeholder-only",
+      "license": "CC BY-NC-SA 4.0 (final art 2026-11-22)",
       "ai": "none",
-      "source": "deterministic-local-pixel:docs/art/ui-91-qa/gen_ui91.py",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_ui.py",
       "notOfficialDeepseek": true,
       "notes": "开门 + 橡皮，简洁",
       "variants": [
@@ -2807,8 +2803,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 386,
-      "sha256": "490c5ea4c501752f8ffc53125f30c268458db6a01accc0b6b91c1af47aa442f4"
+      "bytes": 303,
+      "sha256": "5f95843c6113af80775f9018bde5210e0475e4e3b0f8289c78dfb70cda62774f"
     },
     {
       "file": "menu/U-MENU-01b_64x64.png",
@@ -2823,8 +2819,8 @@
       "primary": true,
       "derivedFrom": "U-MENU-01a",
       "scale": 2,
-      "bytes": 446,
-      "sha256": "8392288956a5451dc3ad3f2e238402c7694aba61044711c3e9e6f57464248ba6"
+      "bytes": 382,
+      "sha256": "d5e108d99621b88e63436c61cdec0256ab2d5074de683da7233b97181d25f580"
     },
     {
       "file": "menu/U-MENU-02a_32x32.png",
@@ -2839,8 +2835,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 354,
-      "sha256": "ae41bbc6a8c5b2570d43130078d40f8e33071940b89263e4f7deacee9cb13df8"
+      "bytes": 246,
+      "sha256": "b4665cb6ed3de7a3ddd105757b81cd478f2a9d356bc63221bbcb3503d47115a2"
     },
     {
       "file": "menu/U-MENU-02b_64x64.png",
@@ -2855,8 +2851,8 @@
       "primary": true,
       "derivedFrom": "U-MENU-02a",
       "scale": 2,
-      "bytes": 430,
-      "sha256": "f87039e2d0323b9669fd9d1f66b3b09391fd519d1f9945f875baae752004bf12"
+      "bytes": 354,
+      "sha256": "25f8e8c370574125f21afb25dd04aa2c06af58dd5e32a193fd920ec0e9727de9"
     },
     {
       "file": "menu/U-MENU-03a_32x32.png",
@@ -2871,8 +2867,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 450,
-      "sha256": "5625e1788220bc0e871d2fe724863b18ef273e6aea1a3c12e709a27513d0ce42"
+      "bytes": 419,
+      "sha256": "f88df3ba0268b391620233897b2b766a4049a6021a6f633130cadaa6e0cdeb3a"
     },
     {
       "file": "menu/U-MENU-03b_64x64.png",
@@ -2887,8 +2883,8 @@
       "primary": true,
       "derivedFrom": "U-MENU-03a",
       "scale": 2,
-      "bytes": 527,
-      "sha256": "3208d29540a6f4d3e64d16c61309f26ffb43c9c47e7c875229032988829fbaa9"
+      "bytes": 544,
+      "sha256": "8225aefcb65d42e3dada848e40bc4c09507c3b8a1cf7c6ec22fbf9b99a9d169e"
     },
     {
       "file": "menu/U-MENU-04a_32x32.png",
@@ -2903,8 +2899,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 319,
-      "sha256": "3a6a554e1c087cdd8cc832b1b4f2908f290b95db7b27f7509766036f7d6bbd15"
+      "bytes": 223,
+      "sha256": "889ded29bb1038357746657b13ebada23cb4b1687c0e49fb5077adca596558c7"
     },
     {
       "file": "menu/U-MENU-04b_64x64.png",
@@ -2919,8 +2915,8 @@
       "primary": true,
       "derivedFrom": "U-MENU-04a",
       "scale": 2,
-      "bytes": 434,
-      "sha256": "47f45b97c7added1be884e8b47a888bdbaedee495222357687e55b6ad5dec0b8"
+      "bytes": 320,
+      "sha256": "1df16a93296b8f778d6f8d2788122c98b25103a3d8341fd1640f72088a0c1044"
     },
     {
       "file": "menu/U-MENU-05a_32x32.png",
@@ -2935,8 +2931,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 281,
-      "sha256": "6e0f975ea9986a334a91fd8ae704deb42585e27e240e444aed41f750be8b91b3"
+      "bytes": 266,
+      "sha256": "ceb3080f014de6755058e2c7f42059ac188f015cfa23bbb46542e06d05fc37e2"
     },
     {
       "file": "menu/U-MENU-05b_64x64.png",
@@ -2951,8 +2947,8 @@
       "primary": true,
       "derivedFrom": "U-MENU-05a",
       "scale": 2,
-      "bytes": 368,
-      "sha256": "daaecfb166fb1606b989fccadbc078323e7087c79c24836c13f080fb9248aa1b"
+      "bytes": 377,
+      "sha256": "4c8f1656dabd2686cac2ff7f94db6c023d5d499546c4ed37d78517d88ce236a9"
     },
     {
       "file": "menu/U-MENU-06a_32x32.png",
@@ -2967,8 +2963,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 324,
-      "sha256": "fd9103198b415c3e9ac5248151d1eedd6af09db6a536e11472857367993803f4"
+      "bytes": 258,
+      "sha256": "442a538a2d52b9c1429c47a08076131871257f6f41e0b5e2bcbb7bb61537a06d"
     },
     {
       "file": "menu/U-MENU-06b_64x64.png",
@@ -2983,8 +2979,8 @@
       "primary": true,
       "derivedFrom": "U-MENU-06a",
       "scale": 2,
-      "bytes": 420,
-      "sha256": "5f0068ceeeb58c078143834d7d0132d8834ac1bbda3909fe7a265485cc43e1e5"
+      "bytes": 359,
+      "sha256": "f700cbacbf57aabce3ce32192ae2902a4a585af0467e4a45bff61e64a9fa23b8"
     },
     {
       "file": "menu/U-MENU-07a_32x32.png",
@@ -2999,8 +2995,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 282,
-      "sha256": "6d622f4d3443696f9be97ca8f94ff1fee591174a420515a743568a23d802c58a"
+      "bytes": 229,
+      "sha256": "e7da293ce522a52789ff617475558d736a6544af1d9104453f366355ff5f60c0"
     },
     {
       "file": "menu/U-MENU-07b_64x64.png",
@@ -3015,8 +3011,8 @@
       "primary": true,
       "derivedFrom": "U-MENU-07a",
       "scale": 2,
-      "bytes": 366,
-      "sha256": "d9171cc7bfe0ebbd0a92a7e0374d30804a95788fa1a00036a375d24e8e5958b1"
+      "bytes": 314,
+      "sha256": "77501b1377078c984b6a22ff6dd85292d593ddb148b662f3844bbbf12e37b4c0"
     },
     {
       "file": "menu/U-MENU-08a_32x32.png",
@@ -3031,8 +3027,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 427,
-      "sha256": "069b0b3926c8f98d042578ed49cc8b488e67dee42b130e2c723333b75d63a575"
+      "bytes": 447,
+      "sha256": "9c194b53745348c5c24baa7eca7a085c525416e8c878ec196fbebdcac57f09f6"
     },
     {
       "file": "menu/U-MENU-08b_64x64.png",
@@ -3047,8 +3043,8 @@
       "primary": true,
       "derivedFrom": "U-MENU-08a",
       "scale": 2,
-      "bytes": 500,
-      "sha256": "fe20071bf4500e5b1e4e6b1616dd22c58d94a4529a786161aa2939cfb2d13fbd"
+      "bytes": 512,
+      "sha256": "408b9b40b49852575436ef371bc38582831d3695df5a11ccfa055df006276d67"
     },
     {
       "file": "menu/U-MENU-09a_32x32.png",
@@ -3063,8 +3059,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 345,
-      "sha256": "e41ea9a9954b0499143b0fa29b3395dfdf66619b46b3421ee08188c438fd14ee"
+      "bytes": 359,
+      "sha256": "ec267459f3753dd377bc26b473f268d4c00d6fafc8c904aee4bca96b2c72d40a"
     },
     {
       "file": "menu/U-MENU-09b_64x64.png",
@@ -3079,8 +3075,8 @@
       "primary": true,
       "derivedFrom": "U-MENU-09a",
       "scale": 2,
-      "bytes": 453,
-      "sha256": "7787e3e53c2cbcb19c51f01eb50fa20225102f41377e5dda5f6b467ca934b205"
+      "bytes": 448,
+      "sha256": "d70b4450cd0f9f242860723890840440446a5e6842975f930b21d4fa9afe5945"
     },
     {
       "file": "menu/U-MENU-10a_32x32.png",
@@ -3095,8 +3091,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 322,
-      "sha256": "395d69a527509086f2cc1c81b4a29be245f08f6f7a5d15d865b0afb6093f7c30"
+      "bytes": 279,
+      "sha256": "2ff5ceac1eba9578ad47f98bdab82ada6de62af69ae26f2ff5b5c60c9d2e389a"
     },
     {
       "file": "menu/U-MENU-10b_64x64.png",
@@ -3111,8 +3107,8 @@
       "primary": true,
       "derivedFrom": "U-MENU-10a",
       "scale": 2,
-      "bytes": 417,
-      "sha256": "9a33853246a5f4f69fefeb8d898cda1d79bbc8ba0bbb52ad6eb88c360a14b7c5"
+      "bytes": 372,
+      "sha256": "40e09be4b6ca05bdcd025b4b204a70868e034ea79533aee23488c13ce282d1d9"
     },
     {
       "file": "props/U-PROP-01a_16x16.png",
@@ -3127,8 +3123,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 206,
-      "sha256": "d820669b1d8c2351155e85894a1dd0ce3f284b97552f7b2ed98e3f68d0eb085c"
+      "bytes": 143,
+      "sha256": "14eb8f09e14b13320ad9cdd3f6695c208e6054134454dc80960fd4151664b7db"
     },
     {
       "file": "props/U-PROP-01b_32x32.png",
@@ -3143,8 +3139,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 279,
-      "sha256": "1efa6edbcefec648f04333cbaf0887f63cda474a69c0b1307ee21da28d122b1e"
+      "bytes": 201,
+      "sha256": "10cb64b3b7a08c5949c78634efa95f54058c7bc5a68e0196844d7de66f2a7d30"
     },
     {
       "file": "props/U-PROP-01c_64x64.png",
@@ -3159,8 +3155,8 @@
       "primary": true,
       "derivedFrom": "U-PROP-01b",
       "scale": 2,
-      "bytes": 354,
-      "sha256": "64740f3f02e70c6eecc9fbb0d90dc13419026d34581033ed39d3920f4b131f74"
+      "bytes": 278,
+      "sha256": "bbb786c1251213943935250e59990326a4b08bd6d54e6d3e09bc2f3dab319eff"
     },
     {
       "file": "props/U-PROP-02a_16x16.png",
@@ -3175,8 +3171,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 283,
-      "sha256": "9a017c16d31fa911b75c3ddb50b4f6ecea99c98322f1f8db94c41066abc0f1fe"
+      "bytes": 206,
+      "sha256": "ee61da0d6e2ced0163ad8f9d97c231cc055fcd1b20c127df8f33aab66efd1d3f"
     },
     {
       "file": "props/U-PROP-02b_32x32.png",
@@ -3191,8 +3187,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 469,
-      "sha256": "7122a6208eef927fca7946845ebb292b4886c5a2fed25489ee45cc661e804358"
+      "bytes": 292,
+      "sha256": "503af3be91623cdc70177837f213ec08603a1392c0e0435bc73eca24ed8394c0"
     },
     {
       "file": "props/U-PROP-02c_64x64.png",
@@ -3207,8 +3203,8 @@
       "primary": true,
       "derivedFrom": "U-PROP-02b",
       "scale": 2,
-      "bytes": 574,
-      "sha256": "95ac3a43183ea5140c27e75603fe6f6b901eb8f9129c80e8b532ae7b3f13f1a7"
+      "bytes": 389,
+      "sha256": "6e29474d3f4a2f44557389e7c555c63c4b4077ee24b8c8a2ab723429785b9148"
     },
     {
       "file": "props/U-PROP-03a_16x16.png",
@@ -3223,8 +3219,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 214,
-      "sha256": "95ae23659eeaf96b4b4294507f8136c594fa2a2c4d4fa2a737d9d227bab8bccf"
+      "bytes": 134,
+      "sha256": "30e3bdd6b0324a4795485d326fefaff1782551449ca8b9e537004f145a5e6859"
     },
     {
       "file": "props/U-PROP-03b_32x32.png",
@@ -3239,8 +3235,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 319,
-      "sha256": "3a6a554e1c087cdd8cc832b1b4f2908f290b95db7b27f7509766036f7d6bbd15"
+      "bytes": 162,
+      "sha256": "9ada67e99d59f2a62b93578589877af106d0ecfb9a435be71e9d38083aa0f07c"
     },
     {
       "file": "props/U-PROP-03c_64x64.png",
@@ -3255,8 +3251,8 @@
       "primary": true,
       "derivedFrom": "U-PROP-03b",
       "scale": 2,
-      "bytes": 434,
-      "sha256": "47f45b97c7added1be884e8b47a888bdbaedee495222357687e55b6ad5dec0b8"
+      "bytes": 239,
+      "sha256": "85ad63f6a7547c50a6846ecb9273566c627f11ae6b258b3e5635b03365e55e6d"
     },
     {
       "file": "props/U-PROP-04a_16x16.png",
@@ -3271,8 +3267,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 235,
-      "sha256": "e4e1854d8b064372abb7a77ce48878749d7ca7927bde7af625c457e382f728d9"
+      "bytes": 160,
+      "sha256": "3c9e65c463c2710617390746a6f79e40144375146a41ba67cae57f126daa8887"
     },
     {
       "file": "props/U-PROP-04b_32x32.png",
@@ -3287,8 +3283,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 342,
-      "sha256": "bd95b27db55a95fa8434af51850e9fcb03b7b93d052f20364af36b39e0d7183a"
+      "bytes": 243,
+      "sha256": "16da095be1c80a01ac3beaf94a8b14421786055044646cd41e316e9520e131ff"
     },
     {
       "file": "props/U-PROP-04c_64x64.png",
@@ -3303,8 +3299,8 @@
       "primary": true,
       "derivedFrom": "U-PROP-04b",
       "scale": 2,
-      "bytes": 444,
-      "sha256": "9bb155767468ced2ee5331de5fc39cc48a0c34e5cbcbd1bd79b0b2c03aec832a"
+      "bytes": 328,
+      "sha256": "8fd3e967fd15cf2cd653f6d3f2a927deb0ec50f8dc48a6fb9c7a988d7f91e700"
     },
     {
       "file": "props/U-PROP-05a_16x16.png",
@@ -3319,8 +3315,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 212,
-      "sha256": "46825475398701ec3480f2f9b39c8d8a3bb10a8cfeacfeeed0f39a84860162e4"
+      "bytes": 151,
+      "sha256": "3bfb7eb0d3dedc21038c7ed15ee01abc8c7d80d1be7c460f5f5525b975806736"
     },
     {
       "file": "props/U-PROP-05b_32x32.png",
@@ -3335,8 +3331,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 298,
-      "sha256": "9ede2e1d8db848ea3a16a2fc814b2fd1666f43c85de2443857c78fbdab6a77f5"
+      "bytes": 207,
+      "sha256": "df529117cfc90aacc80849e30008fa30b9a5e7f3e1b15bf6171cd54a3d155768"
     },
     {
       "file": "props/U-PROP-05c_64x64.png",
@@ -3351,8 +3347,8 @@
       "primary": true,
       "derivedFrom": "U-PROP-05b",
       "scale": 2,
-      "bytes": 386,
-      "sha256": "81002662831a742484ab4514339a0fe88a78c21940bf8e21f595428c34d842f8"
+      "bytes": 287,
+      "sha256": "802b02bde317dbc53d89a51b6cae44abed4bd39ad96a59a8a3d8a790f4e1fae9"
     },
     {
       "file": "props/U-PROP-06a_16x16.png",
@@ -3367,8 +3363,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 280,
-      "sha256": "af71e00c77eb889a2721318993fceb3f816162cad6eddf6627d19e5531da09dc"
+      "bytes": 192,
+      "sha256": "ac0923eaae4a8ec67281020486c1c6f94215113ecd0578f06d4a35884546b386"
     },
     {
       "file": "props/U-PROP-06b_32x32.png",
@@ -3383,8 +3379,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 416,
-      "sha256": "c3aedf8a33fab44129b2cb7da55f3103b18dc7492de65c61ccbf4b9c5d8574fd"
+      "bytes": 248,
+      "sha256": "b02a2d20709281978f027936e9decc69c28ba704b99e8e57477183841308a2c7"
     },
     {
       "file": "props/U-PROP-06c_64x64.png",
@@ -3399,8 +3395,8 @@
       "primary": true,
       "derivedFrom": "U-PROP-06b",
       "scale": 2,
-      "bytes": 514,
-      "sha256": "06e1452ed16254e6236ec072e40bc2daf181bc222b2e660ac8cbff29972c0103"
+      "bytes": 349,
+      "sha256": "ade9f501d9737db5cd1ec351b6bd2836edb1518d298bb682009b7a7c80ee3310"
     },
     {
       "file": "badges/U-BADGE-01a_16x16.png",
@@ -3415,8 +3411,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 202,
-      "sha256": "0b26243b21fc823f10a9cf93dfed1d5c8def25f686354cd476148d47bcec52bd"
+      "bytes": 196,
+      "sha256": "b3f393eb741fc3e96d97a5a9e8b1f84aa77a8e0a481bbc650ad3294e61615e99"
     },
     {
       "file": "badges/U-BADGE-01b_32x32.png",
@@ -3431,8 +3427,8 @@
       "primary": true,
       "derivedFrom": "U-BADGE-01a",
       "scale": 2,
-      "bytes": 249,
-      "sha256": "69672ff877c4dab0c1f5600cbe97033eb1901ea186fabbf01e5ab3a37a36f15d"
+      "bytes": 258,
+      "sha256": "927aa5d932066405c5751be7a38c793dcc411bbe0e60d77e8e3245504124f765"
     },
     {
       "file": "badges/U-BADGE-02a_16x16.png",
@@ -3447,8 +3443,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 228,
-      "sha256": "f4513cb6e33300bb4d46abb1fe5df21fe1ade9b3e9301353957a93400b247213"
+      "bytes": 178,
+      "sha256": "c21bd493ea241408c6d91938cd36301bf1c5a1f36a8573a85aca842747ae472e"
     },
     {
       "file": "badges/U-BADGE-02b_32x32.png",
@@ -3463,8 +3459,8 @@
       "primary": true,
       "derivedFrom": "U-BADGE-02a",
       "scale": 2,
-      "bytes": 264,
-      "sha256": "c73f03fd203e0bb17e9d4c9eeb5dbd43dbe41b95b43da37abd1b80dd8fe43c5a"
+      "bytes": 228,
+      "sha256": "d16c518cff5aef12112a4d733e004390d2401d30b18fbcdd8fb0c65377a5a008"
     },
     {
       "file": "badges/U-BADGE-03a_16x16.png",
@@ -3479,8 +3475,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 235,
-      "sha256": "0eb6808713e7aea00dc9a9491996dd1dd650e6b95a664446eb3425cf6b0844cd"
+      "bytes": 178,
+      "sha256": "40e95dd08252c3e03afcf9c39c592028bf226172cfbd5e4bb21281784d7cede4"
     },
     {
       "file": "badges/U-BADGE-03b_32x32.png",
@@ -3495,8 +3491,8 @@
       "primary": true,
       "derivedFrom": "U-BADGE-03a",
       "scale": 2,
-      "bytes": 276,
-      "sha256": "59e77e00be51652e0cdeae9e272bc329baf7c673f7d4b785a9201b1b1b02c0e3"
+      "bytes": 229,
+      "sha256": "342a3a7e037feceb2f61b27c8928edc12fc77826ad193a89704a744cc8927048"
     },
     {
       "file": "badges/U-BADGE-04a_16x16.png",
@@ -3511,8 +3507,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 240,
-      "sha256": "a1ade36dd462404bf16a3b936faa42e3e741052690b394786150925971e75e74"
+      "bytes": 145,
+      "sha256": "0347c36528e9d1832d0189471845c6ece5ba5597b57a9c631f41240b6c3994d3"
     },
     {
       "file": "badges/U-BADGE-04b_32x32.png",
@@ -3527,8 +3523,8 @@
       "primary": true,
       "derivedFrom": "U-BADGE-04a",
       "scale": 2,
-      "bytes": 279,
-      "sha256": "8718e674481e72600bc5912cf635a88ab86f5766ba1e52b0d573ab7ae440a23f"
+      "bytes": 180,
+      "sha256": "dfff6991395463f57d40fe241eed173ce77d157ad4e9d90037933f745be3a39d"
     },
     {
       "file": "badges/U-BADGE-05a_16x16.png",
@@ -3543,8 +3539,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 226,
-      "sha256": "e2c8f9d8082fcbd6f007365b8f1f78aa53dd44daa09fd674dbf0fb6bde47cd08"
+      "bytes": 174,
+      "sha256": "cd0df0951cd8acdbc646f191d903d1d1ffe33914653c28783c685f04d09634f5"
     },
     {
       "file": "badges/U-BADGE-05b_32x32.png",
@@ -3559,8 +3555,8 @@
       "primary": true,
       "derivedFrom": "U-BADGE-05a",
       "scale": 2,
-      "bytes": 266,
-      "sha256": "605d7a50c3be6eb0da799b8f3c5d076b855a5aac2d2f77687b4758bf6667b730"
+      "bytes": 219,
+      "sha256": "b69399369ccb8256dd007fc93ede4bb40bc7ae72183e9dad0244ad266445d2a7"
     },
     {
       "file": "badges/U-BADGE-06a_16x16.png",
@@ -3575,8 +3571,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 164,
-      "sha256": "65ffa2e5839cb322a99c04a250d41d9126111514f8c74a3b7785fe47db0a44c8"
+      "bytes": 165,
+      "sha256": "041bf10ba9647b8ed81698fa5a82c22eb61167f87b4ef075fbaa8dcefe7748e8"
     },
     {
       "file": "badges/U-BADGE-06b_32x32.png",
@@ -3591,8 +3587,8 @@
       "primary": true,
       "derivedFrom": "U-BADGE-06a",
       "scale": 2,
-      "bytes": 209,
-      "sha256": "055827decd5427a77ee7fb36b257d3c61821d183e3ae0f3260594725fd65f354"
+      "bytes": 200,
+      "sha256": "4a887faf0ccd23ab756e32a7466126cf957265bbe0f22732af49fa39c551adff"
     },
     {
       "file": "placeholders/U-PH-01a_48x48.png",
@@ -3607,8 +3603,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 211,
-      "sha256": "02108b804176f1a13cc1af52ae2d7250a00ba96ac21f0800884266c536a5dc4a"
+      "bytes": 341,
+      "sha256": "3e97f2e2f5bf5781a1103d4507191940b754126c7ef6aa24739cdef9a79dbb5d"
     },
     {
       "file": "placeholders/U-PH-01b_96x96.png",
@@ -3623,8 +3619,8 @@
       "primary": true,
       "derivedFrom": "U-PH-01a",
       "scale": 2,
-      "bytes": 304,
-      "sha256": "7db7c3183b372b46f32f4879712edb658aa656c235205d03ccbed96da28ff7a6"
+      "bytes": 508,
+      "sha256": "afc564bc97b63caeda354a025dd411733b0dbc55372015d0276b000d6dc755a9"
     },
     {
       "file": "placeholders/U-PH-02a_48x48.png",
@@ -3639,8 +3635,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 284,
-      "sha256": "447b7eae14507bfc89e7248cfcf450c6b327c83adf13151514c1edcf65ac8b40"
+      "bytes": 229,
+      "sha256": "4754c9496037709372a9f1d1420bf3d24587fce0a6fb7d0ce19ee1a8de6a479b"
     },
     {
       "file": "placeholders/U-PH-02b_96x96.png",
@@ -3655,8 +3651,8 @@
       "primary": true,
       "derivedFrom": "U-PH-02a",
       "scale": 2,
-      "bytes": 387,
-      "sha256": "3aaf37aa1b7b73ebc4272625650ba47039d117131c9f8b70b65de51bd71090e6"
+      "bytes": 329,
+      "sha256": "2b29f35c3ae3f67b53f6b2063bd2521de2de43c1ca966d61d4d9e7f762278c6a"
     },
     {
       "file": "placeholders/U-PH-03a_48x48.png",
@@ -3671,8 +3667,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 392,
-      "sha256": "fbab966b3574e5dfec0e9ef4ef1378707cc8c9ef1bc7b61a291376f778eb2e50"
+      "bytes": 266,
+      "sha256": "0ed2834e6af120857e5bac07fce685357e54b1284cdcfac8dc4206abe10c2a04"
     },
     {
       "file": "placeholders/U-PH-03b_96x96.png",
@@ -3687,8 +3683,8 @@
       "primary": true,
       "derivedFrom": "U-PH-03a",
       "scale": 2,
-      "bytes": 528,
-      "sha256": "7f77b4696a21a458feefbbf9ddef18457c1fe7071e749c7a99a19b5d88719c08"
+      "bytes": 387,
+      "sha256": "60d61be7a3574dc99ef966b6f1233f81b1fecc27584de8c90128d45925d4b529"
     },
     {
       "file": "placeholders/U-PH-04a_48x48.png",
@@ -3703,8 +3699,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 384,
-      "sha256": "1bb486f9c9b9663f57d3c5e53d3a0f31257fe01fc610dd04bed5212cea1e8490"
+      "bytes": 295,
+      "sha256": "4348f1d91f68d63c84849e6f18d8dfc76b6819296eabc5b7e52461c3ee26e7d5"
     },
     {
       "file": "placeholders/U-PH-04b_96x96.png",
@@ -3719,8 +3715,8 @@
       "primary": true,
       "derivedFrom": "U-PH-04a",
       "scale": 2,
-      "bytes": 522,
-      "sha256": "d0e474b6dfef3fdc2823515f5b50d6b12c8f28cfb381e66acacca4da9b2eca25"
+      "bytes": 383,
+      "sha256": "1e6a5cb7a95f0ed116b70013259b32e787c95af5b6c7bb9c48e9a3df0d231d53"
     },
     {
       "file": "indicators/U-IND-01a_12x12.png",
@@ -3735,8 +3731,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 159,
-      "sha256": "22ad025328ed8487479c6fe1f11297394f74fb72822d00840d1e2d5de285d5c9"
+      "bytes": 176,
+      "sha256": "1495982733db363a17168c3157313de1cce20da927239dac38dbaaeb60413279"
     },
     {
       "file": "indicators/U-IND-01b_16x16.png",
@@ -3751,8 +3747,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 255,
-      "sha256": "cf72ad2399a26b9021e8ff6db70a521ff56ee377a6776745035328da64228d11"
+      "bytes": 239,
+      "sha256": "9d4ed6ca39f444798bd423da09744de8e6a70848bd8da948ad400d78662e295f"
     },
     {
       "file": "indicators/U-IND-01c_24x24.png",
@@ -3767,8 +3763,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 351,
-      "sha256": "d080be8f75f9ae943aa3a061ac8cb359d3e06c87219eb322ca1d768f606c4607"
+      "bytes": 296,
+      "sha256": "f75aa3c9126c4bb0232801cd0d11254a60833dc0df4bd12fac985bd1e9884037"
     },
     {
       "file": "indicators/U-IND-02a_12x12.png",
@@ -3783,8 +3779,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 194,
-      "sha256": "b1ab173135c97131d15f37ccfedd2c27dbf14ecdebc46f857cb5043cd4e58eac"
+      "bytes": 180,
+      "sha256": "532d9d63afc32e99d0a41b3635bcdba0660c5f4e2612b126e98de8941247bcad"
     },
     {
       "file": "indicators/U-IND-02b_16x16.png",
@@ -3799,8 +3795,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 223,
-      "sha256": "d712298b6ba75c53ecc36b30281b97a2bd3723997233a67f438f46fe70949b2c"
+      "bytes": 198,
+      "sha256": "057381d3bc3e02e270499d114c3cad680afadeea6e7ce30162c99ecf8545f57d"
     },
     {
       "file": "indicators/U-IND-02c_24x24.png",
@@ -3815,8 +3811,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 282,
-      "sha256": "01cb869ebe2b190d14b89dca1b34fcf54d3e47551d602832e75836ebe906966c"
+      "bytes": 226,
+      "sha256": "cdb339d0e62e6b8fc3586c67a3fede6bee92f310d708aaf9bd2445ad3bf5cc4a"
     },
     {
       "file": "indicators/U-IND-03a_12x12.png",
@@ -3831,8 +3827,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 96,
-      "sha256": "e40c1e600eccb6e190c28762c0db3b4cfe454badc3133b82a2daa0f0a2a6ee33"
+      "bytes": 104,
+      "sha256": "f7a567506c21b14a6a1563d10829f95b9ea5671330bdb24005306347abaeb458"
     },
     {
       "file": "indicators/U-IND-03b_16x16.png",
@@ -3847,8 +3843,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 117,
-      "sha256": "62815b547ccfb339463fcbc4e054c093e6b0552ff3ffd3af55570648f58e31cc"
+      "bytes": 112,
+      "sha256": "373defaf9419eac3376263848e5f0a4c79227ac107d683365d0853b3e2484336"
     },
     {
       "file": "indicators/U-IND-03c_24x24.png",
@@ -3863,8 +3859,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 130,
-      "sha256": "955283fe6f44e1aded1cc2e7925e22e624abfda7fcd567bc73e7fe7add427616"
+      "bytes": 151,
+      "sha256": "041b9eae0d9fe9d21d1b5cff392618b5213ff92a13e26512086e5794227a32f0"
     },
     {
       "file": "indicators/U-IND-04a_12x12.png",
@@ -3879,8 +3875,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 109,
-      "sha256": "71753a2df6bdb61cd2407f05174ed89777521b926a57e783f2e7d1b21f7cc666"
+      "bytes": 125,
+      "sha256": "02405d526441dc3f2b3a6251cb5153a87f898c8d7965ac3ace26052289d72a8c"
     },
     {
       "file": "indicators/U-IND-04b_16x16.png",
@@ -3895,8 +3891,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 129,
-      "sha256": "529464b664bf1d5404aec5094b527d668b427b0a8e1cc661af29ab37352ae142"
+      "bytes": 117,
+      "sha256": "e5a68a06502de53a9ba5f6efb7bd79d69ac39145a469a348a89bf775726ee0ec"
     },
     {
       "file": "indicators/U-IND-04c_24x24.png",
@@ -3911,8 +3907,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 164,
-      "sha256": "62463c891b62ca786ac79627b2f1fe3979e267c7fa5f14b8551ad14cd77656b9"
+      "bytes": 148,
+      "sha256": "ce0ceeb8cec756984c0e36c7cabd96b18557f32e656eb921cbd95589bb6b3e4c"
     },
     {
       "file": "indicators/U-IND-05a_12x12.png",
@@ -3927,8 +3923,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 165,
-      "sha256": "d3bd09b0b085c9eabd618e17ed6820fb60dff4ae72e6a6133b380145bebe6d72"
+      "bytes": 158,
+      "sha256": "d0c0afb240c73fcc2df3c8ea20eda053d0b1d236b314bb3129fd589b1968ab06"
     },
     {
       "file": "indicators/U-IND-05b_16x16.png",
@@ -3943,8 +3939,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 190,
-      "sha256": "5fb7c2712f0bee7aa2ed47322b587586b4105c641a447af5c974e61f561197bc"
+      "bytes": 194,
+      "sha256": "d9b0b74d06453decdd50554028cf91cc43b398edad653651fe4987e9b20ecad1"
     },
     {
       "file": "indicators/U-IND-05c_24x24.png",
@@ -3959,8 +3955,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 258,
-      "sha256": "4a0e3b98f5f5963de86ab191d61a60b13c66d827a37bc26cca1a7956e361074f"
+      "bytes": 228,
+      "sha256": "dee842c847087f48aa8664f0b9a014c73d2de52c97b7f272facfb1470a3affc2"
     },
     {
       "file": "indicators/U-IND-06a_12x12.png",
@@ -3975,8 +3971,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 195,
-      "sha256": "71f8ac577a11f8e17854b5511542c734bd699262770f991598b9c10e7c67a4ba"
+      "bytes": 167,
+      "sha256": "2c494f107faf90061a95c6f4cbeab8533550682c0edfa4a1e4839cc3c125413e"
     },
     {
       "file": "indicators/U-IND-06b_16x16.png",
@@ -3991,8 +3987,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 225,
-      "sha256": "7dc65da2a16e00d2d61bfc311dedda8b1bc088478d05f2d289b2138aaa66c5da"
+      "bytes": 180,
+      "sha256": "1923508c8ac96306f6017c1de3156e44ad57b023b86386e554a832765e94543d"
     },
     {
       "file": "indicators/U-IND-06c_24x24.png",
@@ -4007,8 +4003,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 276,
-      "sha256": "33b506e903f8dfc833ed44df4c86ed722228ff4dfa2504f2dee9fe7ff52d9f05"
+      "bytes": 239,
+      "sha256": "06ae5da316e71ba5ff23d1e6a65175d7166561f2571f0089f01aceafbaa40364"
     },
     {
       "file": "icons/U-ICON-01_16x16.png",
@@ -4023,8 +4019,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 209,
-      "sha256": "e7547a446126fd3319f3b3fe032f288d397eaa80dca4ec66a6da36bc7268b92a"
+      "bytes": 149,
+      "sha256": "25440a3e46b69c98c9f9b20342676b82592f6bf3bc4adeee18e9cc607ee45002"
     },
     {
       "file": "icons/U-ICON-02_32x32.png",
@@ -4039,8 +4035,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 272,
-      "sha256": "dc7a073e65f2b972d0a873ee4e9eab87c957287dfdc815aa09499521a8dce75f"
+      "bytes": 214,
+      "sha256": "c9751e19c735b63674a586d686512393d8df0b717f7aecb7b2793da6460b6667"
     },
     {
       "file": "icons/U-ICON-03_256x256.png",
@@ -4055,8 +4051,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 971,
-      "sha256": "77cec6e11709e1cc1f6f8cb6cd744d6ff72d67ae51162dfd102a82a81753e0c0"
+      "bytes": 855,
+      "sha256": "4b8d9fee763973f88936e45e96f923bd89cc0f8b0e566291687daa21b1e4aa83"
     },
     {
       "file": "icons/U-ICON-04_app.ico",
@@ -4071,8 +4067,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 2072,
-      "sha256": "2408f11f7ced145a6539cf0d6b651c230a1d5807809902d0f0b39b900270a5fc"
+      "bytes": 3080,
+      "sha256": "122b4cf456efb3f8a619a7d3310818628914a899356c03db1210b88d8da74930"
     },
     {
       "file": "backgrounds/U-BG-01_480x336.png",
@@ -4087,8 +4083,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 2200,
-      "sha256": "3271871a8c7dc8ecb456f65f7d2abd81cffc8e22acd708099d5232a5ed0a33f8"
+      "bytes": 2764,
+      "sha256": "16a5e1dcd83203a35af0cf68d7c4feed20f1c869720b6c0f8cb8e0e9aa3506cb"
     },
     {
       "file": "backgrounds/U-BG-02_480x336.png",
@@ -4103,8 +4099,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 2472,
-      "sha256": "06d4be7f6b292bcbfec6f63b024e2d4f3c94ef61634210c69b45d75455c4fd9c"
+      "bytes": 2114,
+      "sha256": "5ccf14b6d377864bea7044fc8cfcfa3ca9caa0d3d52dedd78ddf52851cd7dd03"
     },
     {
       "file": "backgrounds/U-BG-03_480x336.png",
@@ -4119,8 +4115,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 1660,
-      "sha256": "9552daead64fb875b6809da8a4d125446af66c17f3497c95b6bf8ac717654619"
+      "bytes": 1797,
+      "sha256": "9da74a69d39eb702754f8c3aef3451276f27fd5090528b0922425daf0d09a612"
     },
     {
       "file": "fx/U-FX-01_24x24.png",
@@ -4135,8 +4131,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 205,
-      "sha256": "96850ef6578eb0760b96f6aaea2397c496630d970e047cc0d10ab93ad320ff51"
+      "bytes": 152,
+      "sha256": "2c2a3726b0c1c8a85f0e4fe2ad619674d4dda8afebc375acfad0b1c44f8e1872"
     },
     {
       "file": "fx/U-FX-02_48x48.png",
@@ -4151,8 +4147,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 399,
-      "sha256": "07a9626a1f02feaed60e762d8d0ecc55a42eb5316052f5c1537a57ece31df520"
+      "bytes": 440,
+      "sha256": "50e9bf821da6c8ce426e8e3ac7f894677fe13d5c16457b831f7c4e81ef6ab71f"
     },
     {
       "file": "roleplay/RP-001_64x64.png",
@@ -4167,8 +4163,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 653,
-      "sha256": "3dac5978957725c5994595bcf22426e038a522f458739c275309cb69c26ef269"
+      "bytes": 512,
+      "sha256": "4c874372e37296401faeecce8952159d7f3d9bcae0a07a8ab054412172fbd540"
     },
     {
       "file": "roleplay/RP-001_128x128.png",
@@ -4183,8 +4179,8 @@
       "primary": false,
       "derivedFrom": "RP-001",
       "scale": 2,
-      "bytes": 880,
-      "sha256": "4d0b0d48d06cf6ae196b59325abab71d75c998167dd780fc04c87293bab7c8bd"
+      "bytes": 723,
+      "sha256": "9af44f48d660587cefd0b4f9e2ccae6c628899c2ab00f33abc8c5a7469b2f607"
     },
     {
       "file": "roleplay/RP-002_32x32.png",
@@ -4199,8 +4195,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 364,
-      "sha256": "721d369c6930740c6ec6966fffa61b8ae1eb72dbcbbf457343c6c8789e7d3134"
+      "bytes": 309,
+      "sha256": "23482497f2abd99cf55ca84b7a46682a7a9c9de6714a8e304323239db073e43e"
     },
     {
       "file": "roleplay/RP-002_64x64.png",
@@ -4215,8 +4211,8 @@
       "primary": false,
       "derivedFrom": "RP-002",
       "scale": 2,
-      "bytes": 429,
-      "sha256": "45017d2adbb30f20b40c6746d865802d6f44fc372f4f4e1b5b1a0a4baa000553"
+      "bytes": 412,
+      "sha256": "043e1160ae357e36a9390a3337841c8311aecdc43280c235f85a7f6482f8cda5"
     },
     {
       "file": "roleplay/RP-003_32x32.png",
@@ -4231,8 +4227,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 296,
-      "sha256": "c4768d13ebce47a069022e911770d8c3c8b385151c1a775ff1e3d6891d4ffadc"
+      "bytes": 290,
+      "sha256": "89bfbe1e879e10dc649e6d3bec9499f083fc302b3e3d0efba129d75bd618bcf8"
     },
     {
       "file": "roleplay/RP-003_64x64.png",
@@ -4247,8 +4243,8 @@
       "primary": false,
       "derivedFrom": "RP-003",
       "scale": 2,
-      "bytes": 381,
-      "sha256": "6117b15e746a75a4e4c69d8940e72eab448635a84f210c38a556509e42a06a1e"
+      "bytes": 400,
+      "sha256": "f930c96285d70c9f1197806600941d7b6677ee22a4c56fb5b9eecf5bcd2e3f93"
     },
     {
       "file": "roleplay/RP-004_32x32.png",
@@ -4263,8 +4259,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 303,
-      "sha256": "f120a1a637937d03175196e894db3cc107ea4db6d06be2864a48f75ea0702fd0"
+      "bytes": 376,
+      "sha256": "9ec5181ff86fc4b6c362aff8aa3b6e564a38bb05e0f142d0160fc2956eeb489b"
     },
     {
       "file": "roleplay/RP-004_64x64.png",
@@ -4279,8 +4275,8 @@
       "primary": false,
       "derivedFrom": "RP-004",
       "scale": 2,
-      "bytes": 401,
-      "sha256": "b282e72db03cf2271eb35499a067393f155e48768e39094a14799c80dc40e011"
+      "bytes": 483,
+      "sha256": "26fcbdf3aec1dc4799f6471e6fdc320b72cd551c21703eea768eed617e248f46"
     },
     {
       "file": "roleplay/RP-005_64x64.png",
@@ -4295,8 +4291,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 674,
-      "sha256": "c0b948153cc23fbf6df2482061cc31d4d1ec12676f291105e1dcac072c8ac6d9"
+      "bytes": 547,
+      "sha256": "da9841d93b26a827bf9388460eb7df84e7f482b9dc41f2d4b38d22e20b395c59"
     },
     {
       "file": "roleplay/RP-005_128x128.png",
@@ -4311,8 +4307,8 @@
       "primary": false,
       "derivedFrom": "RP-005",
       "scale": 2,
-      "bytes": 903,
-      "sha256": "6caeed4e0196dfe4f988be35f8a6054d2c3be72bde30f79cc535155495c4a179"
+      "bytes": 811,
+      "sha256": "6a5a8f8aafac80140692a96cb66f72e5f9548c47b7f3b429926a876d4b33d051"
     },
     {
       "file": "roleplay/RP-006_32x32.png",
@@ -4327,8 +4323,8 @@
       "primary": true,
       "derivedFrom": null,
       "scale": null,
-      "bytes": 279,
-      "sha256": "74edb6233fdedfd5c89937d7153b18c145d7c352f2a000a29c66b02035f030b0"
+      "bytes": 263,
+      "sha256": "7f6fcde0495b60320363d579bfa55135b7b9dcc374b0c07e6acd14b973b7495f"
     },
     {
       "file": "roleplay/RP-006_64x64.png",
@@ -4343,8 +4339,8 @@
       "primary": false,
       "derivedFrom": "RP-006",
       "scale": 2,
-      "bytes": 371,
-      "sha256": "39a8bd8de444f695aa6760d6c7866247e5eaa31ae1c82d76b3a4bcd7e71054c8"
+      "bytes": 360,
+      "sha256": "4e944cd4e6aa3b078d2fc078274e3a07d8ba6c18150f4783dd50e20f6282b8db"
     }
   ]
 }
