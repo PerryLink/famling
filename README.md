@@ -16,7 +16,7 @@ Famling 是一个 Windows 桌面像素桌宠 + DSH（DeepSeek Harness）客户�
 
 ### A. Windows 桌面版（unsigned，推荐）
 
-1. 打开 [Releases](https://github.com/PerryLink/famling/releases) 下载最新的 `Famling_*_x64-setup.exe`（或 `famling-pet-windows-unsigned` 里的 portable zip）。
+1. 打开 [Releases](https://github.com/PerryLink/famling/releases) 下载最新的 `Famling_*_x64-setup.exe`（或 `Famling_*_x64-portable.zip`）。
 2. 运行安装器。**产物未签名**：SmartScreen 提示时选「更多信息 → 仍要运行」；SHA256 校验值随 Release 提供。
 3. 这是透明的 480×336 置顶小窗：点角色互动，右键角色（或 Shift+F10）打开菜单；设置里可调低打扰、缩放、音色与数据边界。
 
