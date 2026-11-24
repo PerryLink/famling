@@ -9,7 +9,7 @@
 - 代码/构建：`.github/workflows/build-windows.yml`（Windows runner，Node 22.16，Tauri unsigned）最近成功构建于 `f8095b2`（2026-11-22）；artifact 名 `famling-pet-windows-unsigned`。
 - 美术：2026-11-22 final art（三只角色，96×96，共 420 帧 = 368 canonical + 52 alias），随 `art-delivery-2026-11-22` release 提供交付包；本仓 `public/assets/pet/anim/` 为 final art。
 - 桌面发行：`famling-pet-v0.1.0`（unsigned Windows 安装包 + portable zip；SHA256 随 Release）。**无签名、无自动更新、无商店**。
-- DSH 插件：`dsh-famling` npm 最新发布 `0.13.3`（2026-11-24）：DSH 兼容自检、分层门禁、宿主工作状态、气泡优先级；仓库 [PerryLink/dsh-famling](https://github.com/PerryLink/dsh-famling)。
+- DSH 插件：`dsh-famling` npm 最新发布 `0.13.4`（2026-11-24）：DSH 兼容自检、分层门禁、宿主工作状态、气泡优先级；Advisers 0.5.0 Pet Brief 复验通过；仓库 [PerryLink/dsh-famling](https://github.com/PerryLink/dsh-famling)。
 - 在线预览：GitHub Pages `https://perrylink.github.io/famling/`（`demo/`，无 DSH 依赖）。
 - 许可：代码 PolyForm Noncommercial 1.0.0；美术 CC BY-NC-SA 4.0；AI 资产标注见 `AI-PROVENANCE.md`。
 
