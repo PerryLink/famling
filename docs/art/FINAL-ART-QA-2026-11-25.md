@@ -23,3 +23,10 @@
 
 - 托盘图标可视化、panic crash 报告真实写盘（需受控触发）。
 - approval pending > 0 的真机 DSH 审批（需要 agent turn + 工具审批）；dsh-famling 的字段可用性见 DSH smoke 记录。
+
+## 2026-11-25 复核（用户反馈后）
+
+- 猫/汀岚/狗的 PNG 均为 **alpha 0/255 透明底**（transparent checker 预览可见）；当前 contact sheet 已改为棋盘格透明底，不再用深色底造成“黑背景”误读。
+- 狗 source art 中有一条纵向浅色胸口/腹部带（红框标注图在本地 audit 目录）；不是透明缺口，也不是 alpha 黑洞。
+- 汀岚 idle 的帧差只覆盖 y≈4–55（头/上身），身体静止；walk/run 帧差覆盖到 y=90（腿/全身）。若需要 idle 全身动，需新增/重绘 idle 动画。
+- native Tauri 窗口为 layered+transparent；黑底若在 app 窗口出现，属于窗口合成/桌面背景问题，不是 PNG 资产。
