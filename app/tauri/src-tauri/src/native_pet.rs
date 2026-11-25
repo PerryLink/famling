@@ -12,17 +12,18 @@ use std::ptr::{null, null_mut};
 
 use tauri::{AppHandle, Manager};
 use windows_sys::Win32::Foundation::{
-    GetLastError, BOOL, HANDLE, HWND, LPARAM, LRESULT, POINT, RECT, SIZE, WPARAM,
+    GetLastError, HANDLE, HWND, LPARAM, LRESULT, POINT, RECT, SIZE, WPARAM,
 };
 use windows_sys::Win32::Graphics::Gdi::{
     CreateCompatibleDC, CreateDIBSection, DeleteDC, DeleteObject, GetDC, ReleaseDC, SelectObject,
     BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, BLENDFUNCTION, HBITMAP, HDC, HGDIOBJ,
 };
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
+use windows_sys::Win32::UI::Input::KeyboardAndMouse::ReleaseCapture;
 use windows_sys::Win32::UI::HiDpi::GetDpiForWindow;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetMessageW, GetWindowRect,
-    GetWindowLongPtrW, LoadCursorW, PostQuitMessage, RegisterClassExW, ReleaseCapture,
+    GetWindowLongPtrW, LoadCursorW, PostQuitMessage, RegisterClassExW,
     SendMessageW, SetTimer, SetWindowLongPtrW, ShowWindow, SystemParametersInfoW,
     TranslateMessage, UpdateLayeredWindow, GWLP_USERDATA, HTCAPTION,
     IDC_ARROW, MA_NOACTIVATE, MSG, SPI_GETWORKAREA, SW_SHOWNOACTIVATE, ULW_ALPHA, WM_DESTROY,
@@ -346,7 +347,12 @@ fn decode_premultiplied(path: &str, bytes: &[u8]) -> Result<Vec<u8>, String> {
     let mut reader = decoder
         .read_info()
         .map_err(|error| format!("{path}: png header: {error}"))?;
-    let mut buffer = vec![0; reader.output_buffer_size()];
+    let mut buffer = vec![
+        0;
+        reader
+            .output_buffer_size()
+            .ok_or_else(|| format!("{path}: frame too large"))?
+    ];
     let info = reader
         .next_frame(&mut buffer)
         .map_err(|error| format!("{path}: png frame: {error}"))?;
