@@ -30,3 +30,10 @@
 - 狗 source art 中有一条纵向浅色胸口/腹部带（红框标注图在本地 audit 目录）；不是透明缺口，也不是 alpha 黑洞。
 - 汀岚 idle 的帧差只覆盖 y≈4–55（头/上身），身体静止；walk/run 帧差覆盖到 y=90（腿/全身）。若需要 idle 全身动，需新增/重绘 idle 动画。
 - native Tauri 窗口为 layered+transparent；黑底若在 app 窗口出现，属于窗口合成/桌面背景问题，不是 PNG 资产。
+
+## 0.2.2 修复（2026-11-25）
+
+- 狗：去除 final art 中纵向浅色胸口/腹部条（`y=42-90` 内的浅色像素统一为身体橙金色 `#f2cf87`；136 帧全部处理）。
+- 汀岚 idle：6 帧整体做 ±1px 横向摆动（whole-sprite sway，不做部件错位），让身体参与轻微运动而不产生内部接缝。
+- 透明背景：高对比度主题的 `--famling-content-bg` 不再绘制到桌宠窗口的 `.book::before`（透明背景选择优先），修复本机运行时黑框与动画中透明缝隙发黑。
+- 重新生成 checkerboard QA contact sheets。

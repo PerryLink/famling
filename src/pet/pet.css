@@ -27,6 +27,15 @@ main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1
 /* Content center background layer: painted behind the pet/bubble, invisible
    while the background is transparent (default + fresh profile), so the default
    visual is unchanged. Non-default background/theme bg becomes visible here. */
+
+/* content-bg-transparent-fix (2026-11-25): a non-default theme may set
+   --famling-content-bg (e.g. high-contrast #000000). With a transparent
+   background selection that theme color must not paint the .book::before
+   layer, otherwise the window shows an opaque black frame and transparent
+   sprite gaps look like cracks while animating. */
+html[data-pet-shell="desktop"][data-content-background-kind="transparent"] .book::before {
+  background: transparent !important;
+}
 .book::before {
   content: "";
   position: absolute;

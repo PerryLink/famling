@@ -9,6 +9,13 @@ PolyForm Noncommercial 1.0.0; pet/UI art is under CC BY-NC-SA 4.0. Keep both
 license fields unchanged when preparing releases. Legal texts remain **DRAFT**;
 "approval-ready" means ready for owner/legal approval, not approved or released.
 
+## [0.2.2] — 2026-11-25
+
+### Fixed
+- Transparent background selection no longer paints the theme background color on the pet window (high-contrast theme could leave an opaque black frame; transparent sprite gaps looked like cracks while animating).
+- Dog final art: removed the light vertical chest/belly band below the chest.
+- Human idle now includes a whole-body sway (frames shifted as a whole, no internal seam) instead of head-only motion.
+
 ## [0.2.1] — 2026-11-25 (unsigned, approval-ready, no updater)
 
 ### Added

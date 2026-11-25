@@ -1,7 +1,7 @@
 # Tauri host (scaffold)
 
 Status: **scaffold only** — this build image has no Rust toolchain, so the host
-has not been compiled here (including the 0.2.1 native lifecycle below). Electron
+has not been compiled here (including the 0.2.2 native lifecycle below). Electron
 was actually run on this machine; Tauri is the host we would build before
 shipping a low-footprint background pet.
 
@@ -26,7 +26,7 @@ Tauri (Rust)                          WebView2
 The kernel never imports Node or Tauri. The browser build already proves it runs
 without `node:` APIs; the Rust side only supplies host ports and Steam.
 
-## Native lifecycle (0.2.1)
+## Native lifecycle (0.2.2)
 
 Implemented in `src-tauri/src/main.rs`; **code-reviewed only** in this
 environment (no Rust toolchain), so a Windows `cargo check` / `tauri build` is
