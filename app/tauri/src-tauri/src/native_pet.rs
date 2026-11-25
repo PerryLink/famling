@@ -198,8 +198,9 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
         WM_RBUTTONUP => {
             if !raw.is_null() {
                 let app = (*raw).app.clone();
+                let handle = app.clone();
                 let _ = app.run_on_main_thread(move || {
-                    if let Some(window) = app.get_webview_window("main") {
+                    if let Some(window) = handle.get_webview_window("main") {
                         let _ = window.show();
                         let _ = window.unminimize();
                         let _ = window.set_focus();
