@@ -37,3 +37,8 @@
 - 汀岚 idle：6 帧整体做 ±1px 横向摆动（whole-sprite sway，不做部件错位），让身体参与轻微运动而不产生内部接缝。
 - 透明背景：高对比度主题的 `--famling-content-bg` 不再绘制到桌宠窗口的 `.book::before`（透明背景选择优先），修复本机运行时黑框与动画中透明缝隙发黑。
 - 重新生成 checkerboard QA contact sheets。
+
+## 0.2.3 追加修复
+
+- 狗：清除臀部纵向黑色接缝列（x=70–74 内的暗色像素用相邻非暗色填充），136 帧全部处理。
+- 应用层：启动时调用 WebView2 setBackgroundColor([0,0,0,0]) 并添加 capability，Windows 透明 WebView2 默认黑底不再出现在透明缝隙。

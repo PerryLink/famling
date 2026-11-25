@@ -2233,7 +2233,13 @@ function exitApplication(): void {
       void import('@tauri-apps/api/core')
         .then(({ invoke }) => invoke('quit_app'))
         .catch(() => {
-          void import('@tauri-apps/api/window')
+          // 2026-11-25: Windows WebView2 may keep an opaque black default background even
+// when the Tauri window is transparent; explicitly set the webview background
+// to transparent so transparent sprite gaps never render black.
+void import('@tauri-apps/api/webviewWindow')
+  .then(({ getCurrentWebviewWindow }) => getCurrentWebviewWindow().setBackgroundColor([0, 0, 0, 0]))
+  .catch(() => {})
+void import('@tauri-apps/api/window')
             .then(({ getCurrentWindow }) => getCurrentWindow().close())
             .catch(() => {
               try {

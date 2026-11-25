@@ -9,6 +9,12 @@ PolyForm Noncommercial 1.0.0; pet/UI art is under CC BY-NC-SA 4.0. Keep both
 license fields unchanged when preparing releases. Legal texts remain **DRAFT**;
 "approval-ready" means ready for owner/legal approval, not approved or released.
 
+## [0.2.3] — 2026-11-25
+
+### Fixed
+- Dog butt: remove the residual vertical dark seam column at rear (all 136 frames).
+- Explicitly set the WebView2 background color to transparent (Windows) so transparent gaps never render as black bars.
+
 ## [0.2.2] — 2026-11-25
 
 ### Fixed
