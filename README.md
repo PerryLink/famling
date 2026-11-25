@@ -12,6 +12,10 @@
 
 Famling 是一个 Windows 桌面像素桌宠 + DSH（DeepSeek Harness）客户端插件：480×336 无边框置顶小窗、三套 96×96 像素角色、四层缩放、存档自动保存与坏档恢复、内容角色包（安装/回滚/热切换）、低打扰安静时段与健康提醒。
 
+## Experimental native pet renderer
+
+`famling-tauri.exe --pet-renderer=native --pet-native-char=dog` renders the pet in a native per-pixel-alpha Win32 window (research: `docs/research/native-pet-2026-11-25/`, status: `docs/plan/NATIVE-PET-WINDOW-MVP-2026-11-25.md`). Default remains the web renderer.
+
 ## 30 秒开始
 
 ### A. Windows 桌面版（unsigned，推荐）

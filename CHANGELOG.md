@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased] — native pet window (opt-in)
+
+- Add raw Win32 per-pixel-alpha pet renderer (`--pet-renderer=native`), default web unchanged.
+- Embed final-art idle frames via build.rs; add native window architecture research/phase plan.
+
 All notable changes to this repository are documented here. This public export is
 the pet-only Famling desktop app (`famling-pet`); the DSH plugin
 (`dsh-famling`) is versioned and released separately.
