@@ -7,8 +7,8 @@
   <a href="LICENSE"><img alt="license" src="https://img.shields.io/github/license/PerryLink/famling" /></a>
 </p>
 
-> **状态：C1 unsigned 邀请 beta（研究原型）。** 无 Authenticode 签名、无自动更新、无公开商店、无生产 DLC 根；本仓不声称已合规或可公开发布。
-> **非官方项目，不关联 DeepSeek。** 内容/角色为原创或已登记来源，AI 生成资产按仓内 AI-PROVENANCE 标注。
+> **状态：0.2.0 发布候选（unsigned，研究原型；approval-ready，尚未发布/未签名）。** 无 Authenticode 签名、无自动更新、无公开商店、无生产 DLC 根；本仓不声称已合规或可公开发布。
+> **非官方项目，不关联 DeepSeek。** 内容/角色为原创或已登记来源，AI 生成资产按仓内 AI-PROVENANCE 标注；模型许可 **UNVERIFIED**（见 [LICENSES.md](LICENSES.md)）。
 
 Famling 是一个 Windows 桌面像素桌宠 + DSH（DeepSeek Harness）客户端插件：480×336 无边框置顶小窗、三套 96×96 像素角色、四层缩放、存档自动保存与坏档恢复、内容角色包（安装/回滚/热切换）、低打扰安静时段与健康提醒。
 
@@ -16,8 +16,8 @@ Famling 是一个 Windows 桌面像素桌宠 + DSH（DeepSeek Harness）客户�
 
 ### A. Windows 桌面版（unsigned，推荐）
 
-1. 打开 [Releases](https://github.com/PerryLink/famling/releases) 下载最新的 `Famling_*_x64-setup.exe`（或 `Famling_*_x64-portable.zip`）。
-2. 运行安装器。**产物未签名**：SmartScreen 提示时选「更多信息 → 仍要运行」；SHA256 校验值随 Release 提供。
+1. 打开 [Releases](https://github.com/PerryLink/famling/releases) 下载最新的 `Famling_*_x64-setup.exe`（或 `Famling_*_x64-portable.zip`）；同页提供 `SHA256SUMS.txt` 与 `BUILD-INFO.txt`。
+2. 运行安装器。**产物未签名**：SmartScreen 提示时选「更多信息 → 仍要运行」；先用 SHA256 校验值核对产物。
 3. 这是透明的 480×336 置顶小窗：点角色互动，右键角色（或 Shift+F10）打开菜单；设置里可调低打扰、缩放、音色与数据边界。
 
 ### B. 作为 DSH 插件（最轻量）
@@ -34,6 +34,16 @@ dsh plugin --profile web add dsh-famling
 npm ci
 npm run dev
 # 打开 http://localhost:5173/pet.html?hero=1（不加 ?hero=1 时显示折纸 PAGEFOLD 兜底形态）
+```
+
+发布前校验（与 CI 同一套门禁）：
+
+```sh
+npm run typecheck
+npm run build
+npm run validate:character -- public/characters/pet-tinglan-anim --strict
+npm run validate:character -- public/characters/pet-cat --strict
+npm run validate:character -- public/characters/pet-dog --strict
 ```
 
 Tauri 桌面版构建需要 Node ≥22.16、Rust MSVC、Visual Studio Build Tools 与 WebView2：
@@ -57,7 +67,7 @@ cd app/tauri && npx --yes @tauri-apps/cli@2 build
 
 ## 功能
 
-- **三套 96×96 像素动画**：2026-11-22 final art，共 **420 帧**（368 canonical + 52 alias）；透明背景，跟随 DSH light/dark 的菜单与面板。
+- **三套 96×96 像素动画**：2026-11-22 final art，共 **420 帧**（368 canonical + 52 alias；human 141 / cat 143 / dog 136 帧）；透明背景，跟随 DSH light/dark 的菜单与面板。帧数/来源/AI 模型许可（UNVERIFIED）见 [docs/ART-REBUILD-2026-11-22.md](docs/ART-REBUILD-2026-11-22.md)。
 - **独立桌面应用**：480×336 无边框透明置顶窗、贴边停靠与位置恢复、多屏/DPI clamp、拖拽物理；菜单/互动/设置/内容中心。
 - **DSH 插件**：侧栏 72px、零常驻按钮、右键/Shift+F10 分级菜单；工作状态粗状态（idle/working/success/error）与气泡优先级。
 - **低打扰**：安静时段（默认 22:00–08:00）、减少动态、暂时隐藏、健康提醒；所有自动源可跳过，不补打扰。
@@ -75,18 +85,19 @@ cd app/tauri && npx --yes @tauri-apps/cli@2 build
 
 ## 许可与使用限制
 
-- 代码：**PolyForm Noncommercial 1.0.0**（`LICENSE` / `LICENSE-COMMERCIAL.md`）。
+- 代码：**PolyForm Noncommercial 1.0.0**（`LICENSE` / `LICENSE-COMMERCIAL.md`）。本仓为 **source-available（非 OSI 开源）**，不是 MIT；商用需单独书面许可。
 - 桌宠美术/设定：**CC BY-NC-SA 4.0**（`LICENSE-ART`）；角色名/Logo/商标不随 CC 许可授权。
+- AI 模型许可：**UNVERIFIED**（MiniMax-H3-Image，本地 ComfyUI）；商用/发布前须复核。完整清单见 [LICENSES.md](LICENSES.md)，AI 资产台账见 `AI-PROVENANCE.md`。
 - **仅用于技术研究与原型验证**；禁止情感陪伴/虚拟伴侣、专业建议、未成年人亲密关系、冒充真人/官方、违法用途。完整条款见 [docs/legal/USE-RESTRICTIONS-2026-11-19.md](docs/legal/USE-RESTRICTIONS-2026-11-19.md)。
 - 全部法律文本仍为 DRAFT，需律师/权利人复核；本仓不构成合规结论。
 
 ## 已知限制（如实披露）
 
-- unsigned beta：exe/安装器 NotSigned；无 updater/签名证书；无生产 DLC 信任根。
+- unsigned 0.2.0 候选：exe/安装器 NotSigned；无 updater/签名证书；无生产 DLC 信任根。
 - Windows only（桌面 app）；公开导出不含私有 monorepo 的测试/证据链，C1 可复现证据在私有侧维护。
-- 无私有仓真实 CI；本仓 GitHub Actions 为 pet-only Windows 构建（unsigned artifact 上传 Releases）。
+- 本仓 GitHub Actions 为 pet-only Windows 构建：`npm ci` → typecheck → build → 三角色 `validate:character --strict` 门禁 + unsigned artifact；tag 构建生成 `SHA256SUMS.txt`/`BUILD-INFO.txt` 并创建 unsigned Release（不做签名）。
 - 市场/支付/审核/运营服务器不存在；内容包市场只做离线 UI 与协议。
-- DSH 插件当前发布版为 `0.13.2`；0.13.3 的离线自检/门禁增强尚未发布。
+- DSH 插件当前发布版为 `0.13.4`（2026-11-24）；插件版本与跨仓内容语义锚点单独维护。
 
 ## 不包含
 
@@ -99,7 +110,8 @@ cd app/tauri && npx --yes @tauri-apps/cli@2 build
 - `app/tauri/`：Windows 桌面壳（透明窗、存档、语音/密钥 IPC）；
 - `public/assets/pet/anim/`：三套 96×96 final art 与 manifest；
 - `public/legal/`：TOS/隐私/使用限制；`docs/`：设计与契约文档；
-- `demo/`：GitHub Pages 在线预览源码；`docs/demo/`：README 用 GIF/截图。
+- `demo/`：GitHub Pages 在线预览源码；`docs/demo/`：README 用 GIF/截图；
+- `CHANGELOG.md` / `LICENSES.md`：0.2.0 变更与许可清单。
 
 ## 历史说明（2026-11-18）
 

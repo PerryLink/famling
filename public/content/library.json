@@ -15,7 +15,7 @@
     {
       "id": "human",
       "name": "汀岚 · 人形工作搭子",
-      "description": "一键切换到汀岚：人形角色、stella 语音、标准对话、默认外观与 68 帧动画行为。",
+      "description": "一键切换到汀岚：人形角色、stella 语音、标准对话、默认外观与 2026-11-22 final 动画（29 tags / 141 帧，含 12-tag 兼容别名）。来源与模型披露见 docs/ART-REBUILD-2026-11-22.md。",
       "characterId": "humanoid",
       "voiceId": "stella",
       "dialoguePackId": "standard",
@@ -45,20 +45,22 @@
       "author": "Famling maintainers",
       "license": {
         "spdx": "LicenseRef-PolyForm-Noncommercial-1.0.0",
-        "attribution": "Famling maintainers; placeholder art under LICENSE-ART (CC BY-NC-SA 4.0)"
+        "attribution": "Famling maintainers; final pixel art (2026-11-22 art rebuild) under LICENSE-ART (CC BY-NC-SA 4.0); AI-assisted, model license UNVERIFIED; see docs/ART-REBUILD-2026-11-22.md"
       },
       "aiProvenance": {
-        "generated": false,
-        "disclosure": "内置占位像素帧由确定性脚本生成，未使用生成式 AI；最终美术替换后须更新本声明。",
+        "generated": true,
+        "disclosure": "final 像素帧由本地 ComfyUI MiniMax-H3-Image 生成底稿 + Pillow 脚本确定性精修（2026-11-22 美术重制）；模型许可未核实（UNVERIFIED），发布/商用前须复核；详见 docs/ART-REBUILD-2026-11-22.md。",
         "tools": [
-          "deterministic-python-renderer"
+          "minimax-h3-image",
+          "comfyui",
+          "pillow-scripts"
         ]
       }
     },
     {
       "id": "cat",
       "name": "布偶猫",
-      "description": "一键切换到蓝重点双色布偶猫：白底丝滑长毛、灰蓝重点、空心心理气泡、永不 TTS、透明背景 + 夜间气泡外观与 72 帧动画行为。",
+      "description": "一键切换到蓝重点双色布偶猫：白底丝滑长毛、灰蓝重点、空心心理气泡、永不 TTS、透明背景 + 夜间气泡外观与 2026-11-22 final 动画（29 tags / 143 帧，含兼容别名）。来源与模型披露见 docs/ART-REBUILD-2026-11-22.md。",
       "characterId": "cat",
       "voiceId": "none",
       "dialoguePackId": "standard",
@@ -88,20 +90,22 @@
       "author": "Famling maintainers",
       "license": {
         "spdx": "LicenseRef-PolyForm-Noncommercial-1.0.0",
-        "attribution": "Famling maintainers; placeholder art under LICENSE-ART (CC BY-NC-SA 4.0)"
+        "attribution": "Famling maintainers; final pixel art (2026-11-22 art rebuild) under LICENSE-ART (CC BY-NC-SA 4.0); AI-assisted, model license UNVERIFIED; see docs/ART-REBUILD-2026-11-22.md"
       },
       "aiProvenance": {
-        "generated": false,
-        "disclosure": "内置占位像素帧由确定性脚本生成，未使用生成式 AI；最终美术替换后须更新本声明。",
+        "generated": true,
+        "disclosure": "final 像素帧由本地 ComfyUI MiniMax-H3-Image 生成底稿 + Pillow 脚本确定性精修（2026-11-22 美术重制）；模型许可未核实（UNVERIFIED），发布/商用前须复核；详见 docs/ART-REBUILD-2026-11-22.md。",
         "tools": [
-          "deterministic-python-renderer"
+          "minimax-h3-image",
+          "comfyui",
+          "pillow-scripts"
         ]
       }
     },
     {
       "id": "dog",
       "name": "金毛",
-      "description": "一键切换到金毛寻回犬：空心心理气泡、永不 TTS、透明背景 + 纸张气泡外观与 68 帧动画行为。",
+      "description": "一键切换到金毛寻回犬：空心心理气泡、永不 TTS、透明背景 + 纸张气泡外观与 2026-11-22 final 动画（28 tags / 136 帧，含兼容别名）。来源与模型披露见 docs/ART-REBUILD-2026-11-22.md。",
       "characterId": "dog",
       "voiceId": "none",
       "dialoguePackId": "standard",
@@ -131,13 +135,15 @@
       "author": "Famling maintainers",
       "license": {
         "spdx": "LicenseRef-PolyForm-Noncommercial-1.0.0",
-        "attribution": "Famling maintainers; placeholder art under LICENSE-ART (CC BY-NC-SA 4.0)"
+        "attribution": "Famling maintainers; final pixel art (2026-11-22 art rebuild) under LICENSE-ART (CC BY-NC-SA 4.0); AI-assisted, model license UNVERIFIED; see docs/ART-REBUILD-2026-11-22.md"
       },
       "aiProvenance": {
-        "generated": false,
-        "disclosure": "内置占位像素帧由确定性脚本生成，未使用生成式 AI；最终美术替换后须更新本声明。",
+        "generated": true,
+        "disclosure": "final 像素帧由本地 ComfyUI MiniMax-H3-Image 生成底稿 + Pillow 脚本确定性精修（2026-11-22 美术重制）；模型许可未核实（UNVERIFIED），发布/商用前须复核；详见 docs/ART-REBUILD-2026-11-22.md。",
         "tools": [
-          "deterministic-python-renderer"
+          "minimax-h3-image",
+          "comfyui",
+          "pillow-scripts"
         ]
       }
     },
@@ -173,11 +179,11 @@
       "author": "Famling maintainers",
       "license": {
         "spdx": "LicenseRef-PolyForm-Noncommercial-1.0.0",
-        "attribution": "Famling maintainers; placeholder art under LICENSE-ART (CC BY-NC-SA 4.0)"
+        "attribution": "Famling maintainers; final UI pixel art (2026-11-22 art rebuild; approval HUD badges 2026-11-25) under LICENSE-ART (CC BY-NC-SA 4.0); see docs/ART-REBUILD-2026-11-22.md"
       },
       "aiProvenance": {
         "generated": false,
-        "disclosure": "内置占位像素帧由确定性脚本生成，未使用生成式 AI；最终美术替换后须更新本声明。",
+        "disclosure": "内置折纸形态由 DOM/CSS 绘制；菜单/预览像素图为 2026-11-22 final UI 资产（本地确定性 Python/PIL 脚本，无 AI 模型调用）。详见 docs/ART-REBUILD-2026-11-22.md。",
         "tools": [
           "deterministic-python-renderer"
         ]

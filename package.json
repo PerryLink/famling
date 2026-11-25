@@ -1,7 +1,7 @@
 {
   "name": "famling-pet",
   "private": false,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "Famling pet-only executable: Tinglan/cat/dog desktop pet (Tauri). Full game base stays private.",
   "scripts": {
@@ -9,7 +9,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "validate:character": "node scripts/validate-character.mjs"
+    "validate:character": "node --import tsx scripts/validate-character.mjs"
   },
   "dependencies": {
     "@sentry/browser": "^9.47.2",
@@ -19,6 +19,8 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
+    "ajv": "^8.20.0",
+    "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vite": "^8.3.8"
   },

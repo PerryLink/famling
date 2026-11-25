@@ -12,63 +12,132 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
-        with: { node-version: '22.16' }
-      - name: Build frontend
-        run: npm ci && npm run build
+        with:
+          node-version: '22.16'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck and build frontend
+        run: |
+          npm run typecheck
+          npm run build
+
+      - name: Validate built-in character packs (FCI --strict)
+        run: |
+          npm run validate:character -- public/characters/pet-tinglan-anim --strict
+          npm run validate:character -- public/characters/pet-cat --strict
+          npm run validate:character -- public/characters/pet-dog --strict
+
       - uses: dtolnay/rust-toolchain@stable
+
       - name: Install Tauri CLI (pin the native optional dependency)
         run: |
           npm install --no-save @tauri-apps/cli@2
           $v = node -p "require('@tauri-apps/cli/package.json').version"
           npm install --no-save "@tauri-apps/cli@$v" "@tauri-apps/cli-win32-x64-msvc@$v"
+
       - name: Build Tauri (unsigned)
         working-directory: app/tauri
         run: npx --no-install tauri build
-      - name: Collect release files + checksums
-        if: startsWith(github.ref, 'refs/tags/famling-pet-v')
+
+      - name: Package release files + SHA256SUMS + BUILD-INFO
         shell: pwsh
         run: |
-          $tag = "${{ github.ref_name }}"
-          $ver = $tag -replace '^famling-pet-v',''
+          $ErrorActionPreference = 'Stop'
           $root = (Get-Location).Path
+          $ver = node -p "require('./package.json').version"
+          $tag = if ($env:GITHUB_REF -like 'refs/tags/famling-pet-v*') { $env:GITHUB_REF_NAME } else { 'none' }
+          if ($tag -ne 'none' -and $tag -ne "famling-pet-v$ver") { throw "release tag $tag does not match package version $ver" }
           $installer = Get-ChildItem -Recurse 'app/tauri/src-tauri/target/release/bundle/nsis' -Filter *.exe | Select-Object -First 1
           if (-not $installer) { throw 'NSIS installer not found' }
           $portableExe = Get-ChildItem 'app/tauri/src-tauri/target/release' -Filter *.exe -File | Select-Object -First 1
           if (-not $portableExe) { throw 'portable exe not found' }
           $out = New-Item -ItemType Directory -Force 'out/release'
-          Copy-Item $installer.FullName (Join-Path $out ("Famling_{0}_x64-setup.exe" -f $ver))
-          $zipInputs = @($portableExe.FullName, (Join-Path $root 'README.md'), (Join-Path $root 'LICENSE'), (Join-Path $root 'LICENSE-ART'), (Join-Path $root 'NOTICE'))
-          Compress-Archive -Path $zipInputs -DestinationPath (Join-Path $out ("Famling_{0}_x64-portable.zip" -f $ver))
-          $files = Get-ChildItem $out -File
+          $setupName = 'Famling_{0}_x64-setup.exe' -f $ver
+          $zipName = 'Famling_{0}_x64-portable.zip' -f $ver
+          Copy-Item $installer.FullName (Join-Path $out $setupName)
+          $zipInputs = @(
+            $portableExe.FullName,
+            (Join-Path $root 'README.md'),
+            (Join-Path $root 'LICENSES.md'),
+            (Join-Path $root 'CHANGELOG.md'),
+            (Join-Path $root 'LICENSE'),
+            (Join-Path $root 'LICENSE-ART'),
+            (Join-Path $root 'NOTICE'),
+            (Join-Path $root 'docs\ART-REBUILD-2026-11-22.md')
+          )
+          Compress-Archive -Path $zipInputs -DestinationPath (Join-Path $out $zipName) -Force
+
+          $nodeVersion = node --version
+          $rustVersion = rustc --version
+          $tauriVersion = node -p "require('@tauri-apps/cli/package.json').version"
+          $builtAt = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+          $workflowRun = '{0}/{1}/actions/runs/{2}' -f $env:GITHUB_SERVER_URL, $env:GITHUB_REPOSITORY, $env:GITHUB_RUN_ID
+          $buildInfo = @(
+            'Famling pet-only Windows release artifacts (UNSIGNED)'
+            ''
+            'product: Famling (famling-pet)'
+            ('version: ' + $ver)
+            ('release-tag: ' + $tag)
+            ('commit: ' + $env:GITHUB_SHA)
+            ('ref: ' + $env:GITHUB_REF)
+            ('workflow-run: ' + $workflowRun)
+            ('built-at-utc: ' + $builtAt)
+            'runner: windows-latest'
+            ('node: ' + $nodeVersion)
+            ('rustc: ' + $rustVersion)
+            ('tauri-cli: ' + $tauriVersion)
+            'target: x86_64-pc-windows-msvc'
+            'signing: none (unsigned; no Authenticode certificate, no signing secrets)'
+            'notes: verify SHA256SUMS.txt before running; SmartScreen warns on unsigned installers.'
+          )
+          $buildInfo | Set-Content (Join-Path $out 'BUILD-INFO.txt') -Encoding utf8
+
+          $files = Get-ChildItem $out -File | Where-Object { $_.Name -ne 'SHA256SUMS.txt' }
           $lines = foreach ($f in $files) { '{0}  {1}' -f (Get-FileHash $f.FullName -Algorithm SHA256).Hash.ToLower(), $f.Name }
           $lines | Set-Content (Join-Path $out 'SHA256SUMS.txt') -Encoding ascii
-          "RELEASE_TAG=$tag" | Out-File -FilePath $env:GITHUB_ENV -Append
-          "RELEASE_DIR=$($out.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
-          Get-ChildItem $out | Select-Object Name,Length
-      - name: Create unsigned Release
-        if: startsWith(github.ref, 'refs/tags/famling-pet-v')
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          $notes = @'
-          Famling pet-only Windows build (unsigned).
 
-          - Public pet-only export; desktop app is a 480x336 transparent always-on-top window.
-          - Build is unsigned: Windows SmartScreen will warn; use 'More info -> Run anyway' after verifying SHA256.
-          - No auto-updater, no store listing, no DLC/market server.
-          - Include SHA256SUMS.txt; verify assets before running.
-          - Research prototype only; not an emotional-companion product.
-          '@
-          $fileArgs = Get-ChildItem $env:RELEASE_DIR -File | ForEach-Object { $_.FullName }
-          gh release create $env:RELEASE_TAG @fileArgs --title $env:RELEASE_TAG --notes $notes --repo $env:GITHUB_REPOSITORY
-      - uses: actions/upload-artifact@v4
+          $envLines = "RELEASE_TAG=$tag`nRELEASE_DIR=$($out.FullName)`n"
+          [System.IO.File]::AppendAllText($env:GITHUB_ENV, $envLines, [System.Text.UTF8Encoding]::new($false))
+          Get-ChildItem $out | Select-Object Name,Length | Format-Table -AutoSize | Out-String -Width 200
+
+      - name: Upload unsigned Windows build artifact
+        uses: actions/upload-artifact@v4
         with:
           name: famling-pet-windows-unsigned
           path: |
             app/tauri/src-tauri/target/release/bundle/**
             app/tauri/src-tauri/target/release/*.exe
+
+      - name: Upload release files + checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: famling-pet-release-files
+          path: out/release/**
+          if-no-files-found: error
+
+      - name: Create unsigned Release
+        if: startsWith(github.ref, 'refs/tags/famling-pet-v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $notes = @'
+          Famling pet-only Windows release (UNSIGNED, approval-ready candidate).
+
+          - Public pet-only export; desktop app is a 480x336 transparent always-on-top window.
+          - Final pixel art/UI metadata truth: human/cat/dog 2026-11-22 final art, 420 frames incl. aliases; see docs/ART-REBUILD-2026-11-22.md.
+          - Build is unsigned: no Authenticode certificate, no signing step, no signing secrets. Windows SmartScreen will warn; use 'More info -> Run anyway' after verifying SHA256SUMS.txt.
+          - Artifacts include SHA256SUMS.txt + BUILD-INFO.txt; verify assets before running.
+          - No auto-updater, no store listing, no DLC/market server.
+          - Code PolyForm Noncommercial 1.0.0; art CC BY-NC-SA 4.0; AI model license UNVERIFIED (see LICENSES.md). Research prototype only; not an emotional-companion product.
+          '@
+          $fileArgs = Get-ChildItem $env:RELEASE_DIR -File | ForEach-Object { $_.FullName }
+          gh release create $env:RELEASE_TAG @fileArgs --title $env:RELEASE_TAG --notes $notes --repo $env:GITHUB_REPOSITORY

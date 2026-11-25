@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "id": "ui.roleplay.91.v1",
-  "title": "UI / 图标 / 背景 / roleplay 合规资产 91 件（2026-11-22 final）",
+  "id": "ui.roleplay.97.v1",
+  "title": "UI / 图标 / 背景 / roleplay 合规资产 97 件（2026-11-22 final + 2026-11-25 审批 HUD 徽章）",
   "registry": "docs/art/per-image/INVENTORY-UI-ROLEPLAY-2026-11-16.md",
-  "generated": "2026-11-22",
+  "generated": "2026-11-25",
   "generation": {
     "method": "deterministic local pixel painting with Python/PIL primitives (2026-11-22 art rebuild)",
     "api": "none",
@@ -16,7 +16,21 @@
     "palette": "famling-ui-pixel@0.1",
     "report": "docs/ART-REBUILD-2026-11-22.md",
     "contactSheets": [],
-    "note": "Contact sheets are distributed in the art-delivery release (art-delivery-2026-11-22), not committed to this repo."
+    "note": "2026-11-22 final art; 2026-11-25 extension: +3 approval HUD badge assets (16+32, U-BADGE-13/14/15) generated deterministically by art-rebuild/work/tools/gen_approval_ui.py; prior 91 assets unchanged. Contact sheets are distributed in release, not committed.",
+    "approvalHud": {
+      "generated": "2026-11-25",
+      "generator": "art-rebuild/work/tools/gen_approval_ui.py",
+      "assets": [
+        "U-BADGE-13a",
+        "U-BADGE-13b",
+        "U-BADGE-14a",
+        "U-BADGE-14b",
+        "U-BADGE-15a",
+        "U-BADGE-15b"
+      ],
+      "palette": "famling-ui-pixel@0.1",
+      "notes": "hard alpha, no AA, 1px ink outline, <=6 colors; 32px is integer 2x of 16px master"
+    }
   },
   "style": {
     "name": "famling-ui-pixel@0.1",
@@ -85,10 +99,10 @@
     "notOfficialDeepseek": true
   },
   "counts": {
-    "assets": 91,
-    "files": 97,
-    "logicalRegistry": 91,
-    "physicalFiles": 97,
+    "assets": 97,
+    "files": 103,
+    "logicalRegistry": 97,
+    "physicalFiles": 103,
     "roleplayDualTierVariants": 6,
     "byGroup": {
       "menu": {
@@ -102,8 +116,8 @@
         "priority": "P1"
       },
       "badges": {
-        "assets": 12,
-        "files": 12,
+        "assets": 18,
+        "files": 18,
         "priority": "P1"
       },
       "placeholders": {
@@ -138,8 +152,8 @@
       }
     },
     "byPriority": {
+      "P1": 82,
       "P0": 10,
-      "P1": 76,
       "P2": 5
     }
   },
@@ -2787,6 +2801,174 @@
           "scale": 2
         }
       ]
+    },
+    {
+      "id": "U-BADGE-13a",
+      "group": "badges",
+      "groupLabel": "状态徽章",
+      "role": "待确认提醒",
+      "use": "Agent 有审批在等待；只读提醒，不显示工具名/参数",
+      "priority": "P1",
+      "size": [
+        16,
+        16
+      ],
+      "tier": "a=16 母版",
+      "file": "badges/U-BADGE-13a_16x16.png",
+      "files": [
+        "badges/U-BADGE-13a_16x16.png"
+      ],
+      "format": "png",
+      "sha256": "d99a2a87c8a59a1fc3a9b3b70215a2ce7208a2c458382f5ec9099f89b49d5739",
+      "bytes": 162,
+      "colors": 4,
+      "maxColors": 6,
+      "alpha": "binary",
+      "license": "CC BY-NC-SA 4.0 (2026-11-25 approval HUD extension)",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_approval_ui.py",
+      "notOfficialDeepseek": true,
+      "notes": "16px 母版；1px 墨线；≤6 色；整数 2x 由母版最近邻放大"
+    },
+    {
+      "id": "U-BADGE-13b",
+      "group": "badges",
+      "groupLabel": "状态徽章",
+      "role": "待确认提醒",
+      "use": "Agent 有审批在等待（2x）",
+      "priority": "P1",
+      "size": [
+        32,
+        32
+      ],
+      "tier": "b=2x",
+      "file": "badges/U-BADGE-13b_32x32.png",
+      "files": [
+        "badges/U-BADGE-13b_32x32.png"
+      ],
+      "format": "png",
+      "sha256": "a2e30081ad1ad1091995f48c6261c7daf9bab94a7cf634a6e6d72fcf2060a8a5",
+      "bytes": 218,
+      "colors": 4,
+      "maxColors": 6,
+      "alpha": "binary",
+      "license": "CC BY-NC-SA 4.0 (2026-11-25 approval HUD extension)",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_approval_ui.py",
+      "notOfficialDeepseek": true,
+      "notes": "母版整数 2x；未重采样"
+    },
+    {
+      "id": "U-BADGE-14a",
+      "group": "badges",
+      "groupLabel": "状态徽章",
+      "role": "工作完成",
+      "use": "Agent 工作完成/成功",
+      "priority": "P1",
+      "size": [
+        16,
+        16
+      ],
+      "tier": "a=16 母版",
+      "file": "badges/U-BADGE-14a_16x16.png",
+      "files": [
+        "badges/U-BADGE-14a_16x16.png"
+      ],
+      "format": "png",
+      "sha256": "b0e5449bb56d8d9ec2b717eaa0719d51ae6327988a72fb5265bc1bb6cc29b556",
+      "bytes": 169,
+      "colors": 4,
+      "maxColors": 6,
+      "alpha": "binary",
+      "license": "CC BY-NC-SA 4.0 (2026-11-25 approval HUD extension)",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_approval_ui.py",
+      "notOfficialDeepseek": true,
+      "notes": "16px 母版；1px 墨线；≤6 色；整数 2x 由母版最近邻放大"
+    },
+    {
+      "id": "U-BADGE-14b",
+      "group": "badges",
+      "groupLabel": "状态徽章",
+      "role": "工作完成",
+      "use": "Agent 工作完成/成功（2x）",
+      "priority": "P1",
+      "size": [
+        32,
+        32
+      ],
+      "tier": "b=2x",
+      "file": "badges/U-BADGE-14b_32x32.png",
+      "files": [
+        "badges/U-BADGE-14b_32x32.png"
+      ],
+      "format": "png",
+      "sha256": "90b82ca4b88865136729743be79c93126d81831e0838ef8d2732acddc08a01d0",
+      "bytes": 213,
+      "colors": 4,
+      "maxColors": 6,
+      "alpha": "binary",
+      "license": "CC BY-NC-SA 4.0 (2026-11-25 approval HUD extension)",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_approval_ui.py",
+      "notOfficialDeepseek": true,
+      "notes": "母版整数 2x；未重采样"
+    },
+    {
+      "id": "U-BADGE-15a",
+      "group": "badges",
+      "groupLabel": "状态徽章",
+      "role": "等待中",
+      "use": "Agent 正在等待/处理中",
+      "priority": "P1",
+      "size": [
+        16,
+        16
+      ],
+      "tier": "a=16 母版",
+      "file": "badges/U-BADGE-15a_16x16.png",
+      "files": [
+        "badges/U-BADGE-15a_16x16.png"
+      ],
+      "format": "png",
+      "sha256": "9e27094c21430a46300c9a67ff6e741adda957461076c56d31e8996343695b9f",
+      "bytes": 205,
+      "colors": 5,
+      "maxColors": 6,
+      "alpha": "binary",
+      "license": "CC BY-NC-SA 4.0 (2026-11-25 approval HUD extension)",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_approval_ui.py",
+      "notOfficialDeepseek": true,
+      "notes": "16px 母版；1px 墨线；≤6 色；整数 2x 由母版最近邻放大"
+    },
+    {
+      "id": "U-BADGE-15b",
+      "group": "badges",
+      "groupLabel": "状态徽章",
+      "role": "等待中",
+      "use": "Agent 正在等待/处理中（2x）",
+      "priority": "P1",
+      "size": [
+        32,
+        32
+      ],
+      "tier": "b=2x",
+      "file": "badges/U-BADGE-15b_32x32.png",
+      "files": [
+        "badges/U-BADGE-15b_32x32.png"
+      ],
+      "format": "png",
+      "sha256": "050321a371d5e46f33cfb80d60f75b3092a7cd01cc34ed324adf0b97548b2bea",
+      "bytes": 251,
+      "colors": 5,
+      "maxColors": 6,
+      "alpha": "binary",
+      "license": "CC BY-NC-SA 4.0 (2026-11-25 approval HUD extension)",
+      "ai": "none",
+      "source": "deterministic-local-pixel:art-rebuild/work/tools/gen_approval_ui.py",
+      "notOfficialDeepseek": true,
+      "notes": "母版整数 2x；未重采样"
     }
   ],
   "fileIndex": [
@@ -4341,6 +4523,102 @@
       "scale": 2,
       "bytes": 360,
       "sha256": "4e944cd4e6aa3b078d2fc078274e3a07d8ba6c18150f4783dd50e20f6282b8db"
+    },
+    {
+      "file": "badges/U-BADGE-13a_16x16.png",
+      "assetId": "U-BADGE-13a",
+      "group": "badges",
+      "tier": "a=16 母版",
+      "size": [
+        16,
+        16
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 162,
+      "sha256": "d99a2a87c8a59a1fc3a9b3b70215a2ce7208a2c458382f5ec9099f89b49d5739"
+    },
+    {
+      "file": "badges/U-BADGE-13b_32x32.png",
+      "assetId": "U-BADGE-13b",
+      "group": "badges",
+      "tier": "b=2x",
+      "size": [
+        32,
+        32
+      ],
+      "format": "png",
+      "primary": false,
+      "derivedFrom": "U-BADGE-13a",
+      "scale": 2,
+      "bytes": 218,
+      "sha256": "a2e30081ad1ad1091995f48c6261c7daf9bab94a7cf634a6e6d72fcf2060a8a5"
+    },
+    {
+      "file": "badges/U-BADGE-14a_16x16.png",
+      "assetId": "U-BADGE-14a",
+      "group": "badges",
+      "tier": "a=16 母版",
+      "size": [
+        16,
+        16
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 169,
+      "sha256": "b0e5449bb56d8d9ec2b717eaa0719d51ae6327988a72fb5265bc1bb6cc29b556"
+    },
+    {
+      "file": "badges/U-BADGE-14b_32x32.png",
+      "assetId": "U-BADGE-14b",
+      "group": "badges",
+      "tier": "b=2x",
+      "size": [
+        32,
+        32
+      ],
+      "format": "png",
+      "primary": false,
+      "derivedFrom": "U-BADGE-14a",
+      "scale": 2,
+      "bytes": 213,
+      "sha256": "90b82ca4b88865136729743be79c93126d81831e0838ef8d2732acddc08a01d0"
+    },
+    {
+      "file": "badges/U-BADGE-15a_16x16.png",
+      "assetId": "U-BADGE-15a",
+      "group": "badges",
+      "tier": "a=16 母版",
+      "size": [
+        16,
+        16
+      ],
+      "format": "png",
+      "primary": true,
+      "derivedFrom": null,
+      "scale": null,
+      "bytes": 205,
+      "sha256": "9e27094c21430a46300c9a67ff6e741adda957461076c56d31e8996343695b9f"
+    },
+    {
+      "file": "badges/U-BADGE-15b_32x32.png",
+      "assetId": "U-BADGE-15b",
+      "group": "badges",
+      "tier": "b=2x",
+      "size": [
+        32,
+        32
+      ],
+      "format": "png",
+      "primary": false,
+      "derivedFrom": "U-BADGE-15a",
+      "scale": 2,
+      "bytes": 251,
+      "sha256": "050321a371d5e46f33cfb80d60f75b3092a7cd01cc34ed324adf0b97548b2bea"
     }
   ]
 }

@@ -177,6 +177,9 @@
 | hover / drag / land / remind / mute / PTT | `U-IND-01..06`（12/16/24 三档） |
 | 折页簿 合 / 开 | `U-PROP-03b` / `U-PROP-04b` |
 | roleplay 入口 / 全年龄标识 / AI 标识 / 2h / 危机 / 退出 | `RP-001` / `RP-002` / `RP-003` / `RP-004` / `RP-005` / `RP-006` |
+| 待确认（审批等待） | U-BADGE-13a/b |
+| 工作完成 | U-BADGE-14a/b |
+| 等待中 / 处理中 | U-BADGE-15a/b |
 | app / tray | `U-ICON-01`(16) `U-ICON-02`(32) `U-ICON-03`(256) `U-ICON-04`(ICO) |
 
 ## 未做 / 仍需人工
@@ -186,3 +189,8 @@
 - `U-IND-05` 有声对偶（去斜杠 3 文件）、托盘 20/24、可选 spritesheet 未出（非 91 范围）。
 - roleplay 全年龄文案/热线（DOM/远端配置承载）与法务复核未做；图内无文字（RP-002 为无文字全年龄标识，不设年龄门）。
 
+## 2026-11-25 审批 HUD 扩展
+
+- 新增 U-BADGE-13a/b（待确认）、U-BADGE-14a/b（完成）、U-BADGE-15a/b（等待中）3 组 / 6 个资产文件。
+- 生成：art-rebuild/work/tools/gen_approval_ui.py，确定性 Pillow 像素绘制，无 AI/无网络；16px 母版 + 整数 2x。
+- 用途：dsh-famling 只读审批等待 HUD；不显示工具名/参数/会话 id；尚未接入 UI 代码。
