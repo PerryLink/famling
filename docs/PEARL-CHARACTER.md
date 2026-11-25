@@ -1,3 +1,5 @@
+> **2026-11-25 决策：Pearl 不再制作 final art。** 保留 `pearl-placeholder` 37 帧作为 hidden easter egg；不进入 final-art/内容包路线图。见 `docs/decisions/PEARL-NO-FINAL-ART-2026-11-25.md`。
+
 # Pearl — Character Bible v0.1
 
 Status: **draft for Phase 0 / Look Test; not final art.**
