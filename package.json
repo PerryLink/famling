@@ -1,7 +1,7 @@
 {
   "name": "famling-pet",
   "private": false,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "description": "Famling pet-only executable: Tinglan/cat/dog desktop pet (Tauri). Full game base stays private.",
   "scripts": {

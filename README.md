@@ -7,7 +7,7 @@
   <a href="LICENSE"><img alt="license" src="https://img.shields.io/github/license/PerryLink/famling" /></a>
 </p>
 
-> **状态：0.2.0 发布候选（unsigned，研究原型；approval-ready，尚未发布/未签名）。** 无 Authenticode 签名、无自动更新、无公开商店、无生产 DLC 根；本仓不声称已合规或可公开发布。
+> **状态：0.2.1 发布候选（unsigned，研究原型；approval-ready，尚未发布/未签名）。** 无 Authenticode 签名、无自动更新、无公开商店、无生产 DLC 根；本仓不声称已合规或可公开发布。
 > **非官方项目，不关联 DeepSeek。** 内容/角色为原创或已登记来源，AI 生成资产按仓内 AI-PROVENANCE 标注；模型许可 **UNVERIFIED**（见 [LICENSES.md](LICENSES.md)）。
 
 Famling 是一个 Windows 桌面像素桌宠 + DSH（DeepSeek Harness）客户端插件：480×336 无边框置顶小窗、三套 96×96 像素角色、四层缩放、存档自动保存与坏档恢复、内容角色包（安装/回滚/热切换）、低打扰安静时段与健康提醒。
@@ -69,6 +69,7 @@ cd app/tauri && npx --yes @tauri-apps/cli@2 build
 
 - **三套 96×96 像素动画**：2026-11-22 final art，共 **420 帧**（368 canonical + 52 alias；human 141 / cat 143 / dog 136 帧）；透明背景，跟随 DSH light/dark 的菜单与面板。帧数/来源/AI 模型许可（UNVERIFIED）见 [docs/ART-REBUILD-2026-11-22.md](docs/ART-REBUILD-2026-11-22.md)。
 - **独立桌面应用**：480×336 无边框透明置顶窗、贴边停靠与位置恢复、多屏/DPI clamp、拖拽物理；菜单/互动/设置/内容中心。
+- **原生生命周期（0.2.1）**：Windows 单实例互斥 + 已运行实例召回（按窗口标题置顶）；系统托盘「显示/召回」「退出」；崩溃时本地导出 JSON（`%APPDATA%\Famling\crashes`，无 env/参数/用户路径，导出失败不影响启动、不上传）。
 - **DSH 插件**：侧栏 72px、零常驻按钮、右键/Shift+F10 分级菜单；工作状态粗状态（idle/working/success/error）与气泡优先级。
 - **低打扰**：安静时段（默认 22:00–08:00）、减少动态、暂时隐藏、健康提醒；所有自动源可跳过，不补打扰。
 - **内容与角色**：角色包安装/更新/卸载/回滚/热切换；内容包 v2/v3（许可、AI provenance、compatibility）+ 离线市场 UI（生产服务器未接）。
@@ -93,7 +94,7 @@ cd app/tauri && npx --yes @tauri-apps/cli@2 build
 
 ## 已知限制（如实披露）
 
-- unsigned 0.2.0 候选：exe/安装器 NotSigned；无 updater/签名证书；无生产 DLC 信任根。
+- unsigned 0.2.1 候选：exe/安装器 NotSigned；无 updater/签名证书；无生产 DLC 信任根。
 - Windows only（桌面 app）；公开导出不含私有 monorepo 的测试/证据链，C1 可复现证据在私有侧维护。
 - 本仓 GitHub Actions 为 pet-only Windows 构建：`npm ci` → typecheck → build → 三角色 `validate:character --strict` 门禁 + unsigned artifact；tag 构建生成 `SHA256SUMS.txt`/`BUILD-INFO.txt` 并创建 unsigned Release（不做签名）。
 - 市场/支付/审核/运营服务器不存在；内容包市场只做离线 UI 与协议。
@@ -111,7 +112,7 @@ cd app/tauri && npx --yes @tauri-apps/cli@2 build
 - `public/assets/pet/anim/`：三套 96×96 final art 与 manifest；
 - `public/legal/`：TOS/隐私/使用限制；`docs/`：设计与契约文档；
 - `demo/`：GitHub Pages 在线预览源码；`docs/demo/`：README 用 GIF/截图；
-- `CHANGELOG.md` / `LICENSES.md`：0.2.0 变更与许可清单。
+- `CHANGELOG.md` / `LICENSES.md`：0.2.1 变更与许可清单。
 
 ## 历史说明（2026-11-18）
 

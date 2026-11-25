@@ -9,6 +9,42 @@ PolyForm Noncommercial 1.0.0; pet/UI art is under CC BY-NC-SA 4.0. Keep both
 license fields unchanged when preparing releases. Legal texts remain **DRAFT**;
 "approval-ready" means ready for owner/legal approval, not approved or released.
 
+## [0.2.1] — 2026-11-25 (unsigned, approval-ready, no updater)
+
+### Added
+
+- **Windows single instance + recall.** A named kernel mutex
+  (`Local\Famling.SingleInstance.v1`) is created with `windows-sys` only (no
+  new crate). A second launch finds the running pet window by its configured
+  title (`Famling · 汀岚`), calls `ShowWindow(SW_SHOW)` +
+  `SetForegroundWindow`, then exits with code 0. Non-Windows builds keep a
+  no-op path.
+- **System tray.** `tauri` now enables the `tray-icon` feature: the tray uses
+  the app default window icon and a menu with **显示/召回** (show + focus the
+  pet) and **退出** (`app.exit(0)`). Tray setup is fail-soft (stderr log, never
+  aborts startup) and adds no ACL/permission entries.
+- **Local crash export.** A Rust panic hook installed before the Tauri builder
+  writes one JSON file to `%APPDATA%\Famling\crashes\crash-<epoch>.json` with
+  `version`, `timestamp`, `thread`, `message`, `location`. Text is bounded,
+  user-path prefixes are redacted, no env vars or CLI args are recorded, and a
+  re-entry guard plus `catch_unwind` keep the hook itself from panicking.
+
+### Changed
+
+- Version bumped to **0.2.1** in `package.json`, `package-lock.json`,
+  `app/tauri/src-tauri/Cargo.toml`, `app/tauri/src-tauri/tauri.conf.json`, and
+  the `famling-tauri` entry in `Cargo.lock`.
+- `windows-sys` gains `Win32_System_Threading`; existing feature flags kept.
+- `docs/STATUS.md`, `README.md` and `app/tauri/README.md` note the native
+  lifecycle behaviour and reuse the same unsigned/no-updater release caveats.
+
+### Release notes
+
+- Builds are **unsigned** (no Authenticode certificate, no signing step, no
+  signing secrets), **no auto-updater**, no store listing; 0.2.1 is an
+  approval-ready candidate, not a published or approved release.
+- Crash reports are local-only; nothing is uploaded.
+
 ## [0.2.0] — 2026-11-25 (release candidate, unsigned, approval-ready)
 
 ### Changed

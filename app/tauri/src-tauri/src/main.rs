@@ -11,6 +11,226 @@ use tauri::Manager;
 mod secret;
 mod voice;
 
+// ---------------------------------------------------------------------------
+// Native lifecycle: crash export, Windows single instance + recall, tray.
+// ---------------------------------------------------------------------------
+
+/// Maximum characters of a panic message stored in a crash report.
+const CRASH_MESSAGE_LIMIT: usize = 4096;
+
+/// Window title configured for the installed pet window (tauri.conf.json).
+#[cfg(windows)]
+const PET_WINDOW_TITLE: &str = "Famling · 汀岚";
+
+/// Named kernel mutex that marks "one Famling instance is running".
+#[cfg(windows)]
+const SINGLE_INSTANCE_MUTEX: &str = "Local\\Famling.SingleInstance.v1";
+
+/// Set while the crash hook runs; prevents a panic inside the hook from
+/// re-entering it (the hook must never recurse).
+static CRASH_HOOK_RUNNING: AtomicBool = AtomicBool::new(false);
+
+/// Folder for local crash reports: %APPDATA%\\Famling\\crashes on Windows.
+fn crash_report_dir() -> Option<std::path::PathBuf> {
+    #[cfg(windows)]
+    {
+        let base = std::env::var_os("APPDATA")?;
+        Some(std::path::PathBuf::from(base).join("Famling").join("crashes"))
+    }
+    #[cfg(not(windows))]
+    {
+        Some(std::env::temp_dir().join("Famling").join("crashes"))
+    }
+}
+
+/// Allocation-only bounded copy for crash reports; never panics.
+fn bounded_text(value: &str, max_chars: usize) -> String {
+    let mut out = String::new();
+    let mut chars = value.chars();
+    for _ in 0..max_chars {
+        match chars.next() {
+            Some(ch) => out.push(ch),
+            None => return out,
+        }
+    }
+    if chars.next().is_some() {
+        out.push_str("…[truncated]");
+    }
+    out
+}
+
+/// Replace user-specific directory prefixes so a crash report never stores a
+/// user path. Environment variables themselves are never recorded.
+fn redact_user_paths(value: &str) -> String {
+    let mut out = value.to_string();
+    for key in ["USERPROFILE", "APPDATA", "LOCALAPPDATA", "HOME"] {
+        if let Some(path) = std::env::var_os(key) {
+            let Some(path) = path.to_str() else { continue };
+            if path.len() < 3 {
+                continue;
+            }
+            out = out.replace(path, "<redacted>");
+            let forward = path.replace('\\', "/");
+            if forward != path {
+                out = out.replace(forward.as_str(), "<redacted>");
+            }
+        }
+    }
+    out
+}
+
+/// Write exactly one JSON crash report (crash-<epoch>.json). Returns the
+/// path when the file was written; every failure is swallowed.
+fn write_crash_report(message: &str, thread: &str, location: &str) -> Option<std::path::PathBuf> {
+    let dir = crash_report_dir()?;
+    fs::create_dir_all(&dir).ok()?;
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|elapsed| elapsed.as_secs())
+        .unwrap_or(0);
+    let report = serde_json::json!({
+        "version": env!("CARGO_PKG_VERSION"),
+        "timestamp": timestamp,
+        "thread": redact_user_paths(&bounded_text(thread, 128)),
+        "message": redact_user_paths(&bounded_text(message, CRASH_MESSAGE_LIMIT)),
+        "location": redact_user_paths(&bounded_text(location, 512)),
+    });
+    let path = dir.join(format!("crash-{timestamp}.json"));
+    fs::write(&path, report.to_string()).ok()?;
+    Some(path)
+}
+
+/// Install the crash-export panic hook. Must run before the Tauri builder so a
+/// startup or host panic still leaves one local JSON report; the previous hook
+/// keeps printing the usual stderr message. No env vars, CLI args or user
+/// paths are collected.
+fn install_crash_hook() {
+    let previous_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        if !CRASH_HOOK_RUNNING.swap(true, Ordering::SeqCst) {
+            // The hook itself must never unwind into the panic machinery.
+            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let payload = info.payload();
+                let message = if let Some(text) = payload.downcast_ref::<&str>() {
+                    (*text).to_string()
+                } else if let Some(text) = payload.downcast_ref::<String>() {
+                    text.clone()
+                } else {
+                    "<non-string panic payload>".to_string()
+                };
+                let location = info
+                    .location()
+                    .map(|loc| format!("{}:{}:{}", loc.file(), loc.line(), loc.column()))
+                    .unwrap_or_else(|| "<unknown>".to_string());
+                let thread = std::thread::current()
+                    .name()
+                    .map(str::to_string)
+                    .unwrap_or_else(|| "<unnamed>".to_string());
+                if let Some(path) = write_crash_report(&message, &thread, &location) {
+                    eprintln!("[famling] crash report: {}", path.display());
+                }
+            }));
+            CRASH_HOOK_RUNNING.store(false, Ordering::SeqCst);
+        }
+        previous_hook(info);
+    }));
+}
+
+/// Windows single instance: a named kernel mutex marks the running app. A
+/// second launch recalls the existing pet window (show + foreground) and
+/// exits 0. Fails open: a mutex problem never blocks startup.
+#[cfg(windows)]
+fn ensure_single_instance() {
+    use std::ffi::OsStr;
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::Foundation::{GetLastError, SetLastError, ERROR_ALREADY_EXISTS};
+    use windows_sys::Win32::System::Threading::CreateMutexW;
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        FindWindowW, SetForegroundWindow, ShowWindow, SW_SHOW,
+    };
+
+    let mutex_name: Vec<u16> = OsStr::new(SINGLE_INSTANCE_MUTEX)
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+    unsafe { SetLastError(0) };
+    // The handle is deliberately never closed: keeping the mutex alive for the
+    // whole process lifetime is what marks this process as the first instance.
+    let mutex = unsafe { CreateMutexW(std::ptr::null(), 0, mutex_name.as_ptr()) };
+    if mutex.is_null() {
+        eprintln!("[famling] single-instance mutex unavailable; continuing without it");
+        return;
+    }
+    if unsafe { GetLastError() } != ERROR_ALREADY_EXISTS {
+        return;
+    }
+
+    // Another instance owns the mutex: bring its configured pet window back.
+    let title: Vec<u16> = PET_WINDOW_TITLE
+        .encode_utf16()
+        .chain(std::iter::once(0))
+        .collect();
+    let window = unsafe { FindWindowW(std::ptr::null(), title.as_ptr()) };
+    if !window.is_null() {
+        unsafe {
+            ShowWindow(window, SW_SHOW);
+            SetForegroundWindow(window);
+        }
+    }
+    eprintln!("[famling] already running; recalled existing window, exiting");
+    std::process::exit(0);
+}
+
+#[cfg(not(windows))]
+fn ensure_single_instance() {}
+
+/// Build the tray icon and menu; the caller turns errors into a log line.
+fn build_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
+    use tauri::menu::{Menu, MenuItem};
+    use tauri::tray::TrayIconBuilder;
+
+    let show_item = MenuItem::with_id(app, "show", "显示/召回", true, None::<&str>)?;
+    let quit_item = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&show_item, &quit_item])?;
+
+    let mut builder = TrayIconBuilder::new()
+        .tooltip("Famling · 汀岚")
+        .menu(&menu)
+        .show_menu_on_left_click(true)
+        .on_menu_event(|app, event| match event.id.as_ref() {
+            "show" => recall_pet_window(app),
+            "quit" => app.exit(0),
+            _ => {}
+        });
+    if let Some(icon) = app.default_window_icon() {
+        builder = builder.icon(icon.clone());
+    }
+    builder.build(app)?;
+    Ok(())
+}
+
+/// Best-effort system tray: any failure is logged to stderr and startup
+/// continues without a tray icon (no fatal error, no new permissions).
+fn setup_tray(app: &tauri::AppHandle) {
+    if let Err(error) = build_tray(app) {
+        eprintln!("[famling] system tray unavailable: {error}");
+    }
+}
+
+/// Show and focus the pet window (main label for installed builds, pet label
+/// for the --game=pet route; otherwise the first live window).
+fn recall_pet_window(app: &tauri::AppHandle) {
+    let window = app
+        .get_webview_window("main")
+        .or_else(|| app.get_webview_window("pet"))
+        .or_else(|| app.webview_windows().into_values().next());
+    if let Some(window) = window {
+        let _ = window.show();
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+    }
+}
+
 /// Interactive rectangles (CSS px, viewport-relative) reported by the pet page.
 struct HitRegions {
     regions: Mutex<Vec<[f64; 4]>>,
@@ -363,6 +583,10 @@ fn place_bottom(window: &tauri::WebviewWindow) {
 }
 
 fn main() {
+    // Local crash export and the Windows single-instance guard must be in
+    // place before any Tauri setup runs.
+    install_crash_hook();
+    ensure_single_instance();
     tauri::Builder::default()
         .on_permission_request(|webview, kind| {
             // PTT is only used by the pet window; keep every other webview on default.
@@ -378,6 +602,8 @@ fn main() {
                 ready: AtomicBool::new(false),
             });
             start_pet_hit_test_loop(app.handle().clone());
+            // Optional, fail-soft: tray icon + "显示/召回" / "退出" menu.
+            setup_tray(app.handle());
             // Optional --size=WxH / --bench for W1 window experiments.
             let args: Vec<String> = std::env::args().collect();
             let hidden = args.iter().any(|arg| arg == "--hidden");

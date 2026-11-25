@@ -1,6 +1,6 @@
 [package]
 name = "famling-tauri"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 description = "Tauri host for Famling (pet-only public export)"
 license-file = "../../../LICENSE"
@@ -10,7 +10,7 @@ publish = false
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["tray-icon"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "multipart"] }
@@ -21,4 +21,4 @@ default = []
 custom-protocol = ["tauri/custom-protocol"]
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_UI_Shell", "Win32_Storage_FileSystem", "Win32_Security_Cryptography", "Win32_System_Memory", "Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
+windows-sys = { version = "0.61", features = ["Win32_UI_Shell", "Win32_Storage_FileSystem", "Win32_Security_Cryptography", "Win32_System_Memory", "Win32_Foundation", "Win32_System_Threading", "Win32_UI_WindowsAndMessaging"] }
