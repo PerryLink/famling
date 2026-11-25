@@ -10,6 +10,8 @@ use tauri::Manager;
 
 mod secret;
 mod voice;
+#[cfg(windows)]
+mod native_pet;
 
 // ---------------------------------------------------------------------------
 // Native lifecycle: crash export, Windows single instance + recall, tray.
@@ -683,6 +685,37 @@ fn main() {
                     place_bottom_right(&main);
                 }
             }
+            // Architecture A opt-in: render the pet in a raw Win32 layered
+            // window instead of the transparent WebView2 window. Default stays
+            // web until the native renderer passes the real-machine gates.
+            let native_renderer = args.iter().any(|arg| arg == "--pet-renderer=native")
+                || std::env::var("FAMLING_PET_RENDERER")
+                    .map(|v| v.eq_ignore_ascii_case("native"))
+                    .unwrap_or(false);
+            if native_renderer {
+                let character = args
+                    .iter()
+                    .find_map(|arg| arg.strip_prefix("--pet-native-char="))
+                    .map(str::to_owned)
+                    .or_else(|| std::env::var("FAMLING_PET_NATIVE_CHAR").ok())
+                    .unwrap_or_else(|| "dog".to_string());
+                if let Some(main) = app.get_webview_window("main") {
+                    let _ = main.hide();
+                }
+                #[cfg(windows)]
+                {
+                    match native_pet::spawn(app.handle().clone(), &character) {
+                        Ok(()) => eprintln!("[famling] native pet renderer active ({character})"),
+                        Err(error) => {
+                            eprintln!("[famling] native pet init failed, falling back to web: {error}");
+                            if let Some(main) = app.get_webview_window("main") {
+                                let _ = main.show();
+                            }
+                        }
+                    }
+                }
+            }
+
             if hidden {
                 for window in app.webview_windows().values() {
                     let _ = window.hide();
