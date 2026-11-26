@@ -130,10 +130,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $notes = @'
-          Famling pet-only Windows release (UNSIGNED, approval-ready candidate).
+          Famling pet-only Windows release 0.2.4 (UNSIGNED, approval-ready candidate).
 
           - Public pet-only export; desktop app is a 480x336 transparent always-on-top window.
-          - Final pixel art/UI metadata truth: human/cat/dog 2026-11-22 final art, 420 frames incl. aliases; see docs/ART-REBUILD-2026-11-22.md.
+          - Experimental native Win32 pet renderer included; opt-in via --pet-renderer=native; web remains default.
+          - Pet art is pinned to the 0.2.3 final-art set in this release; no new art frames are shipped.
           - Build is unsigned: no Authenticode certificate, no signing step, no signing secrets. Windows SmartScreen will warn; use 'More info -> Run anyway' after verifying SHA256SUMS.txt.
           - Artifacts include SHA256SUMS.txt + BUILD-INFO.txt; verify assets before running.
           - No auto-updater, no store listing, no DLC/market server.

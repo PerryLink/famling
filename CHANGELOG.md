@@ -1,9 +1,21 @@
 # Changelog
 
-## [Unreleased] — native pet window (opt-in)
+## [0.2.4] — 2026-11-26
 
-- Add raw Win32 per-pixel-alpha pet renderer (`--pet-renderer=native`), default web unchanged.
-- Embed final-art idle frames via build.rs; add native window architecture research/phase plan.
+### Added
+
+- Experimental native Win32 pet renderer is included in the public source and CI build (`--pet-renderer=native`, default remains web). Uses `UpdateLayeredWindow(ULW_ALPHA)` with per-pixel alpha and embedded 96×96 frames.
+- Native pet PNGs are embedded at compile time via `build.rs`, so the portable executable has no runtime asset dependency.
+
+### Changed
+
+- Version bump only; **pet art is pinned to the 0.2.3 final-art set** while the new art pipeline is validated. No art-frame changes in this release.
+- README/STATUS note the native opt-in, unsigned/no-updater release caveats, and AI-model license remains UNVERIFIED.
+
+### Known limitations
+
+- Native mode is opt-in and idle/drag only; no native bubbles/pat-parity yet. Web mode remains the default.
+- Cat/dog/human art defects and H3-derived-art licensing remain open; no new art is shipped in 0.2.4.
 
 All notable changes to this repository are documented here. This public export is
 the pet-only Famling desktop app (`famling-pet`); the DSH plugin

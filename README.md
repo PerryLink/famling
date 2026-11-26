@@ -7,7 +7,7 @@
   <a href="LICENSE"><img alt="license" src="https://img.shields.io/github/license/PerryLink/famling" /></a>
 </p>
 
-> **状态：0.2.3 发布候选（unsigned，研究原型；approval-ready，尚未发布/未签名）。** 无 Authenticode 签名、无自动更新、无公开商店、无生产 DLC 根；本仓不声称已合规或可公开发布。
+> **状态：0.2.4 发布候选（unsigned，研究原型；approval-ready，尚未发布/未签名）。** 无 Authenticode 签名、无自动更新、无公开商店、无生产 DLC 根；本仓不声称已合规或可公开发布。
 > **非官方项目，不关联 DeepSeek。** 内容/角色为原创或已登记来源，AI 生成资产按仓内 AI-PROVENANCE 标注；模型许可 **UNVERIFIED**（见 [LICENSES.md](LICENSES.md)）。
 
 Famling 是一个 Windows 桌面像素桌宠 + DSH（DeepSeek Harness）客户端插件：480×336 无边框置顶小窗、三套 96×96 像素角色、四层缩放、存档自动保存与坏档恢复、内容角色包（安装/回滚/热切换）、低打扰安静时段与健康提醒。

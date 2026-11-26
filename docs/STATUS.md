@@ -1,12 +1,12 @@
 # STATUS（公开 pet-only 仓）
 
 > 本文件是 **PerryLink/famling 公开仓** 的状态摘要，手工维护；不是私有 `desktop-games` monorepo 的 STATUS 真值。
-> 更新日期：2026-11-25
+> 更新日期：2026-11-26
 
 ## 当前状态
 
 - 仓：`PerryLink/famling`，默认分支 `main`，公开 pet-only 完整可执行源码（source-available，非 OSI 开源）。
-- 版本：**0.2.3 发布候选（approval-ready，尚未签名/发布）**；`package.json`、`package-lock.json`、`app/tauri/src-tauri/tauri.conf.json`、`app/tauri/src-tauri/Cargo.toml` 均为 `0.2.3`。上一个发行：`famling-pet-v0.1.0`（unsigned Windows 安装包 + portable zip；SHA256 随 Release）。
+- 版本：**0.2.4 发布候选（approval-ready，尚未签名/发布）**；`package.json`、`package-lock.json`、`app/tauri/src-tauri/tauri.conf.json`、`app/tauri/src-tauri/Cargo.toml` 均为 `0.2.4`。上一个发行：`famling-pet-v0.1.0`（unsigned Windows 安装包 + portable zip；SHA256 随 Release）。
 - CI/构建：`.github/workflows/build-windows.yml`（Windows runner，Node 22.16，Tauri unsigned）现在依次执行 `npm ci` → `npm run typecheck` → `npm run build` → 三角色 `validate:character --strict`（脚本：`npm run validate:character -- <角色目录> --strict`）；tag 构建生成 `SHA256SUMS.txt` + `BUILD-INFO.txt`，保留 artifact `famling-pet-windows-unsigned`。**无签名、无自动更新、无商店。**
 - 美术：2026-11-22 final art（三只角色，96×96，共 420 帧 = 368 canonical + 52 alias；human 29 tags/141 帧、cat 29 tags/143 帧、dog 28 tags/136 帧），随 `art-delivery-2026-11-22` release 提供交付包；本仓 `public/assets/pet/anim/` 为 final art。UI 为 final manifest **97 件资产 / 103 文件**（2026-11-22 final + 2026-11-25 审批 HUD 徽章，确定性本地绘制、无 AI 模型）。来源、验证与 AI 模型许可（**UNVERIFIED**）见 [ART-REBUILD-2026-11-22.md](ART-REBUILD-2026-11-22.md)。
 - 原生生命周期（0.2.3）：Windows 单实例命名互斥 + 已运行实例召回（按窗口标题 `Famling · 汀岚` 置顶）；系统托盘菜单「显示/召回」「退出」（fail-soft，无新增权限）；Rust panic hook 崩溃导出 JSON 至 `%APPDATA%\Famling\crashes`（version/timestamp/thread/message/location，无 env/参数/用户路径，本地不上传，导出失败不影响启动）。
